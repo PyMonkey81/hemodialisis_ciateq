@@ -1,0 +1,61 @@
+Esta aplicación usa PySide6 bajo LGPL v3.
+Fuente de PySide6: https://code.qt.io/cgit/pyside/pyside-setup.git/
+Puedes obtener el código fuente de PySide6 en: [URL oficial].
+Maquina de Hemodialisis  © CIATEQ A.C. 2025. Licencia propietaria.
+
+
+Este producto incluye software licenciado bajo la licencia LGPLv3:
+
+Licencia LGPLv3:
+- Puedes usar, modificar y distribuir las bibliotecas LGPL en tu producto.
+- Se incluyen las DLLs de Qt6 que deben acompañar a este software.
+- Puedes reemplazar o modificar las DLLs LGPL en cualquier momento.
+- Para detalles completos, consulta: https://www.gnu.org/licenses/lgpl-3.0.html
+
+Nota:
+- Las DLLs de Qt6 distribuidas en este paquete son LGPL.
+- Si distribuyes esta aplicación, debes incluir las DLLs LGPL junto con ella.
+- Asegúrate de mantener la licencia y el aviso de LGPL en la distribución.
+
+Para información adicional sobre Qt para Python:
+- Sitio oficial: https://wiki.qt.io/Download
+- Código fuente y DLLs necesarias disponibles en: https://download.qt.io/official_releases/qt/
+
+
+
+============== NUEVA LICENCIA DE USO =============================
+
+Esta aplicación utiliza PySide6 bajo la Licencia LGPL v3.
+Fuente de PySide6: https://code.qt.io/cgit/pyside/pyside-setup.git/
+Puedes obtener el código fuente de PySide6 en: [URL oficial].
+
+Máquina de Hemodiálisis © CIATEQ A.C. 2025. Licencia propietaria.
+
+Este producto incluye software licenciado bajo la Licencia LGPL v3. Los derechos y obligaciones son los siguientes:
+
+- Puedes usar, modificar y distribuir las bibliotecas LGPL en tu producto.
+- Se incluyen las DLLs de Qt6 que deben acompañar a este software.
+- Puedes reemplazar o modificar las DLLs LGPL en cualquier momento.
+- Para detalles completos, consulta: https://www.gnu.org/licenses/lgpl-3.0.html.
+
+Nota:
+- Las DLLs de Qt6 distribuidas en este paquete son LGPL.
+- Si distribuyes esta aplicación, debes incluir las DLLs LGPL junto con ella.
+- Asegúrate de mantener la licencia y el aviso de LGPL en la distribución.
+
+Para información adicional sobre Qt para Python:
+- Sitio oficial: https://wiki.qt.io/Download
+- Código fuente y DLLs necesarias disponibles en: https://download.qt.io/official_releases/qt/
+
+
+
+LICENCIAS DE DEPENDENCIAS – PROYECTO HEMODIÁLISIS HD-2000
+Todas las librerías usadas son open-source y compatibles con dispositivos médicos:
+
+- PySide6 (Qt for Python): LGPL v3 + Qt Indemnity (protección legal gratuita)
+- PySerial: BSD-3 Clause
+- NumPy/Pandas: BSD-3 Clause
+- Otras: MIT / Apache 2.0
+
+No existe riesgo legal de uso ni distribución en máquinas de hemodiálisis.
+Referencia: https://www.qt.io/licensing/open-source-lgpl-obligations

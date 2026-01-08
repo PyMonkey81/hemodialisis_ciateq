@@ -1,0 +1,108 @@
+{
+  "nombres": [
+    "Presión Arterial",
+    "Presión Venosa",
+    "Flujo Dializante",
+    "Flujo de Sangre",
+    "Ultra Filtración",
+    "Conductividad",
+    "Temp. Líquido Dializante",
+    "Fuga en Sangre",
+    "Detección de Aire",
+    "Suministro de Agua",
+    "Suministro Eléctrico",
+    "Presión Arterial No Invasiva"
+  ],
+  "limites": [
+    [
+      50.0,
+      200.0
+    ],
+    [
+      20.0,
+      150.0
+    ],
+    [
+      400.0,
+      800.0
+    ],
+    [
+      200.0,
+      600.0
+    ],
+    [
+      0.0,
+      1000.0
+    ],
+    [
+      13.5,
+      14.5
+    ],
+    [
+      35.0,
+      39.0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ]
+  ],
+  "niveles": [
+    "rojo",
+    "rojo",
+    "amarillo",
+    "amarillo",
+    "amarillo",
+    "amarillo",
+    "amarillo",
+    "rojo",
+    "rojo",
+    "amarillo",
+    "cian",
+    "cian"
+  ],
+  "tipos": [
+    "double",
+    "double",
+    "double",
+    "double",
+    "double",
+    "double",
+    "double",
+    "bool",
+    "bool",
+    "bool",
+    "bool",
+    "bool"
+  ],
+  "trigger_booleano": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true
+  ]
+}
