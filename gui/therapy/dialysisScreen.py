@@ -34,7 +34,7 @@ class ValorSimple(QWidget):
         layout.setSpacing(15)
 
         lbl_titulo = QLabel(titulo)
-        lbl_titulo.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: bold;")
+        lbl_titulo.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: bold;")  #   <------------------ camio de color para tema
         lbl_titulo.setMinimumWidth(180)
         layout.addWidget(lbl_titulo)
 
@@ -54,7 +54,7 @@ class ValorSimple(QWidget):
         layout.addWidget(self.lbl_valor)
 
         lbl_unidad = QLabel(unidad)
-        lbl_unidad.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: bold;")
+        lbl_unidad.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: bold;") # <--------- cambio de color para tema
         layout.addWidget(lbl_unidad)
         layout.addStretch()
 
@@ -80,7 +80,7 @@ class dialysisScr(QWidget):
         # Fondo 
         self.setAutoFillBackground(True)
         p = self.palette()
-        p.setColor(self.backgroundRole(), QColor("#0f172a"))
+        p.setColor(self.backgroundRole(), QColor("#00594c")) #  #0f172a"
         self.setPalette(p)
         
         # --- CAMBIO 1: Eliminamos el QTimer interno ---

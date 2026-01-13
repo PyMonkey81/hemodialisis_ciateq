@@ -2,10 +2,17 @@
 
 import sys
 import os
+import ctypes
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QGuiApplication
 from gui.appMainHemodialisis import HemodialisisHMI
+
+try:    
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)
+except Exception:    
+    ctypes.windll.user32.SetProcessDPIAware()
+
 
 class ScaledHMI(QMainWindow):
     def __init__(self):

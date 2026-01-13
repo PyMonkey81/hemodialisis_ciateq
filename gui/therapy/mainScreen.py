@@ -26,7 +26,7 @@ class mainScr(QWidget):
         titulo.setStyleSheet("""
             font-size: 56px;
             font-weight: bold;
-            color: #bfbfbf;
+            color: #ffffff;
             background: transparent;
             padding: 20px;
         """)

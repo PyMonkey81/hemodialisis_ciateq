@@ -66,9 +66,9 @@ class HemodialisisHMI(QMainWindow):
        
         # 1. Crear estructura visual (ventana, label y stacked)
         self.setup_ui()
-        self.actualizar_label_pantalla("Inicio", "#ffffff")
+        self.actualizar_label_pantalla("Inicio", "#000000")     # <-------------cambio de color para en un futuro hacer temas 
         self.setFixedSize(1920, 1080) # Tamaño resolución de monitor
-        self.setStyleSheet("background: #090c33;")
+        self.setStyleSheet("background: #00594c ;") ##090c33          <--------------------------- para consideracion de temas de colores 
 
         # 2. Iniciar comunicación serial
         #  === COMUNICACIÓN SERIAL ===    
@@ -200,7 +200,7 @@ class HemodialisisHMI(QMainWindow):
         #================================================================       
         header_container = QWidget()
         header_container.setFixedHeight(177)
-        header_container.setStyleSheet("background: #090c33;")  # color de header 1f2c45
+        header_container.setStyleSheet("background: #00594c;")  # color de header 1f2c45  #6464E8  #090c33 #8686D9 <--------------------- tema de header
         header = QHBoxLayout(header_container)
         header.setContentsMargins(30, 20, 30, 20)
         header.setSpacing(20)
@@ -254,8 +254,8 @@ class HemodialisisHMI(QMainWindow):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(0)
 
-        self.gauge_art = TankGauge("Presión\nArterial", -100, 400, "mmHg", "#dc2626")
-        self.gauge_ven = TankGauge("Presión\nVenosa", -50, 400, "mmHg", "#1640f9")
+        self.gauge_art = TankGauge("Art", -100, 400, "mmHg", "#dc2626")
+        self.gauge_ven = TankGauge("Ven", -50, 400, "mmHg", "#1640f9")
         self.gauge_art.setFixedSize(192, 451)
         self.gauge_ven.setFixedSize(192, 452)
         left_layout.addWidget(self.gauge_art)
@@ -281,7 +281,7 @@ class HemodialisisHMI(QMainWindow):
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(0)
 
-        self.gauge_tempDial = TankGauge("Temperatura\nDializante", 0 ,50, "°C","#A31A1A")
+        self.gauge_tempDial = TankGauge("Temp.\nDial", 0 ,50, "°C","#A31A1A")
         self.powbar = ConductivityBar()
         self.gauge_tempDial.setFixedWidth(192)        
         self.powbar.setFixedWidth(192)
@@ -297,7 +297,7 @@ class HemodialisisHMI(QMainWindow):
     
         nav = QWidget()
         nav.setFixedSize(1536, 177)
-        nav.setStyleSheet("background: #090c33;")
+        nav.setStyleSheet("background:  #00594c;") # #090c33 <------------------- aqui tambien se cambiaria para hacer un tema diferente
         nav_layout = QHBoxLayout(nav)
         nav_layout.setContentsMargins(40, 20, 40, 20)
         nav_layout.setSpacing(10)
@@ -305,12 +305,12 @@ class HemodialisisHMI(QMainWindow):
         self.botones_nav = {} 
 
         botones = [
-            ("Inicio", "#1b10b9", self.mostrar_pantalla_principal), # index 0
-            ("Diálisis", "#1b10b9", self.mostrar_pantalla_dialisis), # index 1
-            ("Tipo de\nTratamiento", "#1B10B9", self.mostrar_pantalla_modo), # indes 2   ====================================modificar el nombre de esta pantalla para que coincida con el de labview, que es la seleccion del modo de operación
-            ("Limpieza", "#1b10b9", self.mostrar_pantalla_limpieza), # index 3
-            ("Parámetros\n de sistema", "#1b10b9", self.mostrar_pantalla_ajustes), # index 4
-            ("Alarmas", "#1b10b9", self.mostrar_pantalla_alarmas), # index 5           
+            ("Inicio", "#333333", self.mostrar_pantalla_principal), # index 0 1b10b9
+            ("Diálisis", "#333333", self.mostrar_pantalla_dialisis), # index 1
+            ("Tipo de\nTratamiento", "#333333", self.mostrar_pantalla_modo), # indes 2   ====================================modificar el nombre de esta pantalla para que coincida con el de labview, que es la seleccion del modo de operación
+            ("Limpieza", "#333333", self.mostrar_pantalla_limpieza), # index 3
+            ("Parámetros\n de sistema", "#333333", self.mostrar_pantalla_ajustes), # index 4
+            ("Alarmas", "#333333", self.mostrar_pantalla_alarmas), # index 5           
             ("Salir", "#dc2626", self.close),
         ]
         

@@ -157,7 +157,7 @@ class ConductivityBar(QWidget):
 
         self.n_steps = len(self.colors)
         self._bar_solid_percent = 0.90
-        self._background_color = QColor("#090c33")
+        self._background_color = QColor("#00594c") #"#090c33" 
         self._padding = 18
 
     def setValue(self, value):
@@ -232,7 +232,7 @@ class ConductivityBar(QWidget):
             )
 
         # === Valor grande ===
-        painter.setPen(QPen(QColor("#f3f4f5")))
+        painter.setPen(QPen(QColor("#ffffff")))
         # Ajustar fuente según tamaño si es necesario, pero 38 está bien para >200px
         painter.setFont(QFont("Segoe UI", 38, QFont.Bold))
         painter.drawText(0, h - 100, w, 50, Qt.AlignCenter, f"{self.value:.2f}")

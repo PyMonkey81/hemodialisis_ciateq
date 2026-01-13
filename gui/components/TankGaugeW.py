@@ -34,7 +34,7 @@ class TankGauge(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         # 2. FONDO
-        painter.fillRect(0, 0, w, h, QColor("#090c33")) # Fondo oscuro panel
+        painter.fillRect(0, 0, w, h, QColor("#00594c")) # Fondo oscuro panel "#090c33" <----- para cambio de fondo 
 
         # 3. CÁLCULOS DE GEOMETRÍA
         # Márgenes seguros
@@ -80,7 +80,7 @@ class TankGauge(QWidget):
         # 7. TEXTOS
         # Título
         painter.setPen(QColor("#ffffff"))
-        painter.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        painter.setFont(QFont("Segoe UI", 22, QFont.Bold))
         painter.drawText(0, 15, w, 60, Qt.AlignCenter, self.titulo)
 
         # Valor
