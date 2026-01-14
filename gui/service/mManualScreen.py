@@ -358,7 +358,7 @@ class mManualScr(QWidget):
         grid.addWidget(lbl_purga, 6, 0)
 
         self.toggle_purga = ToggleSwitch(width=70, height=35)
-        self.toggle_purga.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyserPumpStartButton,dialyserPumpStopButton",chk))
+        self.toggle_purga.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyPurgePumpStartButt,dialyPurgePumpStopButt",chk))
         grid.addWidget(self.toggle_purga, 6, 1)
 
         self.lbl_indPurga = QLabel("0.0")
