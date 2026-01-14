@@ -14,7 +14,7 @@ from gui.therapy.mainScreen import mainScr
 from gui.therapy.dialysisScreen import dialysisScr
 from gui.components.rVariables import VentanaVariables
 from gui.components.TankGaugeW import TankGauge
-from resources.variables_map_respaldo import VARIABLES
+from core.variables_map import VARIABLES
 
 
 class HemodialisisHMI(QMainWindow):

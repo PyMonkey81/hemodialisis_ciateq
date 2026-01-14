@@ -16,7 +16,7 @@ from gui.therapy.dialysisScreen import dialysisScr
 from gui.components.rVariables import VentanaVariables
 from gui.components.TankGaugeW import TankGauge
 from gui.components.PowerBar import ConductivityBar
-from resources.variables_map_respaldo import VARIABLES
+from core.variables_map import VARIABLES
 
 
 def resource_path(relative_path):

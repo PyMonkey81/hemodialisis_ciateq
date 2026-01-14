@@ -247,22 +247,139 @@ class mManualScr(QWidget):
         lbl_e_tOpBD.setFixedSize(100,35)
         grid.addWidget(lbl_e_tOpBD, 2, 4)
 
-        self.lbl_tiempo_OpBD = QLineEdit("00:00:00")
+        self.lbl_tiempo_OpBD = QLineEdit("00:00")
         self.lbl_tiempo_OpBD.setStyleSheet(style_input)
         self.lbl_tiempo_OpBD.setFixedSize(100,35)
         grid.addWidget(self.lbl_tiempo_OpBD,2,5)
 
+        lbl_e_tRestBD = QLabel("T. Restante")
+        lbl_e_tRestBD.setStyleSheet(style_lbl)
+        lbl_e_tRestBD.setFixedSize(100,35)
+        grid.addWidget(lbl_e_tRestBD,2,6)
+
+        self.lbl_tiempo_RestBD = QLabel("00:00")
+        self.lbl_tiempo_RestBD.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
+        self.lbl_tiempo_RestBD.setFixedSize(100,40)
+        grid.addWidget(self.lbl_tiempo_RestBD,2,7)
+
 
         
+         # ----------------------------------------------------------------------
+        # FILA 3: B. Ultra Filtrado
+        # ----------------------------------------------------------------------
+        lbl_ultrafiltado = QLabel("B. UF")
+        lbl_ultrafiltado.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_ultrafiltado,3,0)
+
+        self.toggle_uf = ToggleSwitch(width=70, height=35)
+        self.toggle_uf.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyUltraFPumpStartButt,dialyUltraFPumpStoptButt",chk))
+        grid.addWidget(self.toggle_uf,3,1)
+
+        self.lbl_indUF = QLabel("0.0")
+        self.lbl_indUF.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
+        self.lbl_indUF.setFixedSize(100,35)
+        grid.addWidget(self.lbl_indUF, 3, 2)
+
+        lbl_unit_indUF = QLabel("L/h")
+        lbl_unit_indUF.setStyleSheet(style_unit)
+        lbl_unit_indUF.setFixedSize(100, 35)
+        grid.addWidget(lbl_unit_indUF, 3,3)
+
+        lbl_e_tOpBUF = QLabel("Tiempo Op.")
+        lbl_e_tOpBUF.setStyleSheet(style_lbl)
+        lbl_e_tOpBUF.setFixedSize(100, 35)
+        grid.addWidget(lbl_e_tOpBUF, 3, 4)
+
+        self.lbl_tiempo_opBUF = QLineEdit("00,00")
+        self.lbl_tiempo_opBUF.setStyleSheet(style_input)
+        self.lbl_tiempo_opBUF.setFixedSize(100, 35)
+        grid.addWidget(self.lbl_tiempo_opBUF, 3, 5)
+
+        lbl_e_tRestBUF = QLabel("T. Restante")
+        lbl_e_tRestBUF.setStyleSheet(style_lbl)
+        lbl_e_tRestBUF.setFixedSize(100, 35)
+        grid.addWidget(lbl_e_tRestBUF, 3, 6)
+
+        self.lbl_tiempo_RestBUF = QLabel("00:00")
+        self.lbl_tiempo_RestBUF.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
+        self.lbl_tiempo_RestBUF.setFixedSize(100, 35)
+        grid.addWidget(self.lbl_tiempo_RestBUF, 3, 7)
+
+        # ----------------------------------------------------------------------
+        # FILA 4: B. Bicarbonato Na+
+        # ----------------------------------------------------------------------
+        lbl_bicarbonato = QLabel("B. Na+")
+        lbl_bicarbonato.setStyleSheet(style_lbl)
+        lbl_bicarbonato.setFixedSize(100, 35)
+        grid.addWidget(lbl_bicarbonato, 4, 0)
+
+        self.toggle_Na = ToggleSwitch(width=70, height=35)
+        self.toggle_Na.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyBicarbonPumpStartButt,dialyBicarbonPumpStopButt",chk))
+        grid.addWidget(self.toggle_Na, 4, 1)
+
+        self.lbl_indBNa = QLabel("0.0")
+        self.lbl_indBNa.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
+        self.lbl_indBNa.setFixedSize(100, 35)
+        grid.addWidget(self.lbl_indBNa, 4, 2)
+
+        lbl_unit_indBNa = QLabel("%")
+        lbl_unit_indBNa.setStyleSheet(style_unit)
+        lbl_unit_indBNa.setFixedSize(100, 35)
+        grid.addWidget(lbl_unit_indBNa, 4, 3)
+                                                                                                                                                                                                                                                                         
+        # ----------------------------------------------------------------------
+        # FILA 5: B. Acido Citrico
+        # ----------------------------------------------------------------------
+        lbl_acidocitrico = QLabel("B. A. Citrico")
+        lbl_acidocitrico.setStyleSheet(style_lbl)
+        lbl_acidocitrico.setFixedSize(100, 35)
+        grid.addWidget(lbl_acidocitrico, 5, 0)
+
+        self.toggle_acidocitrico = ToggleSwitch(width=70, height=35)
+        self.toggle_acidocitrico.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyCitricAcPumpStartButt,dialyCitricAcPumpStopButt",chk))
+        grid.addWidget(self.toggle_acidocitrico, 5, 1)
+
+        self.lbl_indBAC = QLabel("0.0")
+        self.lbl_indBAC.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
+        self.lbl_indBAC.setFixedSize(100, 35)
+        grid.addWidget(self.lbl_indBAC, 5, 2)
+
+        lbl_unit_indBAC = QLabel("%")
+        lbl_unit_indBAC.setStyleSheet(style_unit)
+        lbl_unit_indBAC.setFixedSize(100, 35)
+        grid.addWidget(lbl_unit_indBAC, 5, 3)
+
+        # ----------------------------------------------------------------------
+        # FILA 6: B. Purga de Aire
+        # ----------------------------------------------------------------------
+        lbl_purga = QLabel("B. Purga")
+        lbl_purga.setStyleSheet(style_lbl)
+        lbl_purga.setFixedSize(100, 35)
+        grid.addWidget(lbl_purga, 6, 0)
+
+        self.toggle_purga = ToggleSwitch(width=70, height=35)
+        self.toggle_purga.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyserPumpStartButton,dialyserPumpStopButton",chk))
+        grid.addWidget(self.toggle_purga, 6, 1)
+
+        self.lbl_indPurga = QLabel("0.0")
+        self.lbl_indPurga.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
+        self.lbl_indPurga.setFixedSize(100, 35)
+        grid.addWidget(self.lbl_indPurga, 6, 2)
+
+        lbl_unit_indPurga = QLabel("%")
+        lbl_unit_indPurga.setStyleSheet(style_unit)
+        lbl_unit_indPurga.setFixedSize(100, 35)
+        grid.addWidget(lbl_unit_indBAC, 6, 3)
+
 
         # ----------------------------------------------------------------------
         # FILAS 3 a 7: BOMBAS SIMPLES
         # ----------------------------------------------------------------------
         bombas_simples = [
-            (3, "B. UltraF", "dialyUltraFPumpStartButt", "dialyUltraFPumpStoptButt"), 
-            (4, "B. Bicarbonato", "dialyBicarbonPumpStartButt", "dialyBicarbonPumpStopButt"),
-            (5, "B. Acido Cítrico", "dialyCitricAcPumpStartButt", "dialyCitricAcPumpStopButt"),
-            (6, "B. Purga Aire", "dialyPurgePumpStartButt", "dialyPurgePumpStopButt"),
+            #(3, "B. UltraF", "dialyUltraFPumpStartButt", "dialyUltraFPumpStoptButt"), 
+            #(4, "B. Bicarbonato", "dialyBicarbonPumpStartButt", "dialyBicarbonPumpStopButt"),
+            #(5, "B. Acido Cítrico", "dialyCitricAcPumpStartButt", "dialyCitricAcPumpStopButt"),
+            #(6, "B. Purga Aire", "dialyPurgePumpStartButt", "dialyPurgePumpStopButt"),
             (7, "C. Balance", "dialiserBalChambStrButt", "dialiserBalChambStpButt"),
         ]
 

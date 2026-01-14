@@ -23,3 +23,6 @@ ancho_ajustado = int(ancho_base / scale_factor)
 alto_ajustado = int(alto_base / scale_factor)
 
 print(f"Tamaño ajustado para programar: {ancho_ajustado}x{alto_ajustado}")
+
+
+#30404C

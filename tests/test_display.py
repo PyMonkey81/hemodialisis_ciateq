@@ -13,7 +13,7 @@ from gui.therapy.dialysisScreen import dialysisScr
 
 from gui.components.rVariables import VentanaVariables
 from gui.components.TankGaugeW import TankGauge
-from resources.variables_map_respaldo import VARIABLES, TVAR_TO_GROUP
+from core.variables_map import VARIABLES, TVAR_TO_GROUP
 
 # ================================================================
 # HMI PRINCIPAL → CORREGIDO

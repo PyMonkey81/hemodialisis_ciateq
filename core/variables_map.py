@@ -18,8 +18,8 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Bomba peristáltica - Paro", "cian", "bloodPumpStopButton"),            # 1
                 ("Bomba peristáltica - Avance", "cian", "bloodPumpFWDButton"),           # 2
                 ("Bomba peristáltica - Reversa", "cian", "bloodPumpREVButton"),          # 3
-                ("Bomba de purga Tanque de Agua - Arranque", "cian", "dialyserPumpStartButton"), # 4
-                ("Bomba de deaereación - Paro", "cian", "dialyserPumpStopButton"),       # 5
+                ("Bomba de purga - Arranque", "cian", "dialyserPumpStartButton"), # 4
+                ("Bomba de purga - Paro", "cian", "dialyserPumpStopButton"),       # 5
                 ("Bomba Heparina - Arranque", "cian", "heparinePumpsStartButton"),       # 6
                 ("Bomba Heparina - Paro", "cian", "heparinePumpsStopButton"),            # 7
                 ("Bomba Heparina - Avance", "cian", "heparinePumpFWDButton"),            # 8

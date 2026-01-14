@@ -27,7 +27,7 @@ except ImportError as e:
     SERIAL_EXISTE = False
 
 try:
-    from resources.variables_map_respaldo import VARIABLES
+    from core.variables_map import VARIABLES
     MAPA_EXISTE = True
 except ImportError as e:
     print(f"[INFO] variables_map.py no encontrado. Usando valores por defecto.")

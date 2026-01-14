@@ -152,9 +152,11 @@ class HemodialisisHMI(QMainWindow):
         self.container_right.setStyleSheet("background: transparent")
         self.container_left.setStyleSheet("background: transparent")
 
-        if "Inicio" in self.botones_nav:
+        if "Inicio" in self.botones_nav: # DESACTIVACION DE BOTONES AL UNICIO DE LA APLICACIÓN.
             self.botones_nav["Inicio"].setEnabled(False)
             self.botones_nav["Inicio"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
+            self.botones_nav["Inicio\nTratamiento"].setEnabled(False)
+            self.botones_nav["Inicio\nTratamiento"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
         
     #  === PANTALLAS ===
     def pantalla_principal(self):
@@ -308,6 +310,7 @@ class HemodialisisHMI(QMainWindow):
             ("Inicio", "#333333", self.mostrar_pantalla_principal), # index 0 1b10b9
             ("Diálisis", "#333333", self.mostrar_pantalla_dialisis), # index 1
             ("Tipo de\nTratamiento", "#333333", self.mostrar_pantalla_modo), # indes 2   ====================================modificar el nombre de esta pantalla para que coincida con el de labview, que es la seleccion del modo de operación
+            ("Inicio\nTratamiento","#25AD37",self.iniciar_tratamiento_),
             ("Limpieza", "#333333", self.mostrar_pantalla_limpieza), # index 3
             ("Parámetros\n de sistema", "#333333", self.mostrar_pantalla_ajustes), # index 4
             ("Alarmas", "#333333", self.mostrar_pantalla_alarmas), # index 5           
@@ -333,7 +336,9 @@ class HemodialisisHMI(QMainWindow):
     # ==================================================================================
     #                               === NAVEGACIÓN ===
     # ==================================================================================
-   
+    def iniciar_tratamiento_(self): #<------ el boton se debe activar cuando se cumplan las condiciones iniciales, inicia el tratamiento.
+        pass
+
     def mostrar_pantalla_principal(self):
         self.stacked.setCurrentIndex(self.INDEX_INICIO)
         self.actualizar_label_pantalla("Inicio", "#ffffff")
