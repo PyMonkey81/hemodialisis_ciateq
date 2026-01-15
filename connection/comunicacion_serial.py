@@ -482,9 +482,23 @@ class ComunicacionSerial(QObject):
         cmd = bytes([0x21, 0x11, addr, 0x01 if valor else 0x00])
         self.cola_comandos.put(cmd)
 
-    def escribir_double(self, addr: int, valor: float):
-        cmd = bytes([0x22, 0xAA, addr]) + struct.pack('<d', valor)
+    # def escribir_double(self, addr: int, valor: float):
+    #     cmd = bytes([0x22, 0xAA, addr]) + struct.pack('<d', valor)
+    #     self.cola_comandos.put(cmd)
+    
+    def escribir_double(self, group_code: int, var_id_in_group: int, valor: float):
+        """
+        Genera y encola el comando para escribir un valor double en una variable.
+        El 'group_code' se codifica en el primer byte del comando.
+        """
+        # El primer byte del comando será 0x20 (para escritura) OR con el código del grupo
+        command_byte = 0x20 | group_code # Ejemplo: 0x20 | 0x03 = 0x23
+        
+        # El comando se construye: [Comando_con_Grupo, Tipo_Analog, ID_en_Grupo] + datos
+        cmd = bytes([command_byte, 0xAA, var_id_in_group]) + struct.pack('<d', valor)
         self.cola_comandos.put(cmd)
+
+
 
     def detener(self):
         self.ejecutando = False

@@ -26,7 +26,7 @@ class mainScr(QWidget):
         titulo.setStyleSheet("""
             font-size: 56px;
             font-weight: bold;
-            color: #ffffff;
+            color: #000000;
             background: transparent;
             padding: 20px;
         """)
@@ -46,7 +46,7 @@ class mainScr(QWidget):
 
         layout.addSpacing(40)
 
-        # Información (AHORA SÍ OCUPA TODO EL ANCHO)
+        # Información 
         info = QLabel(
             "<div style='line-height: 180%;'>"
             "<span style='font-size: 20px; color: #1e293b;'><b>Equipo desarrollado por</b></span><br>"

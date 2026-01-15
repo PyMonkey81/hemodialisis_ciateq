@@ -97,15 +97,15 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     # SETPOINTS (0x03)
     # ================================================================
     0x03: {
-        0x00: {"name": "Velocidad de UltraFiltrado","type": "double","rw": False,"unit": "n","limites": (0, 100),"tag": "ultraFilterPumpSpeed","nivel": "cian"},              # 7
-        0x01: {"name": "Ajuste de tiempo de ciclo de cámara de balance","type": "double","rw": False,"unit": "s","limites": (0, 100),"tag": "balanceChamberSetTiming","nivel": "cian"}, # 8
-        0x02: {"name": "Tiempo terapia: horas","type": "double","rw": False,"unit": "h","limites": (0, 10),"tag": "heparineTherapyHours","nivel": "cian"},                    # 9
-        0x03: {"name": "Tiempo terapia: minutos","type": "double","rw": False, "unit": "m","limites": (0, 59),"tag": "heparineTherapyMinutes","nivel": "cian"},               # 10
-        0x04: {"name": "Tamaño de escala de jeringa","type": "double","rw": False,"unit": "mm/ml","limites": (1, 10),"tag": "heparineSyrinjeScaleSize","nivel": "cian"},      # 11
-        0x05: {"name": "Dosis de heparina por terapia ml/h","type": "double","rw": False,"unit": "ml/h","limites": (0, 50),"tag": "heparineTherapyDosage","nivel": "cian"},   # 12
-        0x06: {"name": "Cantidad de bolo","type": "double","rw": False,"unit": "ml","limites": (0, 10),"tag": "heparineBolusQuantity","nivel": "cian"},                       # 13
-        0x07: {"name": "Ajuste de velocidad de bomba bicarbonato","type": "double","rw": False,"unit": "%","limites": (0, 100),"tag": "bicarbonatePumpSpeed","nivel": "cian"},# 14
-        0x08: {"name": "Ajuste de velocidad de ácido cítrico","type": "double","rw": False,"unit": "%","limites": (0, 100),"tag": "citricAcidPumpSpeed","nivel": "cian"},     # 15
+        0x00: {"name": "Velocidad de UltraFiltrado","type": "double","rw": True,"unit": "n","limites": (0, 100),"tag": "ultraFilterPumpSpeed","nivel": "cian"},              # 7
+        0x01: {"name": "Ajuste de tiempo de ciclo de cámara de balance","type": "double","rw": True,"unit": "s","limites": (0, 100),"tag": "balanceChamberSetTiming","nivel": "cian"}, # 8
+        0x02: {"name": "Tiempo terapia: horas","type": "double","rw": True,"unit": "h","limites": (0, 10),"tag": "heparineTherapyHours","nivel": "cian"},                    # 9
+        0x03: {"name": "Tiempo terapia: minutos","type": "double","rw": True, "unit": "m","limites": (0, 59),"tag": "heparineTherapyMinutes","nivel": "cian"},               # 10
+        0x04: {"name": "Tamaño de escala de jeringa","type": "double","rw": True,"unit": "mm/ml","limites": (1, 10),"tag": "heparineSyrinjeScaleSize","nivel": "cian"},      # 11
+        0x05: {"name": "Dosis de heparina por terapia ml/h","type": "double","rw": True,"unit": "ml/h","limites": (0, 50),"tag": "heparineTherapyDosage","nivel": "cian"},   # 12
+        0x06: {"name": "Cantidad de bolo","type": "double","rw": True,"unit": "ml","limites": (0, 10),"tag": "heparineBolusQuantity","nivel": "cian"},                       # 13
+        0x07: {"name": "Ajuste de velocidad de bomba bicarbonato","type": "double","rw": True,"unit": "%","limites": (0, 100),"tag": "bicarbonatePumpSpeed","nivel": "cian"},# 14
+        0x08: {"name": "Ajuste de velocidad de ácido cítrico","type": "double","rw": True,"unit": "%","limites": (0, 100),"tag": "citricAcidPumpSpeed","nivel": "cian"},     # 15
     },
 
     # ================================================================

@@ -34,7 +34,7 @@ class ValorSimple(QWidget):
         layout.setSpacing(15)
 
         lbl_titulo = QLabel(titulo)
-        lbl_titulo.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: bold;")  #   <------------------ camio de color para tema
+        lbl_titulo.setStyleSheet("color: #000000; font-size: 24px; font-weight: bold;")  #   <------------------ camio de color para tema
         lbl_titulo.setMinimumWidth(180)
         layout.addWidget(lbl_titulo)
 
@@ -54,7 +54,7 @@ class ValorSimple(QWidget):
         layout.addWidget(self.lbl_valor)
 
         lbl_unidad = QLabel(unidad)
-        lbl_unidad.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: bold;") # <--------- cambio de color para tema
+        lbl_unidad.setStyleSheet("color: #000000; font-size: 24px; font-weight: bold;") # <--------- cambio de color para tema
         layout.addWidget(lbl_unidad)
         layout.addStretch()
 
@@ -80,7 +80,7 @@ class dialysisScr(QWidget):
         # Fondo 
         self.setAutoFillBackground(True)
         p = self.palette()
-        p.setColor(self.backgroundRole(), QColor("#00594c")) #  #0f172a"
+        p.setColor(self.backgroundRole(), QColor("#0f172a")) #  #0f172a"
         self.setPalette(p)
         
         # --- CAMBIO 1: Eliminamos el QTimer interno ---
@@ -113,18 +113,18 @@ class dialysisScr(QWidget):
         #==========================================================================================
         botones_area = QFrame()
         botones_area.setFixedSize(500, 380)
-        botones_area.setStyleSheet("background: #ffffff; border-radius: 10px; border: 4px solid #1e293b;")
+        botones_area.setStyleSheet("background: #FCFCFC; border-radius: 10px; border: 4px solid #1e293b;") # <------ CAMBIO DE COLOR DE FONDO DE BOTONES 
         bl = QGridLayout(botones_area)
         bl.setSpacing(18)
         bl.setContentsMargins(25, 25, 25, 25)
 
         botones_config = [
             ("PAUSAR /\n REANUDAR", "#21dc7b"),
-            ("SILENCIAR\n ALARMA", "#103db9"),
-            ("RESTABLECER\n ALARMA", "#103db9"),
-            ("BOLOS\n SALINO", "#103db9"),
-            ("MENÚ UF", "#103db9"),
-            ("ACCESO HEPARINA", "#103db9"),
+            ("SILENCIAR\n ALARMA", "#0f172a"),
+            ("RESTABLECER\n ALARMA", "#0f172a"),
+            ("BOLOS\n SALINO", "#0f172a"),
+            ("MENÚ UF", "#0f172a"),
+            ("ACCESO HEPARINA", "#0f172a"),
         ]
 
         for i, (texto, color) in enumerate(botones_config):
@@ -142,8 +142,8 @@ class dialysisScr(QWidget):
         layout.addWidget(botones_area, 5, 0, 5, 1)
 
         # === VALORES DERECHA ===
-        self.pa = ValorSimple("P. Arterial (PA)", "0", "mmHg", es_critico=True)
-        self.pv = ValorSimple("P. Venosa (PV)", "0", "mmHg", es_critico=True)
+        self.pa = ValorSimple("Art", "0", "mmHg", es_critico=True)
+        self.pv = ValorSimple("Ven", "0", "mmHg", es_critico=True)
         self.ptm = ValorSimple("PTM", "0", "mmHg", es_critico=True)
         self.t_restante = ValorSimple("T. Restante", "00:00", "h:min")
         self.t_transcurrido = ValorSimple("Tiempo UF", "00:00", "h:min")

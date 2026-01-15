@@ -68,7 +68,7 @@ class HemodialisisHMI(QMainWindow):
         self.setup_ui()
         self.actualizar_label_pantalla("Inicio", "#000000")     # <-------------cambio de color para en un futuro hacer temas 
         self.setFixedSize(1920, 1080) # Tamaño resolución de monitor
-        self.setStyleSheet("background: #00594c ;") ##090c33          <--------------------------- para consideracion de temas de colores 
+        self.setStyleSheet("background: #FCFCFC ;") ##090c33          <--------------------------- para consideracion de temas de colores 
 
         # 2. Iniciar comunicación serial
         #  === COMUNICACIÓN SERIAL ===    
@@ -202,7 +202,7 @@ class HemodialisisHMI(QMainWindow):
         #================================================================       
         header_container = QWidget()
         header_container.setFixedHeight(177)
-        header_container.setStyleSheet("background: #00594c;")  # color de header 1f2c45  #6464E8  #090c33 #8686D9 <--------------------- tema de header
+        header_container.setStyleSheet("background: #EBEBEB;")  # color verde logo imss 005940c color de header 1f2c45  #6464E8  #090c33 #8686D9 <--------------------- tema de header
         header = QHBoxLayout(header_container)
         header.setContentsMargins(30, 20, 30, 20)
         header.setSpacing(20)
@@ -226,7 +226,7 @@ class HemodialisisHMI(QMainWindow):
             lbl.setFixedSize(400, 80)
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setStyleSheet("""
-                QLabel { color: #ffffff; background: transparent;
+                QLabel { color: #0f172a; background: transparent;
                         font-weight: bold; font-size: 25px; }
             """)
             header.addWidget(lbl)
@@ -299,7 +299,7 @@ class HemodialisisHMI(QMainWindow):
     
         nav = QWidget()
         nav.setFixedSize(1536, 177)
-        nav.setStyleSheet("background:  #00594c;") # #090c33 <------------------- aqui tambien se cambiaria para hacer un tema diferente
+        nav.setStyleSheet("background:  #FCFCFC;") # #090c33 <------------------- aqui tambien se cambiaria para hacer un tema diferente
         nav_layout = QHBoxLayout(nav)
         nav_layout.setContentsMargins(40, 20, 40, 20)
         nav_layout.setSpacing(10)
@@ -307,13 +307,13 @@ class HemodialisisHMI(QMainWindow):
         self.botones_nav = {} 
 
         botones = [
-            ("Inicio", "#333333", self.mostrar_pantalla_principal), # index 0 1b10b9
-            ("Diálisis", "#333333", self.mostrar_pantalla_dialisis), # index 1
-            ("Tipo de\nTratamiento", "#333333", self.mostrar_pantalla_modo), # indes 2   ====================================modificar el nombre de esta pantalla para que coincida con el de labview, que es la seleccion del modo de operación
+            ("Inicio", "#0f172a", self.mostrar_pantalla_principal), # index 0 1b10b9
+            ("Diálisis", "#0f172a", self.mostrar_pantalla_dialisis), # index 1
+            ("Tipo de\nTratamiento", "#0f172a", self.mostrar_pantalla_modo), # indes 2   ====================================modificar el nombre de esta pantalla para que coincida con el de labview, que es la seleccion del modo de operación
             ("Inicio\nTratamiento","#25AD37",self.iniciar_tratamiento_),
-            ("Limpieza", "#333333", self.mostrar_pantalla_limpieza), # index 3
-            ("Parámetros\n de sistema", "#333333", self.mostrar_pantalla_ajustes), # index 4
-            ("Alarmas", "#333333", self.mostrar_pantalla_alarmas), # index 5           
+            ("Limpieza", "#0f172a", self.mostrar_pantalla_limpieza), # index 3
+            ("Parámetros\n de sistema", "#0f172a", self.mostrar_pantalla_ajustes), # index 4
+            ("Alarmas", "#0f172a", self.mostrar_pantalla_alarmas), # index 5           
             ("Salir", "#dc2626", self.close),
         ]
         
@@ -341,7 +341,7 @@ class HemodialisisHMI(QMainWindow):
 
     def mostrar_pantalla_principal(self):
         self.stacked.setCurrentIndex(self.INDEX_INICIO)
-        self.actualizar_label_pantalla("Inicio", "#ffffff")
+        self.actualizar_label_pantalla("Inicio", "#0A0A0A")
         self.left.hide()
         self.right.hide()
 
@@ -349,7 +349,7 @@ class HemodialisisHMI(QMainWindow):
         self.stacked.setCurrentWidget(self.pantalla_dialisis)
         if hasattr(self.pantalla_dialisis, "actualizar_valores"):
             self.pantalla_dialisis.actualizar_valores(self.valores)
-        self.actualizar_label_pantalla("Diálisis", "#ffffff")
+        self.actualizar_label_pantalla("Diálisis", "#0f172a")
         self.left.show()
         self.right.show()
         if "Inicio" in self.botones_nav:
@@ -365,19 +365,19 @@ class HemodialisisHMI(QMainWindow):
     
     def mostrar_pantalla_limpieza(self):    
         self.stacked.setCurrentWidget(self.pantalla_limpieza)
-        self.actualizar_label_pantalla("Limpieza", "#ffffff") 
+        self.actualizar_label_pantalla("Limpieza", "#0f172a") 
         self.left.show()
         self.right.show()   
     
     def mostrar_pantalla_ajustes(self): 
         self.stacked.setCurrentWidget(self.pantalla_ajustes)
-        self.actualizar_label_pantalla("Configuración", "#ffffff")     
+        self.actualizar_label_pantalla("Configuración", "#0f172a")     
         self.left.show()
         self.right.show()
 
     def mostrar_pantalla_alarmas(self):
         self.stacked.setCurrentWidget(self.pantalla_alarmas)
-        self.actualizar_label_pantalla("Alarmas", "#ffffff")
+        self.actualizar_label_pantalla("Alarmas", "#0f172a")
         self.left.show()
         self.right.show()
     
@@ -385,28 +385,28 @@ class HemodialisisHMI(QMainWindow):
         self.stacked.setCurrentWidget(self.pantalla_modo_manual)
         if hasattr(self.pantalla_modo_manual, "actualizar_valores"):
             self.pantalla_modo_manual.actualizar_valores(self.valores)
-        self.actualizar_label_pantalla("Modo Manual","#ffffff")
+        self.actualizar_label_pantalla("Modo Manual","#0f172a")
         
     
     def mostrar_panel_pruebas(self):
         self.stacked.setCurrentWidget(self.pantalla_panel_pruebas)
-        self.actualizar_label_pantalla("Panel de pruebas", "#ffffff")
+        self.actualizar_label_pantalla("Panel de pruebas", "#0f172a")
         
 
     def mostrar_calibracion(self):
         self.stacked.setCurrentWidget(self.pantalla_calibracion)
-        self.actualizar_label_pantalla("Calibración", "#ffffff")
+        self.actualizar_label_pantalla("Calibración", "#0f172a")
 
     def mostrar_config_red(self):
         self.stacked.setCurrentWidget(self.pantalla_config_red)
-        self.actualizar_label_pantalla("Configuración de red", "#ffffff")
+        self.actualizar_label_pantalla("Configuración de red", "#0f172a")
 
     def mostrar_monitor_variables(self):
         self.stacked.setCurrentWidget(self.pantalla_monitor_variables)
-        self.actualizar_label_pantalla("Monitor de variables", "#ffffff")
+        self.actualizar_label_pantalla("Monitor de variables", "#0f172a")
  
   
-    def actualizar_label_pantalla(self, texto, color_texto="#ffffff"):
+    def actualizar_label_pantalla(self, texto, color_texto="#0f172a"):
         self.lbl_pantalla_actual.setText(texto)       
         self.lbl_pantalla_actual.setStyleSheet(f"color: {color_texto}; background: transparent; font-weight: bold; font-size: 30px;")
 

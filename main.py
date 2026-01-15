@@ -18,7 +18,7 @@ class ScaledHMI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint)  
-        self.setStyleSheet("background: #ffffff;")     
+        self.setStyleSheet("background: #000000;") #  <-------- COLOR FONDO     
 
         # === RESOLUCIÓN DEL MONITOR ===
         screen = QGuiApplication.primaryScreen()
