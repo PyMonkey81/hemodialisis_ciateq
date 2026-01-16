@@ -819,7 +819,7 @@ class mManualScr(QWidget):
         grid.addWidget(lbl_u2, 0, 9)
 
         # TIEMPOS
-        lbl_tiempo = QLabel("Tiempo Terapia:")
+        lbl_tiempo = QLabel("T. Terapia:")
         lbl_tiempo.setStyleSheet(style_lbl)
         grid.addWidget(lbl_tiempo, 0, 10)
 
@@ -898,157 +898,179 @@ class mManualScr(QWidget):
         lbl_unit_hep.setFixedSize(100,35)
         grid.addWidget(lbl_unit_hep,1,8)
 
+                # ----------------------------------------------------------------------
+        # FILA 2: DOSIS HEPARINA (Input)
         # ----------------------------------------------------------------------
-        # FILA 2: B. DIALIZANTE
+        lbl_dosis = QLabel("Dosis Hep.")
+        lbl_dosis.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_dosis, 2, 0)
+
+        self.input_dosis_hep = QLineEdit("0.0")
+        self.input_dosis_hep.setFixedSize(100, 35)
+        self.input_dosis_hep.setAlignment(Qt.AlignCenter)
+        self.input_dosis_hep.setStyleSheet(style_input)
+        self.input_dosis_hep.setValidator(QDoubleValidator(0.0, 50.0, 1))
+        self.input_dosis_hep.editingFinished.connect(
+            lambda: self.escribir_setpoint("heparineTherapyDosage", self.input_dosis_hep)
+        )
+        grid.addWidget(self.input_dosis_hep, 2, 1)
+
+        lbl_udosis = QLabel("ml/h")
+        lbl_udosis.setStyleSheet(style_unit)
+        grid.addWidget(lbl_udosis, 2, 2)
+
+
+        # ----------------------------------------------------------------------
+        # FILA 3: B. DIALIZANTE
         # ----------------------------------------------------------------------
         lbl_dializante = QLabel("B. Dializante")
         lbl_dializante.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_dializante, 2, 0)
+        grid.addWidget(lbl_dializante, 3, 0)
 
         self.toggle_dializante = ToggleSwitch(width=70, height=35)
         self.toggle_dializante.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyserPumpStartButton","dialyserPumpStopButton",chk))
-        grid.addWidget(self.toggle_dializante, 2,1)
+        grid.addWidget(self.toggle_dializante, 3,1)
 
         self.lbl_indSDializante = QLabel("0.0")
         self.lbl_indSDializante.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
         self.lbl_indSDializante.setFixedSize(100,35)
-        grid.addWidget(self.lbl_indSDializante, 2,2)
+        grid.addWidget(self.lbl_indSDializante, 3,2)
 
         lbl_unit_indSdializante = QLabel("%")
         lbl_unit_indSdializante.setStyleSheet(style_unit)
         lbl_unit_indSdializante.setFixedSize(100,35)
-        grid.addWidget(lbl_unit_indSdializante, 2, 3)
+        grid.addWidget(lbl_unit_indSdializante, 3, 3)
 
         lbl_e_tOpBD = QLabel("Tiempo Op.")
         lbl_e_tOpBD.setStyleSheet(style_lbl)
         lbl_e_tOpBD.setFixedSize(100,35)
-        grid.addWidget(lbl_e_tOpBD, 2, 4)
+        grid.addWidget(lbl_e_tOpBD, 3, 4)
 
         self.lbl_tiempo_OpBD = QLineEdit("00:00")
         self.lbl_tiempo_OpBD.setStyleSheet(style_input)
         self.lbl_tiempo_OpBD.setFixedSize(100,35)
-        grid.addWidget(self.lbl_tiempo_OpBD,2,5)
+        grid.addWidget(self.lbl_tiempo_OpBD,3,5)
 
         lbl_e_tRestBD = QLabel("T. Restante")
         lbl_e_tRestBD.setStyleSheet(style_lbl)
         lbl_e_tRestBD.setFixedSize(100,35)
-        grid.addWidget(lbl_e_tRestBD,2,6)
+        grid.addWidget(lbl_e_tRestBD, 3, 6)
 
         self.lbl_tiempo_RestBD = QLabel("00:00")
         self.lbl_tiempo_RestBD.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
         self.lbl_tiempo_RestBD.setFixedSize(100,40)
-        grid.addWidget(self.lbl_tiempo_RestBD,2,7)
+        grid.addWidget(self.lbl_tiempo_RestBD, 3, 7)
 
 
         # ----------------------------------------------------------------------
-        # FILA 3: B. Ultra Filtrado
+        # FILA 4: B. Ultra Filtrado
         # ----------------------------------------------------------------------
         lbl_ultrafiltado = QLabel("B. UF")
         lbl_ultrafiltado.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_ultrafiltado,3,0)
+        grid.addWidget(lbl_ultrafiltado, 4,0)
 
         self.toggle_uf = ToggleSwitch(width=70, height=35)
         self.toggle_uf.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyUltraFPumpStartButt","dialyUltraFPumpStoptButt",chk))
-        grid.addWidget(self.toggle_uf,3,1)
+        grid.addWidget(self.toggle_uf, 4,1)
 
         self.lbl_indUF = QLabel("0.0")
         self.lbl_indUF.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
         self.lbl_indUF.setFixedSize(100,35)
-        grid.addWidget(self.lbl_indUF, 3, 2)
+        grid.addWidget(self.lbl_indUF, 4, 2)
 
         lbl_unit_indUF = QLabel("L/h")
         lbl_unit_indUF.setStyleSheet(style_unit)
         lbl_unit_indUF.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indUF, 3,3)
+        grid.addWidget(lbl_unit_indUF, 4,3)
 
         lbl_e_tOpBUF = QLabel("Tiempo Op.")
         lbl_e_tOpBUF.setStyleSheet(style_lbl)
         lbl_e_tOpBUF.setFixedSize(100, 35)
-        grid.addWidget(lbl_e_tOpBUF, 3, 4)
+        grid.addWidget(lbl_e_tOpBUF, 4, 4)
 
         self.lbl_tiempo_opBUF = QLineEdit("00,00")
         self.lbl_tiempo_opBUF.setStyleSheet(style_input)
         self.lbl_tiempo_opBUF.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_tiempo_opBUF, 3, 5)
+        grid.addWidget(self.lbl_tiempo_opBUF, 4, 5)
 
         lbl_e_tRestBUF = QLabel("T. Restante")
         lbl_e_tRestBUF.setStyleSheet(style_lbl)
         lbl_e_tRestBUF.setFixedSize(100, 35)
-        grid.addWidget(lbl_e_tRestBUF, 3, 6)
+        grid.addWidget(lbl_e_tRestBUF, 4, 6)
 
         self.lbl_tiempo_RestBUF = QLabel("00:00")
         self.lbl_tiempo_RestBUF.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
         self.lbl_tiempo_RestBUF.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_tiempo_RestBUF, 3, 7)
+        grid.addWidget(self.lbl_tiempo_RestBUF, 4, 7)
 
         # ----------------------------------------------------------------------
-        # FILA 4: B. Bicarbonato Na+
+        # FILA 5: B. Bicarbonato Na+
         # ----------------------------------------------------------------------
         lbl_bicarbonato = QLabel("B. Na+")
         lbl_bicarbonato.setStyleSheet(style_lbl)
         lbl_bicarbonato.setFixedSize(100, 35)
-        grid.addWidget(lbl_bicarbonato, 4, 0)
+        grid.addWidget(lbl_bicarbonato, 5, 0)
 
         self.toggle_Na = ToggleSwitch(width=70, height=35)
         self.toggle_Na.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyBicarbonPumpStartButt","dialyBicarbonPumpStopButt",chk))
-        grid.addWidget(self.toggle_Na, 4, 1)
+        grid.addWidget(self.toggle_Na, 5, 1)
 
         self.lbl_indBNa = QLabel("0.0")
         self.lbl_indBNa.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
         self.lbl_indBNa.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_indBNa, 4, 2)
+        grid.addWidget(self.lbl_indBNa, 5, 2)
 
         lbl_unit_indBNa = QLabel("%")
         lbl_unit_indBNa.setStyleSheet(style_unit)
         lbl_unit_indBNa.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indBNa, 4, 3)
+        grid.addWidget(lbl_unit_indBNa, 5, 3)
                                                                                                                                                                                                                                                                          
         # ----------------------------------------------------------------------
-        # FILA 5: B. Acido Citrico
+        # FILA 6: B. Acido Citrico
         # ----------------------------------------------------------------------
         lbl_acidocitrico = QLabel("B. A. Citrico")
         lbl_acidocitrico.setStyleSheet(style_lbl)
         lbl_acidocitrico.setFixedSize(100, 35)
-        grid.addWidget(lbl_acidocitrico, 5, 0)
+        grid.addWidget(lbl_acidocitrico, 6, 0)
 
         self.toggle_acidocitrico = ToggleSwitch(width=70, height=35)
         self.toggle_acidocitrico.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyCitricAcPumpStartButt","dialyCitricAcPumpStopButt",chk))
-        grid.addWidget(self.toggle_acidocitrico, 5, 1)
+        grid.addWidget(self.toggle_acidocitrico, 6, 1)
 
         self.lbl_indBAC = QLabel("0.0")
         self.lbl_indBAC.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
         self.lbl_indBAC.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_indBAC, 5, 2)
+        grid.addWidget(self.lbl_indBAC, 6, 2)
 
         lbl_unit_indBAC = QLabel("%")
         lbl_unit_indBAC.setStyleSheet(style_unit)
         lbl_unit_indBAC.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indBAC, 5, 3)
+        grid.addWidget(lbl_unit_indBAC, 6, 3)
 
         # ----------------------------------------------------------------------
-        # FILA 6: B. Purga de Aire
+        # FILA 7: B. Purga de Aire
         # ----------------------------------------------------------------------
         lbl_purga = QLabel("B. Purga")
         lbl_purga.setStyleSheet(style_lbl)
         lbl_purga.setFixedSize(100, 35)
-        grid.addWidget(lbl_purga, 6, 0)
+        grid.addWidget(lbl_purga, 7, 0)
 
         self.toggle_purga = ToggleSwitch(width=70, height=35)
         self.toggle_purga.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyPurgePumpStartButt","dialyPurgePumpStopButt",chk))
-        grid.addWidget(self.toggle_purga, 6, 1)
+        grid.addWidget(self.toggle_purga, 7, 1)
 
         self.lbl_indPurga = QLabel("0.0")
         self.lbl_indPurga.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
         self.lbl_indPurga.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_indPurga, 6, 2)
+        grid.addWidget(self.lbl_indPurga, 7, 2)
 
         lbl_unit_indPurga = QLabel("%")
         lbl_unit_indPurga.setStyleSheet(style_unit)
         lbl_unit_indPurga.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indBAC, 6, 3) # OJO: Aquí se repite lbl_unit_indBAC en el grid original. Puede ser intencional o error.
+        grid.addWidget(lbl_unit_indBAC, 7, 3) # OJO: Aquí se repite lbl_unit_indBAC en el grid original. Puede ser intencional o error.
 
         # ----------------------------------------------------------------------
-        # FILAS 7: C. Balance (Esta la metiste en la lista de bombas simples en tu codigo original)
+        # FILAS 8: C. Balance (Esta la metiste en la lista de bombas simples en tu codigo original)
         # ----------------------------------------------------------------------
         bombas_simples = [
             (7, "C. Balance", "dialiserBalChambStrButt", "dialiserBalChambStpButt"),
@@ -1068,26 +1090,7 @@ class mManualScr(QWidget):
             self.toggles_simples[tag_start] = toggle
             grid.addWidget(toggle, row_idx, 1)
 
-        # ----------------------------------------------------------------------
-        # FILA 8: DOSIS HEPARINA (Input)
-        # ----------------------------------------------------------------------
-        lbl_dosis = QLabel("Dosis Hep.")
-        lbl_dosis.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_dosis, 8, 0)
 
-        self.input_dosis_hep = QLineEdit("0.0")
-        self.input_dosis_hep.setFixedSize(100, 35)
-        self.input_dosis_hep.setAlignment(Qt.AlignCenter)
-        self.input_dosis_hep.setStyleSheet(style_input)
-        self.input_dosis_hep.setValidator(QDoubleValidator(0.0, 50.0, 1))
-        self.input_dosis_hep.editingFinished.connect(
-            lambda: self.escribir_setpoint("heparineTherapyDosage", self.input_dosis_hep)
-        )
-        grid.addWidget(self.input_dosis_hep, 8, 1)
-
-        lbl_udosis = QLabel("ml/h")
-        lbl_udosis.setStyleSheet(style_unit)
-        grid.addWidget(lbl_udosis, 8, 2)
 
         layout.addWidget(self.control_area, 0, 0)
 
@@ -1317,36 +1320,7 @@ class mManualScr(QWidget):
             print(f"[ERROR] Valor numérico inválido en input para {tag}: {widget_input.text()}")
         except Exception as e:
             print(f"[ERROR] Ocurrió un error inesperado al escribir setpoint para {tag}: {e}")
-
-
-    # def escribir_setpoint(self, tag, widget_input):
-    #     try:
-    #         texto = widget_input.text().replace(',', '.')
-    #         if not texto: return # Evitar error si está vacío
-    #         valor = float(texto)
-    #         print(f"[SETPOINT] Escribiendo {tag} = {valor}")
-            
-    #         found = False
-    #         for grupo in [0x02, 0x03, 0x04, 0x05, 0x06]:
-    #             if grupo in VARIABLES:
-    #                 for id_var, info in VARIABLES[grupo].items():
-    #                     if info.get("tag") == tag: # .get para evitar keyerror
-    #                         if self.parent_window and hasattr(self.parent_window, 'serial'):
-    #                             self.parent_window.serial.escribir_double(id_var, valor)
-    #                         else:
-    #                             print(f"[MOCK] Escribir DOUBLE ID: {id_var} VAL: {valor}")
-    #                         found = True
-    #                         break
-    #             if found: break
-            
-    #         if not found:
-    #             print(f"[ERROR] No se encontró ID para tag analógico {tag}")
-
-    #         # Quitamos el foco para permitir actualizaciones visuales futuras
-    #         widget_input.clearFocus()
-
-    #     except ValueError:
-    #         print("[ERROR] Valor numérico inválido")
+  
 
     def escribir_comando(self, tag, estado):
         print(f"[COMANDO] Usuario cambió {tag} a {estado}")
