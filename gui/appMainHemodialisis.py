@@ -121,6 +121,8 @@ class HemodialisisHMI(QMainWindow):
         self.sistema_alarmas.cambio_alarma.connect(self.manejar_alarma)
         self.sistema_alarmas.nuevo_evento.connect(self.registrar_evento)
 
+        self.sistema_alarmas.iniciar_monitoreo()
+
         self.valores = {n: 0.0 for n in tags}       
         
         # 6. Añadir monitor de variables al stacket, solo hasta que se conecta al sistema de alarmas

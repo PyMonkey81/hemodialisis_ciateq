@@ -6,7 +6,7 @@ from PySide6.QtCore import QObject, Signal
 from typing import Optional
 
 class ComunicacionSerialB(QObject):
-    # Señal para enviar el texto recibido a la interfaz o lógica
+    # Señal para enviar el texto recibido 
     respuesta_recibida = Signal(str)
     
     def __init__(self, port_name: str, baudrate: int = 9600):

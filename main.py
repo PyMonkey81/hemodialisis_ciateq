@@ -8,10 +8,10 @@ from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QGuiApplication
 from gui.appMainHemodialisis import HemodialisisHMI
 
-try:    
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)
-except Exception:    
-    ctypes.windll.user32.SetProcessDPIAware()
+# try:    
+#     ctypes.windll.shcore.SetProcessDpiAwareness(1)
+# except Exception:    
+#     ctypes.windll.user32.SetProcessDPIAware()
 
 
 class ScaledHMI(QMainWindow):
