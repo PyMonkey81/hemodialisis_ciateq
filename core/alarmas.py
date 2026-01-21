@@ -195,6 +195,9 @@ class SistemaAlarmas(QObject):
             return self.historial.copy()
 
 
+
+
+
 # import threading
 # import time
 # import json
