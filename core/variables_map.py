@@ -1,4 +1,4 @@
-# resources/variables_map.py
+#core/variables_map.py
 from typing import Dict, List, Tuple, Any
 
 # ================================================================
@@ -85,8 +85,8 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     # ================================================================
     0x02: {
         0x00: {"name": "Presión intermembrana","type": "double","rw": True,"unit": "mmHg","limites": (1, 100),"tag": "interMembPresClinicData", "nivel": "cian"},             # 0
-        0x01: {"name": "Variable clínica visualización 1","type": "double","rw": True, "unit": "NA","limites": (0, 100),"tag": "availableClinicVariable2","nivel": "cian"},   # 1
-        0x02: {"name": "Variable clínica visualización 2","type": "double","rw": True,"unit": "NA","limites": (0, 100),"tag": "availableClinicVariable3","nivel": "cian"},    # 2
+        0x01: {"name": "Selección de modo de tratamiento","type": "double","rw": True, "unit": "NA","limites": (0, 100),"tag": "treatmentModeSelection","nivel": "cian"},   # 1
+        0x02: {"name": "Estado actual de proceso de cebado","type": "double","rw": True,"unit": "NA","limites": (0, 100),"tag": "primingProcessStatus","nivel": "cian"},    # 2
         0x03: {"name": "Variable clínica visualización 3","type": "double","rw": True,"unit": "NA","limites": (0, 100),"tag": "availableClinicVariable4","nivel": "cian"},    # 3
         0x04: {"name": "Selector de ciclos cámara de balance","type": "double","rw": True,"unit": "n","limites": (1, 100),"tag": "balanceChamberCycleSet","nivel": "cian"},   # 4
         0x05: {"name": "Volumen de heparina dosificado actual","type": "double","rw": True,"unit": "ml","limites": (0, 100),"tag": "heparineCurrentDosage","nivel": "cian"},  # 5

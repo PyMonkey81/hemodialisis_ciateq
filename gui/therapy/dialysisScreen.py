@@ -25,46 +25,118 @@ except Exception as e:
     QChartView = None
 
 
+# class ValorSimple(QWidget):
+#     def __init__(self, titulo, valor="0.0", unidad="", es_critico=False):
+#         super().__init__()
+#         self.setFixedHeight(80)
+#         layout = QHBoxLayout(self)
+#         layout.setContentsMargins(15, 10, 15, 10)
+#         layout.setSpacing(15)
+
+#         lbl_titulo = QLabel(titulo)
+#         lbl_titulo.setStyleSheet("color: #000000; font-size: 24px; font-weight: bold;")  #   <------------------ camio de color para tema
+#         lbl_titulo.setMinimumWidth(180)
+#         layout.addWidget(lbl_titulo)
+
+#         fondo = "#fffbeb" if es_critico else "#ffffff"
+#         self.lbl_valor = QLabel(str(valor))
+#         self.lbl_valor.setStyleSheet(f"""
+#             background: {fondo};
+#             color: #000000;
+#             font-size: 44px;
+#             font-weight: bold;
+#             border-radius: 12px;
+#             border: 4px solid #1e293b;
+#             padding: 8px 16px;
+#         """)
+#         self.lbl_valor.setMinimumWidth(160)
+#         self.lbl_valor.setAlignment(Qt.AlignCenter)
+#         layout.addWidget(self.lbl_valor)
+
+#         lbl_unidad = QLabel(unidad)
+#         lbl_unidad.setStyleSheet("color: #000000; font-size: 24px; font-weight: bold;") # <--------- cambio de color para tema
+#         layout.addWidget(lbl_unidad)
+#         layout.addStretch()
+
+#     def setValor(self, valor):
+#         # Manejo seguro de tipos
+#         if isinstance(valor, (float, int)):
+#             texto = f"{valor:.2f}"
+#         else:
+#             texto = str(valor)
+#         self.lbl_valor.setText(texto)
+
+
+
+
+
+
 class ValorSimple(QWidget):
     def __init__(self, titulo, valor="0.0", unidad="", es_critico=False):
         super().__init__()
+        # self.setFixedSize(180, 140)
         self.setFixedHeight(80)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(15, 10, 15, 10)
-        layout.setSpacing(15)
+        # Fondo y borde único para TODO el widget
+        fondo = "#f1c30b" if es_critico else "#e9e9f8"
+        borde_color = "#dc2626" if es_critico else "#64748b"   # ← cámbialo a #c9d0db si prefieres más claro
 
-        lbl_titulo = QLabel(titulo)
-        lbl_titulo.setStyleSheet("color: #000000; font-size: 24px; font-weight: bold;")  #   <------------------ camio de color para tema
-        lbl_titulo.setMinimumWidth(180)
-        layout.addWidget(lbl_titulo)
+        # self.setStyleSheet(f"""
+        #     ValorSimple {{
+        #         background: {fondo};
+        #         border: 3px solid {borde_color};
+        #         border-radius: 10px;
+        #     }}
+        #     QLabel {{
+        #         background: transparent;
+        #         border: none;
+        #     }}
+        # """)
 
-        fondo = "#fffbeb" if es_critico else "#ffffff"
-        self.lbl_valor = QLabel(str(valor))
-        self.lbl_valor.setStyleSheet(f"""
-            background: {fondo};
-            color: #000000;
-            font-size: 44px;
+        # Desactivamos fondo automático en TODOS los hijos
+        self.setAutoFillBackground(False)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(2, 2,2, 2)
+        layout.setSpacing(4)          # pequeño espacio entre título y valor
+        layout.setAlignment(Qt.AlignCenter)
+
+        # Título + unidad (arriba, centrado)
+        texto_superior = f"{titulo} ({unidad})" if unidad else titulo
+        self.lbl_superior = QLabel(texto_superior)
+        self.lbl_superior.setAlignment(Qt.AlignCenter)
+        self.lbl_superior.setStyleSheet("""
+            color: #1e293b;
+            font-size: 18px;
             font-weight: bold;
-            border-radius: 12px;
-            border: 4px solid #1e293b;
-            padding: 8px 16px;
+            background: transparent;
         """)
-        self.lbl_valor.setMinimumWidth(160)
+        layout.addWidget(self.lbl_superior)
+
+        # Valor grande (centrado)
+        self.lbl_valor = QLabel(str(valor))
         self.lbl_valor.setAlignment(Qt.AlignCenter)
+        self.lbl_valor.setStyleSheet("""
+            color: #000000;
+            font-size: 52px;
+            font-weight: bold;
+            background: transparent;
+        """)
         layout.addWidget(self.lbl_valor)
 
-        lbl_unidad = QLabel(unidad)
-        lbl_unidad.setStyleSheet("color: #000000; font-size: 24px; font-weight: bold;") # <--------- cambio de color para tema
-        layout.addWidget(lbl_unidad)
-        layout.addStretch()
-
     def setValor(self, valor):
-        # Manejo seguro de tipos
-        if isinstance(valor, (float, int)):
-            texto = f"{valor:.2f}"
+        if isinstance(valor, (int, float)):
+            # Puedes ajustar el formato de decimales aquí
+            texto = f"{valor:.1f}" if valor >= 10 else f"{valor:.2f}"
         else:
             texto = str(valor)
         self.lbl_valor.setText(texto)
+
+
+
+
+
+
+
 
 
 class dialysisScr(QWidget):
@@ -151,9 +223,9 @@ class dialysisScr(QWidget):
         self.uf_total = ValorSimple("UF Total", "0.00", "L")
         self.uf_tasa = ValorSimple("Tasa UF", "0", "mL/h")
         self.conductividad = ValorSimple("Conductividad", "0.0", "mS/cm")
-        self.fsangre = ValorSimple("Flujo Sangre", "0", "mL/min")
-        self.flujo_dial = ValorSimple("Flujo Dializante", "0", "mL/min")
-        self.temp = ValorSimple("Temperatura", "0.0", "°C")
+        self.fsangre = ValorSimple("Qb", "0", "mL/min")
+        self.flujo_dial = ValorSimple("Qd", "0", "mL/min")
+        self.temp = ValorSimple("Temp.", "0.0", "°C")
         self.na = ValorSimple("Na+", "0.0", "mmol/L")
         self.ktv = ValorSimple("Kt/V", "0.00", "")
 
