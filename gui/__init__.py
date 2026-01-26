@@ -18,3 +18,5 @@ from .components.TankGaugeW import TankGauge
 from .components.PowerBar import ConductivityBar
 from .components.rVariables import monitorVariables
 from .components.ToggleSwitch import ToggleSwitch
+from .components.numpad_modal import NumpadDialog
+from .components.time_numpad_modal import TimeLineEdit
