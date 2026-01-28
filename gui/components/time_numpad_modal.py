@@ -105,9 +105,10 @@ class TimeNumpadDialog(QDialog):
             ('0', 3, 1), ('⌫', 3, 2)
             # No hay botón de punto para el tiempo HH:MM
         ]
+    
 
         font_btn = QFont("Arial", 20, QFont.Bold)
-
+     
         for key, r, c in keys:
             btn = QPushButton(key)
             btn.setFixedSize(80, 70)
@@ -126,7 +127,10 @@ class TimeNumpadDialog(QDialog):
             grid_layout.addWidget(btn, r, c)
             
         # Añadir un espaciador en 3,0 para centrar el '0'
-        grid_layout.addWidget(QLabel(""), 3, 0) # QLabel vacío como espaciador
+        #grid_layout.addWidget(QLabel(""), 3, 0) # QLabel vacío como espaciador
+        spacer = QLabel("")
+        spacer.setStyleSheet("background-color: transparent; border: none;")
+        grid_layout.addWidget(spacer, 3, 0)
         grid_layout.setColumnStretch(0,1)
         grid_layout.setColumnStretch(1,1)
         grid_layout.setColumnStretch(2,1)

@@ -35,8 +35,7 @@ def calculo_ptm(
     
     PTM = (PA + PV)/2 - 51.71499 × (PD_EF + PD_SF)/2
     
-    Usado en: Fresenius, Baxter, Nikkiso, Gambro
-    """
+   """
     if None in (pd_ef, pd_sf, pa, pv):
         logger.warning("PTM: Valor nulo recibido → devolviendo 0.0")
         return 0.0
