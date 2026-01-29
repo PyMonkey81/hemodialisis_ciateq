@@ -146,14 +146,15 @@ class mManualScr(QWidget):
         grid = QGridLayout(self.control_area)
         grid.setSpacing(15)
         grid.setContentsMargins(5, 5, 5, 5)
+        
 
         # Estilos comunes
-        style_lbl = "color: #000000; font-size: 18px; font-weight: bold;"
-        style_lbl_ = "color: #22d3ee; font-size: 20px; font-weight: bold;"
+        style_lbl = "color: #000000; font-size: 18px; font-weight: bold; "
+        style_lbl_ = "color: #22d3ee; font-size: 20px; font-weight: bold;border: 2px solid #000000; border-radius: 5px; padding: 2px;"
         style_unit = "color: #94a3b8; font-size: 16px;"
         style_input = """
-            QLineEdit { background: #ffffff; color: #000000; font-size: 18px; 
-                        font-weight: bold; border-radius: 5px; padding: 2px; }
+            QLineEdit { background: #FFFFE5; color: #000000; font-size: 18px; 
+                        font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; }
         """
         style_btn = """
             QPushButton { background: #3b82f6; color: #ffffff; border-radius: 8px; font-weight: bold; }
@@ -167,30 +168,30 @@ class mManualScr(QWidget):
         lbl_sangre.setStyleSheet(style_lbl)
         grid.addWidget(lbl_sangre, 0, 0, 1, 2)
 
-        self.toggle_sangre = ToggleSwitch(width=70, height=35)
+        self.toggle_sangre = ToggleSwitch(width=60, height=35)
         self.toggle_sangre.toggled.connect(
             lambda chk: self.manejar_bomba_doble("bloodPumpStartButton", "bloodPumpStopButton", chk, timer_id="op_pb")
         )
-        grid.addWidget(self.toggle_sangre, 0, 3)
+        grid.addWidget(self.toggle_sangre, 0, 2)
 
         btn_rev = QPushButton("REV")
-        btn_rev.setFixedSize(60, 35)
+        btn_rev.setFixedSize(50, 35)
         btn_rev.setStyleSheet(style_btn)
         btn_rev.pressed.connect(lambda: self.escribir_comando("bloodPumpREVButton", True))
         btn_rev.released.connect(lambda: self.escribir_comando("bloodPumpREVButton", False))
         
         btn_fwd = QPushButton("FWD")
-        btn_fwd.setFixedSize(60, 35)
+        btn_fwd.setFixedSize(50, 35)
         btn_fwd.setStyleSheet(style_btn)
         btn_fwd.pressed.connect(lambda: self.escribir_comando("bloodPumpFWDButton", True))
         btn_fwd.released.connect(lambda: self.escribir_comando("bloodPumpFWDButton", False))
 
-        grid.addWidget(btn_rev, 0, 4)
-        grid.addWidget(btn_fwd, 0, 5)
+        grid.addWidget(btn_rev, 0, 3)
+        grid.addWidget(btn_fwd, 0, 4)
 
         lbl_flujo = QLabel("Flujo:")
         lbl_flujo.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_flujo, 0, 6)
+        grid.addWidget(lbl_flujo, 0, 5)
 
         self.input_flujo_sangre = ClickableLineEdit("0")
         self.input_flujo_sangre.setFixedSize(80, 35)
@@ -200,7 +201,7 @@ class mManualScr(QWidget):
         self.input_flujo_sangre.clicked.connect(
             lambda: self.open_numpad("bloodFlowControlSetPoint",self.input_flujo_sangre, "Flujo de Sangre")
         )
-        grid.addWidget(self.input_flujo_sangre, 0, 7)
+        grid.addWidget(self.input_flujo_sangre, 0, 6, 1, 2)
 
         lbl_u1 = QLabel("ml/min")
         lbl_u1.setStyleSheet(style_unit)
@@ -210,8 +211,8 @@ class mManualScr(QWidget):
         lbl_vel.setStyleSheet(style_lbl)
         grid.addWidget(lbl_vel, 0, 9)
 
-        self.lbl_velocidad_val = QLabel("0")
-        self.lbl_velocidad_val.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
+        self.lbl_velocidad_val = QLabel("0.0")
+        self.lbl_velocidad_val.setStyleSheet(style_lbl_)
         grid.addWidget(self.lbl_velocidad_val, 0, 10)
 
         lbl_u2 = QLabel("rpm")
@@ -219,12 +220,12 @@ class mManualScr(QWidget):
         grid.addWidget(lbl_u2, 0, 11)
 
         # T. Operación de Bomba de Sangre (input_t_BloodPump)
-        lbl_tiempo = QLabel("T. Op.:")  
+        lbl_tiempo = QLabel("T.:")  
         lbl_tiempo.setStyleSheet(style_lbl)
         grid.addWidget(lbl_tiempo, 0, 12)
         
         self.input_t_BloodPump = ClickableLineEdit("00:00")
-        self.input_t_BloodPump.setFixedSize(120, 35)
+        self.input_t_BloodPump.setFixedSize(100, 35)
         self.input_t_BloodPump.setStyleSheet(style_input) # Usa style_input definido arriba
         self.input_t_BloodPump.setAlignment(Qt.AlignCenter)
         self.input_t_BloodPump.setReadOnly(True)
@@ -238,24 +239,25 @@ class mManualScr(QWidget):
                 title="Tiempo de operación de bomba de sangre"
             )
         )        
-        grid.addWidget(self.input_t_BloodPump, 0, 13, 1, 3)
+        grid.addWidget(self.input_t_BloodPump, 0, 13, 1, 2)
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de Sangre
-        lbl_elapsed_pb_title = QLabel("Transcurrido:")
-        lbl_elapsed_pb_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
+        lbl_elapsed_pb_title = QLabel("T:")
+        lbl_elapsed_pb_title.setStyleSheet(style_lbl)
         grid.addWidget(lbl_elapsed_pb_title, 0, 15, alignment=Qt.AlignRight)
 
         self.lbl_elapsed_pb = QLabel("00:00")
-        self.lbl_elapsed_pb.setStyleSheet("color: #4CAF50; font-size: 18px; font-weight: bold;") # Color verde para transcurrido
+        self.lbl_elapsed_pb.setStyleSheet(style_lbl) # Color verde para transcurrido
         grid.addWidget(self.lbl_elapsed_pb, 0, 16, alignment=Qt.AlignLeft)
         
-        lbl_remaining_pb_title = QLabel("Restante:")
-        lbl_remaining_pb_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
+        lbl_remaining_pb_title = QLabel("Rest.:")
+        lbl_remaining_pb_title.setStyleSheet(style_lbl)
         grid.addWidget(lbl_remaining_pb_title, 0, 17, alignment=Qt.AlignRight)
 
         self.lbl_remaining_pb = QLabel("00:00")
         self.lbl_remaining_pb.setStyleSheet(style_lbl_) # Color ámbar para restante
-        grid.addWidget(self.lbl_remaining_pb, 0, 18, alignment=Qt.AlignLeft)
+        self.lbl_remaining_pb.setFixedSize(100,35)
+        grid.addWidget(self.lbl_remaining_pb, 0, 18,1,3, alignment=Qt.AlignLeft)
 
         # ### ALMACENAR REFERENCIAS a las etiquetas en _local_timers_state
         self._local_timers_state["op_pb"]["elapsed_lbl"] = self.lbl_elapsed_pb
@@ -267,128 +269,127 @@ class mManualScr(QWidget):
         # ----------------------------------------------------------------------
         lbl_bHeparina = QLabel("B. Hep.")
         lbl_bHeparina.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_bHeparina, 1, 0)
+        grid.addWidget(lbl_bHeparina, 1, 0, 1, 2)
 
-        self.toggle_heparina = ToggleSwitch(width=70, height=35)
+        self.toggle_heparina = ToggleSwitch(width=60, height=35)
         # El timer_id "op_ph" se utiliza para la bomba de heparina, 
         # y su duración se establece a través de "T. Terapia" (input_t_therapy)
         self.toggle_heparina.toggled.connect(lambda chk: self.manejar_bomba_doble("heparinePumpsStartButton", "heparinePumpsStopButton",chk, timer_id="op_ph"))
-        grid.addWidget(self.toggle_heparina, 1, 1)
+        grid.addWidget(self.toggle_heparina, 1, 2, 1, 1)
 
 
         btn_homeHep = QPushButton("HOME")
-        btn_homeHep.setFixedSize(70, 35)
+        btn_homeHep.setFixedSize(60, 35)
         btn_homeHep.setStyleSheet(style_btn)
         btn_homeHep.pressed.connect(lambda: self.escribir_comando("heparinePumpHomePosition", True))
         btn_homeHep.released.connect(lambda: self.escribir_comando("heparinePumpHomePosition", False))
         
         btn_rev_hep = QPushButton("REV")
-        btn_rev_hep.setFixedSize(70,35)
+        btn_rev_hep.setFixedSize(60,35)
         btn_rev_hep.setStyleSheet(style_btn)
         btn_rev_hep.pressed.connect(lambda: self.escribir_comando("heparinePumpREVButton",True))
         btn_rev_hep.released.connect(lambda: self.escribir_comando("heparinePumpREVButton", False))
 
         btn_pause_hep = QPushButton("PAUSE")
-        btn_pause_hep.setFixedSize(70,35)
+        btn_pause_hep.setFixedSize(60,35)
         btn_pause_hep.setStyleSheet(style_btn)
         btn_pause_hep.pressed.connect(lambda: self.escribir_comando("heparineOperPauseResume",True))
         btn_pause_hep.released.connect(lambda: self.escribir_comando("heparineOperPauseResume", False))
 
         btn_fwd_hep = QPushButton("FWD")
-        btn_fwd_hep.setFixedSize(70,35)
+        btn_fwd_hep.setFixedSize(60,35)
         btn_fwd_hep.setStyleSheet(style_btn)
         btn_fwd_hep.pressed.connect(lambda: self.escribir_comando("heparinePumpFWDButton",True))
         btn_fwd_hep.released.connect(lambda: self.escribir_comando("heparinePumpFWDButton", False))
 
-        grid.addWidget(btn_homeHep, 1, 2)
-        grid.addWidget(btn_rev_hep, 1, 3)
-        grid.addWidget(btn_pause_hep, 1, 4)
-        grid.addWidget(btn_fwd_hep, 1, 5)
+        grid.addWidget(btn_homeHep, 1, 3)
+        grid.addWidget(btn_rev_hep, 1, 4)
+        grid.addWidget(btn_pause_hep, 1, 5)
+        grid.addWidget(btn_fwd_hep, 1, 6)
 
         lbl_indHeparina = QLabel("Heparina")
         lbl_indHeparina.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_indHeparina, 1,6)
+        grid.addWidget(lbl_indHeparina, 1,7,1,2)
         
         self.indHeparinCurrentDosage = QLabel("0.0")
-        self.indHeparinCurrentDosage.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
-        self.indHeparinCurrentDosage.setFixedSize(100,35)
-        grid.addWidget(self.indHeparinCurrentDosage,1,7)
+        self.indHeparinCurrentDosage.setStyleSheet(style_lbl_)
+        self.indHeparinCurrentDosage.setFixedSize(80,35)
+        self.indHeparinCurrentDosage.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.indHeparinCurrentDosage,1,9,1,2)
         
         lbl_unit_hep = QLabel("ml")
         lbl_unit_hep.setStyleSheet(style_unit)
-        lbl_unit_hep.setFixedSize(100,35)
-        grid.addWidget(lbl_unit_hep,1,8)
+        # lbl_unit_hep.setFixedSize(80,35)
+        grid.addWidget(lbl_unit_hep,1,11)
 
         # ----------------------------------------------------------------------
         # FILA 2: DOSIS HEPARINA (Input)
         # ----------------------------------------------------------------------
         lbl_dosis = QLabel("Dosis Hep.")
         lbl_dosis.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_dosis, 2, 0)
+        grid.addWidget(lbl_dosis, 2, 0, 1, 2)
 
         self.input_dosis_hep = ClickableLineEdit("0.0")
-        self.input_dosis_hep.setFixedSize(100, 35)
+        self.input_dosis_hep.setFixedSize(80, 35)
         self.input_dosis_hep.setAlignment(Qt.AlignCenter)
         self.input_dosis_hep.setStyleSheet(style_input)
         self.input_dosis_hep.setReadOnly(True) 
-
         self.input_dosis_hep.clicked.connect(
             lambda: self.open_numpad("heparineTherapyDosage", self.input_dosis_hep, "Dosis Heparina")
         )
-        grid.addWidget(self.input_dosis_hep, 2, 1)
+        grid.addWidget(self.input_dosis_hep, 2, 2,1, 2)
 
         lbl_udosis_hep = QLabel("ml/h")
         lbl_udosis_hep.setStyleSheet(style_unit)
-        grid.addWidget(lbl_udosis_hep, 2, 2)
+        grid.addWidget(lbl_udosis_hep, 2, 4)
 
-        lbl_dosis_bolo = QLabel("Bolo")
+        lbl_dosis_bolo = QLabel("Bolo:")
         lbl_dosis_bolo.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_dosis_bolo, 2, 3)
+        grid.addWidget(lbl_dosis_bolo, 2, 5)
 
         self.input_dosis_bolo = ClickableLineEdit("0.0")
-        self.input_dosis_bolo.setFixedSize(100, 35)
+        self.input_dosis_bolo.setFixedSize(80, 35)
         self.input_dosis_bolo.setAlignment(Qt.AlignCenter)
         self.input_dosis_bolo.setStyleSheet(style_input)
         self.input_dosis_bolo.setReadOnly(True)
         self.input_dosis_bolo.clicked.connect(
             lambda: self.open_numpad("heparineBolusQuantity", self.input_dosis_bolo, "Dosis Bolo")
         )
-        grid.addWidget(self.input_dosis_bolo, 2, 4)
+        grid.addWidget(self.input_dosis_bolo, 2, 6,1,2)
 
         lbl_udosis_bol = QLabel("ml")
         lbl_udosis_bol.setStyleSheet(style_unit)
-        grid.addWidget(lbl_udosis_bol, 2, 5)
+        grid.addWidget(lbl_udosis_bol, 2, 8)
 
         lbl_size_syringe = QLabel("Jeringa")
         lbl_size_syringe.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_size_syringe, 2, 6)
+        grid.addWidget(lbl_size_syringe, 2, 9)
 
         self.input_size_syringe = ClickableLineEdit("0.0")
-        self.input_size_syringe.setFixedSize(100,35)
+        self.input_size_syringe.setFixedSize(80,35)
         self.input_size_syringe.setAlignment(Qt.AlignCenter)
         self.input_size_syringe.setStyleSheet(style_input)
         self.input_size_syringe.setReadOnly(True)
         self.input_size_syringe.clicked.connect(
             lambda: self.open_numpad("heparineSyrinjeScaleSize", self.input_size_syringe, "Tamaño de jeringa")
         )
-        grid.addWidget(self.input_size_syringe, 2, 7)
+        grid.addWidget(self.input_size_syringe, 2, 10,1,2)
 
         lbl_usize_syringe = QLabel("mm/ml")
         lbl_usize_syringe.setStyleSheet(style_unit)
-        grid.addWidget(lbl_usize_syringe, 2, 8)
+        grid.addWidget(lbl_usize_syringe, 2, 12)
 
         # Tiempo de terapia: este sí se escribe al control (PLC), 
         # y su valor también rige el timer local de la bomba de heparina (op_ph).
-        lbl_t_therapy = QLabel("T. Terapia")
+        lbl_t_therapy = QLabel("T.") #tiempo de terapia
         lbl_t_therapy.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_t_therapy, 2, 9)
+        grid.addWidget(lbl_t_therapy, 2, 13)
 
         self.input_t_therapy = ClickableLineEdit("00:00")
-        self.input_t_therapy.setFixedSize(120, 35)
+        self.input_t_therapy.setFixedSize(100, 35)
         self.input_t_therapy.setStyleSheet(style_input)
         self.input_t_therapy.setAlignment(Qt.AlignCenter)
         self.input_t_therapy.setReadOnly(True)
-
         self.input_t_therapy.clicked.connect(
             lambda: self.open_time_numpad(
                 self.input_t_therapy,
@@ -398,25 +399,25 @@ class mManualScr(QWidget):
                 title="Tiempo de terapia"
             )
         )
-        grid.addWidget(self.input_t_therapy, 2, 10) 
+        grid.addWidget(self.input_t_therapy, 2, 14,1,2) 
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de Heparina (op_ph)
         # Ajusta las columnas según tu diseño para que no se solape
-        lbl_elapsed_ph_title = QLabel("Transcurrido:")
-        lbl_elapsed_ph_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
-        grid.addWidget(lbl_elapsed_ph_title, 2, 11, alignment=Qt.AlignRight)
+        lbl_elapsed_ph_title = QLabel("T:")
+        lbl_elapsed_ph_title.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_elapsed_ph_title, 2, 16, alignment=Qt.AlignRight)
 
         self.lbl_elapsed_ph = QLabel("00:00")
-        self.lbl_elapsed_ph.setStyleSheet("color: #4CAF50; font-size: 18px; font-weight: bold;") 
-        grid.addWidget(self.lbl_elapsed_ph, 2, 12, alignment=Qt.AlignLeft)
+        self.lbl_elapsed_ph.setStyleSheet(style_lbl) 
+        grid.addWidget(self.lbl_elapsed_ph, 2, 17, alignment=Qt.AlignLeft)
         
-        lbl_remaining_ph_title = QLabel("Restante:")
-        lbl_remaining_ph_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
-        grid.addWidget(lbl_remaining_ph_title, 2, 13, alignment=Qt.AlignRight)
+        lbl_remaining_ph_title = QLabel("Rest.:")
+        lbl_remaining_ph_title.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_remaining_ph_title, 2, 18, alignment=Qt.AlignRight)
 
         self.lbl_remaining_ph = QLabel("00:00")
-        self.lbl_remaining_ph.setStyleSheet("color: #FFC107; font-size: 18px; font-weight: bold;") 
-        grid.addWidget(self.lbl_remaining_ph, 2, 14, alignment=Qt.AlignLeft)
+        self.lbl_remaining_ph.setStyleSheet(style_lbl_) 
+        grid.addWidget(self.lbl_remaining_ph, 2, 19,1,2, alignment=Qt.AlignLeft)
 
         # ### ALMACENAR REFERENCIAS a las etiquetas en _local_timers_state
         self._local_timers_state["op_ph"]["elapsed_lbl"] = self.lbl_elapsed_ph
@@ -428,26 +429,27 @@ class mManualScr(QWidget):
         # ----------------------------------------------------------------------
         lbl_dializante = QLabel("B. Dializante")
         lbl_dializante.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_dializante, 3, 0)
+        grid.addWidget(lbl_dializante, 3, 0, 1, 2)
 
-        self.toggle_dializante = ToggleSwitch(width=70, height=35)
+        self.toggle_dializante = ToggleSwitch(width=60, height=35)
         self.toggle_dializante.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyserPumpStartButton","dialyserPumpStopButton",chk, timer_id="op_pd"))
-        grid.addWidget(self.toggle_dializante, 3,1)
+        grid.addWidget(self.toggle_dializante, 3,2)
 
         self.lbl_indSDializante = QLabel("0.0")
-        self.lbl_indSDializante.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
-        self.lbl_indSDializante.setFixedSize(100,35)
-        grid.addWidget(self.lbl_indSDializante, 3,2)
+        self.lbl_indSDializante.setStyleSheet(style_lbl_)
+        self.lbl_indSDializante.setFixedSize(80,35)
+        self.lbl_indSDializante.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.lbl_indSDializante, 3,3)
 
         lbl_unit_indSdializante = QLabel("%")
         lbl_unit_indSdializante.setStyleSheet(style_unit)
-        lbl_unit_indSdializante.setFixedSize(100,35)
-        grid.addWidget(lbl_unit_indSdializante, 3, 3)
+        # lbl_unit_indSdializante.setFixedSize(100,35)
+        grid.addWidget(lbl_unit_indSdializante, 3, 5)
 
-        lbl_e_tOpBD = QLabel("Tiempo Op.")
+        lbl_e_tOpBD = QLabel("T.:")
         lbl_e_tOpBD.setStyleSheet(style_lbl)
-        lbl_e_tOpBD.setFixedSize(100,35)
-        grid.addWidget(lbl_e_tOpBD, 3, 4)
+        lbl_e_tOpBD.setFixedSize(80,35)
+        grid.addWidget(lbl_e_tOpBD, 3, 6)
 
         self.lbl_tiempo_OpBD = ClickableLineEdit("00:00") # ¡CORRECCIÓN!
         self.lbl_tiempo_OpBD.setStyleSheet(style_input)
@@ -463,24 +465,28 @@ class mManualScr(QWidget):
             title="Tiempo Op. Dializante"
             )
         )
-        grid.addWidget(self.lbl_tiempo_OpBD,3,5)
+        grid.addWidget(self.lbl_tiempo_OpBD,3,7)
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de Dializante
-        lbl_elapsed_pd_title = QLabel("Transcurrido:")
-        lbl_elapsed_pd_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
-        grid.addWidget(lbl_elapsed_pd_title, 3, 8, alignment=Qt.AlignRight) # Columnas ajustadas para no solaparse
+        lbl_elapsed_pd_title = QLabel("T.:")
+        lbl_elapsed_pd_title.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_elapsed_pd_title, 3, 9, alignment=Qt.AlignRight) # Columnas ajustadas para no solaparse
 
         self.lbl_elapsed_pd = QLabel("00:00")
-        self.lbl_elapsed_pd.setStyleSheet("color: #4CAF50; font-size: 18px; font-weight: bold;")
-        grid.addWidget(self.lbl_elapsed_pd, 3, 9, alignment=Qt.AlignLeft)
+        self.lbl_elapsed_pd.setStyleSheet(style_lbl)
+        self.lbl_elapsed_pd.setFixedSize(100,35)
+        self.lbl_elapsed_pd.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.lbl_elapsed_pd, 3, 10, alignment=Qt.AlignLeft)
         
-        lbl_remaining_pd_title = QLabel("Restante:")
-        lbl_remaining_pd_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
-        grid.addWidget(lbl_remaining_pd_title, 3, 10, alignment=Qt.AlignRight)
+        lbl_remaining_pd_title = QLabel("Rest.:")
+        lbl_remaining_pd_title.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_remaining_pd_title, 3, 12, alignment=Qt.AlignRight)
 
         self.lbl_remaining_pd = QLabel("00:00")
-        self.lbl_remaining_pd.setStyleSheet("color: #FFC107; font-size: 18px; font-weight: bold;")
-        grid.addWidget(self.lbl_remaining_pd, 3, 11, alignment=Qt.AlignLeft)
+        self.lbl_remaining_pd.setStyleSheet(style_lbl_)
+        self.lbl_remaining_pd.setFixedSize(100,35)
+        self.lbl_remaining_pd.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.lbl_remaining_pd, 3, 13, alignment=Qt.AlignLeft)
 
         self._local_timers_state["op_pd"]["elapsed_lbl"] = self.lbl_elapsed_pd
         self._local_timers_state["op_pd"]["remaining_lbl"] = self.lbl_remaining_pd
@@ -491,26 +497,27 @@ class mManualScr(QWidget):
         # ----------------------------------------------------------------------
         lbl_ultrafiltado = QLabel("B. UF")
         lbl_ultrafiltado.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_ultrafiltado, 4,0)
+        grid.addWidget(lbl_ultrafiltado, 4,0, 1 ,2)
 
-        self.toggle_uf = ToggleSwitch(width=70, height=35)
+        self.toggle_uf = ToggleSwitch(width=60, height=35)
         self.toggle_uf.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyUltraFPumpStartButt","dialyUltraFPumpStoptButt",chk, timer_id="op_puf"))
-        grid.addWidget(self.toggle_uf, 4,1)
+        grid.addWidget(self.toggle_uf, 4,2)
 
         self.lbl_indUF = QLabel("0.0")
-        self.lbl_indUF.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
-        self.lbl_indUF.setFixedSize(100,35)
-        grid.addWidget(self.lbl_indUF, 4, 2)
+        self.lbl_indUF.setStyleSheet(style_lbl_)
+        self.lbl_indUF.setFixedSize(80,35)
+        self.lbl_indUF.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.lbl_indUF, 4, 3)
 
         lbl_unit_indUF = QLabel("L/h")
         lbl_unit_indUF.setStyleSheet(style_unit)
-        lbl_unit_indUF.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indUF, 4,3)
+        # lbl_unit_indUF.setFixedSize(100, 35)
+        grid.addWidget(lbl_unit_indUF, 4,5)
 
-        lbl_e_tOpBUF = QLabel("Tiempo Op.")
+        lbl_e_tOpBUF = QLabel("T.:")
         lbl_e_tOpBUF.setStyleSheet(style_lbl)
-        lbl_e_tOpBUF.setFixedSize(100, 35)
-        grid.addWidget(lbl_e_tOpBUF, 4, 4)
+        lbl_e_tOpBUF.setFixedSize(80, 35)
+        grid.addWidget(lbl_e_tOpBUF, 4, 6)
 
         self.lbl_tiempo_opBUF = ClickableLineEdit("00:00") # ¡CORRECCIÓN!
         self.lbl_tiempo_opBUF.setStyleSheet(style_input)
@@ -526,39 +533,43 @@ class mManualScr(QWidget):
                 title="Tiempo Op. Ultra Filtrado"
             )
         )
-        grid.addWidget(self.lbl_tiempo_opBUF, 4, 5)
+        grid.addWidget(self.lbl_tiempo_opBUF, 4, 7)
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de UF
-        lbl_elapsed_puf_title = QLabel("Transcurrido:")
-        lbl_elapsed_puf_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
-        grid.addWidget(lbl_elapsed_puf_title, 4, 8, alignment=Qt.AlignRight)
+        lbl_elapsed_puf_title = QLabel("T.:")
+        lbl_elapsed_puf_title.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_elapsed_puf_title, 4, 9, alignment=Qt.AlignRight)
 
         self.lbl_elapsed_puf = QLabel("00:00")
-        self.lbl_elapsed_puf.setStyleSheet("color: #4CAF50; font-size: 18px; font-weight: bold;")
-        grid.addWidget(self.lbl_elapsed_puf, 4, 9, alignment=Qt.AlignLeft)
+        self.lbl_elapsed_puf.setStyleSheet(style_lbl)
+        self.lbl_elapsed_puf.setFixedSize(100,35)
+        self.lbl_elapsed_puf.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.lbl_elapsed_puf, 4, 10, alignment=Qt.AlignLeft)
         
-        lbl_remaining_puf_title = QLabel("Restante:")
-        lbl_remaining_puf_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
-        grid.addWidget(lbl_remaining_puf_title, 4, 10, alignment=Qt.AlignRight)
+        lbl_remaining_puf_title = QLabel("Rest.:")
+        lbl_remaining_puf_title.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_remaining_puf_title, 4, 12, alignment=Qt.AlignRight)
 
         self.lbl_remaining_puf = QLabel("00:00")
-        self.lbl_remaining_puf.setStyleSheet("color: #FFC107; font-size: 18px; font-weight: bold;")
-        grid.addWidget(self.lbl_remaining_puf, 4, 11, alignment=Qt.AlignLeft)
+        self.lbl_remaining_puf.setFixedSize(100,35)
+        self.lbl_remaining_puf.setStyleSheet(style_lbl_)
+        self.lbl_remaining_puf.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.lbl_remaining_puf, 4, 13, alignment=Qt.AlignLeft)
 
         self._local_timers_state["op_puf"]["elapsed_lbl"] = self.lbl_elapsed_puf
         self._local_timers_state["op_puf"]["remaining_lbl"] = self.lbl_remaining_puf
 
         # --- (Tu código para lbl_e_tRestBUF y self.lbl_tiempo_RestBUF, considera si quieres mantenerlo o usar el nuevo patrón) ---
         # Si mantienes este, se solapará con las nuevas etiquetas de "Transcurrido:"
-        lbl_e_tRestBUF = QLabel("T. Restante")
-        lbl_e_tRestBUF.setStyleSheet(style_lbl)
-        lbl_e_tRestBUF.setFixedSize(100, 35)
-        grid.addWidget(lbl_e_tRestBUF, 4, 6)
+        # lbl_e_tRestBUF = QLabel("T. Restante")
+        # lbl_e_tRestBUF.setStyleSheet(style_lbl)
+        # lbl_e_tRestBUF.setFixedSize(100, 35)
+        # grid.addWidget(lbl_e_tRestBUF, 4, 6)
 
-        self.lbl_tiempo_RestBUF = QLabel("00:00")
-        self.lbl_tiempo_RestBUF.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
-        self.lbl_tiempo_RestBUF.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_tiempo_RestBUF, 4, 7)
+        # self.lbl_tiempo_RestBUF = QLabel("00:00")
+        # self.lbl_tiempo_RestBUF.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
+        # self.lbl_tiempo_RestBUF.setFixedSize(100, 35)
+        # grid.addWidget(self.lbl_tiempo_RestBUF, 4, 7)
         # --- FIN: Bloque a considerar si mantener o reemplazar ---
 
 
@@ -568,21 +579,22 @@ class mManualScr(QWidget):
         lbl_bicarbonato = QLabel("B. Na+")
         lbl_bicarbonato.setStyleSheet(style_lbl)
         lbl_bicarbonato.setFixedSize(100, 35)
-        grid.addWidget(lbl_bicarbonato, 5, 0)
+        grid.addWidget(lbl_bicarbonato, 5, 0, 1, 2)
 
-        self.toggle_Na = ToggleSwitch(width=70, height=35)
+        self.toggle_Na = ToggleSwitch(width=60, height=35)
         self.toggle_Na.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyBicarbonPumpStartButt","dialyBicarbonPumpStopButt",chk, timer_id=None))
-        grid.addWidget(self.toggle_Na, 5, 1)
+        grid.addWidget(self.toggle_Na, 5, 2)
 
         self.lbl_indBNa = QLabel("0.0")
-        self.lbl_indBNa.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
-        self.lbl_indBNa.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_indBNa, 5, 2)
+        self.lbl_indBNa.setStyleSheet(style_lbl_)
+        self.lbl_indBNa.setFixedSize(80, 35)
+        self.lbl_indBNa.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.lbl_indBNa, 5, 3)
 
         lbl_unit_indBNa = QLabel("%")
         lbl_unit_indBNa.setStyleSheet(style_unit)
         lbl_unit_indBNa.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indBNa, 5, 3)
+        grid.addWidget(lbl_unit_indBNa, 5, 5)
                                                                                                                                                                                                                                                                          
         # ----------------------------------------------------------------------
         # FILA 6: B. Acido Citrico
@@ -590,21 +602,22 @@ class mManualScr(QWidget):
         lbl_acidocitrico = QLabel("B. A. Citrico")
         lbl_acidocitrico.setStyleSheet(style_lbl)
         lbl_acidocitrico.setFixedSize(100, 35)
-        grid.addWidget(lbl_acidocitrico, 6, 0)
+        grid.addWidget(lbl_acidocitrico, 6, 0, 1 ,2)
 
-        self.toggle_acidocitrico = ToggleSwitch(width=70, height=35)
+        self.toggle_acidocitrico = ToggleSwitch(width=60, height=35)
         self.toggle_acidocitrico.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyCitricAcPumpStartButt","dialyCitricAcPumpStopButt",chk, timer_id=None))
-        grid.addWidget(self.toggle_acidocitrico, 6, 1)
+        grid.addWidget(self.toggle_acidocitrico, 6, 2)
 
         self.lbl_indBAC = QLabel("0.0")
-        self.lbl_indBAC.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
-        self.lbl_indBAC.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_indBAC, 6, 2)
+        self.lbl_indBAC.setStyleSheet(style_lbl_)
+        self.lbl_indBAC.setAlignment(Qt.AlignCenter)
+        self.lbl_indBAC.setFixedSize(80, 35)
+        grid.addWidget(self.lbl_indBAC, 6, 3)
 
         lbl_unit_indBAC = QLabel("%")
         lbl_unit_indBAC.setStyleSheet(style_unit)
-        lbl_unit_indBAC.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indBAC, 6, 3)
+        # lbl_unit_indBAC.setFixedSize(100, 35)
+        grid.addWidget(lbl_unit_indBAC, 6, 5)
 
         # ----------------------------------------------------------------------
         # FILA 7: B. Purga de Aire
@@ -612,21 +625,22 @@ class mManualScr(QWidget):
         lbl_purga = QLabel("B. Purga")
         lbl_purga.setStyleSheet(style_lbl)
         lbl_purga.setFixedSize(100, 35)
-        grid.addWidget(lbl_purga, 7, 0)
+        grid.addWidget(lbl_purga, 7, 0,1,2)
 
-        self.toggle_purga = ToggleSwitch(width=70, height=35)
+        self.toggle_purga = ToggleSwitch(width=60, height=35)
         self.toggle_purga.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyPurgePumpStartButt","dialyPurgePumpStopButt",chk, timer_id=None))
-        grid.addWidget(self.toggle_purga, 7, 1)
+        grid.addWidget(self.toggle_purga, 7, 2)
 
         self.lbl_indPurga = QLabel("0.0")
-        self.lbl_indPurga.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
-        self.lbl_indPurga.setFixedSize(100, 35)
-        grid.addWidget(self.lbl_indPurga, 7, 2)
+        self.lbl_indPurga.setStyleSheet(style_lbl_)
+        self.lbl_indPurga.setAlignment(Qt.AlignCenter)
+        self.lbl_indPurga.setFixedSize(80, 35)
+        grid.addWidget(self.lbl_indPurga, 7, 3)
 
         lbl_unit_indPurga = QLabel("%")
         lbl_unit_indPurga.setStyleSheet(style_unit)
-        lbl_unit_indPurga.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indPurga, 7, 3) # ### CORRECCIÓN: Usar lbl_unit_indPurga aquí
+        # lbl_unit_indPurga.setFixedSize(100, 35)
+        grid.addWidget(lbl_unit_indPurga, 7, 5) # ### CORRECCIÓN: Usar lbl_unit_indPurga aquí
 
         # ----------------------------------------------------------------------
         # FILAS 8: C. Balance (Cámara de Balance)
@@ -634,19 +648,19 @@ class mManualScr(QWidget):
         lbl_cb = QLabel("C. Balance")
         lbl_cb.setStyleSheet(style_lbl)
         lbl_cb.setFixedSize(100, 35)
-        grid.addWidget(lbl_cb, 8, 0)
+        grid.addWidget(lbl_cb, 8, 0, 1, 2)
 
         self.toggle_cb = ToggleSwitch(width=70, height=35)
         self.toggle_cb.toggled.connect(lambda chk: self.manejar_bomba_doble("dialiserBalChambStrButt","dialiserBalChambStpButt",chk, timer_id="op_cb"))
-        grid.addWidget(self.toggle_cb, 8, 1) # ### CORRECCIÓN: Usar self.toggle_cb aquí
+        grid.addWidget(self.toggle_cb, 8, 2) # ### CORRECCIÓN: Usar self.toggle_cb aquí
 
         # Campo de tiempo para el timer de Cámara de Balance
-        lbl_t_op_cb = QLabel("T. Operación:")
+        lbl_t_op_cb = QLabel("T.:")
         lbl_t_op_cb.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_t_op_cb, 8, 2) 
+        grid.addWidget(lbl_t_op_cb, 8, 4) 
 
         self.input_t_BalanceChamber = ClickableLineEdit("00:00")
-        self.input_t_BalanceChamber.setFixedSize(120, 35)
+        self.input_t_BalanceChamber.setFixedSize(100, 35)
         self.input_t_BalanceChamber.setStyleSheet(style_input)
         self.input_t_BalanceChamber.setAlignment(Qt.AlignCenter)
         self.input_t_BalanceChamber.setReadOnly(True)
@@ -659,27 +673,45 @@ class mManualScr(QWidget):
                 title="Tiempo Op. Cámara de Balance"
             )
         )
-        grid.addWidget(self.input_t_BalanceChamber, 8, 3, 1, 3)
+        grid.addWidget(self.input_t_BalanceChamber, 8, 5, 1, 2)
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Cámara de Balance
-        lbl_elapsed_cb_title = QLabel("Transcurrido:")
-        lbl_elapsed_cb_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
-        grid.addWidget(lbl_elapsed_cb_title, 8, 8, alignment=Qt.AlignRight) 
+        lbl_elapsed_cb_title = QLabel("T.:")
+        lbl_elapsed_cb_title.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_elapsed_cb_title, 8, 7, alignment=Qt.AlignRight) 
 
         self.lbl_elapsed_cb = QLabel("00:00")
-        self.lbl_elapsed_cb.setStyleSheet("color: #4CAF50; font-size: 18px; font-weight: bold;")
-        grid.addWidget(self.lbl_elapsed_cb, 8, 9, alignment=Qt.AlignLeft)
+        self.lbl_elapsed_cb.setStyleSheet(style_lbl)
+        self.lbl_elapsed_cb.setFixedSize(100,35)
+        self.lbl_elapsed_cb.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.lbl_elapsed_cb, 8, 8, alignment=Qt.AlignLeft)
         
-        lbl_remaining_cb_title = QLabel("Restante:")
-        lbl_remaining_cb_title.setStyleSheet(style_lbl.replace("bold", "normal") + "font-size: 14px;")
+        lbl_remaining_cb_title = QLabel("Rest.:")
+        lbl_remaining_cb_title.setStyleSheet(style_lbl)
         grid.addWidget(lbl_remaining_cb_title, 8, 10, alignment=Qt.AlignRight)
 
         self.lbl_remaining_cb = QLabel("00:00")
-        self.lbl_remaining_cb.setStyleSheet("color: #FFC107; font-size: 18px; font-weight: bold;")
+        self.lbl_remaining_cb.setStyleSheet(style_lbl_)
+        self.lbl_remaining_cb.setAlignment(Qt.AlignCenter)
+        self.lbl_remaining_cb.setFixedSize(100,35)
         grid.addWidget(self.lbl_remaining_cb, 8, 11, alignment=Qt.AlignLeft)
 
         self._local_timers_state["op_cb"]["elapsed_lbl"] = self.lbl_elapsed_cb
         self._local_timers_state["op_cb"]["remaining_lbl"] = self.lbl_remaining_cb
+
+        lbl_cycles_chamber = QLabel("Ciclos CB")
+        lbl_cycles_chamber.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_cycles_chamber, 8,13)
+
+        self.input_cycles_chamber = ClickableLineEdit("0")
+        self.input_cycles_chamber.setFixedSize(80,35)
+        self.input_cycles_chamber.setAlignment(Qt.AlignCenter)
+        self.input_cycles_chamber.setStyleSheet(style_input)
+        self.input_cycles_chamber.setReadOnly(True)
+        self.input_cycles_chamber.clicked.connect(
+            lambda: self.open_numpad("balanceChamberCycleSet", self.input_cycles_chamber, "Ciclos CB")
+        )
+        grid.addWidget(self.input_cycles_chamber, 8,14,1,2)
 
 
         layout.addWidget(self.control_area, 0, 0)
@@ -815,11 +847,20 @@ class mManualScr(QWidget):
         # ACTUALIZAR INDICADORES NUMÉRICOS
         # Velocidad sangre
         vel_sangre = self.valores.get("bloodSpeedVariableData", 0.0)
-        self.lbl_velocidad_val.setText(f"{vel_sangre:.0f}")
+        self.lbl_velocidad_val.setText(f"{vel_sangre:.1f}")
+
+        in_BNa = self.valores.get("bicarbonatePumpSpeed",0.0)
+        self.lbl_indBNa.setText(f"{in_BNa:.1f}")
+
+        in_BAC = self.valores.get("citricAcidPumpSpeed",0.0)
+        self.lbl_indBAC.setText(f"{in_BAC:.1f}")
         
         # Dosis heparina
         val_heparina = self.valores.get("heparineCurrentDosage", 0.0) 
         self.indHeparinCurrentDosage.setText(f"{val_heparina:.1f}")
+
+        in_cycles_CB = self.valores.get("balanceChamberCycleSet", 0.0)
+        self.input_cycles_chamber.setText(f"{in_cycles_CB:.0f}")#### cambiar por otra etiqueta que se indicador
 
         # Input Dosis Heparina (solo si no tiene foco)
         in_heparinTherapyDosage = self.valores.get("heparineTherapyDosage", 0.0)
