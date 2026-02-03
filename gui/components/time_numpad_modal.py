@@ -1,7 +1,7 @@
 # gui/components/time_numpad_modal.py
 
 from PySide6.QtWidgets import (QDialog, QGridLayout, QPushButton, QLineEdit,
-                               QVBoxLayout, QHBoxLayout, QLabel)
+                               QVBoxLayout, QHBoxLayout, QLabel,QMessageBox)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
@@ -24,6 +24,9 @@ class TimeLineEdit(QLineEdit):
         self.setFont(QFont("Consolas", 24, QFont.Bold))
         self.setStyleSheet("background-color: #1e293b; border: 2px solid #475569; padding: 5px; color: #22d3ee;")
         
+        # Cambios 
+        self.raw_value = "0000"
+        self.set_time_from_string(initial_hh_mm)
         # Inicializar raw_value a partir de initial_hh_mm
         parts = initial_hh_mm.split(':')
         if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
@@ -31,6 +34,16 @@ class TimeLineEdit(QLineEdit):
         else:
             self.raw_value = "0000"
             
+        self.update_display()
+
+    def set_time_from_string(self, hh_mm: str):
+        parts = hh_mm.split(':')
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            h = min(int(parts[0]), 99)   # o 23 si quieres formato 24h estricto
+            m = min(int(parts[1]), 59)
+            self.raw_value = f"{h:02d}{m:02d}"
+        else:
+            self.raw_value = "0000"
         self.update_display()
 
     def add_digit(self, digit):
@@ -48,21 +61,30 @@ class TimeLineEdit(QLineEdit):
         self.raw_value = self.raw_value[:-1]
         self.update_display()
 
+    # def update_display(self):
+    #     # Rellenar con ceros a la izquierda para tener 4 dígitos
+    #     padded = self.raw_value.zfill(4)         
+    #     hh = padded[0:2]
+    #     mm = padded[2:4]        
+    #     self.setText(f"{hh}:{mm}")
+
     def update_display(self):
-        # Rellenar con ceros a la izquierda para tener 4 dígitos
-        padded = self.raw_value.zfill(4) 
-        
-        hh = padded[0:2]
-        mm = padded[2:4]
-        
+        padded = self.raw_value.zfill(4)
+        hh, mm = padded[:2], padded[2:]
         self.setText(f"{hh}:{mm}")
 
+
+    # def get_hours_minutes(self):
+    #     # Devuelve las horas y minutos como enteros
+    #     padded = self.raw_value.zfill(4)
+    #     h = int(padded[0:2])
+    #     m = int(padded[2:4])
+    #     return h, m    
+    
     def get_hours_minutes(self):
-        # Devuelve las horas y minutos como enteros
         padded = self.raw_value.zfill(4)
-        h = int(padded[0:2])
-        m = int(padded[2:4])
-        return h, m
+        return int(padded[:2]), int(padded[2:])
+  
     
     def get_total_minutes(self):
         h, m = self.get_hours_minutes()
@@ -74,6 +96,7 @@ class TimeLineEdit(QLineEdit):
         self.raw_value = f"{h:02d}{m:02d}"[-4:]
         self.update_display()
 
+    
 
 class TimeNumpadDialog(QDialog):
     def __init__(self, parent=None, initial_hh_mm="00:00", title="Ingrese Tiempo (HH:MM)"):
@@ -151,7 +174,8 @@ class TimeNumpadDialog(QDialog):
         btn_accept.setFixedHeight(60)
         btn_accept.setFont(QFont("Arial", 16, QFont.Bold))
         btn_accept.setStyleSheet("background-color: #22c55e; color: white; border-radius: 10px;")
-        btn_accept.clicked.connect(self.accept)
+        #btn_accept.clicked.connect(self.accept)
+        btn_accept.clicked.connect(self.on_accept_clicked)
 
         action_layout.addWidget(btn_cancel)
         action_layout.addWidget(btn_accept)
@@ -163,3 +187,101 @@ class TimeNumpadDialog(QDialog):
 
     def get_total_minutes(self):
         return self.time_display.get_total_minutes()
+
+    # def on_accept_clicked(self):
+       
+    #     h, m = self.time_display.get_hours_minutes()
+       
+
+    #     if m > 59:
+                 
+    #         # --- CREAR Y ESTILIZAR QMessageBox MANUALMENTE ---
+    #         msg = QMessageBox(self) # 'self' es el TimeNumpadDialog, que será el padre del QMessageBox
+    #         msg.setIcon(QMessageBox.Warning) # Icono de advertencia
+    #         msg.setText("<b>Error de entrada</b>") # Puedes usar HTML para negrita
+    #         msg.setInformativeText(f"Los minutos ({m}) deben estar entre 00 y 59. Por favor, corrija la entrada.")
+    #         msg.setWindowTitle("Advertencia de Tiempo")
+    #         msg.setStandardButtons(QMessageBox.Ok) # Solo el botón OK
+            
+    #         # Aplicar la hoja de estilo
+    #         msg.setStyleSheet("""
+    #             QMessageBox {
+    #                 background-color: #000000; /*#0f172a Fondo del cuadro de mensaje */
+    #                 border: 1px solid #334155;
+    #             }
+    #             QMessageBox QLabel {
+    #                 color: #000000; /* Color del texto del mensaje (claro) */
+    #             }
+    #             QMessageBox QPushButton {
+    #                 background-color: #3b82f6; /* Color de fondo del botón (azul, como tus otros botones) */
+    #                 color: #ffffff; /* Color del texto del botón (blanco) */
+    #                 border-radius: 5px; /* Bordes redondeados */
+    #                 padding: 5px 15px; /* Espaciado interno */
+    #                 border: none;
+    #                 min-width: 80px; /* Ancho mínimo para el botón */
+    #                 min-height: 30px; /* Alto mínimo para el botón */
+    #                 font-size: 16px; /* Tamaño de fuente para el botón */
+    #                 font-weight: bold;
+    #             }
+    #             QMessageBox QPushButton:hover {
+    #                 background-color: #4f74bb; /* Color de fondo del botón al pasar el ratón */
+    #             }
+    #             QMessageBox QPushButton:pressed {
+    #                 background-color: #1e40af; /* Color de fondo del botón al presionarlo */
+    #             }
+    #         """)
+    #         msg.exec() # Mostrar el cuadro de mensaje y esperar a que el usuario interactúe
+    #         # --- FIN DE ESTILIZACIÓN ---           
+            
+    #         return # No cierra el diálogo
+        
+        
+    #     self.accept() # Esto debería cerrar el diálogo si la validación es correcta
+
+    def on_accept_clicked(self):
+        h, m = self.time_display.get_hours_minutes()
+
+        # ── Validación más completa ───────────────────────────────
+        if not (0 <= m <= 59):
+            self._show_invalid_time_message("Los minutos deben estar entre 00 y 59.")
+            return
+
+        if not (0 <= h <= 23):   # ← el cambio más importante según contexto
+            # Cambia a 99 si aceptas duraciones largas (99:59)
+            self._show_invalid_time_message("Las horas deben estar entre 00 y 23.")
+            return
+
+        self.accept()
+
+    def _show_invalid_time_message(self, detail_text: str):
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Warning)
+        msg.setText("<b>Formato de tiempo inválido</b>")
+        msg.setInformativeText(detail_text)
+        msg.setWindowTitle("Error de entrada")
+        msg.setStandardButtons(QMessageBox.Ok)
+
+        # Estilo corregido - texto claro sobre fondo oscuro
+        msg.setStyleSheet("""
+            QMessageBox {
+                background-color: #0f172a;
+                border: 1px solid #334155;
+            }
+            QMessageBox QLabel {
+                background-color: #0f172a;
+                color: #e2e8f0;          /* #e2e8f0 texto claro */
+            }
+            QMessageBox QPushButton {
+                background-color: #3b82f6;
+                color: #ffffff;
+                border-radius: 6px;
+                padding: 8px 20px;
+                min-width: 90px;
+                font-weight: bold;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #60a5fa;
+            }
+        """)
+        msg.exec()
+        

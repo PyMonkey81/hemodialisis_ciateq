@@ -242,13 +242,13 @@ class mManualScr(QWidget):
         grid.addWidget(self.input_t_BloodPump, 0, 13, 1, 2)
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de Sangre
-        lbl_elapsed_pb_title = QLabel("T:")
-        lbl_elapsed_pb_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_elapsed_pb_title, 0, 15, alignment=Qt.AlignRight)
+        # lbl_elapsed_pb_title = QLabel("T:")
+        # lbl_elapsed_pb_title.setStyleSheet(style_lbl)
+        # grid.addWidget(lbl_elapsed_pb_title, 0, 15, alignment=Qt.AlignRight)
 
-        self.lbl_elapsed_pb = QLabel("00:00")
-        self.lbl_elapsed_pb.setStyleSheet(style_lbl) # Color verde para transcurrido
-        grid.addWidget(self.lbl_elapsed_pb, 0, 16, alignment=Qt.AlignLeft)
+        # self.lbl_elapsed_pb = QLabel("00:00")
+        # self.lbl_elapsed_pb.setStyleSheet(style_lbl) # Color verde para transcurrido
+        # grid.addWidget(self.lbl_elapsed_pb, 0, 16, alignment=Qt.AlignLeft)
         
         lbl_remaining_pb_title = QLabel("Rest.:")
         lbl_remaining_pb_title.setStyleSheet(style_lbl)
@@ -260,7 +260,7 @@ class mManualScr(QWidget):
         grid.addWidget(self.lbl_remaining_pb, 0, 18,1,3, alignment=Qt.AlignLeft)
 
         # ### ALMACENAR REFERENCIAS a las etiquetas en _local_timers_state
-        self._local_timers_state["op_pb"]["elapsed_lbl"] = self.lbl_elapsed_pb
+        self._local_timers_state["op_pb"]["elapsed_lbl"] = None # self.lbl_elapsed_pb
         self._local_timers_state["op_pb"]["remaining_lbl"] = self.lbl_remaining_pb
 
 
@@ -403,13 +403,13 @@ class mManualScr(QWidget):
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de Heparina (op_ph)
         # Ajusta las columnas según tu diseño para que no se solape
-        lbl_elapsed_ph_title = QLabel("T:")
-        lbl_elapsed_ph_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_elapsed_ph_title, 2, 16, alignment=Qt.AlignRight)
+        # lbl_elapsed_ph_title = QLabel("T:")
+        # lbl_elapsed_ph_title.setStyleSheet(style_lbl)
+        # grid.addWidget(lbl_elapsed_ph_title, 2, 16, alignment=Qt.AlignRight)
 
-        self.lbl_elapsed_ph = QLabel("00:00")
-        self.lbl_elapsed_ph.setStyleSheet(style_lbl) 
-        grid.addWidget(self.lbl_elapsed_ph, 2, 17, alignment=Qt.AlignLeft)
+        # self.lbl_elapsed_ph = QLabel("00:00")
+        # self.lbl_elapsed_ph.setStyleSheet(style_lbl) 
+        # grid.addWidget(self.lbl_elapsed_ph, 2, 17, alignment=Qt.AlignLeft)
         
         lbl_remaining_ph_title = QLabel("Rest.:")
         lbl_remaining_ph_title.setStyleSheet(style_lbl)
@@ -420,7 +420,7 @@ class mManualScr(QWidget):
         grid.addWidget(self.lbl_remaining_ph, 2, 19,1,2, alignment=Qt.AlignLeft)
 
         # ### ALMACENAR REFERENCIAS a las etiquetas en _local_timers_state
-        self._local_timers_state["op_ph"]["elapsed_lbl"] = self.lbl_elapsed_ph
+        self._local_timers_state["op_ph"]["elapsed_lbl"] = None #self.lbl_elapsed_ph
         self._local_timers_state["op_ph"]["remaining_lbl"] = self.lbl_remaining_ph
 
 
@@ -468,15 +468,15 @@ class mManualScr(QWidget):
         grid.addWidget(self.lbl_tiempo_OpBD,3,7)
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de Dializante
-        lbl_elapsed_pd_title = QLabel("T.:")
-        lbl_elapsed_pd_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_elapsed_pd_title, 3, 9, alignment=Qt.AlignRight) # Columnas ajustadas para no solaparse
+        # lbl_elapsed_pd_title = QLabel("T.:")
+        # lbl_elapsed_pd_title.setStyleSheet(style_lbl)
+        # grid.addWidget(lbl_elapsed_pd_title, 3, 9, alignment=Qt.AlignRight) # Columnas ajustadas para no solaparse
 
-        self.lbl_elapsed_pd = QLabel("00:00")
-        self.lbl_elapsed_pd.setStyleSheet(style_lbl)
-        self.lbl_elapsed_pd.setFixedSize(100,35)
-        self.lbl_elapsed_pd.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_elapsed_pd, 3, 10, alignment=Qt.AlignLeft)
+        # self.lbl_elapsed_pd = QLabel("00:00")
+        # self.lbl_elapsed_pd.setStyleSheet(style_lbl)
+        # self.lbl_elapsed_pd.setFixedSize(100,35)
+        # self.lbl_elapsed_pd.setAlignment(Qt.AlignCenter)
+        # grid.addWidget(self.lbl_elapsed_pd, 3, 10, alignment=Qt.AlignLeft)
         
         lbl_remaining_pd_title = QLabel("Rest.:")
         lbl_remaining_pd_title.setStyleSheet(style_lbl)
@@ -488,7 +488,7 @@ class mManualScr(QWidget):
         self.lbl_remaining_pd.setAlignment(Qt.AlignCenter)
         grid.addWidget(self.lbl_remaining_pd, 3, 13, alignment=Qt.AlignLeft)
 
-        self._local_timers_state["op_pd"]["elapsed_lbl"] = self.lbl_elapsed_pd
+        self._local_timers_state["op_pd"]["elapsed_lbl"] = None #self.lbl_elapsed_pd
         self._local_timers_state["op_pd"]["remaining_lbl"] = self.lbl_remaining_pd
 
 
@@ -536,15 +536,15 @@ class mManualScr(QWidget):
         grid.addWidget(self.lbl_tiempo_opBUF, 4, 7)
 
         # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de UF
-        lbl_elapsed_puf_title = QLabel("T.:")
-        lbl_elapsed_puf_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_elapsed_puf_title, 4, 9, alignment=Qt.AlignRight)
+        # lbl_elapsed_puf_title = QLabel("T.:")
+        # lbl_elapsed_puf_title.setStyleSheet(style_lbl)
+        # grid.addWidget(lbl_elapsed_puf_title, 4, 9, alignment=Qt.AlignRight)
 
-        self.lbl_elapsed_puf = QLabel("00:00")
-        self.lbl_elapsed_puf.setStyleSheet(style_lbl)
-        self.lbl_elapsed_puf.setFixedSize(100,35)
-        self.lbl_elapsed_puf.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_elapsed_puf, 4, 10, alignment=Qt.AlignLeft)
+        # self.lbl_elapsed_puf = QLabel("00:00")
+        # self.lbl_elapsed_puf.setStyleSheet(style_lbl)
+        # self.lbl_elapsed_puf.setFixedSize(100,35)
+        # self.lbl_elapsed_puf.setAlignment(Qt.AlignCenter)
+        # grid.addWidget(self.lbl_elapsed_puf, 4, 10, alignment=Qt.AlignLeft)
         
         lbl_remaining_puf_title = QLabel("Rest.:")
         lbl_remaining_puf_title.setStyleSheet(style_lbl)
@@ -556,7 +556,7 @@ class mManualScr(QWidget):
         self.lbl_remaining_puf.setAlignment(Qt.AlignCenter)
         grid.addWidget(self.lbl_remaining_puf, 4, 13, alignment=Qt.AlignLeft)
 
-        self._local_timers_state["op_puf"]["elapsed_lbl"] = self.lbl_elapsed_puf
+        self._local_timers_state["op_puf"]["elapsed_lbl"] = None #self.lbl_elapsed_puf
         self._local_timers_state["op_puf"]["remaining_lbl"] = self.lbl_remaining_puf
 
         # --- (Tu código para lbl_e_tRestBUF y self.lbl_tiempo_RestBUF, considera si quieres mantenerlo o usar el nuevo patrón) ---
@@ -642,7 +642,81 @@ class mManualScr(QWidget):
         # lbl_unit_indPurga.setFixedSize(100, 35)
         grid.addWidget(lbl_unit_indPurga, 7, 5) # ### CORRECCIÓN: Usar lbl_unit_indPurga aquí
 
-        # ----------------------------------------------------------------------
+        # # ----------------------------------------------------------------------
+        # # FILAS 8: C. Balance (Cámara de Balance)
+        # # ----------------------------------------------------------------------
+        # lbl_cb = QLabel("C. Balance")
+        # lbl_cb.setStyleSheet(style_lbl)
+        # lbl_cb.setFixedSize(100, 35)
+        # grid.addWidget(lbl_cb, 8, 0, 1, 2)
+
+        # self.toggle_cb = ToggleSwitch(width=70, height=35)
+        # self.toggle_cb.toggled.connect(lambda chk: self.manejar_bomba_doble("dialiserBalChambStrButt","dialiserBalChambStpButt",chk, timer_id="op_cb"))
+        # grid.addWidget(self.toggle_cb, 8, 2) # ### CORRECCIÓN: Usar self.toggle_cb aquí
+
+        # # Campo de tiempo para el timer de Cámara de Balance
+        # lbl_t_op_cb = QLabel("T.:")
+        # lbl_t_op_cb.setStyleSheet(style_lbl)
+        # grid.addWidget(lbl_t_op_cb, 8, 4) 
+
+        # self.input_t_BalanceChamber = ClickableLineEdit("00:00")
+        # self.input_t_BalanceChamber.setFixedSize(100, 35)
+        # self.input_t_BalanceChamber.setStyleSheet(style_input)
+        # self.input_t_BalanceChamber.setAlignment(Qt.AlignCenter)
+        # self.input_t_BalanceChamber.setReadOnly(True)
+        # self.input_t_BalanceChamber.clicked.connect(
+        #     lambda: self.open_time_numpad(
+        #         self.input_t_BalanceChamber,
+        #         tag_hours=None,
+        #         tag_minutes=None,
+        #         local_timer_id="op_cb", # Identificador para timer local de cámara de balance
+        #         title="Tiempo Op. Cámara de Balance"
+        #     )
+        # )
+        # grid.addWidget(self.input_t_BalanceChamber, 8, 5, 1, 2)
+
+        # # # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Cámara de Balance
+        # lbl_elapsed_cb_title = QLabel("T.:")
+        # lbl_elapsed_cb_title.setStyleSheet(style_lbl)
+        # grid.addWidget(lbl_elapsed_cb_title, 8, 7, alignment=Qt.AlignRight) 
+
+        # self.lbl_elapsed_cb = QLabel("00:00")
+        # self.lbl_elapsed_cb.setStyleSheet(style_lbl)
+        # self.lbl_elapsed_cb.setFixedSize(100,35)
+        # self.lbl_elapsed_cb.setAlignment(Qt.AlignCenter)
+        # grid.addWidget(self.lbl_elapsed_cb, 8, 8, alignment=Qt.AlignLeft)
+        
+        # lbl_remaining_cb_title = QLabel("Rest.:")
+        # lbl_remaining_cb_title.setStyleSheet(style_lbl)
+        # grid.addWidget(lbl_remaining_cb_title, 8, 10, alignment=Qt.AlignRight)
+
+        # self.lbl_remaining_cb = QLabel("00:00")
+        # self.lbl_remaining_cb.setStyleSheet(style_lbl_)
+        # self.lbl_remaining_cb.setAlignment(Qt.AlignCenter)
+        # self.lbl_remaining_cb.setFixedSize(100,35)
+        # grid.addWidget(self.lbl_remaining_cb, 8, 11, alignment=Qt.AlignLeft)
+
+        # self._local_timers_state["op_cb"]["elapsed_lbl"] = self.lbl_elapsed_cb
+        # self._local_timers_state["op_cb"]["remaining_lbl"] = self.lbl_remaining_cb
+
+        # lbl_cycles_chamber = QLabel("Ciclos CB")
+        # lbl_cycles_chamber.setStyleSheet(style_lbl)
+        # grid.addWidget(lbl_cycles_chamber, 8,13)
+
+        # self.input_cycles_chamber = ClickableLineEdit("0")
+        # self.input_cycles_chamber.setFixedSize(80,35)
+        # self.input_cycles_chamber.setAlignment(Qt.AlignCenter)
+        # self.input_cycles_chamber.setStyleSheet(style_input)
+        # self.input_cycles_chamber.setReadOnly(True)
+        # self.input_cycles_chamber.clicked.connect(
+        #     lambda: self.open_numpad("balanceChamberCycleSet", self.input_cycles_chamber, "Ciclos CB")
+        # )
+        # grid.addWidget(self.input_cycles_chamber, 8,14,1,2)
+
+
+        # 
+
+                # ----------------------------------------------------------------------
         # FILAS 8: C. Balance (Cámara de Balance)
         # ----------------------------------------------------------------------
         lbl_cb = QLabel("C. Balance")
@@ -652,9 +726,9 @@ class mManualScr(QWidget):
 
         self.toggle_cb = ToggleSwitch(width=70, height=35)
         self.toggle_cb.toggled.connect(lambda chk: self.manejar_bomba_doble("dialiserBalChambStrButt","dialiserBalChambStpButt",chk, timer_id="op_cb"))
-        grid.addWidget(self.toggle_cb, 8, 2) # ### CORRECCIÓN: Usar self.toggle_cb aquí
+        grid.addWidget(self.toggle_cb, 8, 2)
 
-        # Campo de tiempo para el timer de Cámara de Balance
+        # Campo de configuración de tiempo (Input)
         lbl_t_op_cb = QLabel("T.:")
         lbl_t_op_cb.setStyleSheet(style_lbl)
         grid.addWidget(lbl_t_op_cb, 8, 4) 
@@ -669,39 +743,33 @@ class mManualScr(QWidget):
                 self.input_t_BalanceChamber,
                 tag_hours=None,
                 tag_minutes=None,
-                local_timer_id="op_cb", # Identificador para timer local de cámara de balance
+                local_timer_id="op_cb", 
                 title="Tiempo Op. Cámara de Balance"
             )
         )
         grid.addWidget(self.input_t_BalanceChamber, 8, 5, 1, 2)
 
-        # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Cámara de Balance
-        lbl_elapsed_cb_title = QLabel("T.:")
-        lbl_elapsed_cb_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_elapsed_cb_title, 8, 7, alignment=Qt.AlignRight) 
-
-        self.lbl_elapsed_cb = QLabel("00:00")
-        self.lbl_elapsed_cb.setStyleSheet(style_lbl)
-        self.lbl_elapsed_cb.setFixedSize(100,35)
-        self.lbl_elapsed_cb.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_elapsed_cb, 8, 8, alignment=Qt.AlignLeft)
+        # --- AQUI ESTA EL CAMBIO: Quitamos Elapsed, Dejamos Remaining ---
         
+        # Etiqueta de Tiempo Restante (Mantenida)
         lbl_remaining_cb_title = QLabel("Rest.:")
         lbl_remaining_cb_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_remaining_cb_title, 8, 10, alignment=Qt.AlignRight)
+        grid.addWidget(lbl_remaining_cb_title, 8, 7, alignment=Qt.AlignRight) # Ajusté la columna para pegar a la izquierda
 
         self.lbl_remaining_cb = QLabel("00:00")
         self.lbl_remaining_cb.setStyleSheet(style_lbl_)
         self.lbl_remaining_cb.setAlignment(Qt.AlignCenter)
         self.lbl_remaining_cb.setFixedSize(100,35)
-        grid.addWidget(self.lbl_remaining_cb, 8, 11, alignment=Qt.AlignLeft)
+        grid.addWidget(self.lbl_remaining_cb, 8, 8, alignment=Qt.AlignLeft) # Ajusté la columna
 
-        self._local_timers_state["op_cb"]["elapsed_lbl"] = self.lbl_elapsed_cb
+        # Configuración del estado del timer
+        self._local_timers_state["op_cb"]["elapsed_lbl"] = None  # <--- IMPORTANTE: None porque ya no existe visualmente
         self._local_timers_state["op_cb"]["remaining_lbl"] = self.lbl_remaining_cb
 
+        # Ciclos (Movido para aprovechar el espacio)
         lbl_cycles_chamber = QLabel("Ciclos CB")
         lbl_cycles_chamber.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_cycles_chamber, 8,13)
+        grid.addWidget(lbl_cycles_chamber, 8, 10) # Columna ajustada
 
         self.input_cycles_chamber = ClickableLineEdit("0")
         self.input_cycles_chamber.setFixedSize(80,35)
@@ -711,11 +779,9 @@ class mManualScr(QWidget):
         self.input_cycles_chamber.clicked.connect(
             lambda: self.open_numpad("balanceChamberCycleSet", self.input_cycles_chamber, "Ciclos CB")
         )
-        grid.addWidget(self.input_cycles_chamber, 8,14,1,2)
-
+        grid.addWidget(self.input_cycles_chamber, 8, 11, 1, 2) # Columna ajustada
 
         layout.addWidget(self.control_area, 0, 0)
-
         # ==================================================================
         #          AREA 2: INDICADORES LED
         # ==================================================================
@@ -936,11 +1002,19 @@ class mManualScr(QWidget):
                         timer_obj.stop()
                     
                     # ### RESETEAR LAS ETIQUETAS DE TIEMPO DEL DISPLAY
-                    if state["elapsed_lbl"]: state["elapsed_lbl"].setText("00:00")
-                    if state["remaining_lbl"]: 
+                    # if state["elapsed_lbl"]: state["elapsed_lbl"].setText("00:00")
+                    # if state["remaining_lbl"]: 
+                    #     h_config = state["duration_ms"] // 3600000
+                    #     m_config = (state["duration_ms"] % 3600000) // 60000
+                    #     state["remaining_lbl"].setText(f"{h_config:02d}:{m_config:02d}") # Vuelve a mostrar la duración configurada
+
+                    if state["elapsed_lbl"] is not None: 
+                        state["elapsed_lbl"].setText("00:00")
+                        
+                    if state["remaining_lbl"] is not None: 
                         h_config = state["duration_ms"] // 3600000
                         m_config = (state["duration_ms"] % 3600000) // 60000
-                        state["remaining_lbl"].setText(f"{h_config:02d}:{m_config:02d}") # Vuelve a mostrar la duración configurada
+                        state["remaining_lbl"].setText(f"{h_config:02d}:{m_config:02d}") 
 
                     print(f"[APP_TIMER] Deteniendo timer '{timer_id}'.")
 
@@ -1039,13 +1113,13 @@ class mManualScr(QWidget):
             # Calcular duración total en milisegundos
             total_ms = (h * 3600 + m * 60) * 1000
 
-            # 1. Lógica para escribir al PLC (si se proporcionaron tags)
+            # 1. Lógica para escribir a la Máquina de Hemodiálisis
             if tag_hours and tag_minutes:
-                print(f"[PLC_WRITE] Enviando horas ({h}) al tag: {tag_hours}")
+                print(f"[MH_WRITE] Enviando horas ({h}) al tag: {tag_hours}") # Máquina de hemodiálisis
                 fake_widget_h = TempInput(h) 
                 self.escribir_setpoint(tag_hours, fake_widget_h)
 
-                print(f"[PLC_WRITE] Enviando minutos ({m}) al tag: {tag_minutes}")
+                print(f"[MH_WRITE] Enviando minutos ({m}) al tag: {tag_minutes}") # Máquina de Hemodiálisis
                 fake_widget_m = TempInput(m)
                 self.escribir_setpoint(tag_minutes, fake_widget_m)
             elif tag_hours or tag_minutes:
@@ -1057,9 +1131,14 @@ class mManualScr(QWidget):
                 state["duration_ms"] = total_ms # Guarda la duración total
                 
                 # ### RESETEAR LAS ETIQUETAS DE TIEMPO al configurar una nueva duración
-                if state["elapsed_lbl"]: state["elapsed_lbl"].setText("00:00")
-                if state["remaining_lbl"]: 
-                    state["remaining_lbl"].setText(f"{h:02d}:{m:02d}") # Muestra la duración configurada
+                #if state["elapsed_lbl"]: state["elapsed_lbl"].setText("00:00")
+                #if state["remaining_lbl"]: 
+                 #   state["remaining_lbl"].setText(f"{h:02d}:{m:02d}") # Muestra la duración configurada
+                if state["elapsed_lbl"] is not None: 
+                    state["elapsed_lbl"].setText("00:00")
+                
+                if state["remaining_lbl"] is not None: 
+                    state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
 
                 print(f"[APP_TIMER] {local_timer_id} configurado con {h:02d}:{m:02d} ({total_ms} ms)")
                 
@@ -1099,9 +1178,37 @@ class mManualScr(QWidget):
         minutes = (total_seconds % 3600) // 60
         return f"{hours:02d}:{minutes:02d}"
 
+    # def _update_local_time_displays(self):
+    #     current_ms = QDateTime.currentMSecsSinceEpoch()
+    #     for timer_id, state in self._local_timers_state.items():
+    #         if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
+    #             elapsed_ms = current_ms - state["start_ms"]
+    #             remaining_ms = state["duration_ms"] - elapsed_ms
+
+    #             if remaining_ms < 0:
+    #                 remaining_ms = 0
+    #                 elapsed_ms = state["duration_ms"] 
+                
+    #             if state["elapsed_lbl"]:
+    #                 state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
+    #             if state["remaining_lbl"]:
+    #                 state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
+    #         elif not state["active"] and state["elapsed_lbl"] and state["remaining_lbl"]:
+    #             if state["elapsed_lbl"].text() != "00:00":
+    #                 state["elapsed_lbl"].setText("00:00")
+                
+    #             h_config = state["duration_ms"] // 3600000
+    #             m_config = (state["duration_ms"] % 3600000) // 60000
+    #             config_str = f"{h_config:02d}:{m_config:02d}"
+    #             if state["remaining_lbl"].text() != config_str:
+    #                  state["remaining_lbl"].setText(config_str)
+
     def _update_local_time_displays(self):
         current_ms = QDateTime.currentMSecsSinceEpoch()
+        
         for timer_id, state in self._local_timers_state.items():
+            
+            # Si el timer está ACTIVO
             if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
                 elapsed_ms = current_ms - state["start_ms"]
                 remaining_ms = state["duration_ms"] - elapsed_ms
@@ -1110,19 +1217,29 @@ class mManualScr(QWidget):
                     remaining_ms = 0
                     elapsed_ms = state["duration_ms"] 
                 
-                if state["elapsed_lbl"]:
+                # VERIFICAMOS SI EXISTE LA ETIQUETA ANTES DE ACTUALIZAR
+                if state["elapsed_lbl"] is not None:
                     state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
-                if state["remaining_lbl"]:
+                
+                if state["remaining_lbl"] is not None:
                     state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
-            elif not state["active"] and state["elapsed_lbl"] and state["remaining_lbl"]:
-                if state["elapsed_lbl"].text() != "00:00":
+
+            # Si el timer está INACTIVO
+            elif not state["active"]:
+                
+                # Resetear transcurrido (Solo si existe la etiqueta)
+                if state["elapsed_lbl"] is not None and state["elapsed_lbl"].text() != "00:00":
                     state["elapsed_lbl"].setText("00:00")
                 
-                h_config = state["duration_ms"] // 3600000
-                m_config = (state["duration_ms"] % 3600000) // 60000
-                config_str = f"{h_config:02d}:{m_config:02d}"
-                if state["remaining_lbl"].text() != config_str:
-                     state["remaining_lbl"].setText(config_str)
+                # Resetear restante al valor configurado
+                if state["remaining_lbl"] is not None:
+                    h_config = state["duration_ms"] // 3600000
+                    m_config = (state["duration_ms"] % 3600000) // 60000
+                    config_str = f"{h_config:02d}:{m_config:02d}"
+                    
+                    if state["remaining_lbl"].text() != config_str:
+                         state["remaining_lbl"].setText(config_str)
+
 
 
 
