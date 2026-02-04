@@ -97,7 +97,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     # SETPOINTS (0x03)
     # ================================================================
     0x03: {
-        0x00: {"name": "Velocidad de UltraFiltrado","type": "double","rw": True,"unit": "n","limites": (0, 100),"tag": "ultraFilterPumpSpeed","nivel": "cian"},              # 7
+        0x00: {"name": "Velocidad de UltraFiltrado","type": "double","rw": True,"unit": "L/h","limites": (0, 2),"tag": "ultraFilterPumpSpeed","nivel": "cian"},              # 7
         0x01: {"name": "Ajuste de tiempo de ciclo de cámara de balance","type": "double","rw": True,"unit": "s","limites": (0, 100),"tag": "balanceChamberSetTiming","nivel": "cian"}, # 8
         0x02: {"name": "Tiempo terapia: horas","type": "double","rw": True,"unit": "h","limites": (0, 10),"tag": "heparineTherapyHours","nivel": "cian"},                    # 9
         0x03: {"name": "Tiempo terapia: minutos","type": "double","rw": True, "unit": "m","limites": (0, 59),"tag": "heparineTherapyMinutes","nivel": "cian"},               # 10
@@ -133,7 +133,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x12: {"name": "Ganancia Feedforward flujo", "type": "double", "rw": True, "unit": "", "limites": (0, 5), "tag": "bloodFlowFeedForwardGain", "nivel": "cian"},              # 34   18
         0x13: {"name": "Tiempo adelanto Feedforward flujo", "type": "double", "rw": True, "unit": "s", "limites": (0, 10), "tag": "bloodFlowFeedForwardLead", "nivel": "cian"},     # 35   19
         0x14: {"name": "Setpoint flujo dializante", "type": "double", "rw": True, "unit": "ml/min", "limites": (300, 800), "tag": "dialyFlowControlOutput", "nivel": "cian"},       # 36   20
-        0x15: {"name": "Salida bomba de purga", "type": "double", "rw": False, "unit": "%", "limites": (0, 100), "tag": "dialyDeaerControlOutput", "nivel": "cian"},                # 37   21  
+        0x15: {"name": "Salida bomba de purga", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyDeaerControlOutput", "nivel": "cian"},                # 37   21  
         0x16: {"name": "Parámetro control variable 1", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData1", "nivel": "cian"},           # 38   22
         0x17: {"name": "Parámetro control variable 2", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData2", "nivel": "cian"},           # 39   23
         0x18: {"name": "Parámetro control variable 3", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData3", "nivel": "cian"},           # 40   24

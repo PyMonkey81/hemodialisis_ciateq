@@ -435,11 +435,15 @@ class mManualScr(QWidget):
         self.toggle_dializante.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyserPumpStartButton","dialyserPumpStopButton",chk, timer_id="op_pd"))
         grid.addWidget(self.toggle_dializante, 3,2)
 
-        self.lbl_indSDializante = QLabel("0.0")
-        self.lbl_indSDializante.setStyleSheet(style_lbl_)
-        self.lbl_indSDializante.setFixedSize(80,35)
-        self.lbl_indSDializante.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_indSDializante, 3,3)
+        self.lbl_input_indSDializante = ClickableLineEdit("0.0")
+        self.lbl_input_indSDializante.setFixedSize(80,35)
+        self.lbl_input_indSDializante.setStyleSheet(style_input)
+        self.lbl_input_indSDializante.setAlignment(Qt.AlignCenter)
+        self.lbl_input_indSDializante.setReadOnly(True)
+        self.lbl_input_indSDializante.clicked.connect(
+            lambda: self.open_numpad("dialyFlowControlOutput", self.lbl_input_indSDializante,"Salida Dializante (%)")
+        )
+        grid.addWidget(self.lbl_input_indSDializante, 3,3)
 
         lbl_unit_indSdializante = QLabel("%")
         lbl_unit_indSdializante.setStyleSheet(style_unit)
@@ -467,17 +471,7 @@ class mManualScr(QWidget):
         )
         grid.addWidget(self.lbl_tiempo_OpBD,3,7)
 
-        # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de Dializante
-        # lbl_elapsed_pd_title = QLabel("T.:")
-        # lbl_elapsed_pd_title.setStyleSheet(style_lbl)
-        # grid.addWidget(lbl_elapsed_pd_title, 3, 9, alignment=Qt.AlignRight) # Columnas ajustadas para no solaparse
-
-        # self.lbl_elapsed_pd = QLabel("00:00")
-        # self.lbl_elapsed_pd.setStyleSheet(style_lbl)
-        # self.lbl_elapsed_pd.setFixedSize(100,35)
-        # self.lbl_elapsed_pd.setAlignment(Qt.AlignCenter)
-        # grid.addWidget(self.lbl_elapsed_pd, 3, 10, alignment=Qt.AlignLeft)
-        
+    
         lbl_remaining_pd_title = QLabel("Rest.:")
         lbl_remaining_pd_title.setStyleSheet(style_lbl)
         grid.addWidget(lbl_remaining_pd_title, 3, 12, alignment=Qt.AlignRight)
@@ -503,11 +497,13 @@ class mManualScr(QWidget):
         self.toggle_uf.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyUltraFPumpStartButt","dialyUltraFPumpStoptButt",chk, timer_id="op_puf"))
         grid.addWidget(self.toggle_uf, 4,2)
 
-        self.lbl_indUF = QLabel("0.0")
-        self.lbl_indUF.setStyleSheet(style_lbl_)
-        self.lbl_indUF.setFixedSize(80,35)
-        self.lbl_indUF.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_indUF, 4, 3)
+        self.lbl_input_indUF = ClickableLineEdit("0.0")
+        self.lbl_input_indUF.setFixedSize(80,35)
+        self.lbl_input_indUF.setAlignment(Qt.AlignCenter)
+        self.lbl_input_indUF.setStyleSheet(style_input)
+        self.lbl_input_indUF.setReadOnly(True)
+        self.lbl_input_indUF.clicked.connect(self._handle_flow_uf_input)
+        grid.addWidget(self.lbl_input_indUF, 4, 3)
 
         lbl_unit_indUF = QLabel("L/h")
         lbl_unit_indUF.setStyleSheet(style_unit)
@@ -535,16 +531,6 @@ class mManualScr(QWidget):
         )
         grid.addWidget(self.lbl_tiempo_opBUF, 4, 7)
 
-        # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de UF
-        # lbl_elapsed_puf_title = QLabel("T.:")
-        # lbl_elapsed_puf_title.setStyleSheet(style_lbl)
-        # grid.addWidget(lbl_elapsed_puf_title, 4, 9, alignment=Qt.AlignRight)
-
-        # self.lbl_elapsed_puf = QLabel("00:00")
-        # self.lbl_elapsed_puf.setStyleSheet(style_lbl)
-        # self.lbl_elapsed_puf.setFixedSize(100,35)
-        # self.lbl_elapsed_puf.setAlignment(Qt.AlignCenter)
-        # grid.addWidget(self.lbl_elapsed_puf, 4, 10, alignment=Qt.AlignLeft)
         
         lbl_remaining_puf_title = QLabel("Rest.:")
         lbl_remaining_puf_title.setStyleSheet(style_lbl)
@@ -558,19 +544,7 @@ class mManualScr(QWidget):
 
         self._local_timers_state["op_puf"]["elapsed_lbl"] = None #self.lbl_elapsed_puf
         self._local_timers_state["op_puf"]["remaining_lbl"] = self.lbl_remaining_puf
-
-        # --- (Tu código para lbl_e_tRestBUF y self.lbl_tiempo_RestBUF, considera si quieres mantenerlo o usar el nuevo patrón) ---
-        # Si mantienes este, se solapará con las nuevas etiquetas de "Transcurrido:"
-        # lbl_e_tRestBUF = QLabel("T. Restante")
-        # lbl_e_tRestBUF.setStyleSheet(style_lbl)
-        # lbl_e_tRestBUF.setFixedSize(100, 35)
-        # grid.addWidget(lbl_e_tRestBUF, 4, 6)
-
-        # self.lbl_tiempo_RestBUF = QLabel("00:00")
-        # self.lbl_tiempo_RestBUF.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold;")
-        # self.lbl_tiempo_RestBUF.setFixedSize(100, 35)
-        # grid.addWidget(self.lbl_tiempo_RestBUF, 4, 7)
-        # --- FIN: Bloque a considerar si mantener o reemplazar ---
+  
 
 
         # ----------------------------------------------------------------------
@@ -631,92 +605,23 @@ class mManualScr(QWidget):
         self.toggle_purga.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyPurgePumpStartButt","dialyPurgePumpStopButt",chk, timer_id=None))
         grid.addWidget(self.toggle_purga, 7, 2)
 
-        self.lbl_indPurga = QLabel("0.0")
-        self.lbl_indPurga.setStyleSheet(style_lbl_)
-        self.lbl_indPurga.setAlignment(Qt.AlignCenter)
+        self.lbl_indPurga = ClickableLineEdit("0.0")
         self.lbl_indPurga.setFixedSize(80, 35)
+        self.lbl_indPurga.setStyleSheet(style_input)
+        self.lbl_indPurga.setAlignment(Qt.AlignCenter)
+        self.lbl_indPurga.setReadOnly(True)
+        self.lbl_indPurga.clicked.connect(
+            lambda: self.open_numpad("dialyDeaerControlOutput", self.lbl_indPurga, "Salida b. Purga (%)")
+        )
         grid.addWidget(self.lbl_indPurga, 7, 3)
 
         lbl_unit_indPurga = QLabel("%")
         lbl_unit_indPurga.setStyleSheet(style_unit)
         # lbl_unit_indPurga.setFixedSize(100, 35)
-        grid.addWidget(lbl_unit_indPurga, 7, 5) # ### CORRECCIÓN: Usar lbl_unit_indPurga aquí
-
-        # # ----------------------------------------------------------------------
-        # # FILAS 8: C. Balance (Cámara de Balance)
-        # # ----------------------------------------------------------------------
-        # lbl_cb = QLabel("C. Balance")
-        # lbl_cb.setStyleSheet(style_lbl)
-        # lbl_cb.setFixedSize(100, 35)
-        # grid.addWidget(lbl_cb, 8, 0, 1, 2)
-
-        # self.toggle_cb = ToggleSwitch(width=70, height=35)
-        # self.toggle_cb.toggled.connect(lambda chk: self.manejar_bomba_doble("dialiserBalChambStrButt","dialiserBalChambStpButt",chk, timer_id="op_cb"))
-        # grid.addWidget(self.toggle_cb, 8, 2) # ### CORRECCIÓN: Usar self.toggle_cb aquí
-
-        # # Campo de tiempo para el timer de Cámara de Balance
-        # lbl_t_op_cb = QLabel("T.:")
-        # lbl_t_op_cb.setStyleSheet(style_lbl)
-        # grid.addWidget(lbl_t_op_cb, 8, 4) 
-
-        # self.input_t_BalanceChamber = ClickableLineEdit("00:00")
-        # self.input_t_BalanceChamber.setFixedSize(100, 35)
-        # self.input_t_BalanceChamber.setStyleSheet(style_input)
-        # self.input_t_BalanceChamber.setAlignment(Qt.AlignCenter)
-        # self.input_t_BalanceChamber.setReadOnly(True)
-        # self.input_t_BalanceChamber.clicked.connect(
-        #     lambda: self.open_time_numpad(
-        #         self.input_t_BalanceChamber,
-        #         tag_hours=None,
-        #         tag_minutes=None,
-        #         local_timer_id="op_cb", # Identificador para timer local de cámara de balance
-        #         title="Tiempo Op. Cámara de Balance"
-        #     )
-        # )
-        # grid.addWidget(self.input_t_BalanceChamber, 8, 5, 1, 2)
-
-        # # # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Cámara de Balance
-        # lbl_elapsed_cb_title = QLabel("T.:")
-        # lbl_elapsed_cb_title.setStyleSheet(style_lbl)
-        # grid.addWidget(lbl_elapsed_cb_title, 8, 7, alignment=Qt.AlignRight) 
-
-        # self.lbl_elapsed_cb = QLabel("00:00")
-        # self.lbl_elapsed_cb.setStyleSheet(style_lbl)
-        # self.lbl_elapsed_cb.setFixedSize(100,35)
-        # self.lbl_elapsed_cb.setAlignment(Qt.AlignCenter)
-        # grid.addWidget(self.lbl_elapsed_cb, 8, 8, alignment=Qt.AlignLeft)
-        
-        # lbl_remaining_cb_title = QLabel("Rest.:")
-        # lbl_remaining_cb_title.setStyleSheet(style_lbl)
-        # grid.addWidget(lbl_remaining_cb_title, 8, 10, alignment=Qt.AlignRight)
-
-        # self.lbl_remaining_cb = QLabel("00:00")
-        # self.lbl_remaining_cb.setStyleSheet(style_lbl_)
-        # self.lbl_remaining_cb.setAlignment(Qt.AlignCenter)
-        # self.lbl_remaining_cb.setFixedSize(100,35)
-        # grid.addWidget(self.lbl_remaining_cb, 8, 11, alignment=Qt.AlignLeft)
-
-        # self._local_timers_state["op_cb"]["elapsed_lbl"] = self.lbl_elapsed_cb
-        # self._local_timers_state["op_cb"]["remaining_lbl"] = self.lbl_remaining_cb
-
-        # lbl_cycles_chamber = QLabel("Ciclos CB")
-        # lbl_cycles_chamber.setStyleSheet(style_lbl)
-        # grid.addWidget(lbl_cycles_chamber, 8,13)
-
-        # self.input_cycles_chamber = ClickableLineEdit("0")
-        # self.input_cycles_chamber.setFixedSize(80,35)
-        # self.input_cycles_chamber.setAlignment(Qt.AlignCenter)
-        # self.input_cycles_chamber.setStyleSheet(style_input)
-        # self.input_cycles_chamber.setReadOnly(True)
-        # self.input_cycles_chamber.clicked.connect(
-        #     lambda: self.open_numpad("balanceChamberCycleSet", self.input_cycles_chamber, "Ciclos CB")
-        # )
-        # grid.addWidget(self.input_cycles_chamber, 8,14,1,2)
+        grid.addWidget(lbl_unit_indPurga, 7, 5) 
 
 
-        # 
-
-                # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
         # FILAS 8: C. Balance (Cámara de Balance)
         # ----------------------------------------------------------------------
         lbl_cb = QLabel("C. Balance")
@@ -939,7 +844,16 @@ class mManualScr(QWidget):
         self.valores[temp_tag_cycle_to_flow] = calc_cycle_to_flow
         if not self.input_flow_cb.hasFocus(): 
             self.input_flow_cb.setText(f"{calc_cycle_to_flow:.1f}") 
-
+        
+        uf_flow_to_liters = self.valores.get("ultraFilterPumpSpeed", 0.0)
+        try:
+            calc_uf_flow_to_liters = convertir_ml_min_a_litros_h(uf_flow_to_liters)
+        except Exception:
+            calc_uf_flow_to_liters = 0.0
+        temp_tag_cycle_to_flow = "calc_uf_flow_to_liters"
+        self.valores[temp_tag_cycle_to_flow] = calc_uf_flow_to_liters
+        if not self.lbl_input_indUF.hasFocus():
+            self.lbl_input_indUF.setText(f"{calc_uf_flow_to_liters:.1f}")
 
         # Velocidad sangre
         vel_sangre = self.valores.get("bloodSpeedVariableData", 0.0)
@@ -957,6 +871,14 @@ class mManualScr(QWidget):
 
         in_cycles_CB = self.valores.get("balanceChamberCycleSet", 0.0)
         self.input_cycles_chamber.setText(f"{in_cycles_CB:.0f}")#### cambiar por otra etiqueta que se indicador
+
+        ind_dialysate = self.valores.get("dialyFlowControlOutput", 0.0)
+        if not self.lbl_input_indSDializante.hasFocus():
+            self.lbl_input_indSDializante.setText(f"{ind_dialysate:.1f}")
+
+        ind_b_purge = self.valores.get("dialyDeaerControlOutput", 0.0)
+        if not self.lbl_indPurga.hasFocus():
+            self.lbl_indPurga.setText(f"{ind_b_purge:.1f}")
 
         # Input Dosis Heparina (solo si no tiene foco)
         in_heparinTherapyDosage = self.valores.get("heparineTherapyDosage", 0.0)
@@ -1172,66 +1094,152 @@ class mManualScr(QWidget):
 
                 print(f"[APP_TIMER] {local_timer_id} configurado con {h:02d}:{m:02d} ({total_ms} ms)")
                 
+    # def _stop_blood_pump_on_timeout(self):
+    #     print("[APP_TIMER] Timer 'op_pb' finalizado. Deteniendo Bomba de Sangre.")
+    #     self.timer_op_pb.stop()
+    #     self._local_timers_state["op_pb"]["active"] = False
+    #     self.toggle_sangre.setChecked(False)
+
+    # def _stop_dialysate_pump_on_timeout(self):
+    #     print("[APP_TIMER] Timer 'op_pd' finalizado. Deteniendo Bomba de Dializante.")
+    #     self.timer_op_pd.stop()
+    #     self._local_timers_state["op_pd"]["active"] = False
+    #     self.toggle_dializante.setChecked(False)
+
+    # def _stop_uf_pump_on_timeout(self):
+    #     print("[APP_TIMER] Timer 'op_puf' finalizado. Deteniendo Bomba de Ultrafiltración.")
+    #     self.timer_op_puf.stop()
+    #     self._local_timers_state["op_puf"]["active"] = False
+    #     self.toggle_uf.setChecked(False)
+
+    # def _stop_heparin_pump_on_timeout(self):
+    #     print("[APP_TIMER] Timer 'op_ph' finalizado. Deteniendo Bomba de Heparina.")
+    #     self.timer_op_ph.stop()
+    #     self._local_timers_state["op_ph"]["active"] = False
+    #     self.toggle_heparina.setChecked(False)
+
+    # def _stop_balance_chamber_on_timeout(self):
+    #     print("[APP_TIMER] Timer 'op_cb' finalizado. Deteniendo Cámara de Balance.")
+    #     self.timer_op_cb.stop()
+    #     self._local_timers_state["op_cb"]["active"] = False
+    #     self.toggle_cb.setChecked(False)
+
     def _stop_blood_pump_on_timeout(self):
         print("[APP_TIMER] Timer 'op_pb' finalizado. Deteniendo Bomba de Sangre.")
         self.timer_op_pb.stop()
         self._local_timers_state["op_pb"]["active"] = False
+
+        # 1. Enviar directamente el comando de parada a la Máquina de Hemodiálisis
+        self.escribir_comando("bloodPumpStopButton", True)  
+        self.escribir_comando("bloodPumpStartButton", False) 
+
+        # 2. Actualizar el Toggle en la UI, bloqueando señales para evitar re-entradas
+        self.toggle_sangre.blockSignals(True)
         self.toggle_sangre.setChecked(False)
+        self.toggle_sangre.blockSignals(False)
+
+        # 3. Resetear las etiquetas de tiempo inmediatamente
+        if self._local_timers_state["op_pb"]["elapsed_lbl"] is not None:
+            self._local_timers_state["op_pb"]["elapsed_lbl"].setText("00:00")
+        if self._local_timers_state["op_pb"]["remaining_lbl"] is not None:
+            h_config = self._local_timers_state["op_pb"]["duration_ms"] // 3600000
+            m_config = (self._local_timers_state["op_pb"]["duration_ms"] % 3600000) // 60000
+            self._local_timers_state["op_pb"]["remaining_lbl"].setText(f"{h_config:02d}:{m_config:02d}")
 
     def _stop_dialysate_pump_on_timeout(self):
         print("[APP_TIMER] Timer 'op_pd' finalizado. Deteniendo Bomba de Dializante.")
         self.timer_op_pd.stop()
         self._local_timers_state["op_pd"]["active"] = False
+
+        # Enviar comandos a la Máquina
+        self.escribir_comando("dialyserPumpStopButton", True)
+        self.escribir_comando("dialyserPumpStartButton", False)
+
+        # Actualizar UI localmente
+        self.toggle_dializante.blockSignals(True)
         self.toggle_dializante.setChecked(False)
+        self.toggle_dializante.blockSignals(False)
+
+        # Resetear tiempo
+        if self._local_timers_state["op_pd"]["elapsed_lbl"] is not None:
+            self._local_timers_state["op_pd"]["elapsed_lbl"].setText("00:00")
+        if self._local_timers_state["op_pd"]["remaining_lbl"] is not None:
+            h_config = self._local_timers_state["op_pd"]["duration_ms"] // 3600000
+            m_config = (self._local_timers_state["op_pd"]["duration_ms"] % 3600000) // 60000
+            self._local_timers_state["op_pd"]["remaining_lbl"].setText(f"{h_config:02d}:{m_config:02d}")
 
     def _stop_uf_pump_on_timeout(self):
         print("[APP_TIMER] Timer 'op_puf' finalizado. Deteniendo Bomba de Ultrafiltración.")
         self.timer_op_puf.stop()
         self._local_timers_state["op_puf"]["active"] = False
+
+        # Enviar comandos a la Máquina
+        self.escribir_comando("dialyUltraFPumpStoptButt", True)
+        self.escribir_comando("dialyUltraFPumpStartButt", False)
+
+        # Actualizar UI localmente
+        self.toggle_uf.blockSignals(True)
         self.toggle_uf.setChecked(False)
+        self.toggle_uf.blockSignals(False)
+
+        # Resetear tiempo
+        if self._local_timers_state["op_puf"]["elapsed_lbl"] is not None:
+            self._local_timers_state["op_puf"]["elapsed_lbl"].setText("00:00")
+        if self._local_timers_state["op_puf"]["remaining_lbl"] is not None:
+            h_config = self._local_timers_state["op_puf"]["duration_ms"] // 3600000
+            m_config = (self._local_timers_state["op_puf"]["duration_ms"] % 3600000) // 60000
+            self._local_timers_state["op_puf"]["remaining_lbl"].setText(f"{h_config:02d}:{m_config:02d}")
 
     def _stop_heparin_pump_on_timeout(self):
         print("[APP_TIMER] Timer 'op_ph' finalizado. Deteniendo Bomba de Heparina.")
         self.timer_op_ph.stop()
         self._local_timers_state["op_ph"]["active"] = False
+
+        # Enviar comandos a la Máquina
+        self.escribir_comando("heparinePumpsStopButton", True)
+        self.escribir_comando("heparinePumpsStartButton", False)
+
+        # Actualizar UI localmente
+        self.toggle_heparina.blockSignals(True)
         self.toggle_heparina.setChecked(False)
+        self.toggle_heparina.blockSignals(False)
+
+        # Resetear tiempo
+        if self._local_timers_state["op_ph"]["elapsed_lbl"] is not None:
+            self._local_timers_state["op_ph"]["elapsed_lbl"].setText("00:00")
+        if self._local_timers_state["op_ph"]["remaining_lbl"] is not None:
+            h_config = self._local_timers_state["op_ph"]["duration_ms"] // 3600000
+            m_config = (self._local_timers_state["op_ph"]["duration_ms"] % 3600000) // 60000
+            self._local_timers_state["op_ph"]["remaining_lbl"].setText(f"{h_config:02d}:{m_config:02d}")
 
     def _stop_balance_chamber_on_timeout(self):
         print("[APP_TIMER] Timer 'op_cb' finalizado. Deteniendo Cámara de Balance.")
         self.timer_op_cb.stop()
         self._local_timers_state["op_cb"]["active"] = False
+
+        # Enviar comandos a la Máquina
+        self.escribir_comando("dialiserBalChambStpButt", True)
+        self.escribir_comando("dialiserBalChambStrButt", False)
+
+        # Actualizar UI localmente
+        self.toggle_cb.blockSignals(True)
         self.toggle_cb.setChecked(False)
+        self.toggle_cb.blockSignals(False)
+
+        # Resetear tiempo
+        if self._local_timers_state["op_cb"]["elapsed_lbl"] is not None:
+            self._local_timers_state["op_cb"]["elapsed_lbl"].setText("00:00")
+        if self._local_timers_state["op_cb"]["remaining_lbl"] is not None:
+            h_config = self._local_timers_state["op_cb"]["duration_ms"] // 3600000
+            m_config = (self._local_timers_state["op_cb"]["duration_ms"] % 3600000) // 60000
+            self._local_timers_state["op_cb"]["remaining_lbl"].setText(f"{h_config:02d}:{m_config:02d}")
+
 
     def _format_ms_to_hh_mm(self, ms):
         total_seconds = max(0, ms // 1000)
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
         return f"{hours:02d}:{minutes:02d}"
-
-    # def _update_local_time_displays(self):
-    #     current_ms = QDateTime.currentMSecsSinceEpoch()
-    #     for timer_id, state in self._local_timers_state.items():
-    #         if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
-    #             elapsed_ms = current_ms - state["start_ms"]
-    #             remaining_ms = state["duration_ms"] - elapsed_ms
-
-    #             if remaining_ms < 0:
-    #                 remaining_ms = 0
-    #                 elapsed_ms = state["duration_ms"] 
-                
-    #             if state["elapsed_lbl"]:
-    #                 state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
-    #             if state["remaining_lbl"]:
-    #                 state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
-    #         elif not state["active"] and state["elapsed_lbl"] and state["remaining_lbl"]:
-    #             if state["elapsed_lbl"].text() != "00:00":
-    #                 state["elapsed_lbl"].setText("00:00")
-                
-    #             h_config = state["duration_ms"] // 3600000
-    #             m_config = (state["duration_ms"] % 3600000) // 60000
-    #             config_str = f"{h_config:02d}:{m_config:02d}"
-    #             if state["remaining_lbl"].text() != config_str:
-    #                  state["remaining_lbl"].setText(config_str)
 
     def _update_local_time_displays(self):
         current_ms = QDateTime.currentMSecsSinceEpoch()
@@ -1288,6 +1296,51 @@ class mManualScr(QWidget):
                 print(f"[ERROR] El valor '{new_flow_value_num}' no es un número válido para convertir a ciclos.")
             except Exception as e:
                 print(f"[ERROR] Falló la conversión o escritura del Flujo CB: {e}")
+
+
+    def _handle_flow_uf_input(self):
+        current_flow_uf_text = self.lbl_input_indUF.text()
+        numpad_dialog = NumpadDialog(self, initial_value=current_flow_uf_text, title="Flujo UF (L/h)")
+
+        if numpad_dialog.exec():
+            new_flow_uf = numpad_dialog.get_value()
+            self.lbl_input_indUF.setText(str(new_flow_uf))
+            try:
+                value = convertir_litros_h_a_ml_min(new_flow_uf)
+                temp_value = TempInput(value)
+                self.escribir_setpoint("ultraFilterPumpSpeed", temp_value)
+            except ValueError:
+                print(f"[ERROR] el valor  '{new_flow_uf}' es válido")
+            except Exception as e:
+                print(f"[ERROR] Fállo la vonversión o escritura en parametro: {e}")
+
+
+
+    # def _update_local_time_displays(self):
+    #     current_ms = QDateTime.currentMSecsSinceEpoch()
+    #     for timer_id, state in self._local_timers_state.items():
+    #         if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
+    #             elapsed_ms = current_ms - state["start_ms"]
+    #             remaining_ms = state["duration_ms"] - elapsed_ms
+
+    #             if remaining_ms < 0:
+    #                 remaining_ms = 0
+    #                 elapsed_ms = state["duration_ms"] 
+                
+    #             if state["elapsed_lbl"]:
+    #                 state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
+    #             if state["remaining_lbl"]:
+    #                 state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
+    #         elif not state["active"] and state["elapsed_lbl"] and state["remaining_lbl"]:
+    #             if state["elapsed_lbl"].text() != "00:00":
+    #                 state["elapsed_lbl"].setText("00:00")
+                
+    #             h_config = state["duration_ms"] // 3600000
+    #             m_config = (state["duration_ms"] % 3600000) // 60000
+    #             config_str = f"{h_config:02d}:{m_config:02d}"
+    #             if state["remaining_lbl"].text() != config_str:
+    #                  state["remaining_lbl"].setText(config_str)
+
 
 
 

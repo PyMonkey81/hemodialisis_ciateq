@@ -397,6 +397,8 @@ class HemodialisisHMI(QMainWindow):
 
     def mostrar_calibracion(self):
         self.stacked.setCurrentWidget(self.pantalla_calibracion)
+        if hasattr(self.pantalla_calibracion,"actualizar_valores"):
+            self.pantalla_calibracion.actualizar_valores(self.valores)    
         self.actualizar_label_pantalla("Calibración", "#0f172a")
 
     def mostrar_config_red(self):
