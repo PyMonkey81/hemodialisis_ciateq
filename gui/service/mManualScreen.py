@@ -769,7 +769,7 @@ class mManualScr(QWidget):
         # Ciclos (Movido para aprovechar el espacio)
         lbl_cycles_chamber = QLabel("Ciclos CB")
         lbl_cycles_chamber.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_cycles_chamber, 8, 10) # Columna ajustada
+        grid.addWidget(lbl_cycles_chamber, 8, 10,1,2) # Columna ajustada
 
         self.input_cycles_chamber = ClickableLineEdit("0")
         self.input_cycles_chamber.setFixedSize(80,35)
@@ -779,7 +779,25 @@ class mManualScr(QWidget):
         self.input_cycles_chamber.clicked.connect(
             lambda: self.open_numpad("balanceChamberCycleSet", self.input_cycles_chamber, "Ciclos CB")
         )
-        grid.addWidget(self.input_cycles_chamber, 8, 11, 1, 2) # Columna ajustada
+        grid.addWidget(self.input_cycles_chamber, 8, 12, 1, 2) # Columna ajustada
+
+        lbl_flow_cb = QLabel("Flujo")
+        lbl_flow_cb.setStyleSheet(style_lbl)
+        grid.addWidget(lbl_flow_cb,8,14)
+
+        self.input_flow_cb = ClickableLineEdit("0")
+        self.input_flow_cb.setFixedSize(80, 35)
+        self.input_flow_cb.setAlignment(Qt.AlignCenter)
+        self.input_flow_cb.setStyleSheet(style_input)
+        self.input_flow_cb.setReadOnly(True)
+        self.input_flow_cb.clicked.connect(self._handle_flow_cb_input)
+        grid.addWidget(self.input_flow_cb, 8, 15)
+
+        lbl_unit_flow_cb = QLabel("ml/min")
+        lbl_unit_flow_cb.setStyleSheet(style_unit)
+        grid.addWidget(lbl_unit_flow_cb, 8, 18)
+
+
 
         layout.addWidget(self.control_area, 0, 0)
         # ==================================================================
@@ -911,6 +929,18 @@ class mManualScr(QWidget):
                 card.toggle.blockSignals(False)
         
         # ACTUALIZAR INDICADORES NUMÉRICOS
+        
+        cycle_to_flow = self.valores.get("balanceChamberSetTiming", 0.0)
+        try:
+            calc_cycle_to_flow = convertir_ciclos_a_flujo(cycle_to_flow)
+        except Exception:
+            calc_cycle_to_flow = 0.0
+        temp_tag_cycle_to_flow = "calc_c_to_f"
+        self.valores[temp_tag_cycle_to_flow] = calc_cycle_to_flow
+        if not self.input_flow_cb.hasFocus(): 
+            self.input_flow_cb.setText(f"{calc_cycle_to_flow:.1f}") 
+
+
         # Velocidad sangre
         vel_sangre = self.valores.get("bloodSpeedVariableData", 0.0)
         self.lbl_velocidad_val.setText(f"{vel_sangre:.1f}")
@@ -1241,6 +1271,23 @@ class mManualScr(QWidget):
                          state["remaining_lbl"].setText(config_str)
 
 
+    def _handle_flow_cb_input(self):
+        current_flow_text = self.input_flow_cb.text()
+        numpad_dialog =  NumpadDialog(self, initial_value=current_flow_text, title="Flujo CB (ml/min)")
+        
+
+        if numpad_dialog.exec():
+            new_flow_value_num= numpad_dialog.get_value()
+            self.input_flow_cb.setText(str(new_flow_value_num))
+
+            try:
+                value = convertir_flujo_a_ciclos(new_flow_value_num)
+                temp_value = TempInput(value)
+                self.escribir_setpoint("balanceChamberSetTiming", temp_value)
+            except ValueError:
+                print(f"[ERROR] El valor '{new_flow_value_num}' no es un número válido para convertir a ciclos.")
+            except Exception as e:
+                print(f"[ERROR] Falló la conversión o escritura del Flujo CB: {e}")
 
 
 

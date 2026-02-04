@@ -96,6 +96,10 @@ class TimeLineEdit(QLineEdit):
         self.raw_value = f"{h:02d}{m:02d}"[-4:]
         self.update_display()
 
+    def _clear(self):
+        self.raw_value = "0000"
+        self.update_display()
+
     
 
 class TimeNumpadDialog(QDialog):
@@ -154,6 +158,16 @@ class TimeNumpadDialog(QDialog):
         spacer = QLabel("")
         spacer.setStyleSheet("background-color: transparent; border: none;")
         grid_layout.addWidget(spacer, 3, 0)
+        # btn_clear = QPushButton("C")
+        # btn_clear.setFixedSize(80, 70)
+        # btn_clear.setFont(font_btn)
+        # btn_clear.setStyleSheet("""
+        #     QPushButton { background-color: #ca8a04; color: white; border-radius: 10px; border: 2px solid #1e293b; }
+        #     QPushButton:pressed { background-color: #eab308; border-color: #22d3ee; }
+        # """)
+        # btn_clear.clicked.connect(self.time_display.clear)
+        # grid_layout.addWidget(btn_clear, 3, 0)
+
         grid_layout.setColumnStretch(0,1)
         grid_layout.setColumnStretch(1,1)
         grid_layout.setColumnStretch(2,1)
@@ -176,6 +190,8 @@ class TimeNumpadDialog(QDialog):
         btn_accept.setStyleSheet("background-color: #22c55e; color: white; border-radius: 10px;")
         #btn_accept.clicked.connect(self.accept)
         btn_accept.clicked.connect(self.on_accept_clicked)
+
+        
 
         action_layout.addWidget(btn_cancel)
         action_layout.addWidget(btn_accept)
@@ -285,3 +301,71 @@ class TimeNumpadDialog(QDialog):
         """)
         msg.exec()
         
+# class TimeLineEdit(QLineEdit):
+#     def __init__(self, parent=None, initial_hh_mm="00:00"):
+#         super().__init__(parent)
+#         self.setReadOnly(False)           # ← ¡Importante! ahora NO es readonly
+#         self.setAlignment(Qt.AlignCenter)
+#         self.setFont(QFont("Consolas", 24, QFont.Bold))
+#         self.setStyleSheet("background-color: #1e293b; border: 2px solid #475569; padding: 5px; color: #22d3ee;")
+        
+#         # Máscara: 99:99  (dos dígitos : dos dígitos)
+#         # 9 = dígito obligatorio, 0-9
+#         # _ = placeholder visible
+#         self.setInputMask("99:99;_")      # el ;_ indica que el placeholder es "_"
+        
+#         # Valor inicial
+#         self.set_time_from_string(initial_hh_mm)
+
+#     def set_time_from_string(self, hh_mm: str):
+#         # Limpiamos y formateamos
+#         cleaned = ''.join(c for c in hh_mm if c.isdigit())
+#         if len(cleaned) >= 4:
+#             cleaned = cleaned[-4:]
+#         else:
+#             cleaned = cleaned.zfill(4)
+#         hh = cleaned[:2]
+#         mm = cleaned[2:]
+#         self.setText(f"{hh}:{mm}")
+
+#     def get_hours_minutes(self):
+#         text = self.text().replace(":", "")
+#         if len(text) != 4 or not text.isdigit():
+#             return 0, 0
+#         return int(text[:2]), int(text[2:])
+
+#     def get_total_minutes(self):
+#         h, m = self.get_hours_minutes()
+#         return h * 60 + m
+
+#     def add_digit(self, digit: str):
+#         # Con máscara ya no necesitamos raw_value ni lógica manual de push
+#         # Solo simulamos que se escribe el dígito en la posición actual
+#         current = self.text().replace(":", "")
+#         pos = self.cursorPosition()
+        
+#         # Si estamos antes de los :, insertamos en horas
+#         if pos <= 2:
+#             current = current[:pos] + digit + current[pos+1:]
+#         else:
+#             # Después de :, en minutos
+#             current = current[:pos-1] + digit + current[pos:]
+        
+#         current = current[:4].ljust(4, "0")
+#         self.setText(f"{current[:2]}:{current[2:]}")
+#         self.setCursorPosition(min(pos + 1, 5))  # 0 1 : 3 4   → pos máx 5
+
+#     def backspace(self):
+#         pos = self.cursorPosition()
+#         if pos == 3:  # estamos en el :
+#             self.setCursorPosition(2)
+#             return
+        
+#         text = self.text().replace(":", "")
+#         if pos <= 2:
+#             text = text[:pos-1] + "0" + text[pos:]
+#         else:
+#             text = text[:pos-2] + "0" + text[pos-1:]
+        
+#         self.setText(f"{text[:2]}:{text[2:]}")
+#         self.setCursorPosition(max(0, pos - 1))
