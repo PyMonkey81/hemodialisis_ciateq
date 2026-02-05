@@ -20,3 +20,6 @@ from .components.rVariables import monitorVariables
 from .components.ToggleSwitch import ToggleSwitch
 from .components.numpad_modal import NumpadDialog
 from .components.time_numpad_modal import TimeLineEdit
+from .components.ui_components import ToggleBox
+from .components.ui_components import DoubleToggleBox
+from .components.ui_components import ClickableLineEdit

@@ -7,9 +7,12 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 import pyqtgraph as pg
 from collections import deque
+import numpy as np
+
 
 
 from gui.components.numpad_modal import NumpadDialog
+from gui.components.ui_components import ClickableLineEdit, ToggleBox, DoubleToggleBox
 
 try: 
     from core.variables_map import VARIABLES
@@ -25,90 +28,6 @@ except ImportError:
         def set_state(self, s): self.state = s
     class ToggleSwitch(QCheckBox):
         def __init__(self, width=60, height=30, active_color=None): super().__init__()
-
-
-class ClickableLineEdit(QLineEdit):
-    clicked = Signal() # Señal 
-    
-    def __init__(self, text="", parent=None):
-        super().__init__(text, parent)
-    
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.clicked.emit()
-        super().mousePressEvent(event)
-
-class ToggleBox(QFrame):
-    def __init__(self, label, parent=None):
-        super().__init__(parent)
-
-        self.setStyleSheet("""
-            QFrame {
-                background-color: #fcfcfc;
-                border-radius: 8px;
-                border: 1px solid #334155;
-            }
-        """)
-        self.setFixedHeight(80)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
-
-        lbl_info = QLabel(f"<b>{label}</b>")
-        lbl_info.setStyleSheet("color: #000000; font-size: 18px; border:none; background: transparent;")
-        lbl_info.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
-
-        self.toggle = ToggleSwitch(width=60, height=30)
-
-        layout.addWidget(lbl_info)
-        layout.addStretch()
-        layout.addWidget(self.toggle)
-
-
-
-class DoubleToggleBox(QFrame):
-    def __init__(self, label1_text, label2_text, parent=None):
-        super().__init__(parent)
-
-        self.setStyleSheet("""
-            QFrame {
-                background-color: #f0f4f8; /* Un fondo ligeramente diferente para destacar */
-                border-radius: 8px;
-                border: 1px solid #334155;
-            }
-        """)
-        self.setFixedHeight(120) # Ajusta la altura si es necesario para acomodar dos filas
-
-        # Layout principal de la DoubleToggleBox (vertical)
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(5) # Menos espacio vertical entre las filas
-
-        # --- Primera Fila: Label 1 y Toggle 1 ---
-        row1_layout = QHBoxLayout()
-        lbl1 = QLabel(f"<b>{label1_text}</b>")
-        lbl1.setStyleSheet("color: #000000; font-size: 16px; border:none; background: transparent;")
-        lbl1.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
-        self.toggle1 = ToggleSwitch(width=60, height=30) # Almacenar como atributo
-
-        row1_layout.addWidget(lbl1)
-        row1_layout.addStretch()
-        row1_layout.addWidget(self.toggle1)
-        main_layout.addLayout(row1_layout)
-
-        # --- Segunda Fila: Label 2 y Toggle 2 ---
-        row2_layout = QHBoxLayout()
-        lbl2 = QLabel(f"<b>{label2_text}</b>")
-        lbl2.setStyleSheet("color: #000000; font-size: 16px; border:none; background: transparent;")
-        lbl2.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
-        self.toggle2 = ToggleSwitch(width=60, height=30) # Almacenar como atributo
-
-        row2_layout.addWidget(lbl2)
-        row2_layout.addStretch()
-        row2_layout.addWidget(self.toggle2)
-        main_layout.addLayout(row2_layout)
-
 
 
 class ctrlCfgScr(QWidget):
@@ -128,26 +47,26 @@ class ctrlCfgScr(QWidget):
 
         self.toggles_by_tag = {} 
 
-        self.blood_flow_history_length = 600 # Número de puntos a mostrar (ej. 10 minutos a 1 actualiz/seg = 600 puntos)
-                                              # Ajusta este valor según cuántos segundos/puntos quieras ver en pantalla.
-        self.blood_flow_x = deque(maxlen=self.blood_flow_history_length)
-        self.blood_flow_setpoint_y = deque(maxlen=self.blood_flow_history_length)
-        self.blood_flow_variable_y = deque(maxlen=self.blood_flow_history_length)
-        self.blood_flow_output_y = deque(maxlen=self.blood_flow_history_length)
-        self.blood_flow_time_counter = 0 # Contador que siempre aumenta
+        self.history_length = 600  # ~10 min a 1 Hz
+        
+        # Buffers circulares con NumPy (fijos, predecibles, sin realloc)
+        self.blood_flow_setpoint_y   = np.full(self.history_length, np.nan, dtype=np.float32)
+        self.blood_flow_variable_y   = np.full(self.history_length, np.nan, dtype=np.float32)
+        self.blood_flow_output_y     = np.full(self.history_length, np.nan, dtype=np.float32)
 
-        self.cond_history_length = 600
-        self.cond_x = deque(maxlen=self.cond_history_length)
-        self.cond_setpoint_y = deque(maxlen=self.cond_history_length)
-        self.cond_variable_y = deque(maxlen=self.cond_history_length)
-        self.cond_output_y = deque(maxlen=self.cond_history_length)
-        #self.cond_time_counter = 0
+        self.cond_setpoint_y         = np.full(self.history_length, np.nan, dtype=np.float32)
+        self.cond_variable_y         = np.full(self.history_length, np.nan, dtype=np.float32)
+        self.cond_output_y           = np.full(self.history_length, np.nan, dtype=np.float32)
 
-        self.ctd_history_length = 600
-        self.ctd_x = deque(maxlen=self.ctd_history_length)
-        self.ctd_setpoint_y = deque(maxlen=self.ctd_history_length)
-        self.ctd_variable_y = deque(maxlen=self.ctd_history_length)
-        self.ctd_output_y = deque(maxlen=self.ctd_history_length)
+        self.ctd_setpoint_y          = np.full(self.history_length, np.nan, dtype=np.float32)
+        self.ctd_variable_y          = np.full(self.history_length, np.nan, dtype=np.float32)
+        self.ctd_output_y            = np.full(self.history_length, np.nan, dtype=np.float32)
+
+        # Índice circular (avanza con cada nuevo dato)
+        self.plot_idx = 0
+
+        # X relativa fija (se genera una vez) → [-599, -598, ..., 0] para history=600
+        self.x_relativa = np.arange(-self.history_length + 1, 1, dtype=np.float32)
 
         self.setup_ui()
     
@@ -189,9 +108,7 @@ class ctrlCfgScr(QWidget):
         self.plot_cfs.addLegend() 
 
         self.curve_cfs_setpoint = self.plot_cfs.plot(pen=pg.mkPen(color=(0, 0, 255), width=2), name="Setpoint CFS")
-        # Curva para Variable CFS
         self.curve_cfs_variable = self.plot_cfs.plot(pen=pg.mkPen(color=(0, 150, 0), width=2), name="Variable CFS")
-        # Curva para Salida CFS
         self.curve_cfs_output = self.plot_cfs.plot(pen=pg.mkPen(color=(255, 0, 0), width=2), name="Salida CFS (%)")
 
         grid_graphics.addWidget(self.plot_cfs, 0, 0) 
@@ -221,9 +138,6 @@ class ctrlCfgScr(QWidget):
         self.curve_ctd_output = self.plot_ctd.plot(pen=pg.mkPen(color=(255, 0, 0), width=2), name="Salida Temp. (%)")
     
         grid_graphics.addWidget(self.plot_ctd, 2, 0)
-
-
-
 
         #============================================================================
         #=======================AREA DE CONTROLES====================================
@@ -279,9 +193,81 @@ class ctrlCfgScr(QWidget):
 
         
         #=====================================================================================
-        # COLUMNA 2 ZONA DE SETPOINTS KP, KD, KI DE CONTOLES
+        # COLUMNA 2 ZONA DE SETPOINTS 
         #=====================================================================================
+        current_row = 0
+        target_col = 3 
 
+                # --- SECCIÓN CFS ---
+        self.input_sp_cfs =  self.add_control_row(
+            grid, current_row, target_col, 
+            "SetPoint CFS", "ml/min", 
+            tag="bloodFlowControlSetPoint", numpad_title="Setpoint CFS (ml/min)"
+        )
+        
+        current_row += 1        
+        
+        
+        self.input_output_cfs = self.add_control_row(
+            grid, current_row, target_col, 
+            "Salida CFS", "%", 
+            tag="bloodFlowControlOutput", numpad_title="Salida CFS (%)"
+        )
+        current_row += 1
+
+        self.lbl_ind_var_cfs = self.add_control_row(
+            grid, current_row, target_col, 
+            "Variable CFS", "ml/min", 
+            is_input=False 
+        )
+        current_row += 1
+       
+        # --- SECCIÓN CONDUCTIVIDAD ---
+        self.input_sp_cond = self.add_control_row(
+            grid, current_row, target_col, 
+            "SetPoint Cond.", "mS/cm", 
+            tag="dialyCondControlSetPoint", numpad_title="Setpoint Conductividad (mS/cm)"
+        )
+        current_row += 1
+
+        self.input_output_cond = self.add_control_row(
+            grid, current_row, target_col, 
+            "Salida Cond.", "%", 
+            tag="dialyCondControlOutput", numpad_title="Salida Conductividad (%)"
+        )
+        current_row += 1
+
+        self.lbl_ind_var_cond = self.add_control_row(
+            grid, current_row, target_col, 
+            "Variable Cond.", "mS/cm", 
+            is_input=False
+        )  
+        current_row += 1
+
+        # --- SECCIÓN TEMPERATURA ---
+        self.input_sp_temp = self.add_control_row(
+            grid, current_row, target_col, 
+            "SetPoint Temp.", "°C", 
+            tag="dialyTempControlSetPoint", numpad_title="Setpoint Temperatura (°C)"
+        )
+        current_row += 1
+
+        self.input_output_temp = self.add_control_row(
+            grid, current_row, target_col, 
+            "Salida Temp.", "%", 
+            tag="dialyTempControlOutput", numpad_title="Salida Temperatura (%)"
+        )
+        current_row += 1
+
+        self.lbl_ind_var_temp = self.add_control_row(
+            grid, current_row, target_col, 
+            "Variable Temp.", "°C", 
+            is_input=False
+        )
+        current_row += 1
+
+
+        
 
 
 
@@ -323,18 +309,117 @@ class ctrlCfgScr(QWidget):
         else:
             print(f" -> Error: No se encontró ID para el tag '{tag}'")
 
+    def write_setpoint(self, tag, widget_input):
+        try:
+            texto = widget_input.text().replace(',', '.')
+            if not texto:                 
+                current_value = self.valores.get(tag, 0.0)
+                widget_input.setText(f"{current_value:.1f}") 
+                return 
+                
+            valor = float(texto)
+            print(f"[SETPOINT] Intentando escribir {tag} = {valor}")
+            
+            target_group = -1
+            target_id = -1
+            found = False
+            
+            for group_key, variables_in_group in VARIABLES.items():                
+                if isinstance(variables_in_group, dict): 
+                    for var_id, info in variables_in_group.items():
+                        if info.get("tag") == tag:
+                            target_group = group_key
+                            target_id = var_id
+                            found = True
+                            break
+                if found: break 
+            
+            if found and target_group != -1 and target_id != -1:
+                if VARIABLES[target_group][target_id].get("rw", False):
+                    print(f" -> Variable '{tag}' encontrada: Grupo {hex(target_group)}, ID {target_id}")
+                    if self.parent_window and hasattr(self.parent_window, 'serial'):                      
+                        self.parent_window.serial.escribir_double(target_group, target_id, valor)
+                    else:
+                        print(f"[INFO] Serial no conectado.  {tag}: Grupo {hex(target_group)}, ID {target_id}, Valor {valor}")
+                else:
+                    print(f"[ADVERTENCIA] La variable '{tag}' no es escribible (rw=False en variables_map).")
+            else:
+                print(f"[ERROR] No se encontró la definición de la variable para el tag '{tag}'.")
+
+            widget_input.clearFocus()
+
+        except ValueError:
+            print(f"[ERROR] Valor numérico inválido en input para {tag}: {widget_input.text()}")
+        except Exception as e:
+            print(f"[ERROR] Ocurrió un error inesperado al escribir setpoint para {tag}: {e}")
+  
+
     def open_numpad(self, tag, widget_input, text_="Ingrese valor"):
         act_value = widget_input.text()
         dialog = NumpadDialog(self, initial_value=act_value, title=text_)        
         if dialog.exec(): 
             new_value = dialog.get_value() 
             widget_input.setText(str(new_value))            
-            self.escribir_setpoint(tag, widget_input)
+            self.write_setpoint(tag, widget_input)
+    
+    def add_control_row(self, grid, row, start_col, label_text, unit_text, tag=None, numpad_title="", is_input=True, initial_value="0.0"):
+        """
+        Crea una fila estandarizada:
+            [Col N] Label  |  [Col N+1] Widget  |  [Col N+2] Unidad
+        
+        Args:
+            grid (QGridLayout): El layout donde se insertarán los widgets.
+            row (int): La fila del grid.
+            start_col (int): La columna donde comienza la etiqueta (Label).
+            ... los demás parámetros ...
+        """
+        
+        # Estilos
+        style_lbl = "color: #000000; font-size: 18px; font-weight: bold;"
+        style_input = """
+            QLineEdit { background: #FFFFE5; color: #000000; font-size: 18px; 
+                        font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; }
+        """
+        style_unit = "color: #94a3b8; font-size: 16px;"
+        style_lbl_ind = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+
+        # 1. Etiqueta Descriptiva (En la columna inicial)
+        lbl = QLabel(label_text)
+        lbl.setStyleSheet(style_lbl)
+        grid.addWidget(lbl, row, start_col) 
+
+        # 2. Widget Central (En la columna inicial + 1)
+        widget_central = None
+        
+        if is_input:
+            widget_central = ClickableLineEdit(initial_value)
+            widget_central.setReadOnly(True)
+            # Nota importante en lambda: t=tag, w=widget_central, etc. para capturar valores por defecto
+            widget_central.clicked.connect(
+                lambda t=tag, w=widget_central, title=numpad_title: self.open_numpad(t, w, title)
+            )
+            widget_central.setStyleSheet(style_input)
+        else:
+            widget_central = QLabel(initial_value)
+            widget_central.setStyleSheet(style_lbl_ind)
+        
+        widget_central.setFixedSize(80, 35)
+        widget_central.setAlignment(Qt.AlignCenter)
+        grid.addWidget(widget_central, row, start_col + 1)
+
+        # 3. Unidad (En la columna inicial + 2)
+        lbl_unit = QLabel(unit_text)
+        lbl_unit.setStyleSheet(style_unit)
+        grid.addWidget(lbl_unit, row, start_col + 2)
+
+        return widget_central
+
+
 
     def actualizar_valores(self, nuevos_valores):
         self.valores = nuevos_valores
 
-        # --- Actualizar datos de la gráfica CFS, Cond. y Temperatura ---
+        # Obtención de valores (sin cambios)
         setpoint_cfs = self.valores.get("bloodFlowControlSetPoint", 0.0)
         variable_cfs = self.valores.get("bloodFlowVariableData", 0.0)
         output_cfs_raw = self.valores.get("bloodFlowControlOutput", 0.0)
@@ -350,51 +435,88 @@ class ctrlCfgScr(QWidget):
         output_ctd_raw = self.valores.get("dialyTempControlOutput", 0.0)
         output_ctd_percent = output_ctd_raw / 2
 
+        # Escribir en posición actual (circular)
+        idx = self.plot_idx
 
-        # Añadir nuevos datos al historial
-        self.blood_flow_x.append(self.blood_flow_time_counter)
-        self.blood_flow_setpoint_y.append(setpoint_cfs)
-        self.blood_flow_variable_y.append(variable_cfs)
-        self.blood_flow_output_y.append(output_cfs_percent)
+        self.blood_flow_setpoint_y[idx]   = setpoint_cfs
+        self.blood_flow_variable_y[idx]   = variable_cfs
+        self.blood_flow_output_y[idx]     = output_cfs_percent
+
+        self.cond_setpoint_y[idx]         = setpoint_cond
+        self.cond_variable_y[idx]         = variable_cond
+        self.cond_output_y[idx]           = output_cc_percent
+
+        self.ctd_setpoint_y[idx]          = setpoint_ctd
+        self.ctd_variable_y[idx]          = variable_ctd
+        self.ctd_output_y[idx]            = output_ctd_percent
+
+        # Avanzar índice circular
+        self.plot_idx = (self.plot_idx + 1) % self.history_length
+
+        # Para graficar: usamos np.roll para "mover" el array de forma que el último dato quede al final (derecha)
+        # np.roll es eficiente (casi sin copia)
+        roll_amount = -self.plot_idx   # negativo para que el idx actual vaya al final
+        y_setpoint_cfs_rolled   = np.roll(self.blood_flow_setpoint_y, roll_amount)
+        y_variable_cfs_rolled   = np.roll(self.blood_flow_variable_y, roll_amount)
+        y_output_cfs_rolled     = np.roll(self.blood_flow_output_y, roll_amount)
+
+        # Repite para cond y ctd (o haz una función helper si prefieres)
+        y_setpoint_cond_rolled  = np.roll(self.cond_setpoint_y, roll_amount)
+        y_variable_cond_rolled  = np.roll(self.cond_variable_y, roll_amount)
+        y_output_cond_rolled    = np.roll(self.cond_output_y, roll_amount)
+
+        y_setpoint_ctd_rolled   = np.roll(self.ctd_setpoint_y, roll_amount)
+        y_variable_ctd_rolled   = np.roll(self.ctd_variable_y, roll_amount)
+        y_output_ctd_rolled     = np.roll(self.ctd_output_y, roll_amount)
+
+        # Actualizar curvas (pyqtgraph ama NumPy → muy rápido)
+        self.curve_cfs_setpoint.setData(self.x_relativa, y_setpoint_cfs_rolled)
+        self.curve_cfs_variable.setData(self.x_relativa, y_variable_cfs_rolled)
+        self.curve_cfs_output.setData(  self.x_relativa, y_output_cfs_rolled)
+
+        self.curve_cc_setpoint.setData( self.x_relativa, y_setpoint_cond_rolled)
+        self.curve_cc_variable.setData(self.x_relativa, y_variable_cond_rolled)
+        self.curve_cc_output.setData(   self.x_relativa, y_output_cond_rolled)
+
+        self.curve_ctd_setpoint.setData( self.x_relativa, y_setpoint_ctd_rolled)
+        self.curve_ctd_variable.setData(self.x_relativa, y_variable_ctd_rolled)
+        self.curve_ctd_output.setData(  self.x_relativa, y_output_ctd_rolled)
+
+        # Rango fijo (sin cambios)
+        self.plot_cfs.setXRange(-self.history_length + 1, 0)
+        self.plot_cc.setXRange( -self.history_length + 1, 0)
+        self.plot_ctd.setXRange( -self.history_length + 1, 0)
+
+        self.update_input_val(self.input_sp_cfs, "bloodFlowControlSetPoint")
+        self.update_input_val(self.input_output_cfs, "bloodFlowControlOutput")
+        self.update_label_val(self.lbl_ind_var_cfs, "bloodFlowVariableData")
+
+        self.update_input_val(self.input_sp_cond, "dialyCondControlSetPoint")
+        self.update_input_val(self.input_output_cond, "dialyCondControlOutput")
+        self.update_label_val(self.lbl_ind_var_cond, "dialyCondVariableData")
+
+        self.update_input_val(self.input_sp_temp,"dialyTempControlSetPoint")
+        self.update_input_val(self.input_output_temp,"dialyTempControlOutput")
+        self.update_label_val(self.lbl_ind_var_temp,"dialyTempVariableData")
         
-        self.blood_flow_time_counter += 1
+    
+    def update_input_val(self, widget, tag, precision=1):
+        """
+        Actualiza un widget input si no tiene el foco del usuario.
+        """
+        value = self.valores.get(tag, 0.0)
+        if not widget.hasFocus():
+            widget.setText(f"{value:.{precision}f}")
+    
+    def update_label_val(self, label, tag, precision=1):
+        """
+        Actualiza un label indicador (siempre, ya que no tiene foco).
+        """
+        value = self.valores.get(tag, 0.0)
+        label.setText(f"{value:.{precision}f}")
 
-        self.cond_x.append(self.blood_flow_time_counter)
-        self.cond_setpoint_y.append(setpoint_cond)
-        self.cond_variable_y.append(variable_cond)
-        self.cond_output_y.append(output_cc_percent)
 
-        self.ctd_x.append(self.blood_flow_time_counter)
-        self.ctd_setpoint_y.append(setpoint_ctd)
-        self.ctd_variable_y.append(variable_ctd)
-        self.ctd_output_y.append(output_ctd_percent)
-
-
-        # Actualizar las curvas de la gráfica
-        self.curve_cfs_setpoint.setData(list(self.blood_flow_x), list(self.blood_flow_setpoint_y))
-        self.curve_cfs_variable.setData(list(self.blood_flow_x), list(self.blood_flow_variable_y))
-        self.curve_cfs_output.setData(list(self.blood_flow_x), list(self.blood_flow_output_y))
-
-        self.curve_cc_setpoint.setData(list(self.cond_x), list(self.cond_setpoint_y))
-        self.curve_cc_variable.setData(list(self.cond_x), list(self.cond_variable_y))
-        self.curve_cc_output.setData(list(self.cond_x), list(self.cond_output_y))
-
-        self.curve_ctd_setpoint.setData(list(self.ctd_x), list(self.ctd_setpoint_y))
-        self.curve_ctd_variable.setData(list(self.ctd_x), list(self.ctd_variable_y))
-        self.curve_ctd_output.setData(list(self.ctd_x), list(self.ctd_output_y))
-
-        # --- APLICAR SCROLLING AL EJE X ---
-        # Definir el rango visible del eje X
-        # El máximo será el contador actual
-        current_x_max = self.blood_flow_time_counter 
-        # El mínimo será el máximo menos la longitud del historial.
-        # Aseguramos que no vaya por debajo de 0 al inicio.
-        current_x_min = max(0, current_x_max - self.blood_flow_history_length)
         
-        self.plot_cfs.setXRange(current_x_min, current_x_max)
-        self.plot_cc.setXRange(current_x_min, current_x_max)
-        self.plot_ctd.setXRange(current_x_min, current_x_max)
-
 
 
 

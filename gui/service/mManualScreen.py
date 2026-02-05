@@ -8,6 +8,7 @@ from PySide6.QtGui import QColor, QDoubleValidator
 
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
+from gui.components.ui_components import ClickableLineEdit
 
 try:
     from logic.calculos import convertir_flujo_a_ciclos # convierte el flujo deseado a ciclos de cámara de balance
@@ -33,16 +34,7 @@ except ImportError:
     class ToggleSwitch(QCheckBox):
         def __init__(self, width=60, height=30, active_color=None): super().__init__()
 
-class ClickableLineEdit(QLineEdit):
-    clicked = Signal() # Señal 
-    
-    def __init__(self, text="", parent=None):
-        super().__init__(text, parent)
-    
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.clicked.emit()
-        super().mousePressEvent(event)
+
 
 class TempInput:
     def __init__(self, valor):
