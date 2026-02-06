@@ -42,9 +42,7 @@ class ctrlCfgScr(QWidget):
         self.setPalette(pal)
 
         self.toggles_by_tag = {}
-        self.history_length = 600
-
-        
+        self.history_length = 600        
 
         nan_list = [np.nan] * self.history_length
         self.blood_flow_setpoint_y = deque(nan_list, maxlen=self.history_length)
@@ -344,7 +342,6 @@ class ctrlCfgScr(QWidget):
             # No setStyleSheet → hereda del global (QLineEdit, ClickableLineEdit)
         elif is_input is False:
             widget_central = QLabel(initial_value)
-            # widget_central.setReadOnly(True)
             # Para las variables destacadas (cyan con borde) → usamos propiedad o clase
             widget_central.setProperty("class", "highlighted")  # o setObjectName("highlight")
         else:

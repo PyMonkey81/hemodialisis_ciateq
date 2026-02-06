@@ -389,7 +389,7 @@ if __name__ == "__main__":
             background: #FFFFE5;
         }
 
-        /* Fondo cuando está read-only ── clave aquí */
+        /* Fondo cuando está read-only  */
         QLineEdit:read-only,
         ClickableLineEdit:read-only,
         ClickableLineEdit[readOnly="true"] {
