@@ -77,33 +77,6 @@ class HemodialisisHMI(QMainWindow):
         self.serial.data_received.connect(self.actualizar_valor)
         # self.serial.conectar()
         
-        # 3. Crear pantallas 
-        #crear instancias de los menús principales        
-        self.pantalla_dialisis = dialysisScr(parent=self)
-        self.pantalla_modo_ = dialysisScr(parent=self) # HACER PANTALLA PARA ESTE SUBMENU, DONDE SE SELECCIONA EL MODO DE OPERACION O FILOSOFIA DE OPERACION 
-        self.pantalla_limpieza = cleanScr(parent=self)
-        self.pantalla_ajustes = optionScr(parent=self)
-        self.pantalla_alarmas = alarmsScr(parent=self)
-
-        # CREAR INSTANCIAS DE SUBMENÚS DE AJUSTES
-        self.pantalla_modo_manual = mManualScr(parent=self)
-        self.pantalla_panel_pruebas = pPruebasScr(parent=self)
-        self.pantalla_calibracion = ctrlCfgScr(parent=self)
-        self.pantalla_config_red = cfgRedScr(parent=self)       
-         
-        # 4. Añadir las pantallas al Stacked creado (VACIO) 
-        # añadir estancias fijas
-        self.stacked.addWidget(mainScr())
-        self.stacked.addWidget(self.pantalla_dialisis)
-        self.stacked.addWidget(self.pantalla_modo_)# este es un cambio, modificar el nombre de la pantalla 
-        self.stacked.addWidget(self.pantalla_limpieza)
-        self.stacked.addWidget(self.pantalla_ajustes)
-        self.stacked.addWidget(self.pantalla_alarmas)        
-        self.stacked.addWidget(self.pantalla_modo_manual) # submenús de ajustes 4
-        self.stacked.addWidget(self.pantalla_panel_pruebas)
-        self.stacked.addWidget(self.pantalla_calibracion)
-        self.stacked.addWidget(self.pantalla_config_red)
-        
         # 5. Configurar alarmas
         self.alarmas_activas = []      
         nombres = [info["name"] for g in VARIABLES.values() for info in g.values()]
@@ -123,14 +96,79 @@ class HemodialisisHMI(QMainWindow):
 
         self.sistema_alarmas.iniciar_monitoreo()
 
-        self.valores = {n: 0.0 for n in tags}       
-        
-        # 6. Añadir monitor de variables al stacket, solo hasta que se conecta al sistema de alarmas
-        self.pantalla_monitor_variables = monitorVariables(parent=self, 
-                                                   valores_dict=self.valores, 
-                                                   sistema_alarmas=self.sistema_alarmas)       
+        self.valores = {n: 0.0 for n in tags}      
 
-        self.stacked.addWidget(self.pantalla_monitor_variables)
+        # # 3. Crear pantallas 
+        # #crear instancias de los menús principales        
+        # self.pantalla_dialisis = dialysisScr(parent=self)
+        # self.pantalla_modo_ = dialysisScr(parent=self) # HACER PANTALLA PARA ESTE SUBMENU, DONDE SE SELECCIONA EL MODO DE OPERACION O FILOSOFIA DE OPERACION 
+        # self.pantalla_limpieza = cleanScr(parent=self)
+        # self.pantalla_ajustes = optionScr(parent=self)
+        # self.pantalla_alarmas = alarmsScr(parent=self)
+
+        # # CREAR INSTANCIAS DE SUBMENÚS DE AJUSTES
+        # self.pantalla_modo_manual = mManualScr(parent=self)
+        # self.pantalla_panel_pruebas = pPruebasScr(parent=self)
+        # self.pantalla_calibracion = ctrlCfgScr(parent=self)
+        # self.pantalla_config_red = cfgRedScr(parent=self)       
+         
+        # # 4. Añadir las pantallas al Stacked creado (VACIO) 
+        # # añadir estancias fijas
+        # self.stacked.addWidget(mainScr())
+        # self.stacked.addWidget(self.pantalla_dialisis)
+        # self.stacked.addWidget(self.pantalla_modo_)# este es un cambio, modificar el nombre de la pantalla 
+        # self.stacked.addWidget(self.pantalla_limpieza)
+        # self.stacked.addWidget(self.pantalla_ajustes)
+        # self.stacked.addWidget(self.pantalla_alarmas)        
+        # self.stacked.addWidget(self.pantalla_modo_manual) # submenús de ajustes 4
+        # self.stacked.addWidget(self.pantalla_panel_pruebas)
+        # self.stacked.addWidget(self.pantalla_calibracion)
+        # self.stacked.addWidget(self.pantalla_config_red)
+        
+         
+        
+        # # 6. Añadir monitor de variables al stacket, solo hasta que se conecta al sistema de alarmas
+        # self.pantalla_monitor_variables = monitorVariables(parent=self, 
+        #                                            valores_dict=self.valores, 
+        #                                            sistema_alarmas=self.sistema_alarmas)      
+        # self.pantalla_alarmas = alarmsScr(self, sistema_alarmas=self.sistema_alarmas)
+        # 4. Crear pantallas (en orden lógico)
+        self.pantalla_dialisis    = dialysisScr(parent=self)
+        self.pantalla_modo_       = dialysisScr(parent=self)  # ← considera renombrar esta clase
+        self.pantalla_limpieza    = cleanScr(parent=self)
+        self.pantalla_ajustes     = optionScr(parent=self)
+        
+        # Pantalla de alarmas → crear SOLO UNA VEZ y con sistema_alarmas
+        self.pantalla_alarmas     = alarmsScr(
+            parent=self,
+            valores_dict=self.valores,          # opcional, pero ya lo tienes
+            sistema_alarmas=self.sistema_alarmas
+        )
+        
+        # Monitor de variables (también necesita sistema_alarmas)
+        self.pantalla_monitor_variables = monitorVariables(
+            parent=self,
+            valores_dict=self.valores,
+            sistema_alarmas=self.sistema_alarmas
+        )
+
+        # Submenús de ajustes
+        self.pantalla_modo_manual   = mManualScr(parent=self)
+        self.pantalla_panel_pruebas = pPruebasScr(parent=self)
+        self.pantalla_calibracion   = ctrlCfgScr(parent=self)
+        self.pantalla_config_red    = cfgRedScr(parent=self)
+
+        # 5. Añadir TODAS al stacked (en el orden deseado)
+        self.stacked.addWidget(mainScr())                    # 0
+        self.stacked.addWidget(self.pantalla_dialisis)       # 1
+        self.stacked.addWidget(self.pantalla_modo_)          # 2
+        self.stacked.addWidget(self.pantalla_limpieza)       # 3
+        self.stacked.addWidget(self.pantalla_ajustes)        # 4
+        self.stacked.addWidget(self.pantalla_alarmas)        # 5  ← ahora sí está la correcta
+        self.stacked.addWidget(self.pantalla_modo_manual)    # 6
+        self.stacked.addWidget(self.pantalla_panel_pruebas)  # 7
+        self.stacked.addWidget(self.pantalla_calibracion)    # 8
+        self.stacked.addWidget(self.pantalla_config_red)     # 9
         
         # 7. Iniciar timers y metodos de actualizacion de etiquedas en header
         self.refrescar_etiqueta_alarmas()

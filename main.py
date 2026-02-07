@@ -347,7 +347,7 @@ if __name__ == "__main__":
             screen_w, screen_h = 1920, 1080
 
     scale = min(screen_w / 1920, screen_h / 1080)
-    os.environ["QT_SCALE_FACTOR"] = f"{scale:.2f}"
+    os.environ["QT_SCALE_FACTOR"] =  "0.77 "#f"{scale:.2f}"
 
    
     # Solo dejamos la política de redondeo (esta SÍ sigue siendo válida)
