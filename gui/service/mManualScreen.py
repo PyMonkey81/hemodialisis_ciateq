@@ -393,16 +393,6 @@ class mManualScr(QWidget):
         )
         grid.addWidget(self.input_t_therapy, 2, 14,1,2) 
 
-        # ### NUEVO: Etiquetas de Tiempo Transcurrido y Restante para Bomba de Heparina (op_ph)
-        # Ajusta las columnas según tu diseño para que no se solape
-        # lbl_elapsed_ph_title = QLabel("T:")
-        # lbl_elapsed_ph_title.setStyleSheet(style_lbl)
-        # grid.addWidget(lbl_elapsed_ph_title, 2, 16, alignment=Qt.AlignRight)
-
-        # self.lbl_elapsed_ph = QLabel("00:00")
-        # self.lbl_elapsed_ph.setStyleSheet(style_lbl) 
-        # grid.addWidget(self.lbl_elapsed_ph, 2, 17, alignment=Qt.AlignLeft)
-        
         lbl_remaining_ph_title = QLabel("Rest.:")
         lbl_remaining_ph_title.setStyleSheet(style_lbl)
         grid.addWidget(lbl_remaining_ph_title, 2, 18, alignment=Qt.AlignRight)
@@ -847,52 +837,20 @@ class mManualScr(QWidget):
         if not self.lbl_input_indUF.hasFocus():
             self.lbl_input_indUF.setText(f"{calc_uf_flow_to_liters:.1f}")
 
-        # Velocidad sangre
-        vel_sangre = self.valores.get("bloodSpeedVariableData", 0.0)
-        self.lbl_velocidad_val.setText(f"{vel_sangre:.1f}")
-
-        in_BNa = self.valores.get("bicarbonatePumpSpeed",0.0)
-        self.lbl_indBNa.setText(f"{in_BNa:.1f}")
-
-        in_BAC = self.valores.get("citricAcidPumpSpeed",0.0)
-        self.lbl_indBAC.setText(f"{in_BAC:.1f}")
         
-        # Dosis heparina
-        val_heparina = self.valores.get("heparineCurrentDosage", 0.0) 
-        self.indHeparinCurrentDosage.setText(f"{val_heparina:.1f}")
 
-        in_cycles_CB = self.valores.get("balanceChamberCycleSet", 0.0)
-        self.input_cycles_chamber.setText(f"{in_cycles_CB:.0f}")#### cambiar por otra etiqueta que se indicador
-
-        ind_dialysate = self.valores.get("dialyFlowControlOutput", 0.0)
-        if not self.lbl_input_indSDializante.hasFocus():
-            self.lbl_input_indSDializante.setText(f"{ind_dialysate:.1f}")
-
-        ind_b_purge = self.valores.get("dialyDeaerControlOutput", 0.0)
-        if not self.lbl_indPurga.hasFocus():
-            self.lbl_indPurga.setText(f"{ind_b_purge:.1f}")
-
-        # Input Dosis Heparina (solo si no tiene foco)
-        in_heparinTherapyDosage = self.valores.get("heparineTherapyDosage", 0.0)
-        if not self.input_dosis_hep.hasFocus():
-            self.input_dosis_hep.setText(f"{in_heparinTherapyDosage:.1f}")
-
-        in_usizesyringe = self.valores.get("heparineSyrinjeScaleSize", 0.0)
-        if not self.input_size_syringe.hasFocus():
-            self.input_size_syringe.setText(f"{in_usizesyringe:.1f}")
-        
-        in_dosis_bolo = self.valores.get("heparineBolusQuantity", 0.0)
-        if not self.input_dosis_bolo.hasFocus():
-            self.input_dosis_bolo.setText(f"{in_dosis_bolo:.1f}")
-        
-        in_input_flujo_sangre = self.valores.get("bloodFlowControlSetPoint", 0.0)
-        if not self.input_flujo_sangre.hasFocus():
-            self.input_flujo_sangre.setText(f"{in_input_flujo_sangre:.1f}")
-        
-        in_input_t_therapy_hours = int(self.valores.get("heparineTherapyHours", 0)) 
-        in_input_t_therapy_minutes = int(self.valores.get("heparineTherapyMinutes", 0))
-        if not self.input_t_therapy.hasFocus():
-            self.input_t_therapy.setText(f"{in_input_t_therapy_hours:02d}:{in_input_t_therapy_minutes:02d}")
+        self.update_label_val(self.lbl_velocidad_val, "bloodSpeedVariableData" )
+        self.update_label_val(self.lbl_indBNa, "bicarbonatePumpSpeed" )
+        self.update_label_val(self.lbl_indBAC, "citricAcidPumpSpeed" )        
+        self.update_label_val(self.indHeparinCurrentDosage, "heparineCurrentDosage" )
+        self.update_input_val(self.input_cycles_chamber,"balanceChamberCycleSet" )
+        self.update_input_val(self.lbl_input_indSDializante, "dialyFlowControlOutput")
+        self.update_input_val(self.lbl_indPurga, "dialyDeaerControlOutput")
+        self.update_input_val(self.input_dosis_hep, "heparineTherapyDosage")
+        self.update_input_val(self.input_size_syringe,"heparineSyrinjeScaleSize")
+        self.update_input_val(self.input_dosis_bolo, "heparineBolusQuantity")
+        self.update_input_val(self.input_flujo_sangre,"bloodFlowControlSetPoint" )        
+        self.update_time_input_val(self.input_t_therapy, "heparineTherapyHours", "heparineTherapyMinutes")
 
 
         # ACTUALIZAR TOGGLES DE BOMBAS 
@@ -907,6 +865,33 @@ class mManualScr(QWidget):
 
         # ### CORRECCIÓN: Actualizar el toggle de la Cámara de Balance
         self._actualizar_toggle(self.toggle_cb,self.valores.get("dialiserBalChambStrButt",0.0))
+
+    def update_time_input_val(self, widget: ClickableLineEdit, tag_hours: str, tag_minutes: str):
+        """
+        Actualiza un ClickableLineEdit con formato HH:MM a partir de dos tags (horas y minutos).
+        Solo actualiza si el widget no tiene el foco.
+        """
+        if not widget.hasFocus():
+            hours = int(self.valores.get(tag_hours, 0))
+            minutes = int(self.valores.get(tag_minutes, 0))
+            widget.setText(f"{hours:02d}:{minutes:02d}")
+
+    
+    def update_input_val(self, widget, tag, precision=1):
+        """
+        Actualiza un widget input si no tiene el foco del usuario.
+        """
+        value = self.valores.get(tag, 0.0)
+        if not widget.hasFocus():
+            widget.setText(f"{value:.{precision}f}")
+    
+    def update_label_val(self, label, tag, precision=1):
+        """
+        Actualiza un label indicador (siempre, ya que no tiene foco).
+        """
+        value = self.valores.get(tag, 0.0)
+        label.setText(f"{value:.{precision}f}")
+
 
     def manejar_bomba_doble(self, tag_start, tag_stop, activado, timer_id=None):
         if activado:
@@ -1086,36 +1071,6 @@ class mManualScr(QWidget):
 
                 print(f"[APP_TIMER] {local_timer_id} configurado con {h:02d}:{m:02d} ({total_ms} ms)")
                 
-    # def _stop_blood_pump_on_timeout(self):
-    #     print("[APP_TIMER] Timer 'op_pb' finalizado. Deteniendo Bomba de Sangre.")
-    #     self.timer_op_pb.stop()
-    #     self._local_timers_state["op_pb"]["active"] = False
-    #     self.toggle_sangre.setChecked(False)
-
-    # def _stop_dialysate_pump_on_timeout(self):
-    #     print("[APP_TIMER] Timer 'op_pd' finalizado. Deteniendo Bomba de Dializante.")
-    #     self.timer_op_pd.stop()
-    #     self._local_timers_state["op_pd"]["active"] = False
-    #     self.toggle_dializante.setChecked(False)
-
-    # def _stop_uf_pump_on_timeout(self):
-    #     print("[APP_TIMER] Timer 'op_puf' finalizado. Deteniendo Bomba de Ultrafiltración.")
-    #     self.timer_op_puf.stop()
-    #     self._local_timers_state["op_puf"]["active"] = False
-    #     self.toggle_uf.setChecked(False)
-
-    # def _stop_heparin_pump_on_timeout(self):
-    #     print("[APP_TIMER] Timer 'op_ph' finalizado. Deteniendo Bomba de Heparina.")
-    #     self.timer_op_ph.stop()
-    #     self._local_timers_state["op_ph"]["active"] = False
-    #     self.toggle_heparina.setChecked(False)
-
-    # def _stop_balance_chamber_on_timeout(self):
-    #     print("[APP_TIMER] Timer 'op_cb' finalizado. Deteniendo Cámara de Balance.")
-    #     self.timer_op_cb.stop()
-    #     self._local_timers_state["op_cb"]["active"] = False
-    #     self.toggle_cb.setChecked(False)
-
     def _stop_blood_pump_on_timeout(self):
         print("[APP_TIMER] Timer 'op_pb' finalizado. Deteniendo Bomba de Sangre.")
         self.timer_op_pb.stop()

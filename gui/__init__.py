@@ -1,6 +1,8 @@
 # gui/__init__.py
 from .therapy.mainScreen import mainScr
 from .therapy.dialysisScreen import dialysisScr
+from .therapy.patientCfgScreen import patienCfgScr
+from .therapy.therapyCfgScreen import therapyCfgScr
 
 from .service.optionScreen import optionScr
 from .service.cleanScreen import cleanScr

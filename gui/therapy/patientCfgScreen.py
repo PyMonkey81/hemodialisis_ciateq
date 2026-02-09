@@ -4,9 +4,16 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout,QLabel
 from PySide6.QtCore import Qt
 
-class ufMenuScr(QWidget):
-    def __init__(self):
-        super().__init__()
+class patienCfgScr(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent  # ← guardar referencia al padre
+        self.valores = parent.valores if parent else {}
+
+        self.setFixedSize(1536, 726)  # ← tamaño exacto del stacked
+        self.setStyleSheet("background: #0f172a;")  
+
+
         self.setup_ui()
 
     def setup_ui(self):

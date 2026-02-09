@@ -27,6 +27,10 @@ from gui.service.pPruebasScreen import pPruebasScr #Pantalla panel de pruebas
 from gui.service.ctrlCfgScreen import ctrlCfgScr #pantalla calibracion
 from gui.service.cfgRedScreen import cfgRedScr # pantalla configuracion de red
 
+from gui.therapy.patientCfgScreen import patienCfgScr
+from gui.therapy.therapyCfgScreen import therapyCfgScr
+
+
 
 #===============================================================================
 #======================CODIGO PARA ADJUNTAR LOGOS EN EJECUTABLE=================
@@ -77,7 +81,10 @@ class HemodialisisHMI(QMainWindow):
         self.serial.data_received.connect(self.actualizar_valor)
         # self.serial.conectar()
         
-        # 5. Configurar alarmas
+       
+
+        # # 3. Crear pantallas 
+
         self.alarmas_activas = []      
         nombres = [info["name"] for g in VARIABLES.values() for info in g.values()]
         tags = [info["tag"] for g in VARIABLES.values() for info in g.values()]
@@ -95,68 +102,35 @@ class HemodialisisHMI(QMainWindow):
         self.sistema_alarmas.nuevo_evento.connect(self.registrar_evento)
 
         self.sistema_alarmas.iniciar_monitoreo()
+        self.valores = {n: 0.0 for n in tags}   
 
-        self.valores = {n: 0.0 for n in tags}      
-
-        # # 3. Crear pantallas 
-        # #crear instancias de los menús principales        
-        # self.pantalla_dialisis = dialysisScr(parent=self)
-        # self.pantalla_modo_ = dialysisScr(parent=self) # HACER PANTALLA PARA ESTE SUBMENU, DONDE SE SELECCIONA EL MODO DE OPERACION O FILOSOFIA DE OPERACION 
-        # self.pantalla_limpieza = cleanScr(parent=self)
-        # self.pantalla_ajustes = optionScr(parent=self)
-        # self.pantalla_alarmas = alarmsScr(parent=self)
-
-        # # CREAR INSTANCIAS DE SUBMENÚS DE AJUSTES
-        # self.pantalla_modo_manual = mManualScr(parent=self)
-        # self.pantalla_panel_pruebas = pPruebasScr(parent=self)
-        # self.pantalla_calibracion = ctrlCfgScr(parent=self)
-        # self.pantalla_config_red = cfgRedScr(parent=self)       
-         
-        # # 4. Añadir las pantallas al Stacked creado (VACIO) 
-        # # añadir estancias fijas
-        # self.stacked.addWidget(mainScr())
-        # self.stacked.addWidget(self.pantalla_dialisis)
-        # self.stacked.addWidget(self.pantalla_modo_)# este es un cambio, modificar el nombre de la pantalla 
-        # self.stacked.addWidget(self.pantalla_limpieza)
-        # self.stacked.addWidget(self.pantalla_ajustes)
-        # self.stacked.addWidget(self.pantalla_alarmas)        
-        # self.stacked.addWidget(self.pantalla_modo_manual) # submenús de ajustes 4
-        # self.stacked.addWidget(self.pantalla_panel_pruebas)
-        # self.stacked.addWidget(self.pantalla_calibracion)
-        # self.stacked.addWidget(self.pantalla_config_red)
-        
-         
-        
-        # # 6. Añadir monitor de variables al stacket, solo hasta que se conecta al sistema de alarmas
-        # self.pantalla_monitor_variables = monitorVariables(parent=self, 
-        #                                            valores_dict=self.valores, 
-        #                                            sistema_alarmas=self.sistema_alarmas)      
-        # self.pantalla_alarmas = alarmsScr(self, sistema_alarmas=self.sistema_alarmas)
-        # 4. Crear pantallas (en orden lógico)
-        self.pantalla_dialisis    = dialysisScr(parent=self)
-        self.pantalla_modo_       = dialysisScr(parent=self)  # ← considera renombrar esta clase
-        self.pantalla_limpieza    = cleanScr(parent=self)
-        self.pantalla_ajustes     = optionScr(parent=self)
-        
-        # Pantalla de alarmas → crear SOLO UNA VEZ y con sistema_alarmas
         self.pantalla_alarmas     = alarmsScr(
             parent=self,
             valores_dict=self.valores,          # opcional, pero ya lo tienes
             sistema_alarmas=self.sistema_alarmas
-        )
-        
+        )        
         # Monitor de variables (también necesita sistema_alarmas)
         self.pantalla_monitor_variables = monitorVariables(
             parent=self,
             valores_dict=self.valores,
             sistema_alarmas=self.sistema_alarmas
-        )
+        )        
 
+
+         # 4. Crear pantallas (en orden lógico)
+        self.pantalla_dialisis    = dialysisScr(parent=self)
+        self.pantalla_modo_       = dialysisScr(parent=self)  # ← considera renombrar esta clase
+        self.pantalla_limpieza    = cleanScr(parent=self)
+        self.pantalla_ajustes     = optionScr(parent=self)
         # Submenús de ajustes
         self.pantalla_modo_manual   = mManualScr(parent=self)
         self.pantalla_panel_pruebas = pPruebasScr(parent=self)
         self.pantalla_calibracion   = ctrlCfgScr(parent=self)
         self.pantalla_config_red    = cfgRedScr(parent=self)
+
+        # Submenu de dialisis 
+        self.pantalla_paciente = patienCfgScr(parent=self)
+        self.pantalla_configuracion_terapia = therapyCfgScr(parent=self)
 
         # 5. Añadir TODAS al stacked (en el orden deseado)
         self.stacked.addWidget(mainScr())                    # 0
@@ -169,6 +143,12 @@ class HemodialisisHMI(QMainWindow):
         self.stacked.addWidget(self.pantalla_panel_pruebas)  # 7
         self.stacked.addWidget(self.pantalla_calibracion)    # 8
         self.stacked.addWidget(self.pantalla_config_red)     # 9
+       
+        self.stacked.addWidget(self.pantalla_monitor_variables) # 10
+        self.stacked.addWidget(self.pantalla_paciente)       # 11
+        self.stacked.addWidget(self.pantalla_configuracion_terapia) 
+        
+
         
         # 7. Iniciar timers y metodos de actualizacion de etiquedas en header
         self.refrescar_etiqueta_alarmas()
@@ -206,58 +186,51 @@ class HemodialisisHMI(QMainWindow):
     def setup_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QGridLayout(central)
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
+        self.layout = QGridLayout(central)
+        self.layout.setSpacing(0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
 
-        layout.setColumnStretch(0, 0)   # COLUMNA 0 → IZQUIERDA
-                                # Contenido: Gauges PA + PV (192×903)
-                                # Fijo → stretch = 0
+        self.layout.setColumnStretch(0,0) # COLUMNA 0 → IZQUIERDA
+        self.layout.setColumnStretch(1,1) # COLUMNA 1 → STACKED + NAV (parte 1/4)
+        self.layout.setColumnStretch(2,1) # COLUMNA 2 → STACKED + NAV (parte 2/4)
+        self.layout.setColumnStretch(3,1) # COLUMNA 3 → STACKED + NAV (parte 3/4)
+        self.layout.setColumnStretch(4,1) # COLUMNA 4 → STACKED + NAV (parte 4/4)
+        self.layout.setColumnStretch(5,0) # COLUMNA 5 → DERECHA
 
-        layout.setColumnStretch(1, 1)   # COLUMNA 1 → STACKED + NAV (parte 1/4)
-        layout.setColumnStretch(2, 1)   # COLUMNA 2 → STACKED + NAV (parte 2/4)
-        layout.setColumnStretch(3, 1)   # COLUMNA 3 → STACKED + NAV (parte 3/4)
-        layout.setColumnStretch(4, 1)   # COLUMNA 4 → STACKED + NAV (parte 4/4)
-                                # → Estas 4 columnas = 1536 px
-                                # En fila 1: STACKED (1536×726)
-                                # En fila 2: NAV (1536×177)
-                                # Ambas ocupan exactamente las mismas columnas → perfecto alineado
-
-        layout.setColumnStretch(5, 0)   # COLUMNA 5 → DERECHA
-                                # Contenido: Temperatura + ConductivityBar (192×903)
-                                # Fijo → stretch = 0
 
         # =========================================================================================
         #                                    MAIN STACKED
         # =========================================================================================
        
         self.stacked = QStackedWidget()
-        self.stacked.setFixedSize(1536, 726)
+        # self.stacked.setFixedSize(1536, 726)
         self.stacked.addWidget(self.pantalla_principal())
        
-        layout.addWidget(self.stacked, 1, 1, 1, 4)
+        self.layout.addWidget(self.stacked, 1, 1, 1, 4)
 
         #================================================================
         # =========================== HEADER 1920x177 ===================
         #================================================================       
         header_container = QWidget()
         header_container.setFixedHeight(177)
-        header_container.setStyleSheet("background: #EBEBEB;")  # color verde logo imss 005940c color de header 1f2c45  #6464E8  #090c33 #8686D9 <--------------------- tema de header
+        header_container.setStyleSheet("background: #EBEBEB;") 
+
         header = QHBoxLayout(header_container)
         header.setContentsMargins(30, 20, 30, 20)
         header.setSpacing(20)
 
-        # ESTADO (la única con fondo)
+        
+
+        # ESTADO (la única con fondo)       
         self.lbl_estado = QLabel("Conectado")
         self.lbl_estado.setFixedSize(260, 80)
         self.lbl_estado.setAlignment(Qt.AlignCenter)
         self.lbl_estado.setStyleSheet("""
-            QLabel { background: #10b981; color: #ffffff; padding: 10px; border-radius: 12px;
-                     font-weight: bold; font-size: 22px; }
+              QLabel { background: #10b981; color: #ffffff; padding: 10px; border-radius: 12px;
+                      font-weight: bold; font-size: 22px; }
         """)
         header.addWidget(self.lbl_estado)
-
-        # 
+        
         self.lbl_alarmas = QLabel("Alarmas:")
         self.lbl_pantalla_actual = QLabel("Inicio")
         self.lbl_fecha_hora = QLabel("25/12/2025  14:37:22")
@@ -279,7 +252,7 @@ class HemodialisisHMI(QMainWindow):
         logo2 = QLabel()
         logo2.setPixmap(QPixmap(resource_path("resources/images/Logo_secihti_.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         header.addWidget(logo2)
-        layout.addWidget(header_container, 0, 0, 1, 6) #
+        self.layout.addWidget(header_container, 0, 0, 1, 6) #
 
 
         # ==================================================================== 
@@ -305,7 +278,7 @@ class HemodialisisHMI(QMainWindow):
 
         layout_cont_left.addWidget(self.left)
 
-        layout.addWidget(self.container_left, 1, 0, 2, 1)      
+        self.layout.addWidget(self.container_left, 1, 0, 2, 1)      
 
         
         # ==================================================================================
@@ -331,7 +304,7 @@ class HemodialisisHMI(QMainWindow):
         right_layout.addWidget(self.powbar, 1)
 
         layout_cont_right.addWidget(self.right)
-        layout.addWidget(self.container_right, 1, 5, 2, 1)      
+        self.layout.addWidget(self.container_right, 1, 5, 2, 1)      
 
         # ==================================================================================
         #                           === NAVEGACIÓN INFERIOR ===
@@ -371,7 +344,7 @@ class HemodialisisHMI(QMainWindow):
 
             self.botones_nav[texto] = btn 
 
-        layout.addWidget(nav, 2, 1, 1, 4)
+        self.layout.addWidget(nav, 2, 1, 1, 4)
     
     # ==================================================================================
     #                               === NAVEGACIÓN ===
@@ -402,9 +375,14 @@ class HemodialisisHMI(QMainWindow):
 
     def mostrar_pantalla_modo(self):
         self.stacked.setCurrentWidget(self.pantalla_modo_)
+        self.actualizar_label_pantalla("Tipo de Tratamiento", "#0f172a")
+        self.left.show()
+        self.right.show()
     
     def mostrar_pantalla_limpieza(self):    
         self.stacked.setCurrentWidget(self.pantalla_limpieza)
+        if hasattr(self.pantalla_limpieza, "actualizar_valores"):
+            self.pantalla_limpieza.actualizar_valores(self.valores)
         self.actualizar_label_pantalla("Limpieza", "#0f172a") 
         self.left.show()
         self.right.show()   
@@ -426,6 +404,8 @@ class HemodialisisHMI(QMainWindow):
         if hasattr(self.pantalla_modo_manual, "actualizar_valores"):
             self.pantalla_modo_manual.actualizar_valores(self.valores)
         self.actualizar_label_pantalla("Modo Manual","#0f172a")
+        self.left.show()
+        self.right.show()
         
     
     def mostrar_panel_pruebas(self):
@@ -438,6 +418,8 @@ class HemodialisisHMI(QMainWindow):
         if hasattr(self.pantalla_calibracion,"actualizar_valores"):
             self.pantalla_calibracion.actualizar_valores(self.valores)    
         self.actualizar_label_pantalla("Calibración", "#0f172a")
+        self.left.show()
+        self.right.show()
 
     def mostrar_config_red(self):
         self.stacked.setCurrentWidget(self.pantalla_config_red)
@@ -446,6 +428,24 @@ class HemodialisisHMI(QMainWindow):
     def mostrar_monitor_variables(self):
         self.stacked.setCurrentWidget(self.pantalla_monitor_variables)
         self.actualizar_label_pantalla("Monitor de variables", "#0f172a")
+        self.left.show()
+        self.right.show()
+
+    def mostrar_pantalla_paciente(self):
+        self.stacked.setCurrentWidget(self.pantalla_paciente)
+        if hasattr(self.pantalla_paciente, "actualizar_valores"):
+            self.pantalla_paciente.actualizar_valores(self.valores)
+        self.actualizar_label_pantalla("Paciente", "#0f172a")
+        self.left.show()
+        self.right.show()
+
+    def mostrar_pantalla_cfg_terapia(self):
+        self.stacked.setCurrentWidget(self.pantalla_configuracion_terapia)
+        if hasattr(self.pantalla_configuracion_terapia, "actualizar_valores"):
+            self.pantalla_configuracion_terapia.actualizar_valores(self.valores)
+        self.actualizar_label_pantalla("Terapia", "#0f172a")
+        self.left.show()
+        self.right.show()
  
   
     def actualizar_label_pantalla(self, texto, color_texto="#0f172a"):
@@ -469,15 +469,6 @@ class HemodialisisHMI(QMainWindow):
         }
         if tag in mapeo:
             mapeo[tag].setValue(valor)
-
-        # try:
-        #     if self.stacked.count() > 0:
-        #         widget_actual = self.stacked.currentWidget()
-        #         if hasattr(widget_actual, "actualizar_valores"):
-        #             widget_actual.actualizar_valores(self.valores)
-        # except: pass
-
- 
 
     def refrescar_etiqueta_alarmas(self):
         """Actualiza la etiqueta de alarmas con la alarma activa de mayor prioridad"""

@@ -9,12 +9,18 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTime
 from PySide6.QtGui import QFont
 
+from PySide6.QtWidgets import *
+
+
 
 class alarmsScr(QWidget):
     def __init__(self, parent=None, valores_dict=None, sistema_alarmas=None):
         super().__init__(parent)
         self.setStyleSheet("background: #f8fafc; font-family: 'Segoe UI';")
 
+        self.setStyleSheet("background: #0f172a;")
+
+   
         # Guardamos referencias
         self.valores = valores_dict if valores_dict is not None else {}
         self.sistema_alarmas = sistema_alarmas
@@ -260,3 +266,52 @@ class alarmsScr(QWidget):
         """Método para compatibilidad con otras pantallas"""
         self.valores = valores_dict
         # No se usa directamente aquí
+
+    def write_setpoint(self, tag, widget_input):
+        try:
+            texto = widget_input.text().replace(',', '.')
+            if not texto:                 
+                current_value = self.valores.get(tag, 0.0)
+                widget_input.setText(f"{current_value:.1f}") 
+                return 
+                
+            valor = float(texto)
+            print(f"[SETPOINT] Intentando escribir {tag} = {valor}")
+            
+            target_group = -1
+            target_id = -1
+            found = False
+            
+            for group_key, variables_in_group in VARIABLES.items():                
+                if isinstance(variables_in_group, dict): 
+                    for var_id, info in variables_in_group.items():
+                        if info.get("tag") == tag:
+                            target_group = group_key
+                            target_id = var_id
+                            found = True
+                            break
+                if found: break 
+            
+            if found and target_group != -1 and target_id != -1:
+                if VARIABLES[target_group][target_id].get("rw", False):
+                    print(f" -> Variable '{tag}' encontrada: Grupo {hex(target_group)}, ID {target_id}")
+                    if self.parent_window and hasattr(self.parent_window, 'serial'):                      
+                        self.parent_window.serial.escribir_double(target_group, target_id, valor)
+                    else:
+                        print(f"[INFO] Serial no conectado.  {tag}: Grupo {hex(target_group)}, ID {target_id}, Valor {valor}")
+                else:
+                    print(f"[ADVERTENCIA] La variable '{tag}' no es escribible (rw=False en variables_map).")
+            else:
+                print(f"[ERROR] No se encontró la definición de la variable para el tag '{tag}'.")
+            
+            widget_input.clearFocus()
+            self.setFocus()
+
+        except ValueError:
+            print(f"[ERROR] Valor numérico inválido en input para {tag}: {widget_input.text()}")
+            val = self.valores.get(tag, 0.0)
+            widget_input.setText(f"{val:.1f}")
+            widget_input.clearFocus()
+        except Exception as e:
+            print(f"[ERROR] Ocurrió un error inesperado al escribir setpoint para {tag}: {e}")
+  
