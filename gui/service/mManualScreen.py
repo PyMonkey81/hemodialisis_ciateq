@@ -2214,9 +2214,7 @@ class mManualScr(QWidget):
             card.toggle.toggled.connect(lambda checked, t=tag: self.escribir_comando(t, checked))
 
         layout_ctrl_valvulas.addWidget(self.container_val)
-        layout.addWidget(self.ctrl_valvulas, 10, 0, 1, 1) # Ajustado fila para que no se solape, ocupa 1 fila 1 columna
-        # Asumo que esta sección se mueve abajo. El control_area es (0,0) con spans. El ind_area es (0,1) con spans.
-        # Entonces el ctrl_valvulas debería ir en una nueva fila, digamos 10.
+        layout.addWidget(self.ctrl_valvulas, 10, 0, 1, 1) 
 
 
     def _actualizar_toggle(self, toggle, valor):
@@ -2264,7 +2262,7 @@ class mManualScr(QWidget):
         # Le pasamos el tag "balanceChamberCycleSet" para el hold-off, pero el valor a mostrar es calc_flow_cb_for_ui.
         self.update_input_val(self.input_flow_cb, "balanceChamberCycleSet", precision=1, display_value=calc_flow_cb_for_ui)
         
-        # Flujo UF: El PLC envía 'ultraFilterPumpSpeed' (ml/min), la UI muestra 'L/h'.
+       
         # Necesitamos convertir ml/min a L/h para la UI.
         uf_flow_ml_min_from_plc = self.valores.get("ultraFilterPumpSpeed", 0.0)
         try:
@@ -2331,13 +2329,15 @@ class mManualScr(QWidget):
         # NO actualizamos la UI con el valor del PLC aún.
         if current_time < hold_off_h_time or current_time < hold_off_m_time:
             return
+        
+        if tag_hours is None and tag_minutes is None:
 
-        # --- 2. Obtener valores del PLC ---
-        # Si el tag es None, el valor obtenido será 0.
+            return # Salir temprano
+        
         hours = int(self.valores.get(tag_hours, 0)) if tag_hours else 0
         minutes = int(self.valores.get(tag_minutes, 0)) if tag_minutes else 0
         
-        # --- 3. Actualizar el widget según su tipo ---
+        
         if isinstance(time_input_widget, LabeledTimeInput):
             time_input_widget.set_time_value(hours, minutes)
         elif hasattr(time_input_widget, 'setText'): 
@@ -2346,15 +2346,11 @@ class mManualScr(QWidget):
                 time_input_widget.setText(f"{hours:02d}:{minutes:02d}")
         else:
             print(f"[ADVERTENCIA] update_time_input_val recibió un tipo de widget no soportado para tags de tiempo: ({tag_hours}, {tag_minutes}).")
-
-        # >>>>>>>>>>>>>>>>>>>>>>>>>> CORRECCIÓN: ACTUALIZAR EL DURATION_MS DEL TIMER LOCAL <<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        # Esto asegura que el timer local tenga la duración correcta leída del PLC,
-        # incluso si no hubo interacción directa con el numpad.
+        
         if local_timer_id and local_timer_id in self._local_timers_state:
             total_ms = (hours * 3600 + minutes * 60) * 1000
             self._local_timers_state[local_timer_id]["duration_ms"] = total_ms
-            # Las etiquetas remaining/elapsed se actualizan en _update_local_time_displays
-        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 
     def update_input_val(self, widget, tag, precision=1, display_value=None):
         """

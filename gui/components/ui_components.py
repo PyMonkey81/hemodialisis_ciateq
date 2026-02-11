@@ -18,29 +18,29 @@ from gui.components.ToggleSwitch import ToggleSwitch
 #             self.clicked.emit()
 #         super().mousePressEvent(event)
 
-class ClickableLineEdit(QLineEdit):
-    """
-    A QLineEdit that emits a 'clicked' signal when pressed.
-    Designed for touch interfaces where a virtual keypad is used for input.
-    """
-    clicked = Signal() 
+# class ClickableLineEdit(QLineEdit):
+#     """
+#     A QLineEdit that emits a 'clicked' signal when pressed.
+#     Designed for touch interfaces where a virtual keypad is used for input.
+#     """
+#     clicked = Signal() 
     
-    def __init__(self, text="", parent=None):
-        super().__init__(text, parent)
-        # MEDICAL STD: Ensure ReadOnly to force interaction through virtual keypad.
-        # This prevents direct typing if a physical keyboard is connected.
-        self.setReadOnly(True) 
-        # UX: Change cursor to indicate it's clickable, not selectable text.
-        # On a touchscreen without a mouse, this is less visible but good practice.
-        self.setCursor(Qt.PointingHandCursor) 
+#     def __init__(self, text="", parent=None):
+#         super().__init__(text, parent)
+#         # MEDICAL STD: Ensure ReadOnly to force interaction through virtual keypad.
+#         # This prevents direct typing if a physical keyboard is connected.
+#         self.setReadOnly(True) 
+#         # UX: Change cursor to indicate it's clickable, not selectable text.
+#         # On a touchscreen without a mouse, this is less visible but good practice.
+#         self.setCursor(Qt.PointingHandCursor) 
     
-    def mousePressEvent(self, event):
-        """
-        Intercepts mouse/touch press to emit the clicked signal.
-        """
-        if event.button() == Qt.LeftButton:
-            self.clicked.emit()
-        super().mousePressEvent(event)
+#     def mousePressEvent(self, event):
+#         """
+#         Intercepts mouse/touch press to emit the clicked signal.
+#         """
+#         if event.button() == Qt.LeftButton:
+#             self.clicked.emit()
+#         super().mousePressEvent(event)
 
 
 
