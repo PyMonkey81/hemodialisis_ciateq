@@ -1684,7 +1684,7 @@ class mManualScr(QWidget):
         self.toggle_sangre.toggled.connect(
             lambda chk: self.manejar_bomba_doble("bloodPumpStartButton", "bloodPumpStopButton", chk, timer_id="op_pb")
         )
-        grid.addWidget(self.toggle_sangre, 0, 2,2,1)
+        grid.addWidget(self.toggle_sangre, 0, 2,2,2)
 
         btn_rev = QPushButton("REV", self.control_area)
         btn_rev.setFixedSize(80, 70)
@@ -1698,8 +1698,8 @@ class mManualScr(QWidget):
         btn_fwd.pressed.connect(lambda: self.escribir_comando("bloodPumpFWDButton", True))
         btn_fwd.released.connect(lambda: self.escribir_comando("bloodPumpFWDButton", False))
 
-        grid.addWidget(btn_rev, 0, 3,2,2)
-        grid.addWidget(btn_fwd, 0, 5,2,2)
+        grid.addWidget(btn_rev, 0, 4,2,2)
+        grid.addWidget(btn_fwd, 0, 6,2,2)
 
         self.input_flujo_sangre = LabeledParameterWidget( 
             label_text="Flujo",
@@ -1711,7 +1711,7 @@ class mManualScr(QWidget):
             parent=self.control_area
         )   
         self.input_flujo_sangre.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.input_flujo_sangre, 0, 7, 2, 2) # Ocupa 2 columnas para el label y el input
+        grid.addWidget(self.input_flujo_sangre, 0, 8, 2, 2) # Ocupa 2 columnas para el label y el input
 
         self.lbl_velocidad_val = LabeledParameterWidget(
             label_text="Vel",
@@ -1757,40 +1757,40 @@ class mManualScr(QWidget):
         # >>>>>>>>>>>>>>>>>>>>>>>>>> FILA 2: BOMBA DE HEPARINA (B. Hep.) <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         lbl_bHeparina = QLabel("B. Hep.", self.control_area)
         lbl_bHeparina.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_bHeparina, 2, 0, 1, 2)
+        grid.addWidget(lbl_bHeparina, 2, 0, 2, 2)
 
         self.toggle_heparina = ToggleSwitch(width=60, height=35, parent=self.control_area)
         self.toggle_heparina.toggled.connect(lambda chk: self.manejar_bomba_doble("heparinePumpsStartButton", "heparinePumpsStopButton",chk, timer_id="op_ph"))
-        grid.addWidget(self.toggle_heparina, 2, 2, 1, 1)
+        grid.addWidget(self.toggle_heparina, 2, 2, 2, 1)
 
         btn_homeHep = QPushButton("HOME", self.control_area)
-        btn_homeHep.setFixedSize(60, 35)
+        btn_homeHep.setFixedSize(80, 70)
         btn_homeHep.setStyleSheet(style_btn)
         btn_homeHep.pressed.connect(lambda: self.escribir_comando("heparinePumpHomePosition", True))
         btn_homeHep.released.connect(lambda: self.escribir_comando("heparinePumpHomePosition", False))
         
         btn_rev_hep = QPushButton("REV", self.control_area)
-        btn_rev_hep.setFixedSize(60,35)
+        btn_rev_hep.setFixedSize(80, 70)
         btn_rev_hep.setStyleSheet(style_btn)
         btn_rev_hep.pressed.connect(lambda: self.escribir_comando("heparinePumpREVButton",True))
         btn_rev_hep.released.connect(lambda: self.escribir_comando("heparinePumpREVButton", False))
 
         btn_pause_hep = QPushButton("PAUSE", self.control_area)
-        btn_pause_hep.setFixedSize(60,35)
+        btn_pause_hep.setFixedSize(80, 70)
         btn_pause_hep.setStyleSheet(style_btn)
         btn_pause_hep.pressed.connect(lambda: self.escribir_comando("heparineOperPauseResume",True))
         btn_pause_hep.released.connect(lambda: self.escribir_comando("heparineOperPauseResume", False))
 
         btn_fwd_hep = QPushButton("FWD", self.control_area)
-        btn_fwd_hep.setFixedSize(60,35)
+        btn_fwd_hep.setFixedSize( 80, 70)
         btn_fwd_hep.setStyleSheet(style_btn)
         btn_fwd_hep.pressed.connect(lambda: self.escribir_comando("heparinePumpFWDButton",True))
         btn_fwd_hep.released.connect(lambda: self.escribir_comando("heparinePumpFWDButton", False))
 
-        grid.addWidget(btn_homeHep, 2, 3)
-        grid.addWidget(btn_rev_hep, 2, 4)
-        grid.addWidget(btn_pause_hep, 2, 5)
-        grid.addWidget(btn_fwd_hep, 2, 6)
+        grid.addWidget(btn_homeHep, 2, 4,2,2)
+        grid.addWidget(btn_rev_hep, 2, 6,2 ,2)
+        grid.addWidget(btn_pause_hep, 2, 8,2 ,2 )
+        grid.addWidget(btn_fwd_hep, 2, 10,2,2)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> Heparina Actual <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Convertido a LabeledParameterWidget para consistencia de estilo y manejo
@@ -1802,7 +1802,7 @@ class mManualScr(QWidget):
             is_editable=False, # ES UN INDICADOR
             parent=self.control_area
         )
-        grid.addWidget(self.indHeparinCurrentDosage, 2,7,1,3) # Ajustado span
+        grid.addWidget(self.indHeparinCurrentDosage, 2,12,2,3) # Ajustado span
         
         # >>>>>>>>>>>>>>>>>>>>>>>>>> Dosis Heparina <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Convertido a LabeledParameterWidget
@@ -1816,7 +1816,7 @@ class mManualScr(QWidget):
             parent=self.control_area
         )
         self.input_dosis_hep.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.input_dosis_hep, 2, 10, 1, 3) # Ajustado span
+        grid.addWidget(self.input_dosis_hep, 2, 15, 2, 3) # Ajustado span
         
         # >>>>>>>>>>>>>>>>>>>>>>>>>> DOSIS BOLO <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Convertido a LabeledParameterWidget
@@ -1830,7 +1830,7 @@ class mManualScr(QWidget):
             parent=self.control_area
         )
         self.input_dosis_bolo.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.input_dosis_bolo, 3, 0, 1, 3) # Ajustado fila y span (ejemplo de reordenamiento)
+        grid.addWidget(self.input_dosis_bolo, 4, 0, 1, 3) # Ajustado fila y span (ejemplo de reordenamiento)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> TAMAÑO JERINGA <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Convertido a LabeledParameterWidget
@@ -1844,7 +1844,7 @@ class mManualScr(QWidget):
             parent=self.control_area
         )
         self.input_size_syringe.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.input_size_syringe, 3, 3, 1, 3) # Ajustado fila y span (ejemplo)
+        grid.addWidget(self.input_size_syringe, 4, 3, 1, 3) # Ajustado fila y span (ejemplo)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> CORRECCIÓN: LabeledTimeInput para Tiempo de Terapia <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Eliminado lbl_t_therapy redundante
@@ -1858,17 +1858,17 @@ class mManualScr(QWidget):
             parent=self.control_area
         )
         self.input_t_therapy.request_time_numpad.connect(self.open_time_numpad)
-        grid.addWidget(self.input_t_therapy, 3, 13, 1, 3) # Ajustado span (ejemplo)
+        grid.addWidget(self.input_t_therapy, 4, 13,     1, 3) # Ajustado span (ejemplo)
         
         lbl_remaining_ph_title = QLabel("Rest.:", self.control_area)
         lbl_remaining_ph_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_remaining_ph_title, 3, 16, alignment=Qt.AlignRight)
+        grid.addWidget(lbl_remaining_ph_title, 4, 16, alignment=Qt.AlignRight)
 
         self.lbl_remaining_ph = QLabel("00:00", self.control_area)
         self.lbl_remaining_ph.setStyleSheet(style_lbl_indicator) 
         self.lbl_remaining_ph.setFixedSize(100,35)
         self.lbl_remaining_ph.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_remaining_ph, 3, 17, 1, 1, alignment=Qt.AlignLeft)
+        grid.addWidget(self.lbl_remaining_ph, 4, 17, 1, 1, alignment=Qt.AlignLeft)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> CORRECCIÓN: ASIGNACIÓN DE LABELS A _local_timers_state <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         self._local_timers_state["op_ph"]["remaining_lbl"] = self.lbl_remaining_ph
@@ -1878,11 +1878,11 @@ class mManualScr(QWidget):
         # >>>>>>>>>>>>>>>>>>>>>>>>>> FILA 4: B. DIALIZANTE <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         lbl_dializante = QLabel("B. Dializante", self.control_area)
         lbl_dializante.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_dializante, 4, 0, 1, 2) 
+        grid.addWidget(lbl_dializante, 6, 0, 2, 2) 
 
         self.toggle_dializante = ToggleSwitch(width=60, height=35, parent=self.control_area)
         self.toggle_dializante.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyserPumpStartButton","dialyserPumpStopButton",chk, timer_id="op_pd"))
-        grid.addWidget(self.toggle_dializante, 4,2)
+        grid.addWidget(self.toggle_dializante, 6,2)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> Salida Dializante <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Convertido a LabeledParameterWidget
@@ -1896,7 +1896,7 @@ class mManualScr(QWidget):
             parent=self.control_area
         )
         self.lbl_input_indSDializante.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.lbl_input_indSDializante, 4, 3, 1, 2) # Ajuste de span
+        grid.addWidget(self.lbl_input_indSDializante, 6, 3, 1, 2) # Ajuste de span
         
         # >>>>>>>>>>>>>>>>>>>>>>>>>> CORRECCIÓN: LabeledTimeInput para Tiempo Op. Dializante <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Eliminado lbl_e_tOpBD redundante
@@ -1910,17 +1910,17 @@ class mManualScr(QWidget):
             parent=self.control_area
         )
         self.lbl_tiempo_OpBD.request_time_numpad.connect(self.open_time_numpad)
-        grid.addWidget(self.lbl_tiempo_OpBD, 4, 6, 1, 3) # Ajustado span
+        grid.addWidget(self.lbl_tiempo_OpBD, 6, 6, 1, 3) # Ajustado span
     
         lbl_remaining_pd_title = QLabel("Rest.:", self.control_area)
         lbl_remaining_pd_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_remaining_pd_title, 4, 12, alignment=Qt.AlignRight)
+        grid.addWidget(lbl_remaining_pd_title, 6, 12, alignment=Qt.AlignRight)
 
         self.lbl_remaining_pd = QLabel("00:00", self.control_area)
         self.lbl_remaining_pd.setStyleSheet(style_lbl_indicator)
         self.lbl_remaining_pd.setFixedSize(100,35)
         self.lbl_remaining_pd.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_remaining_pd, 4, 13, alignment=Qt.AlignLeft)
+        grid.addWidget(self.lbl_remaining_pd, 6, 13, alignment=Qt.AlignLeft)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> CORRECCIÓN: ASIGNACIÓN DE LABELS A _local_timers_state <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         self._local_timers_state["op_pd"]["remaining_lbl"] = self.lbl_remaining_pd
@@ -1930,11 +1930,11 @@ class mManualScr(QWidget):
         # >>>>>>>>>>>>>>>>>>>>>>>>>> FILA 5: B. Ultra Filtrado <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         lbl_ultrafiltado = QLabel("B. UF", self.control_area)
         lbl_ultrafiltado.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_ultrafiltado, 5, 0, 1 ,2) 
+        grid.addWidget(lbl_ultrafiltado, 8, 0, 1 ,2) 
 
         self.toggle_uf = ToggleSwitch(width=60, height=35, parent=self.control_area)
         self.toggle_uf.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyUltraFPumpStartButt","dialyUltraFPumpStoptButt",chk, timer_id="op_puf"))
-        grid.addWidget(self.toggle_uf, 5,2)
+        grid.addWidget(self.toggle_uf, 8,2)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> Flujo UF <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Convertido a LabeledParameterWidget. Usa un manejador especial para la conversión L/h <-> ml/min.
@@ -1948,7 +1948,7 @@ class mManualScr(QWidget):
             parent=self.control_area
         )
         self.lbl_input_indUF.request_numpad.connect(lambda tag_var, widget_ref, title_str: self._handle_flow_uf_input(tag_var, widget_ref, title_str))
-        grid.addWidget(self.lbl_input_indUF, 5, 3, 1, 2)
+        grid.addWidget(self.lbl_input_indUF, 8, 3, 1, 2)
         
         # >>>>>>>>>>>>>>>>>>>>>>>>>> CORRECCIÓN: LabeledTimeInput para Tiempo Op. Ultra Filtrado <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Eliminado lbl_e_tOpBUF redundante
@@ -1962,17 +1962,17 @@ class mManualScr(QWidget):
             parent=self.control_area
         )
         self.lbl_tiempo_opBUF.request_time_numpad.connect(self.open_time_numpad)
-        grid.addWidget(self.lbl_tiempo_opBUF, 5, 6, 1, 3)
+        grid.addWidget(self.lbl_tiempo_opBUF, 8, 6, 1, 3)
 
         lbl_remaining_puf_title = QLabel("Rest.:", self.control_area)
         lbl_remaining_puf_title.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_remaining_puf_title, 5, 12, alignment=Qt.AlignRight)
+        grid.addWidget(lbl_remaining_puf_title, 8, 12, alignment=Qt.AlignRight)
 
         self.lbl_remaining_puf = QLabel("00:00", self.control_area)
         self.lbl_remaining_puf.setFixedSize(100,35)
         self.lbl_remaining_puf.setStyleSheet(style_lbl_indicator)
         self.lbl_remaining_puf.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_remaining_puf, 5, 13, alignment=Qt.AlignLeft)
+        grid.addWidget(self.lbl_remaining_puf, 8, 13, alignment=Qt.AlignLeft)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> CORRECCIÓN: ASIGNACIÓN DE LABELS A _local_timers_state <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         self._local_timers_state["op_puf"]["remaining_lbl"] = self.lbl_remaining_puf
@@ -1982,11 +1982,11 @@ class mManualScr(QWidget):
         # >>>>>>>>>>>>>>>>>>>>>>>>>> FILA 6: B. Bicarbonato Na+ <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         lbl_bicarbonato = QLabel("B. Na+", self.control_area)
         lbl_bicarbonato.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_bicarbonato, 6, 0, 1, 2) 
+        grid.addWidget(lbl_bicarbonato, 10, 0, 1, 2) 
 
         self.toggle_Na = ToggleSwitch(width=60, height=35, parent=self.control_area)
         self.toggle_Na.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyBicarbonPumpStartButt","dialyBicarbonPumpStopButt",chk, timer_id=None))
-        grid.addWidget(self.toggle_Na, 6, 2)
+        grid.addWidget(self.toggle_Na, 10   , 2)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> Indicador B. Na+ <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Convertido a LabeledParameterWidget
@@ -1998,16 +1998,16 @@ class mManualScr(QWidget):
             is_editable=False, # ES UN INDICADOR
             parent=self.control_area
         )
-        grid.addWidget(self.lbl_indBNa, 6, 3, 1, 2) 
+        grid.addWidget(self.lbl_indBNa, 10, 3, 1, 2) 
                                                                                                                                                                                                                                                                          
         # >>>>>>>>>>>>>>>>>>>>>>>>>> FILA 7: B. Acido Citrico <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         lbl_acidocitrico = QLabel("B. A. Citrico", self.control_area)
         lbl_acidocitrico.setStyleSheet(style_lbl)
-        grid.addWidget(lbl_acidocitrico, 7, 0, 1 ,2) 
+        grid.addWidget(lbl_acidocitrico, 10, 5, 1 ,2) 
 
         self.toggle_acidocitrico = ToggleSwitch(width=60, height=35, parent=self.control_area)
         self.toggle_acidocitrico.toggled.connect(lambda chk: self.manejar_bomba_doble("dialyCitricAcPumpStartButt","dialyCitricAcPumpStopButt",chk, timer_id=None))
-        grid.addWidget(self.toggle_acidocitrico, 7, 2)
+        grid.addWidget(self.toggle_acidocitrico, 10, 7)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> Indicador B. A. Cítrico <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Convertido a LabeledParameterWidget
@@ -2019,7 +2019,7 @@ class mManualScr(QWidget):
             is_editable=False, # ES UN INDICADOR
             parent=self.control_area
         )
-        grid.addWidget(self.lbl_indBAC, 7, 3, 1, 2)
+        grid.addWidget(self.lbl_indBAC, 10, 8, 1, 2)
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>> FILA 8: B. Purga de Aire <<<<<<<<<<<<<<<<<<<<<<<<<<<<
         lbl_purga = QLabel("B. Purga", self.control_area)
@@ -2100,7 +2100,7 @@ class mManualScr(QWidget):
         # Convertido a LabeledParameterWidget. Usa un manejador especial para la conversión Flujo <-> Ciclos.
         self.input_flow_cb = LabeledParameterWidget( 
             label_text="Flujo",
-            tag="balanceChamberSetTiming", # El tag del PLC es para ciclos, pero la UI muestra flujo (conversión)
+            tag="balanceChamberSetTiming", 
             value="0",
             units="ml/min",
             numpad_title="Flujo CB (ml/min)",
@@ -2109,6 +2109,8 @@ class mManualScr(QWidget):
         )
         # Conectado a un manejador especial que gestiona la conversión de Flujo a Ciclos
         self.input_flow_cb.request_numpad.connect(lambda tag_var, widget_ref, title_str: self._handle_flow_cb_input(tag_var, widget_ref, title_str))
+
+        #self.input_flow_cb.request_numpad.connect(lambda tag_var, widget_ref, title_str: self._handle_flow_cb_input(tag_var, widget_ref, title_str))
         grid.addWidget(self.input_flow_cb, 9, 13, 1, 2) 
 
         grid.setColumnStretch(0, 1)   
@@ -2252,15 +2254,15 @@ class mManualScr(QWidget):
         # -----------------------------------------------------------------------------------------
         # Flujo CB: El PLC envía 'balanceChamberSetTiming' (ciclos), la UI muestra 'ml/min'.
         # Necesitamos convertir ciclos a ml/min para la UI.
-        cycle_val_from_plc = self.valores.get("balanceChamberCycleSet", 0.0) # Obtener ciclos del PLC
+        cycle_val_from_control = self.valores.get("balanceChamberSetTiming", 0.0) # Obtener ciclos del PLC
         try:
-            calc_flow_cb_for_ui = convertir_ciclos_a_flujo(cycle_val_from_plc)
+            calc_flow_cb_for_ui = convertir_ciclos_a_flujo(cycle_val_from_control)
         except Exception as e:
             print(f"[ERROR] Falló la conversión de ciclos a flujo para CB: {e}")
             calc_flow_cb_for_ui = 0.0
         # self.input_flow_cb es un LabeledParameterWidget, usar update_input_val.
         # Le pasamos el tag "balanceChamberCycleSet" para el hold-off, pero el valor a mostrar es calc_flow_cb_for_ui.
-        self.update_input_val(self.input_flow_cb, "balanceChamberCycleSet", precision=1, display_value=calc_flow_cb_for_ui)
+        self.update_input_val(self.input_flow_cb, "balanceChamberSetTiming", precision=1, display_value=calc_flow_cb_for_ui)
         
        
         # Necesitamos convertir ml/min a L/h para la UI.
@@ -2443,7 +2445,7 @@ class mManualScr(QWidget):
 
     def escribir_setpoint(self, tag, widget_input):
         """
-        Escribe un valor numérico a un tag específico del PLC.
+        Escribe un valor numérico a un tag específico del mapa de variales.
         Maneja diferentes tipos de widgets de entrada.
         """
         try:
@@ -2798,11 +2800,12 @@ class mManualScr(QWidget):
                     if state["remaining_lbl"].text() != config_str:
                          state["remaining_lbl"].setText(config_str)
 
-    def _handle_flow_cb_input(self, tag, widget_input, title):
+   
+    def _handle_flow_cb_input(self, tag: str, widget_input: LabeledParameterWidget, title: str):
         """
         Manejador especial para el flujo de la cámara de balance.
         Se introduce como flujo (ml/min) en la UI, pero se convierte a ciclos
-        y se envía como ciclos al PLC.
+        y se envía como ciclos al control.
         """
         # 1. Obtener el valor actual (del LabeledParameterWidget)
         current_flow_text = widget_input.get_value()
@@ -2833,6 +2836,7 @@ class mManualScr(QWidget):
             except Exception as e:
                 print(f"[ERROR] Falló la conversión o escritura del Flujo CB: {e}")
                 QMessageBox.critical(self, "Error Crítico", f"Error inesperado al procesar flujo de CB: {e}")
+
 
     def _handle_flow_uf_input(self, tag, widget_input, title):
         """
@@ -3071,40 +3075,40 @@ class mManualScr(QWidget):
                          state["remaining_lbl"].setText(config_str)
 
 
-    def _handle_flow_cb_input(self):
-        current_flow_text = self.input_flow_cb.text()
-        numpad_dialog =  NumpadDialog(self, initial_value=current_flow_text, title="Flujo CB (ml/min)")
+    # def _handle_flow_cb_input(self):
+    #     current_flow_text = self.input_flow_cb.text()
+    #     numpad_dialog =  NumpadDialog(self, initial_value=current_flow_text, title="Flujo CB (ml/min)")
         
 
-        if numpad_dialog.exec():
-            new_flow_value_num= numpad_dialog.get_value()
-            self.input_flow_cb.setText(str(new_flow_value_num))
+    #     if numpad_dialog.exec():
+    #         new_flow_value_num= numpad_dialog.get_value()
+    #         self.input_flow_cb.setText(str(new_flow_value_num))
 
-            try:
-                value = convertir_flujo_a_ciclos(new_flow_value_num)
-                temp_value = TempInput(value)
-                self.escribir_setpoint("balanceChamberSetTiming", temp_value)
-            except ValueError:
-                print(f"[ERROR] El valor '{new_flow_value_num}' no es un número válido para convertir a ciclos.")
-            except Exception as e:
-                print(f"[ERROR] Falló la conversión o escritura del Flujo CB: {e}")
+    #         try:
+    #             value = convertir_flujo_a_ciclos(new_flow_value_num)
+    #             temp_value = TempInput(value)
+    #             self.escribir_setpoint("balanceChamberSetTiming", temp_value)
+    #         except ValueError:
+    #             print(f"[ERROR] El valor '{new_flow_value_num}' no es un número válido para convertir a ciclos.")
+    #         except Exception as e:
+    #             print(f"[ERROR] Falló la conversión o escritura del Flujo CB: {e}")
 
 
-    def _handle_flow_uf_input(self):
-        current_flow_uf_text = self.lbl_input_indUF.text()
-        numpad_dialog = NumpadDialog(self, initial_value=current_flow_uf_text, title="Flujo UF (L/h)")
+    # def _handle_flow_uf_input(self):
+    #     current_flow_uf_text = self.lbl_input_indUF.text()
+    #     numpad_dialog = NumpadDialog(self, initial_value=current_flow_uf_text, title="Flujo UF (L/h)")
 
-        if numpad_dialog.exec():
-            new_flow_uf = numpad_dialog.get_value()
-            self.lbl_input_indUF.setText(str(new_flow_uf))
-            try:
-                value = convertir_litros_h_a_ml_min(new_flow_uf)
-                temp_value = TempInput(value)
-                self.escribir_setpoint("ultraFilterPumpSpeed", temp_value)
-            except ValueError:
-                print(f"[ERROR] el valor  '{new_flow_uf}' es válido")
-            except Exception as e:
-                print(f"[ERROR] Fállo la vonversión o escritura en parametro: {e}")
+    #     if numpad_dialog.exec():
+    #         new_flow_uf = numpad_dialog.get_value()
+    #         self.lbl_input_indUF.setText(str(new_flow_uf))
+    #         try:
+    #             value = convertir_litros_h_a_ml_min(new_flow_uf)
+    #             temp_value = TempInput(value)
+    #             self.escribir_setpoint("ultraFilterPumpSpeed", temp_value)
+    #         except ValueError:
+    #             print(f"[ERROR] el valor  '{new_flow_uf}' es válido")
+    #         except Exception as e:
+    #             print(f"[ERROR] Fállo la vonversión o escritura en parametro: {e}")
 
 
 
