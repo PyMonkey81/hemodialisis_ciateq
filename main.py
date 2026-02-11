@@ -1,4 +1,5 @@
 # # Archivo principal de arranque del HMI - CIATEQ A.C.
+# Main HMI startup file - CIATEQ A.C.
 
 import sys
 import os
@@ -6,108 +7,119 @@ import ctypes
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QFont, QScreen
-from gui.appMainHemodialisis import HemodialisisHMI
+
+from gui.appMainHemodialisis import HemodialysisHMI # Changed class name here
 
 
-def excepcion_no_manejada(tipo, valor, traceback):
+def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
+    """
+    Global exception handler for unexpected application failures.
+    Displays a critical error message and exits the application for safety.
+    """
     import traceback as tb
-    error_msg = "".join(tb.format_exception(tipo, valor, traceback))
-    print(error_msg)
+    error_message = "".join(tb.format_exception(exc_type, exc_value, exc_traceback))
+    print(error_message)
 
     app = QApplication.instance()
     if app:
         QMessageBox.critical(
             None,
-            "Error Crítico - CIATEQ A.C.",
-            "La aplicación ha fallado inesperadamente.\n\n"
-            "Se cerrará por seguridad.\n\n"
-            "Detalles del error:\n\n" + error_msg[-1000:],
+            "Critical System Error - CIATEQ A.C.",
+            "The application has failed unexpectedly.\n\n"
+            "It will be closed for safety.\n\n"
+            "Error details:\n\n" + error_message[-1000:],
             QMessageBox.Close
         )
     sys.exit(1)
 
 
-class ScaledHMI(QMainWindow):
+class ScaledHemodialysisHMI(QMainWindow):
+    """
+    QMainWindow that scales its central widget (the HMI) to fit the screen resolution
+    while maintaining the original design aspect ratio.
+    """
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setStyleSheet("background: #000000;")  # Fondo negro base
+        self.setStyleSheet("background: #000000;")  # Base black background
 
-        # Resolución del monitor
+        # Monitor resolution
         screen = QGuiApplication.primaryScreen()
         if screen is None:
-            screen_w, screen_h = 1920, 1080  # fallback
+            screen_width, screen_height = 1920, 1080  # fallback
         else:
-            geo = screen.availableGeometry()
-            screen_w = geo.width()
-            screen_h = geo.height()
+            geometry = screen.availableGeometry()
+            screen_width = geometry.width()
+            screen_height = geometry.height()
 
-        DESIGN_W = 1920
-        DESIGN_H = 1080
+        DESIGN_WIDTH = 1920
+        DESIGN_HEIGHT = 1080
 
-        scale = min(screen_w / DESIGN_W, screen_h / DESIGN_H)
+        # Calculate scaling factor
+        scale_factor = min(screen_width / DESIGN_WIDTH, screen_height / DESIGN_HEIGHT)
 
-        # Crear el contenido principal
-        self.hmi = HemodialisisHMI()
-        self.hmi.setFixedSize(DESIGN_W, DESIGN_H)
+        # Create the main content widget (the Hemodialysis HMI)
+        self.dialysis_hmi = HemodialysisHMI()
+        self.dialysis_hmi.setFixedSize(DESIGN_WIDTH, DESIGN_HEIGHT)
 
-        # Centrar
-        self.hmi.move(
-            (screen_w - int(DESIGN_W * scale)) // 2,
-            (screen_h - int(DESIGN_H * scale)) // 2
+        # Center the HMI on the screen
+        self.dialysis_hmi.move(
+            (screen_width - int(DESIGN_WIDTH * scale_factor)) // 2,
+            (screen_height - int(DESIGN_HEIGHT * scale_factor)) // 2
         )
 
-        self.setCentralWidget(self.hmi)
+        self.setCentralWidget(self.dialysis_hmi)
         self.showFullScreen()
 
-        print(f"HMI escalada: {int(DESIGN_W * scale)}×{int(DESIGN_H * scale)} "
-              f"(factor {scale:.2f}x) en {screen_w}×{screen_h}")
+        print(f"Scaled HMI: {int(DESIGN_WIDTH * scale_factor)}×{int(DESIGN_HEIGHT * scale_factor)} "
+              f"(factor {scale_factor:.2f}x) on {screen_width}×{screen_height}")
 
 
 if __name__ == "__main__":
-    sys.excepthook = excepcion_no_manejada
+    sys.excepthook = unhandled_exception_handler
 
     # ────────────────────────────────────────────────
-    # Configuración HiDPI ANTES de crear QApplication
+    # HiDPI Configuration BEFORE QApplication creation
     # ────────────────────────────────────────────────
     QApplication.setAttribute(Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
 
-  # Fallback para resolución
+    # Resolution fallback
     try:
-        screen = QGuiApplication.primaryScreen()
-        if screen is not None:
-            geo = screen.availableGeometry()
-            screen_w = geo.width()
-            screen_h = geo.height()
+        screen_instance = QGuiApplication.primaryScreen()
+        if screen_instance is not None:
+            geometry = screen_instance.availableGeometry()
+            screen_width = geometry.width()
+            screen_height = geometry.height()
         else:
             raise AttributeError
     except Exception:
         try:
+            # Fallback for Windows-specific resolution detection
             user32 = ctypes.windll.user32
-            screen_w = user32.GetSystemMetrics(0)
-            screen_h = user32.GetSystemMetrics(1)
+            screen_width = user32.GetSystemMetrics(0)
+            screen_height = user32.GetSystemMetrics(1)
         except:
-            screen_w, screen_h = 1920, 1080
+            screen_width, screen_height = 1920, 1080
 
-    scale = min(screen_w / 1920, screen_h / 1080)
-    os.environ["QT_SCALE_FACTOR"] =  f"{scale:.2f}"
+    # Calculate scale factor for global QT_SCALE_FACTOR
+    global_scale_factor = min(screen_width / 1920, screen_height / 1080)
+    os.environ["QT_SCALE_FACTOR"] = f"{global_scale_factor:.2f}"
 
-   
-    # Solo dejamos la política de redondeo (esta SÍ sigue siendo válida)
+    # Only keep the rounding policy (this IS still valid)
     if hasattr(Qt, 'HighDpiScaleFactorRoundingPolicy'):
         QApplication.setHighDpiScaleFactorRoundingPolicy(
-            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough   # o .Round si prefieres
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough   # or .Round if preferred
         )
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
-    # Fuente global (opcional pero recomendado para consistencia)
+    # Global font (optional but recommended for consistency)
     base_font = QFont("Arial Narrow", 14)
     base_font.setWeight(QFont.Bold)
     app.setFont(base_font)
 
-    # Estilo global (descomenta y ajusta según necesites)
+    # Global style (uncomment and adjust as needed)
     app.setStyleSheet("""
         * {
             font-family: "Arial Narrow", "Helvetica Condensed", Arial, sans-serif;
@@ -126,22 +138,22 @@ if __name__ == "__main__":
             min-width: 80px;
         }
 
-        /* Fondo normal (editable) */
+        /* Normal background (editable) */
         QLineEdit:!read-only,
         ClickableLineEdit:!read-only {
             background: #FFFFE5;
         }
 
-        /* Fondo cuando está read-only  */
+        /* Read-only background */
         QLineEdit:read-only,
         ClickableLineEdit:read-only,
         ClickableLineEdit[readOnly="true"] {
-            background: #FFFFE5;           /* tu amarillo deseado */
+            background: #FFFFE5;           /* desired yellow */
             color: #000000;
             border: 2px solid #000000;
         }
 
-        /* Opcional: cuando tiene foco (aunque sea read-only) */
+        /* Optional: when focused (even if read-only) */
         QLineEdit:focus,
         ClickableLineEdit:focus {
             border: 2px solid #3b82f6;
@@ -160,23 +172,23 @@ if __name__ == "__main__":
     """)
 
     try:
-        window = ScaledHMI()
-        window.showFullScreen()
+        main_window = ScaledHemodialysisHMI()
+        main_window.showFullScreen()
 
         print("=" * 70)
-        print("   CIATEQ A.C. - MÁQUINA DE HEMODIÁLISIS")
-        print("   MODO FULLSCREEN CON ESCALADO DINÁMICO")
-        print(f"   Factor de escala aplicado: {scale:.2f}x")
+        print("   CIATEQ A.C. - HEMODIALYSIS MACHINE")
+        print("   FULLSCREEN MODE WITH DYNAMIC SCALING")
+        print(f"   Applied scaling factor: {global_scale_factor:.2f}x")
         print("=" * 70)
 
         sys.exit(app.exec())
 
     except Exception as e:
-        print(f"[FATAL] No se pudo iniciar el HMI: {e}")
+        print(f"[FATAL] Could not start HMI: {e}")
         QMessageBox.critical(
             None,
-            "Error Fatal",
-            f"No se pudo iniciar la aplicación:\n\n{e}\n\n"
-            "Contacte al soporte técnico de CIATEQ A.C."
+            "Fatal Application Error",
+            f"Could not start the application:\n\n{e}\n\n"
+            "Contacte al soporte técnico de CIATEQ A.C." # Kept in Spanish as requested
         )
         sys.exit(1)

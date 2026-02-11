@@ -47,7 +47,7 @@ def resource_path(relative_path):
 #===============================================================================
 
 
-class HemodialisisHMI(QMainWindow):
+class HemodialysisHMI(QMainWindow):
     #INDEX DE PANTALLAS 
     INDEX_INICIO = 0   
 
