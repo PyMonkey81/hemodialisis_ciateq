@@ -5,6 +5,21 @@ __pycache__/
 *.spec
 
 
+# Entornos virtuales Python (muy importantes para PySide6/Qt)
+.venv/
+venv/
+env/
+.venv*/                 # por si usas .venv-win o similar
+venv*/ 
+
+# Archivos grandes de PySide6/Qt que NUNCA deben subirse
+**/PySide6/Qt*/         # cubre Qt6WebEngineCore.dll, etc.
+**/PySide6/*.dll
+**/PySide6/*.exe
+**/PySide6/resources/*.pak
+**/shiboken*/           # también puede ser pesado
+**/Qt*/bin/*.dll
+
 ### macOS ###
 # General
 .DS_Store
