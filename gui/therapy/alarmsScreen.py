@@ -11,7 +11,7 @@ from PySide6.QtGui import QFont
 
 from PySide6.QtWidgets import *
 
-
+from core.variables_map import VARIABLES
 
 class alarmsScr(QWidget):
     def __init__(self, parent=None, valores_dict=None, sistema_alarmas=None):
