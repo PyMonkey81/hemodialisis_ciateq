@@ -1063,6 +1063,10 @@ class mManualScr(QWidget):
 
     def crear_input_inline(self, label_text, tag, val_inicial, unit_text, is_editable, grid_layout, row, col_start, callback=None):
         """Crea par Label + Input inline."""
+        style_input = """
+            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            border: 2px solid #000000; border-radius: 5px; padding: 4px;
+        """
         lbl = QLabel(label_text, self.control_area)
         lbl.setStyleSheet("color: #000000; font-size: 18px; font-weight: bold;")
         lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
