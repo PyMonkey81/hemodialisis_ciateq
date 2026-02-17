@@ -7,7 +7,7 @@ from .therapy.therapyCfgScreen import therapyCfgScr
 from .service.optionScreen import optionScr
 from .service.cleanScreen import cleanScr
 from .service.mManualScreen import mManualScr
-from .service.pPruebasScreen import pPruebasScr
+from .service.testScreen import testScr
 from .service.cfgRedScreen import cfgRedScr
 from .service.ctrlCfgScreen import ctrlCfgScr
 

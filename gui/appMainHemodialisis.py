@@ -24,7 +24,7 @@ from gui.components.PowerBar import ConductivityBar
 
 
 from gui.service.mManualScreen import mManualScr #Pantalla modo manual 
-from gui.service.pPruebasScreen import pPruebasScr #Pantalla panel de pruebas 
+from gui.service.testScreen import testScr #Pantalla panel de pruebas 
 from gui.service.ctrlCfgScreen import ctrlCfgScr #pantalla calibracion
 from gui.service.cfgRedScreen import cfgRedScr # pantalla configuracion de red
 
@@ -125,7 +125,7 @@ class HemodialysisHMI(QMainWindow):
         self.pantalla_ajustes     = optionScr(parent=self)
         # Submenús de ajustes
         self.pantalla_modo_manual   = mManualScr(parent=self)
-        self.pantalla_panel_pruebas = pPruebasScr(parent=self)
+        self.pantalla_panel_pruebas = testScr(parent=self)
         self.pantalla_calibracion   = ctrlCfgScr(parent=self)
         self.pantalla_config_red    = cfgRedScr(parent=self)
 

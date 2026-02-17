@@ -3,4 +3,4 @@ from .cfgRedScreen import cfgRedScr
 from .ctrlCfgScreen import ctrlCfgScr
 from .optionScreen import optionScr
 from .mManualScreen import mManualScr
-from .pPruebasScreen import pPruebasScr
+from .testScreen import testScr

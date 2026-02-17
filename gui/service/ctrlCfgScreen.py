@@ -34,7 +34,7 @@ class ctrlCfgScr(QWidget):
         self.valores = valores_dict if valores_dict is not None else {}
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setMinimumSize(1024, 600)
+        #self.setMinimumSize(1024, 600)
         # Fondo consistente con el global del main.py
         self.setAutoFillBackground(True)
         pal = self.palette()

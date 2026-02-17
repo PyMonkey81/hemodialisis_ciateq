@@ -679,6 +679,7 @@ class mManualScr(QWidget):
         self.update_input_val(self.lbl_io_dial, "dialyFlowControlOutput")
         self.update_input_val(self.lbl_indPurga, "dialyDeaerControlOutput")
         self.update_input_val(self.input_cycles_chamber, "balanceChamberCycleSet")
+        self.update_label_val(self.ind_cycles_chamber, "balanceChamberCycleCount")
 
         # Indicadores
         self.update_label_val(self.lbl_velocidad_val, "bloodSpeedVariableData")
