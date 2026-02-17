@@ -3,13 +3,27 @@
 
 import sys
 import os
+import logging
+import datetime
 import ctypes
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QFont, QScreen
-
 from gui.appMainHemodialisis import HemodialysisHMI # Changed class name here
 
+
+LOG_DIR = os.path.join(os.path.dirname(__file__), 'var', 'log')
+os.makedirs(LOG_DIR, exist_ok=True)  # Crea la carpeta si no existe
+
+LOG_FILE = os.path.join(LOG_DIR, 'hemodialisis_hmi.log')
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)s | %(message)s',
+    filemode='a'  # 'a' para append, no sobreescribe cada vez
+)
+logger = logging.getLogger(__name__)
 
 def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
     """
@@ -18,16 +32,16 @@ def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
     """
     import traceback as tb
     error_message = "".join(tb.format_exception(exc_type, exc_value, exc_traceback))
-    print(error_message)
-
+    logger.critical(f"Unhandled exception:\n{error_message}")
+    
     app = QApplication.instance()
     if app:
         QMessageBox.critical(
             None,
             "Critical System Error - CIATEQ A.C.",
-            "The application has failed unexpectedly.\n\n"
-            "It will be closed for safety.\n\n"
-            "Error details:\n\n" + error_message[-1000:],
+            "La aplicación ha fallado de forma inesperada.\n\n"
+            "Se cerrará por seguridad.\n\n"
+            "Detalles del error:\n\n" + error_message[-1000:],
             QMessageBox.Close
         )
     sys.exit(1)
@@ -71,9 +85,8 @@ class ScaledHemodialysisHMI(QMainWindow):
         self.setCentralWidget(self.dialysis_hmi)
         self.showFullScreen()
 
-        print(f"Scaled HMI: {int(DESIGN_WIDTH * scale_factor)}×{int(DESIGN_HEIGHT * scale_factor)} "
-              f"(factor {scale_factor:.2f}x) on {screen_width}×{screen_height}")
-
+        logger.info(f"Scaled HMI: {int(DESIGN_WIDTH * scale_factor)}×{int(DESIGN_HEIGHT * scale_factor)} "
+            f"(factor {scale_factor:.2f}x) on {screen_width}×{screen_height}")
 
 if __name__ == "__main__":
     sys.excepthook = unhandled_exception_handler
@@ -174,17 +187,17 @@ if __name__ == "__main__":
     try:
         main_window = ScaledHemodialysisHMI()
         main_window.showFullScreen()
-
-        print("=" * 70)
-        print("   CIATEQ A.C. - HEMODIALYSIS MACHINE")
-        print("   FULLSCREEN MODE WITH DYNAMIC SCALING")
-        print(f"   Applied scaling factor: {global_scale_factor:.2f}x")
-        print("=" * 70)
-
+        
+        logger.info("=" * 70)
+        logger.info("   CIATEQ A.C. - HEMODIALYSIS MACHINE HMI")
+        logger.info("   FULLSCREEN MODE WITH DYNAMIC SCALING")
+        logger.info(f"   Applied scaling factor: {global_scale_factor:.2f}x")
+        logger.info("=" * 70)
+        
         sys.exit(app.exec())
 
     except Exception as e:
-        print(f"[FATAL] Could not start HMI: {e}")
+        logger.critical(f"Unhandled exception: {e}")
         QMessageBox.critical(
             None,
             "Fatal Application Error",
@@ -192,3 +205,4 @@ if __name__ == "__main__":
             "Contacte al soporte técnico de CIATEQ A.C." # Kept in Spanish as requested
         )
         sys.exit(1)
+

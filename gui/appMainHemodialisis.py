@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import logging
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QPixmap
@@ -30,7 +31,7 @@ from gui.service.cfgRedScreen import cfgRedScr # pantalla configuracion de red
 from gui.therapy.patientCfgScreen import patienCfgScr
 from gui.therapy.therapyCfgScreen import therapyCfgScr
 
-
+logger = logging.getLogger(__name__)
 
 #===============================================================================
 #======================CODIGO PARA ADJUNTAR LOGOS EN EJECUTABLE=================
@@ -59,7 +60,7 @@ class HemodialysisHMI(QMainWindow):
         # en_pruebas = os.getenv('PYTEST_VERSION') or 'pytest' in sys.modules
     
         # if en_pruebas:
-        #     print("[INFO] Modo pruebas detectado → puerto serial desactivado")
+        #     logger.error("[INFO] Modo pruebas detectado → puerto serial desactivado")
         #     self.serial = None
         #     self.conectado = False
         # else:
@@ -540,24 +541,24 @@ class HemodialysisHMI(QMainWindow):
        
     
     def registrar_evento(self, evento, valor, hora):
-        print(f"[EVENTO] {hora} → {evento}")
+        logger.error(f"[EVENTO] {hora} → {evento}")
 
     def __del__(self):
         """Destructor: se llama cuando Python destruye el objeto"""
-        print("[INFO] Destructor llamado → deteniendo hilos...")
+        logger.error("[INFO] Destructor llamado → deteniendo hilos...")
         self.detener_todo()
      
     def detener_todo(self):
         """Detiene TODO de forma segura y limpia referencias."""
-        print("[INFO] Iniciando detención controlada.")
+        logger.error("[INFO] Iniciando detención controlada.")
 
         # 1. Detener Timers (si existen)
         if hasattr(self, 'timer') and isinstance(self.timer, QTimer) and self.timer.isActive():
             self.timer.stop()
-            print("[INFO] Timer principal detenido.")
+            logger.error("[INFO] Timer principal detenido.")
         if hasattr(self, 'timer_reloj') and isinstance(self.timer_reloj, QTimer) and self.timer_reloj.isActive():
             self.timer_reloj.stop()
-            print("[INFO] Timer reloj detenido.")
+            logger.error("[INFO] Timer reloj detenido.")
     
         # 2. Detener Alarmas (Alto riesgo de fallo si no está bien implementado)
         if hasattr(self, 'sistema_alarmas') and self.sistema_alarmas:
@@ -566,10 +567,10 @@ class HemodialysisHMI(QMainWindow):
                 self.sistema_alarmas.detener()
             except Exception as e:
                 # Este bloque de código ya no debería dar el error 'NoneType'
-                print(f"[ERROR] Fallo al detener alarmas de forma limpia: {e}")            
+                logger.error(f"[ERROR] Fallo al detener alarmas de forma limpia: {e}")            
             # Limpieza la referencia
             self.sistema_alarmas = None 
-            print("[INFO] Referencia a Sistema de Alarmas nulada.")
+            logger.error("[INFO] Referencia a Sistema de Alarmas nulada.")
     
         # 3. Detener Serial (Debe ser la última operación de I/O)
         if hasattr(self, 'serial') and self.serial:
@@ -577,19 +578,19 @@ class HemodialysisHMI(QMainWindow):
                 # La función detener() es responsable de su propio hilo.
                 self.serial.detener() # Llama a la versión corregida que cierra el puerto primero
             except Exception as e:
-                print(f"[ERROR] Fallo al detener serial: {e}")            
+                logger.error(f"[ERROR] Fallo al detener serial: {e}")            
             # Limpieza defensiva de la referencia
             self.serial = None
-            print("[INFO] Referencia a Comunicación Serial nulada.")
+            logger.error("[INFO] Referencia a Comunicación Serial nulada.")
 
         # 4. Pausa de seguridad final
         # Espera un momento para que los hilos terminen sus joins finales
         time.sleep(0.1) 
-        print("[INFO] Detención controlada finalizada.")
+        logger.error("[INFO] Detención controlada finalizada.")
 
 
     def closeEvent(self, event):
-        print("[INFO] closeEvent → deteniendo todo...")        
+        logger.error("[INFO] closeEvent → deteniendo todo...")        
         # Bloquea el hilo principal para terminar los procesos de los hilos
         self.detener_todo() 
         # Aumentamos la pausa a 1.0 segundo. Esto es fundamental para darle al sistema operativo
