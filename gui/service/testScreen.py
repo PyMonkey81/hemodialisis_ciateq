@@ -85,22 +85,22 @@ class testScr(QWidget):
         grid.setSpacing(15)
         grid.setContentsMargins(5, 5, 5, 5)
 
-        lbl_io_flow_cb = QLabel("Flujo Cb(ml/min)")
+        lbl_io_flow_cb = QLabel("QCb(ml/min)")
         lbl_io_flow_cb.setStyleSheet(style_lbl)
         lbl_io_flow_cb.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_io_flow_cb, 0,0)
+        grid.addWidget(lbl_io_flow_cb, 0,0,1, 2)
 
         self.io_flow_cb = ClickableLineEdit("0.0")
         self.io_flow_cb.setStyleSheet(style_input)
         self.io_flow_cb.setAlignment(Qt.AlignCenter)
         self.io_flow_cb.setReadOnly(True)
         self.io_flow_cb.clicked.connect(self._handle_flow_cb_input)               
-        grid.addWidget(self.io_flow_cb, 0,1)
+        grid.addWidget(self.io_flow_cb, 0,2)
 
-        lbl_io_flow_blood = QLabel("Flujo Sangre(ml/min)")
+        lbl_io_flow_blood = QLabel("Qb (ml/min)")
         lbl_io_flow_blood.setStyleSheet(style_lbl)
         lbl_io_flow_blood.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_io_flow_blood, 1, 0)
+        grid.addWidget(lbl_io_flow_blood, 1, 0, 1, 2)
 
         self.io_flow_blood = ClickableLineEdit("0.0")
         self.io_flow_blood.setStyleSheet(style_input)
@@ -109,24 +109,24 @@ class testScr(QWidget):
         self.io_flow_blood.clicked.connect(
             lambda: self.open_numpad("bloodFlowControlSetPoint", self.io_flow_blood, "Flujo de sangre(ml/min)")
         )  
-        grid.addWidget(self.io_flow_blood, 1, 1)
+        grid.addWidget(self.io_flow_blood, 1, 2)
 
-        lbl_io_flow_uf = QLabel("UltraFiltración (ml/min)")
+        lbl_io_flow_uf = QLabel("UF (ml/min)")
         lbl_io_flow_uf.setStyleSheet(style_lbl)
         lbl_io_flow_uf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_io_flow_uf, 2, 0)
+        grid.addWidget(lbl_io_flow_uf, 2, 0, 1, 2)
 
         self.io_flow_uf = ClickableLineEdit("0.0")
         self.io_flow_uf.setStyleSheet(style_input)
         self.io_flow_uf.setAlignment(Qt.AlignCenter)
         self.io_flow_uf.setReadOnly(True)
         self.io_flow_uf.clicked.connect(self._handle_flow_uf_input)
-        grid.addWidget(self.io_flow_uf,2,1)
+        grid.addWidget(self.io_flow_uf,2,2)
 
-        lbl_io_cond = QLabel("Conductividad (mS/cm)")
+        lbl_io_cond = QLabel("Cond. (mS/cm)")
         lbl_io_cond.setStyleSheet(style_lbl)
         lbl_io_cond.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_io_cond, 3, 0)
+        grid.addWidget(lbl_io_cond, 3, 0, 1, 2)
 
         self.io_sp_cond = ClickableLineEdit("0.0")
         self.io_sp_cond.setStyleSheet(style_input)
@@ -135,12 +135,12 @@ class testScr(QWidget):
         self.io_sp_cond.clicked.connect(
             lambda: self.open_numpad("dialyCondControlSetPoint", self.io_sp_cond, "Conductividad (mS/cm)")
         )
-        grid.addWidget(self.io_sp_cond,3,1)
+        grid.addWidget(self.io_sp_cond,3,2)
 
         lbl_io_temp = QLabel("Temp. D. (°C)")
         lbl_io_temp.setStyleSheet(style_lbl)
         lbl_io_temp.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_io_temp, 4, 0)
+        grid.addWidget(lbl_io_temp, 4, 0, 1, 2 )
 
         self.io_sp_temp = ClickableLineEdit("0.0")
         self.io_sp_temp.setStyleSheet(style_input)
@@ -149,7 +149,7 @@ class testScr(QWidget):
         self.io_sp_temp.clicked.connect(
             lambda: self.open_numpad("dialyTempControlSetPoint", self.io_sp_temp, "Temperatura (°C)")
         )
-        grid.addWidget(self.io_sp_temp,4,1)
+        grid.addWidget(self.io_sp_temp,4,2)
 
         lbl_cycles_act = QLabel("No. Ciclos CB:")
         lbl_cycles_act.setStyleSheet(style_lbl)
@@ -162,65 +162,118 @@ class testScr(QWidget):
         self.ind_cycles_chamber.setAlignment(Qt.AlignCenter)
         grid.addWidget(self.ind_cycles_chamber, 0, 4)
 
-        lbl_temp_dialysate_ef = QLabel("Temp. D. EF (°C)")
+        lbl_temp_dialysate_ef = QLabel("T. Dial. EF (°C)")
         lbl_temp_dialysate_ef.setStyleSheet(style_lbl)
         lbl_temp_dialysate_ef.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_temp_dialysate_ef, 0, 5)
+        grid.addWidget(lbl_temp_dialysate_ef, 0, 6)
 
         self.l_temp_dialysate_ef = QLabel("0.0")
         self.l_temp_dialysate_ef.setStyleSheet(style_lbl_indicator)
         self.l_temp_dialysate_ef.setFixedSize(100, 35)
         self.l_temp_dialysate_ef.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.l_temp_dialysate_ef, 0, 6)
+        grid.addWidget(self.l_temp_dialysate_ef, 0, 7)
 
-        lbl_temp_dialysate_sf = QLabel("Temp. D. SF (°C)")
+        lbl_temp_dialysate_sf = QLabel("T. Dial. SF (°C)")
         lbl_temp_dialysate_sf.setStyleSheet(style_lbl)
         lbl_temp_dialysate_sf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_temp_dialysate_sf, 1, 5)
+        grid.addWidget(lbl_temp_dialysate_sf, 1, 6)
 
         self.l_temp_dialysate_sf = QLabel("0.0")
         self.l_temp_dialysate_sf.setStyleSheet(style_lbl_indicator)
         self.l_temp_dialysate_sf.setFixedSize(100, 35)
         self.l_temp_dialysate_sf.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.l_temp_dialysate_sf, 1, 6)
+        grid.addWidget(self.l_temp_dialysate_sf, 1, 7)
 
 
-        lbl_temp_tank = QLabel("Temp. Tanque (°C)")
+        lbl_temp_tank = QLabel("T.Tanque (°C)")
         lbl_temp_tank.setStyleSheet(style_lbl)
         lbl_temp_tank.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_temp_tank, 2, 5)
+        grid.addWidget(lbl_temp_tank, 2, 6)
 
         self.l_temp_tank = QLabel("0.0")
         self.l_temp_tank.setStyleSheet(style_lbl_indicator)
         self.l_temp_tank.setFixedSize(100, 35)
         self.l_temp_tank.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.l_temp_tank, 2, 6)
+        grid.addWidget(self.l_temp_tank, 2, 7)
 
-        lbl_cond_ef = QLabel("Conductividad EF")
+        lbl_cond_ef = QLabel("Cond. EF")
         lbl_cond_ef.setStyleSheet(style_lbl)
         # lbl_cond_ef.setFixedSize(100, 35)
         lbl_cond_ef.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_cond_ef, 3,5)
+        grid.addWidget(lbl_cond_ef, 3,6)
 
         self.l_cond_ef = QLabel("0.0")
         self.l_cond_ef.setStyleSheet(style_lbl_indicator)
         self.l_cond_ef.setFixedSize(100, 35)
         self.l_cond_ef.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.l_cond_ef, 3, 6)
+        grid.addWidget(self.l_cond_ef, 3, 7)
 
-        lbl_cond_sf = QLabel("Conductividad SF")
+        lbl_cond_sf = QLabel("Cond. SF")
         lbl_cond_sf.setStyleSheet(style_lbl)
         # lbl_cond_ef.setFixedSize(100, 35)
         lbl_cond_sf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_cond_sf, 4,5)
+        grid.addWidget(lbl_cond_sf, 4,6)
 
         self.l_cond_sf = QLabel("0.0")
         self.l_cond_sf.setStyleSheet(style_lbl_indicator)
         self.l_cond_sf.setFixedSize(100, 35)
         self.l_cond_sf.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.l_cond_sf, 4, 6)
+        grid.addWidget(self.l_cond_sf, 4, 7)
 
-        
+        #============================================================
+        # CONTROL AREA BOTTON
+        #============================================================
+        self.control_area_botton = QWidget()
+        self.control_area_botton.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        grid_control_botton = QGridLayout(self.control_area_botton)
+        grid_control_botton.setSpacing(15)
+        grid_control_botton.setContentsMargins(5, 5, 5, 5)
+
+        current_row = 0
+        target_col = 0
+        self.output_ptm = self.add_control_row(grid_control_botton, current_row, target_col,"PTM", "mmHg", is_input=False)
+
+        target_col += 3
+        self.output_peristaltic_flow = self.add_control_row(grid_control_botton, current_row, target_col, "Qb", "ml/min", is_input=False)
+
+        target_col += 3
+        self.output_pt3 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-3", "psi", is_input=False)
+
+        target_col += 3
+        self.output_pt4 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-4", "psi", is_input=False)
+
+        target_col += 3
+        self.output_pt5 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-5", "psi", is_input=False)
+
+        target_col += 3
+        self.output_pt7 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-7", "psi", is_input=False)
+
+        target_col += 3
+        self.output_pt8 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-8", "mmHg", is_input=False)
+
+        current_row = 1
+        target_col = 0
+        self.output_pt8 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-8", "mmHg", is_input=False)
+
+        target_col += 3
+        self.output_pt9 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-9", "mmHg", is_input=False)
+
+        target_col += 3
+        self.output_pt10 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-10", "mmHg", is_input=False)
+
+        target_col += 3
+        btn_to_controler = QPushButton("Controlador")
+        btn_to_controler.setStyleSheet(style_btn)  
+        btn_to_controler.setFixedSize(200, 70)
+        btn_to_controler.clicked.connect(self.parent_window.mostrar_calibracion)
+        grid_control_botton.addWidget(btn_to_controler, 1, 10 )
+
+        btn_to_ctrl_manual = QPushButton("Op. Manual")
+        btn_to_ctrl_manual.setStyleSheet(style_btn)  
+        btn_to_ctrl_manual.setFixedSize(200, 70)
+        btn_to_ctrl_manual.clicked.connect(self.parent_window.mostrar_modo_manual)
+        grid_control_botton.addWidget(btn_to_ctrl_manual, 1, 14 )
 
         #=============================================================
         # GRAPHICS AREA 
@@ -268,8 +321,9 @@ class testScr(QWidget):
         
 
         
-        layout.addWidget(self.control_area, 0, 0)
-        layout.addWidget(self.graphics_area, 0, 1)
+        layout.addWidget(self.control_area, 0, 0, 1, 2)
+        layout.addWidget(self.graphics_area, 0, 2, 1,2)
+        layout.addWidget(self.control_area_botton, 1,0, 1, 4)
 
 
     def escribir_setpoint(self, tag, value=None, widget_input=None):
@@ -426,6 +480,47 @@ class testScr(QWidget):
 
         self.plot_temp.setXRange(-self.history_length + 1, 0)
         self.plot_cond.setXRange(-self.history_length + 1, 0)
+
+    def add_control_row(self, grid, row, start_col, label_text, unit_text, tag=None, numpad_title="", is_input=True, initial_value="0.0"):
+        lbl = QLabel(label_text)
+        # No setStyleSheet → hereda del global
+        grid.addWidget(lbl, row, start_col)
+        style_lbl_indicator = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+        if is_input is True:
+            widget_central = ClickableLineEdit(initial_value)
+            widget_central.setReadOnly(True)
+            widget_central.setStyleSheet("""
+                background: #FFFFE5;
+                color: #000000;
+                border: 2px solid #000000;
+                border-radius: 6px;
+                padding: 4px;
+                font-family: Consolas, "Courier New", monospace;
+                font-size: 20px;
+                font-weight: bold;
+            """)
+            
+            widget_central.clicked.connect(lambda: self.open_numpad(tag, widget_central, numpad_title))
+            # No setStyleSheet → hereda del global (QLineEdit, ClickableLineEdit)
+        elif is_input is False:
+            widget_central = QLabel(initial_value)
+            widget_central.setStyleSheet(style_lbl_indicator)
+            # Para las variables destacadas (cyan con borde) → usamos propiedad o clase
+            widget_central.setProperty("class", "highlighted")  # o setObjectName("highlight")
+        else:
+            # Para casos como Velocidad BS (solo lectura, sin input)
+            widget_central = QLabel(initial_value)
+            widget_central.setProperty("class", "unit")  # o estilo más pequeño si lo defines en global
+
+        widget_central.setFixedSize(80, 35)
+        widget_central.setAlignment(Qt.AlignCenter)
+        grid.addWidget(widget_central, row, start_col + 1)
+
+        lbl_unit = QLabel(unit_text)
+        lbl_unit.setProperty("class", "unit")  # hereda estilo unit del global
+        grid.addWidget(lbl_unit, row, start_col + 2)
+
+        return widget_central
 
     def update_input_val(self, widget, tag, precision=1, display_value=None):
         """Actualiza valor en interfaz con hold-off."""

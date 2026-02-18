@@ -411,7 +411,11 @@ class HemodialysisHMI(QMainWindow):
     
     def mostrar_panel_pruebas(self):
         self.stacked.setCurrentWidget(self.pantalla_panel_pruebas)
+        if hasattr(self.pantalla_panel_pruebas, "actualizar_valores"):
+            self.pantalla_panel_pruebas.actualizar_valores(self.valores)
         self.actualizar_label_pantalla("Panel de pruebas", "#0f172a")
+        self.left.show()
+        self.right.show()
         
 
     def mostrar_calibracion(self):
