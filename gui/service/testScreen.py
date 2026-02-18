@@ -14,7 +14,8 @@ from logic.calculos import (
     convertir_flujo_a_ciclos,
     convertir_ciclos_a_flujo,
     convertir_litros_h_a_ml_min,
-    convertir_ml_min_a_litros_h
+    convertir_ml_min_a_litros_h,
+    calculo_ptm
 )
 import pyqtgraph as pg 
 import numpy as np 
@@ -254,8 +255,11 @@ class testScr(QWidget):
 
         current_row = 1
         target_col = 0
-        self.output_pt8 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-8", "mmHg", is_input=False)
+        self.output_pt1 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-1", "mmHg", is_input=False)
 
+        target_col += 3
+        self.output_pt2 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-2", "mmHg", is_input=False)
+        
         target_col += 3
         self.output_pt9 = self.add_control_row(grid_control_botton, current_row, target_col, "PT-9", "mmHg", is_input=False)
 
@@ -267,13 +271,17 @@ class testScr(QWidget):
         btn_to_controler.setStyleSheet(style_btn)  
         btn_to_controler.setFixedSize(200, 70)
         btn_to_controler.clicked.connect(self.parent_window.mostrar_calibracion)
-        grid_control_botton.addWidget(btn_to_controler, 1, 10 )
+        grid_control_botton.addWidget(btn_to_controler, 1, target_col )
 
+        target_col +=3
         btn_to_ctrl_manual = QPushButton("Op. Manual")
         btn_to_ctrl_manual.setStyleSheet(style_btn)  
         btn_to_ctrl_manual.setFixedSize(200, 70)
         btn_to_ctrl_manual.clicked.connect(self.parent_window.mostrar_modo_manual)
-        grid_control_botton.addWidget(btn_to_ctrl_manual, 1, 14 )
+        grid_control_botton.addWidget(btn_to_ctrl_manual, 1, target_col )
+
+        target_col += 3
+
 
         #=============================================================
         # GRAPHICS AREA 
@@ -320,9 +328,42 @@ class testScr(QWidget):
             plot.getAxis('left').setStyle(tickTextOffset=5)
         
 
+        #======================================================
+        # INDICADORES VISUALES LED
+        #=====================================================
+
+        self.led_area = QWidget(self)
+        self.led_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        grid_led_area = QGridLayout(self.led_area)
+        grid_led_area.setSpacing(10)
+        grid_led_area.setContentsMargins(5, 5, 5, 5)
+
+        led_names = [
+            "LS Tanque", "C. Deareación","Aire en S.", "P. Aire","S. Dial."
+        ]
+
+        led_tags = [
+            "dialyTankHiLevelSwitch", "dialyDeaerChamLevSwitch", "airBubbleInBloodDetected", 
+            "dialyPurgePumpStartButt", "bloodInDialyCircDetected"
+        ]
+
+        self.leds = []
+
+        for i, name in enumerate(led_names):
+            lbl = QLabel(name)
+            lbl.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
+            lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            grid_led_area.addWidget(lbl, i, 0)
+            led = LED(self.led_area)
+            led.setFixedSize(45, 45)
+            grid_led_area.addWidget(led, i, 1, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+            self.leds.append((led, led_tags[i]))
+
         
         layout.addWidget(self.control_area, 0, 0, 1, 2)
-        layout.addWidget(self.graphics_area, 0, 2, 1,2)
+        layout.addWidget(self.graphics_area, 0, 2, 1,1)
+        layout.addWidget(self.led_area, 0, 3, 1, 1)
         layout.addWidget(self.control_area_botton, 1,0, 1, 4)
 
 
@@ -422,6 +463,15 @@ class testScr(QWidget):
         current_time = QDateTime.currentMSecsSinceEpoch()
 
 
+        # LEDS 
+        for led, tag in self.leds:
+            valor = self.valores.get(tag, 0.0)
+            if tag == "dialyTankHiLevelSwitch":
+                led.set_state("off" if valor > 0 else 'in')
+            else:
+                led.set_state('on' if valor > 0 else 'off')
+
+
         if "balanceChamberSetTiming" not in self._write_hold_off or \
            current_time >= self._write_hold_off["balanceChamberSetTiming"]:
             cycle_val = self.valores.get("balanceChamberSetTiming", 0.0)
@@ -448,14 +498,53 @@ class testScr(QWidget):
                                      precision=1, display_value=0.0)
         
         self.update_input_val(self.io_flow_blood, "bloodFlowControlSetPoint")
-        self.update_input_val(self.io_sp_cond, "dialyCondControlSetPoint") #Setpoint conductuvidad
+        
         self.update_input_val(self.io_sp_temp, "dialyTempControlSetPoint") #setpoint temperatura 
         self.update_label_val(self.ind_cycles_chamber, "balanceChamberCycleCount")
-        self.update_label_val(self.l_temp_dialysate_ef, "dialyTempIFProcessData")
-        self.update_label_val(self.l_temp_dialysate_sf, "dialyTempOFProcessData")
-        self.update_label_val(self.l_temp_tank, "dialyTempControlOutput")
+        
         self.update_label_val(self.l_cond_ef, "dialyConductIFProcessData")
         self.update_label_val(self.l_cond_sf, "dialyConductOFProcessData")
+
+        pd_ef = self.valores.get("dialyPresIFProcessData", 0.0) # p dializante ef
+        pd_sf = self.valores.get("dialyPresOFProcessData",0.0)
+        pa = self.valores.get("bloodArteryPressureData", 0.0)
+        pv = self.valores.get("bloodVenousPressureData", 0.0)
+
+        try:
+            ptm_calculado = calculo_ptm(pd_ef, pd_sf, pa, pv)
+        except Exception:
+            ptm_calculado = 0.0
+
+        clave_ptm = "CALC_PTM" 
+        self.valores[clave_ptm] = ptm_calculado
+        
+
+        self.update_label_val(self.output_peristaltic_flow, "bloodFlowVariableData")
+        self.update_label_val(self.output_pt1, "dialyPFilPmpPresProcessData")
+        self.update_label_val(self.output_pt2, "dialyTankPresProcessData")
+
+        #GUARDAR EN ARCHIVO PARA HACER GRAFICAS DE DESVIACIONES, GENERAR REPORTE 
+        self.update_label_val(self.output_pt3, "dialyLinePresProcessData") # pt3
+        self.update_label_val(self.output_pt4,"dialyPresIFProcessData") # pt4
+        self.update_label_val(self.output_pt5, "dialyPresOFProcessData") # pt5
+        self.update_label_val(self.output_pt7, "dialyBChamPresProcessData") # pt7
+        self.update_label_val(self.output_pt8, "bloodArteryPressureData") # pt8
+        self.update_label_val(self.output_pt9, "bloodVenousPressureData") # pt9
+        self.update_label_val(self.output_pt10, "dialyPFilPmpPresProcessData") #pt10
+        self.update_label_val(self.l_temp_dialysate_ef, "dialyTempIFProcessData")
+        self.update_label_val(self.l_temp_dialysate_sf, "dialyTempOFProcessData")
+        self.update_label_val(self.l_temp_tank, "dialyTempControlOutput") # temperatura tanque 
+        self.update_input_val(self.io_sp_cond, "dialyCondControlSetPoint") #Setpoint conductuvidad
+        setpoint_cond = self.valores.get("dialyCondControlSetPoint", 0.0)
+        output_cond_raw = self.valores.get("dialyCondControlOutput", 0.0) #ESTE NO
+        output_cc_percent = output_cond_raw / 5
+        setpoint_ctd = self.valores.get("dialyTempControlSetPoint", 0.0)
+        output_ctd_raw = self.valores.get("dialyTempControlOutput", 0.0)# ESTE NO
+        output_ctd_percent = output_ctd_raw / 2
+        self.update_label_val(self.output_ptm, "CALC_PTM")
+
+
+
         
         temp_dialysate_ef = self.valores.get("dialyTempIFProcessData", 0.0)
         temp_dialysate_sf = self.valores.get("dialyTempOFProcessData", 0.0)

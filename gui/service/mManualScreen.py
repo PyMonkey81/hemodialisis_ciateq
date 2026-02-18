@@ -634,7 +634,10 @@ class mManualScr(QWidget):
         # LEDs
         for led, tag in self.leds:
             valor = self.valores.get(tag, 0.0)
-            led.set_state('on' if valor > 0 else 'off')
+            if tag == "dialyTankHiLevelSwitch":
+                led.set_state("off" if valor > 0 else 'in')
+            else:
+                led.set_state('on' if valor > 0 else 'off')
 
         # Válvulas
         for tag, card in self.valvulas_map.items():
