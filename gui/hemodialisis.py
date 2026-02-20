@@ -5,7 +5,7 @@ import os
 import threading
 import time
 #from core.alarmas import SistemaAlarmas
-from core.alarmas import SistemaAlarmas
+from core.alarms import SistemaAlarmas
 from connection.comunicacion_serial import ComunicacionSerial
 from core.variables_map import VARIABLES
 from tkinter import messagebox
@@ -13,7 +13,7 @@ from tkinter import messagebox
 
 # === IMPORTAR MÓDULOS LOCALES ===
 try:
-    from core.alarmas import SistemaAlarmas
+    from core.alarms import SistemaAlarmas
     SISTEMA_ALARMAS_EXISTE = True
 except ImportError as e:
     print(f"[ERROR] alarmas.py no encontrado: {e}")

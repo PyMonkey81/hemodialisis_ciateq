@@ -1,45 +1,62 @@
 # gui/components/numpad_modal.py
-from PySide6.QtWidgets import (QDialog, QGridLayout, QPushButton, QLineEdit, 
-                               QVBoxLayout, QHBoxLayout, QWidget)
+# Modal numeric keypad dialog for touch-friendly input of decimal values
+
+from PySide6.QtWidgets import (
+    QDialog, QGridLayout, QPushButton, QLineEdit,
+    QVBoxLayout, QHBoxLayout
+)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
+
 class NumpadDialog(QDialog):
-    def __init__(self, parent=None, initial_value="", title="Ingrese Valor"):
+    """
+    Touch-friendly numeric keypad dialog for entering decimal values.
+    Supports backspace, decimal point, and accept/cancel actions.
+    """
+
+    def __init__(self, parent=None, initial_value: str = "", title: str = "Ingrese Valor"):
         super().__init__(parent)
         self.setWindowTitle(title)
-        
-        # Quitamos el marco de ventana nativo para que se vea full touch (opcional)
+
+        # Frameless + modal for full touch experience
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setModal(True)
+
         self.setStyleSheet("""
-            QDialog { background-color: #0f172a; border: 2px solid #334155; }
+            QDialog {
+                background-color: #0f172a;
+                border: 2px solid #334155;
+                border-radius: 12px;
+            }
             QLabel { color: white; }
         """)
 
-        layout = QVBoxLayout(self)
-        
-        # --- VISOR DEL VALOR ---
-        self.display = QLineEdit(str(initial_value))
-        self.display.setFixedHeight(60)
-        self.display.setAlignment(Qt.AlignRight)
-        self.display.setReadOnly(True) # Para que solo se use el teclado en pantalla
-        self.display.setFont(QFont("Arial", 28, QFont.Bold))
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
+
+        # ── Display (read-only value preview) ────────────────────────────────────
+        self.display = QLineEdit(initial_value)
+        self.display.setFixedHeight(70)
+        self.display.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.display.setReadOnly(True)
+        self.display.setFont(QFont("Arial", 32, QFont.Bold))
         self.display.setStyleSheet("""
-            QLineEdit { 
-                background-color: #1e293b; 
-                color: #22d3ee; 
-                border: 2px solid #475569; 
-                border-radius: 8px; 
-                padding-right: 10px;
+            QLineEdit {
+                background-color: #1e293b;
+                color: #22d3ee;
+                border: 2px solid #475569;
+                border-radius: 10px;
+                padding: 0 15px;
             }
         """)
-        layout.addWidget(self.display)
+        main_layout.addWidget(self.display)
 
-        # --- GRID DE BOTONES ---
-        grid_layout = QGridLayout()
-        grid_layout.setSpacing(8)
-        
+        # ── Keypad Grid ──────────────────────────────────────────────────────────
+        keypad_layout = QGridLayout()
+        keypad_layout.setSpacing(12)
+
         keys = [
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
@@ -47,65 +64,105 @@ class NumpadDialog(QDialog):
             ('.', 3, 0), ('0', 3, 1), ('⌫', 3, 2)
         ]
 
-        font_btn = QFont("Arial", 20, QFont.Bold)
+        button_font = QFont("Arial", 24, QFont.Bold)
 
-        for key, r, c in keys:
+        for key, row, col in keys:
             btn = QPushButton(key)
-            btn.setFixedSize(80, 70)
-            btn.setFont(font_btn)
-            
+            btn.setFixedSize(90, 90)
+            btn.setFont(button_font)
+
             if key == '⌫':
-                btn.setStyleSheet("background-color: #ef4444; color: white; border-radius: 10px;")
-                btn.clicked.connect(self.backspace)
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #ef4444;
+                        color: white;
+                        border-radius: 12px;
+                        border: none;
+                    }
+                    QPushButton:hover { background-color: #dc2626; }
+                    QPushButton:pressed { background-color: #b91c1c; }
+                """)
+                btn.clicked.connect(self._backspace)
             else:
                 btn.setStyleSheet("""
-                    QPushButton { background-color: #334155; color: white; border-radius: 10px; border: 2px solid #1e293b; }
-                    QPushButton:pressed { background-color: #475569; border-color: #22d3ee; }
+                    QPushButton {
+                        background-color: #334155;
+                        color: white;
+                        border-radius: 12px;
+                        border: 2px solid #1e293b;
+                    }
+                    QPushButton:hover { background-color: #475569; }
+                    QPushButton:pressed { background-color: #22d3ee; border-color: #22d3ee; }
                 """)
-                btn.clicked.connect(lambda ch, k=key: self.add_digit(k))
-            
-            grid_layout.addWidget(btn, r, c)
+                btn.clicked.connect(lambda _, k=key: self._add_digit(k))
 
-        layout.addLayout(grid_layout)
+            keypad_layout.addWidget(btn, row, col)
 
-        # --- BOTONES DE ACCIÓN (ACEPTAR / CANCELAR) ---
+        main_layout.addLayout(keypad_layout)
+
+        # ── Action Buttons (Cancel / Accept) ─────────────────────────────────────
         action_layout = QHBoxLayout()
-        
-        btn_cancel = QPushButton("Cancelar")
-        btn_cancel.setFixedHeight(60)
-        btn_cancel.setFont(QFont("Arial", 16, QFont.Bold))
-        btn_cancel.setStyleSheet("background-color: #64748b; color: white; border-radius: 10px;")
-        btn_cancel.clicked.connect(self.reject) # Cierra devolviendo 0 (False)
+        action_layout.setSpacing(20)
 
-        btn_accept = QPushButton("ACEPTAR")
-        btn_accept.setFixedHeight(60)
-        btn_accept.setFont(QFont("Arial", 16, QFont.Bold))
-        btn_accept.setStyleSheet("background-color: #22c55e; color: white; border-radius: 10px;")
-        btn_accept.clicked.connect(self.accept) # Cierra devolviendo 1 (True)
+        cancel_btn = QPushButton("Cancelar")
+        cancel_btn.setFixedHeight(70)
+        cancel_btn.setFont(QFont("Arial", 18, QFont.Bold))
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #64748b;
+                color: white;
+                border-radius: 12px;
+                border: none;
+            }
+            QPushButton:hover { background-color: #475569; }
+            QPushButton:pressed { background-color: #334155; }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        action_layout.addWidget(cancel_btn)
 
-        action_layout.addWidget(btn_cancel)
-        action_layout.addWidget(btn_accept)
-        layout.addLayout(action_layout)
+        accept_btn = QPushButton("ACEPTAR")
+        accept_btn.setFixedHeight(70)
+        accept_btn.setFont(QFont("Arial", 18, QFont.Bold))
+        accept_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #22c55e;
+                color: white;
+                border-radius: 12px;
+                border: none;
+            }
+            QPushButton:hover { background-color: #16a34a; }
+            QPushButton:pressed { background-color: #15803d; }
+        """)
+        accept_btn.clicked.connect(self.accept)
+        action_layout.addWidget(accept_btn)
 
-    def add_digit(self, digit):
-        text = self.display.text()
-        
-        # Evitar múltiples puntos
-        if digit == '.' and '.' in text:
+        main_layout.addLayout(action_layout)
+
+    def _add_digit(self, digit: str):
+        """Append digit or decimal point to display."""
+        current_text = self.display.text()
+
+        # Prevent multiple decimal points
+        if digit == '.' and '.' in current_text:
             return
-        
-        # Si es 0 inicial y presionan un numero, reemplazar (excepto si es punto)
-        if text == "0" and digit != ".":
-            text = ""
-            
-        self.display.setText(text + digit)
 
-    def backspace(self):
-        text = self.display.text()
-        self.display.setText(text[:-1])
+        # Replace leading zero with new digit (unless it's a decimal)
+        if current_text == "0" and digit != ".":
+            current_text = ""
 
-    def get_value(self):
-        val = self.display.text()
-        if val == "" or val == ".":
+        self.display.setText(current_text + digit)
+
+    def _backspace(self):
+        """Remove last character from display."""
+        current_text = self.display.text()
+        self.display.setText(current_text[:-1] if current_text else "")
+
+    def get_value(self) -> float:
+        """Return the entered value as float (0.0 if empty or invalid)."""
+        text = self.display.text().strip()
+        if not text or text == ".":
             return 0.0
-        return float(val)
+        try:
+            return float(text)
+        except ValueError:
+            return 0.0

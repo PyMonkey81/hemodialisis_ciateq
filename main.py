@@ -1,4 +1,4 @@
-# # Archivo principal de arranque del HMI - CIATEQ A.C.
+# Archivo principal de arranque del HMI - CIATEQ A.C.
 # Main HMI startup file - CIATEQ A.C.
 
 import sys
@@ -9,7 +9,7 @@ import ctypes
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QFont, QScreen
-from gui.appMainHemodialisis import HemodialysisHMI # Changed class name here
+from gui.appMainHemodialysis import HemodialysisHMI
 
 
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'var', 'log')
@@ -140,8 +140,7 @@ if __name__ == "__main__":
             color: #000000;
         }
         QLabel { font-size: 18px; }
-        QLineEdit,
-        ClickableLineEdit {
+        QLineEdit, ClickableLineEdit {
             font-family: Consolas, "Courier New", monospace;
             font-size: 20px;
             color: #000000;
@@ -150,28 +149,17 @@ if __name__ == "__main__":
             padding: 4px;
             min-width: 80px;
         }
-
-        /* Normal background (editable) */
-        QLineEdit:!read-only,
-        ClickableLineEdit:!read-only {
+        QLineEdit:!read-only, ClickableLineEdit:!read-only {
             background: #FFFFE5;
         }
-
-        /* Read-only background */
-        QLineEdit:read-only,
-        ClickableLineEdit:read-only,
-        ClickableLineEdit[readOnly="true"] {
-            background: #FFFFE5;           /* desired yellow */
+        QLineEdit:read-only, ClickableLineEdit:read-only, ClickableLineEdit[readOnly="true"] {
+            background: #FFFFE5;
             color: #000000;
             border: 2px solid #000000;
         }
-
-        /* Optional: when focused (even if read-only) */
-        QLineEdit:focus,
-        ClickableLineEdit:focus {
+        QLineEdit:focus, ClickableLineEdit:focus {
             border: 2px solid #3b82f6;
         }
-                      
         QPushButton {
             background: #3b82f6;
             color: white;
@@ -183,7 +171,6 @@ if __name__ == "__main__":
         QPushButton:pressed { background: #1e40af; }
         QWidget { background: #fcfcfc; }
     """)
-
     try:
         main_window = ScaledHemodialysisHMI()
         main_window.showFullScreen()
@@ -206,3 +193,32 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
+# if __name__ == "__main__":
+#     print("PASO 1: Script iniciado")
+#     import sys
+#     print("PASO 2: sys importado")
+#     from PySide6.QtWidgets import QApplication
+#     print("PASO 3: QApplication importado")
+    
+#     try:
+#         app = QApplication(sys.argv)
+#         print("PASO 4: QApplication creada OK")
+#     except Exception as e:
+#         print(f"ERROR AL CREAR QApplication: {e}")
+#         sys.exit(1)
+    
+#     try:
+#         window = HemodialysisHMI()
+#         print("PASO 5: HemodialysisHMI creada OK")
+#     except Exception as e:
+#         print(f"ERROR AL CREAR HemodialysisHMI: {e}")
+#         sys.exit(1)
+    
+#     try:
+#         window.show()
+#         print("PASO 6: show() llamado")
+#     except Exception as e:
+#         print(f"ERROR EN show(): {e}")
+#         sys.exit(1)
+    
+#     sys.exit(app.exec())

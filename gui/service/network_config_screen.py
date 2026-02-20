@@ -1,15 +1,15 @@
-#gui/service/cfgRedScreen.py
+#gui/service/network_config_screen.py
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 
 
-class cfgRedScr(QWidget):
-    def __init__(self, parent = None):
+class NetworkConfigScreen(QWidget):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.parent = parent
-        self.valores = parent.valores if parent else {}
+        self.parent_window = parent
+        self.values = parent.current_values if parent else {}
 
         self.setFixedSize(1536,726)
         self.setStyleSheet("background: #0f172a;")

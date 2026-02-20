@@ -1,4 +1,4 @@
-# # connection/comunicacion_serial.py
+# # connection/serial_communication.py
 import serial
 import serial.tools.list_ports
 import threading

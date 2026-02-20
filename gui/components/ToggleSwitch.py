@@ -1,97 +1,98 @@
-#gui/components/ToggleSwitch.py
+# gui/components/toggle_switch.py
+# Animated toggle switch widget for on/off controls (touch-friendly)
 
-#import sys
 from PySide6.QtWidgets import QWidget
-# 1. AGREGAMOS Signal
-from PySide6.QtCore import Qt, Property, QEasingCurve, QPropertyAnimation, Signal 
+from PySide6.QtCore import Qt, Property, QEasingCurve, QPropertyAnimation, Signal
 from PySide6.QtGui import QPainter, QColor
 
-# =============================================================================
-# TOGGLE SWITCH 
-# =============================================================================
+
 class ToggleSwitch(QWidget):
-    
+    """
+    Animated toggle switch widget (on/off) with smooth transition.
+    Emits 'toggled' signal when state changes.
+    Supports programmatic control via setChecked() and is_checked().
+    """
+
+    # Signal emitted when the toggle state changes (True = on, False = off)
     toggled = Signal(bool)
-    
-    def __init__(self, parent=None, width=60, height=32, 
-                 bg_color="#4b5563", active_color="#22c55e"):
+
+    def __init__(self,
+                 parent=None,
+                 width: int = 60,
+                 height: int = 32,
+                 bg_color: str = "#4b5563",       # Off background (gray)
+                 active_color: str = "#22c55e"):  # On background (green)
         super().__init__(parent)
-        
-        # Configuración
+
         self.setFixedSize(width, height)
         self.setCursor(Qt.PointingHandCursor)
-        
-        # Estado interno
-        self._checked = False
-        self._bg_color = bg_color        # Gris oscuro (apagado)
-        self._active_color = active_color # Color (encendido)
-        self._circle_color = "#ffffff"   # Blanco (botón)
-        
-        # Animación
-        self._circle_position = 4 # Margen inicial
-        self.animation = QPropertyAnimation(self, b"circle_position", self)
+
+        # Internal state
+        self._is_checked = False
+        self._bg_color_off = bg_color
+        self._bg_color_on = active_color
+        self._circle_color = "#ffffff"  # White circle
+
+        # Animation setup
+        self._circle_x = 4  # Initial left margin
+        self.animation = QPropertyAnimation(self, b"circle_x", self)
         self.animation.setEasingCurve(QEasingCurve.InOutCubic)
-        self.animation.setDuration(300) # 300ms de animación
+        self.animation.setDuration(300)  # 300ms smooth transition
 
-    # Propiedad necesaria para la animación
+    # Property for animation binding
     @Property(float)
-    def circle_position(self):
-        return self._circle_position
+    def circle_x(self):
+        return self._circle_x
 
-    @circle_position.setter
-    def circle_position(self, pos):
-        self._circle_position = pos
-        self.update() # Repintar el widget
+    @circle_x.setter
+    def circle_x(self, value: float):
+        self._circle_x = value
+        self.update()  # Trigger repaint
 
-    # Evento al hacer click (Ratón o Táctil)
     def mouseReleaseEvent(self, event):
+        """Toggle state on left click/touch release."""
         if event.button() == Qt.LeftButton:
             self.toggle()
         super().mouseReleaseEvent(event)
 
-    # Función lógica de cambio de estado
     def toggle(self):
-        self._checked = not self._checked
-        # Emitir señal manual si quisieras (aquí usamos lógica simple visual)
-        self.start_transition(self._checked)
-        # Disparamos un evento personalizado si es necesario (opcional)
-        self.toggled.emit(self._checked) 
-    
-    def setChecked(self, checked):
-        if self._checked != checked:
-            self._checked = checked
-            self.start_transition(checked)
-            self.update()
+        """Toggle current state and start animation."""
+        self.setChecked(not self._is_checked)
 
-    # Comprobar estado desde fuera
-    def is_checked(self):
-        return self._checked
+    def setChecked(self, checked: bool):
+        """Programmatically set toggle state with animation."""
+        if self._is_checked == checked:
+            return
 
-    # Iniciar la animación
-    def start_transition(self, state):
+        self._is_checked = checked
         self.animation.stop()
-        if state:
-            # Mover a la derecha
-            self.animation.setEndValue(self.width() - self.height() + 4)
-        else:
-            # Mover a la izquierda
-            self.animation.setEndValue(4)
+
+        end_value = self.width() - self.height() + 4 if checked else 4
+        self.animation.setEndValue(end_value)
         self.animation.start()
 
-    # Dibujar el widget
-    def paintEvent(self, e):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
+        self.toggled.emit(checked)
+        self.update()
 
-        # 1. Fondo
-        current_bg = self._active_color if self._checked else self._bg_color
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(current_bg))
-        p.drawRoundedRect(0, 0, self.width(), self.height(), self.height()/2, self.height()/2)
+    def is_checked(self) -> bool:
+        """Return current toggle state."""
+        return self._is_checked
 
-        # 2. Círculo
-        p.setBrush(QColor(self._circle_color))
-        radio = self.height() - 8 # Un poco más pequeño que el fondo
-        p.drawEllipse(int(self._circle_position), 4, radio, radio)
-        p.end()
+    def paintEvent(self, event):
+        """Custom painting of background and animated circle."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
 
+        # 1. Background (rounded rect)
+        current_bg = self._bg_color_on if self._is_checked else self._bg_color_off
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(current_bg))
+        painter.drawRoundedRect(0, 0, self.width(), self.height(),
+                                self.height() // 2, self.height() // 2)
+
+        # 2. Circle (animated position)
+        painter.setBrush(QColor(self._circle_color))
+        circle_radius = self.height() - 8
+        painter.drawEllipse(int(self._circle_x), 4, circle_radius, circle_radius)
+
+        painter.end()

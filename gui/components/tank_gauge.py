@@ -1,4 +1,4 @@
-# gui/components/TankGaugeW.py
+# gui/components/tank_gauge.py
 
 
 
