@@ -174,7 +174,7 @@ class LabeledParameterWidget(QWidget):
                 font-size: 20px;
                 font-weight: bold;
                 border: 2px solid #000000;
-                border-radius: 5px;
+                border-radius: 1px;
                 padding: 2px;
             """)
             self.value_widget.setMinimumWidth(80)
