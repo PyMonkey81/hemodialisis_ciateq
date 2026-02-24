@@ -157,7 +157,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x09: {"name": "Flujo de líquido de sustitución", "type": "double", "rw": True, "unit": "ml/h", "limites": (0, 5000), "tag": "subsLiqFlowProcessData", "nivel": "cian"},      # 52
         0x0A: {"name": "Conductividad dializante antes del filtro", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyConductIFProcessData", "nivel": "amarillo"}, # 53
         0x0B: {"name": "Conductividad dializante después del filtro", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyConductOFProcessData", "nivel": "amarillo"}, # 54
-        0x0C: {"name": "Frecuencia cardiaca del paciente", "type": "double", "rw": True, "unit": "lpm", "limites": (30, 180), "tag": "patHeartFreqProcessData", "nivel": "rojo"},     # 55
+        0x0C: {"name": "Parametro de control ", "type": "double", "rw": True, "unit": "lpm", "limites": (0,1000), "tag": "patHeartFreqProcessData", "nivel": "rojo"},     # 55
         0x0D: {"name": "Presión en el tanque de calentamiento", "type": "double", "rw": True, "unit": "mmHg", "limites": (-100, 100), "tag": "dialyTankPresProcessData", "nivel": "cian"}, # 56
         0x0E: {"name": "Presión en la línea del dializante", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyLinePresProcessData", "nivel": "amarillo"}, # 57
         0x0F: {"name": "Presión Prefiltrado", "type": "double", "rw": True, "unit": "mmHg", "limites": (0, 500), "tag": "dialyPFilPmpPresProcessData", "nivel": "cian"},              #58  
@@ -178,6 +178,15 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x09: {"name": "Parámetro control 10", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData10", "nivel": "cian"},                              # 68
         0x0A: {"name": "Parámetro control 11", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData11", "nivel": "cian"},                              # 69
         0x0B: {"name": "Parámetro control 12", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData12", "nivel": "cian"},                              # 70
+    },
+    # ================================================================
+    # BIOIMPEDANCIA Y UREA (0x07) - NUEVO GRUPO
+    # ================================================================
+    0x07: {
+        0x00: {"name": "BioZ Resistencia", "type": "double", "rw": False, "unit": "Ohm", "limites": (0, 1000), "tag": "bioz_resistance", "nivel": "cian"}, # ID para Modbus si lo hubiera
+        0x01: {"name": "BioZ Fase", "type": "double", "rw": False, "unit": "Deg", "limites": (-180, 180), "tag": "bioz_phase", "nivel": "cian"},           # Estos tags son usados en la señal data_received
+        0x02: {"name": "Urea Sensor ADC1", "type": "double", "rw": False, "unit": "ADC", "limites": (0, 4095), "tag": "urea_adc1", "nivel": "cian"},       
+        0x03: {"name": "Urea Sensor ADC2", "type": "double", "rw": False, "unit": "ADC", "limites": (0, 4095), "tag": "urea_adc2", "nivel": "cian"},       
     },
 }
 
@@ -206,5 +215,6 @@ TVAR_TO_GROUP = {
     0x03: "Setpoints",
     0x04: "Control PID",
     0x05: "Proceso",
-    0x06: "Calibración"
+    0x06: "Calibración",
+    0x07: "Bioimpedancia y Urea" 
 }

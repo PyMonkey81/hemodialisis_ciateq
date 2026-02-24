@@ -626,6 +626,8 @@ from core.alarms import AlarmSystem
 from core.variables_map import VARIABLES
 
 from connection.serial_communication import SerialCommunication
+from connection.led_bar_controller import LedBarController
+from connection.bioz_urea_controller import BiozUreaController
 from gui.therapy.main_screen import MainScreen
 from gui.therapy.alarms_screen import AlarmsScreen
 from gui.therapy.dialysis_screen import DialysisScreen
@@ -675,6 +677,15 @@ class HemodialysisHMI(QMainWindow):
         self.serial_comm = SerialCommunication()
         self.serial_comm.data_received.connect(self.update_value)
 
+        # lectura de sensores de bioimpedancia
+        self.bioz_urea_controller = BiozUreaController()
+        self.bioz_urea_controller.data_received.connect(self.update_value) 
+        self.bioz_urea_controller.start()
+
+        
+
+        
+
         # Alarm system
         self.active_alarms = []
         display_names = [info["name"] for g in VARIABLES.values() for info in g.values()]
@@ -694,6 +705,10 @@ class HemodialysisHMI(QMainWindow):
         self.alarm_system.start_monitoring()
 
         self.current_values = {tag: 0.0 for tag in tags}
+
+        # led bar 
+        self.led_bar = LedBarController()
+        self.led_bar.start()
 
         # Screens initialization
         self.alarms_screen = AlarmsScreen(
@@ -772,8 +787,7 @@ class HemodialysisHMI(QMainWindow):
             self.navigation_buttons["Comenzar"].setEnabled(False)
             self.navigation_buttons["Comenzar"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
 
-    # def _main_screen(self):
-        # return MainScreen()
+   
     # ────────────────────────────────────────────────
     #                   UI Setup
     # ────────────────────────────────────────────────
@@ -935,7 +949,23 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
     def start_treatment(self):
         # ← Implementar lógica de condiciones iniciales antes de iniciar
-        pass
+        logger.info("iniciando tratamiento y mediciones externas: Bioempedancia")
+        if self.bioz_urea_controller:
+            self.bioz_urea_controller.send_command("SRTB") # bioimpedancia
+        
+        self.perform_ktv_measurement()
+        ms_interval = 30*60*1000
+        self.ktv_timer.start(ms_interval)
+
+    def stop_treatment(self):
+        if self.ktv_timer.isActive():
+            self.ktv_timer.stop()
+            logger.info("[kt/V] Medición detenida")
+
+        if self.bioz_urea_controller:
+            self.bioz_urea_controller.send_command("STOP")
+
+
 
     def show_home_screen(self):
         self.screen_stack.setCurrentIndex(self.INDEX_HOME)
@@ -1049,6 +1079,13 @@ class HemodialysisHMI(QMainWindow):
     def update_value(self, tag: str, value: float):
         self.current_values[tag] = value
 
+        if self.alarm_system:
+            self.alarm_system.update_value_by_tag(tag, value)
+
+
+        if tag == "urea_adc2":
+            self.measurement_ktv()
+
         gauge_mapping = {
             "arterPresProcessData":   self.arterial_pressure_gauge,
             "venouPresProcessData":   self.venous_pressure_gauge,
@@ -1098,10 +1135,113 @@ class HemodialysisHMI(QMainWindow):
 
         self.refresh_alarms_label()
         self.update_connection_status()
+        self.update_led_bar_state()
+
+    # ────────────────────────────────────────────────
+    #              LED Bar Logic
+    # ────────────────────────────────────────────────
+    # def update_led_bar_state(self):
+    #     """
+    #     Determina el color de la barra LED segun la prioridad:
+    #     1. Desconexión Máquina -> Amarillo Parpadeo ('e')
+    #     2. Alarma Roja -> Rojo Fijo ('r')
+    #     3. Alarma Naranja -> Amarillo Parpadeo ('e')
+    #     4. Alarma Amarilla -> Amarillo Fijo ('y')
+    #     5. Alarma Cian -> Cian Fijo ('c')
+    #     6. Sin Alarmas -> Verde Fijo ('g')
+    #     """
+    #     if not self.serial_comm or not self.serial_comm.is_connected:
+    #         self.led_bar.send_state(self.led_bar.CMD_YELLOW_FLASH)
+    #         return
+    #     led_cmd_to_send = self.led_bar.CMD_GREEN_SOLID # Default: Verde sólido
+    #     should_silence_buzzer = False # Por defecto: buzzer activo (si hay alarma)
+
+
+    #     if self.active_alarms:
+    #         priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian":1}
+    #         # Get the alarm with the highest priority
+    #         top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2],0))
+    #         level = top_alarm[2]
+
+    #         if level == "rojo":
+    #             self.led_bar.send_state(self.led_bar.CMD_RED_SOLID)
+    #         elif level == "naranja":
+    #             self.led_bar.send_state(self.led_bar.CMD_YELLOW_FLASH)
+    #         elif level == "amarillo":
+    #             self.led_bar.send_state(self.led_bar.CMD_YELLOW_SOLID)
+    #         elif level == "cian":
+    #             self.led_bar.send_state(self.led_bar.CMD_CYAN_SOLID)
+    #     else:
+    #         self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID) # 'g'
+
+
+    def update_led_bar_state(self):
+        """
+        Determina el color de la barra LED y el estado del buzzer según la prioridad.
+        """
+        # 1. Prioridad: Error de comunicación con la máquina principal
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            self.led_bar.send_state(self.led_bar.CMD_CYAN_SOLID, silence_buzzer=False) # Cian para reconectando, buzzer activo para llamar atención
+            return
+
+        led_cmd_to_send = self.led_bar.CMD_GREEN_SOLID # Default: Verde sólido
+        # 2. Prioridad: Alarmas Activas
+        if self.active_alarms:
+            priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1, "info": 0}
+            top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2], 0))
+            level = top_alarm[2]
+                       
+            if level == "rojo":
+                led_cmd_to_send = self.led_bar.CMD_RED_SOLID
+            elif level == "naranja":
+                led_cmd_to_send = self.led_bar.CMD_YELLOW_FLASH # Asumimos "naranja" mapea a "e" (amarillo flash) en Arduino
+            elif level == "amarillo":
+                led_cmd_to_send = self.led_bar.CMD_YELLOW_SOLID
+            elif level == "cian":
+                led_cmd_to_send = self.led_bar.CMD_CYAN_SOLID
+                        
+            self.led_bar.send_state(led_cmd_to_send, silence_buzzer=False) # Siempre false aquí
+            return # Finaliza si hay alarmas
+
+        # 3. Sin alarmas activas, todo OK.
+        self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID, silence_buzzer=False)
+
+
+    
+    def perform_ktv_measurement(self):
+        """
+        Ejecuta la secuencia de lectura para Bioimpedancia y Urea.
+        Se llama al inicio del tratamiento y luego cada 30 minutos.
+        """
+        if not hasattr(self, 'bioz_urea_controller') or not self.bioz_urea_controller:
+            logger.warning("Controlador BioZ/Urea no disponible, omitiendo medición Kt/V")
+            return
+
+        logger.info("[Kt/V] Iniciando ciclo de medición automático...")
+        
+        self.bioz_urea_controller.send_command("SRTB")# 1. Enviar comando de Bioimpedancia
+        
+        # 2. Programar la lectura de Urea unos segundos después
+        # Damos 5 segundos para que la BioZ termine o se estabilice antes de pedir Urea
+        
+        QTimer.singleShot(5000, lambda: self.bioz_urea_controller.send_command("SRTU"))
+
+
+    def measurement_ktv(self):
+        urea = self.current_values.get("urea_adc1", 0) # O el algoritmo que usen para convertir ADC a concentración
+        # bioz = self.current_values.get("bioz_resistance", 0)
+        
+        # ... Fórmula del Kt/V (Daugirdas u otra) ...
+        # ktv = ...
+        
+        # Guardar/Mostrar resultado
+        # self.current_values["ktv_calculado"] = ktv
+        # logger.info(f"Nuevo cálculo Kt/V: {ktv}")
+
 
     def update_connection_status(self):
         if not hasattr(self, 'serial_comm') or not self.serial_comm or not self.serial_comm.is_connected:
-            text, color = "RECONECTANDO...", "#f97316"
+            text, color = "RECONECTANDO...", "#f97316"            
         elif self.active_alarms:
             text = "ALARMA ACTIVA"
             color = "#dc2626" if int(time.time()) % 2 == 0 else "#991b1b"
@@ -1117,6 +1257,8 @@ class HemodialysisHMI(QMainWindow):
         current_widget = self.screen_stack.currentWidget()
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
+
+        self.update_led_bar_state()
 
     def log_event(self, event, value, timestamp):
         logger.error(f"[EVENT] {timestamp} → {event}")
@@ -1151,6 +1293,26 @@ class HemodialysisHMI(QMainWindow):
             except Exception as e:
                 logger.error(f"[ERROR] Failed to stop serial communication: {e}")
             self.serial_comm = None
+        
+        if hasattr(self, 'led_bar') and self.led_bar:
+            try:
+                # Enviar comando de apagado al Arduino modificado
+                self.led_bar.send_state(self.led_bar.CMD_OFF, silence_buzzer=True) 
+                time.sleep(0.1) # Breve espera para asegurar que el comando salga
+                self.led_bar.stop()
+            except Exception as e:
+                logger.error(f"Error stopping LED bar: {e}")
+
+        if hasattr(self, 'bioz_urea_controller') and self.bioz_urea_controller:
+            try:
+                self.bioz_urea_controller.stop()
+            except Exception as e:
+                logger.error(f"Error deteniendo el controlador de BioZ/Urea: {e}")
+        
+
+        if hasattr(self, 'ktv_timer') and self.ktv_timer.isActive():
+            self.ktv_timer.stop()
+        
 
         time.sleep(0.1)
         logger.error("[INFO] Controlled shutdown completed.")
