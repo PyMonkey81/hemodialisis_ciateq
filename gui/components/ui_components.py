@@ -128,11 +128,11 @@ class LabeledParameterWidget(QWidget):
         super().__init__(parent)
 
         
-#               value="0.0",    
-#               units: str = "",
-#               numpad_title: str = "",
-#               is_editable: bool = True,
-#               parent=None):
+        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+        input_style = """
+            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            border: 2px solid #000000; border-radius: 5px; padding: 4px;
+        """
 
         self.setFixedHeight(90)  # Consistent touch target size
         self._tag = tag
@@ -163,20 +163,14 @@ class LabeledParameterWidget(QWidget):
         # Value widget (editable or read-only)
         if is_editable:
             self.value_widget = ClickableLineEdit(value)
+            self.value_widget.setStyleSheet(input_style)
             self.value_widget.setMinimumWidth(80)
             self.value_widget.setFixedHeight(40)
             self.value_widget.setAlignment(Qt.AlignCenter)
             self.value_widget.clicked.connect(self._emit_numpad_request)
         else:
             self.value_widget = QLabel(value)
-            self.value_widget.setStyleSheet("""
-                color: #22d3ee;
-                font-size: 20px;
-                font-weight: bold;
-                border: 2px solid #000000;
-                border-radius: 1px;
-                padding: 2px;
-            """)
+            self.value_widget.setStyleSheet(indicator_style)      
             self.value_widget.setMinimumWidth(80)
             self.value_widget.setFixedHeight(40)
             self.value_widget.setAlignment(Qt.AlignCenter)
@@ -236,6 +230,7 @@ class LabeledTimeInput(QWidget):
                  tag_minutes: str = None,
                  local_timer_id: str = None,
                  numpad_title: str = "",
+                 is_editable: bool = True,
                  parent=None):
         super().__init__(parent)
 
@@ -244,6 +239,12 @@ class LabeledTimeInput(QWidget):
         self._tag_minutes = tag_minutes
         self._local_timer_id = local_timer_id
         self._numpad_title = numpad_title or label_text
+
+        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+        input_style = """
+            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            border: 2px solid #000000; border-radius: 5px; padding: 4px;
+        """
 
         # Container frame
         self.frame = QFrame(self)
@@ -267,12 +268,21 @@ class LabeledTimeInput(QWidget):
         """)
 
         # Clickable time display
-        self.time_display = ClickableLineEdit(initial_hh_mm)
-        self.time_display.setReadOnly(True)
-        self.time_display.setMinimumWidth(80)
-        self.time_display.setFixedHeight(40)
-        self.time_display.setAlignment(Qt.AlignCenter)
-        self.time_display.clicked.connect(self._emit_time_numpad_request)
+        if is_editable:
+            self.time_display = ClickableLineEdit(initial_hh_mm)
+            self.time_display.setStyleSheet(input_style)
+            self.time_display.setReadOnly(True)
+            self.time_display.setMinimumWidth(80)
+            self.time_display.setFixedHeight(40)
+            self.time_display.setAlignment(Qt.AlignCenter)
+            self.time_display.clicked.connect(self._emit_time_numpad_request)
+        else:
+            self.time_display = QLabel(initial_hh_mm)
+            self.time_display.setStyleSheet(indicator_style)
+            self.time_display.setMinimumWidth(80)
+            self.time_display.setFixedHeight(40)
+            self.time_display.setAlignment(Qt.AlignCenter)
+            
 
         frame_layout.addWidget(self.header_label)
         frame_layout.addWidget(self.time_display)

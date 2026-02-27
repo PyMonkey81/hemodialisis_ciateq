@@ -120,13 +120,13 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x05: {"name": "Kd control de flujo sanguíneo", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlDeriGain", "nivel": "cian"},          # 21   5
         0x06: {"name": "Setpoint conductividad", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyCondControlSetPoint", "nivel": "cian"},       # 22   6
         0x07: {"name": "Conductividad medida", "type": "double", "rw": False, "unit": "mS/cm", "limites": (12.5, 15.5), "tag": "dialyCondVariableData", "nivel": "amarillo"},       # 23   7
-        0x08: {"name": "Salida control de conductividad", "type": "double", "rw": False, "unit": "%", "limites": (0, 100), "tag": "dialyCondControlOutput", "nivel": "cian"},       # 24   8
+        0x08: {"name": "Salida control de conductividad", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyCondControlOutput", "nivel": "cian"},       # 24   8
         0x09: {"name": "Kp control de conductividad", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlPropGain", "nivel": "cian"},            # 25   9
         0x0A: {"name": "Ki control de conductividad", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlInteGain", "nivel": "cian"},            # 26   10
         0x0B: {"name": "Kd control de conductividad", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlDeriGain", "nivel": "cian"},            # 27   11  
         0x0C: {"name": "Setpoint temperatura", "type": "double", "rw": True, "unit": "°C", "limites": (35.0, 39.0), "tag": "dialyTempControlSetPoint", "nivel": "cian"},            # 28   12 
         0x0D: {"name": "Temperatura medida", "type": "double", "rw": False, "unit": "°C", "limites": (34.5, 39.5), "tag": "dialyTempVariableData", "nivel": "amarillo"},            # 29   13
-        0x0E: {"name": "Salida control temperatura", "type": "double", "rw": False, "unit": "%", "limites": (0, 100), "tag": "dialyTempControlOutput", "nivel": "cian"},            # 30   14 
+        0x0E: {"name": "Salida control temperatura", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyTempControlOutput", "nivel": "cian"},            # 30   14 
         0x0F: {"name": "Kp control temperatura", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlPropGain", "nivel": "cian"},                 # 31   15
         0x10: {"name": "Ki control temperatura", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlInteGain", "nivel": "cian"},                 # 32   16
         0x11: {"name": "Kd control temperatura", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlDeriGain", "nivel": "cian"},                 # 33   17

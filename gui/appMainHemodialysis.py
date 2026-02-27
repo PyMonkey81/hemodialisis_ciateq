@@ -618,8 +618,9 @@ import time
 import logging
 from PySide6.QtWidgets import *
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QDateTime
 from PySide6.QtGui import QColor, QPixmap
+from utilities.csv_logger import CsvLogger
 
 # === MODULES ===
 from core.alarms import AlarmSystem
@@ -660,17 +661,91 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+
+
+   
+
 class HemodialysisHMI(QMainWindow):
     # Screen indices
     INDEX_HOME = 0
 
     def __init__(self):
         super().__init__()
+        self.csv_logger = None
+        self.parameter_mapping = {            
+            # "dialyLinePresProcessData":     "PT-3 (Presión Línea)",
+            # "dialyPresIFProcessData":       "PT-4 (Presión IF)",
+            # "dialyPresOFProcessData":       "PT-5 (Presión OF)",
+            # "dialyLineWaterPresData":       "PT-6 (Presión Agua)",
+            # "dialyBChamPresProcessData":    "PT-7 (Presión Cámara B)",
+            # "bloodArteryPressureData":      "PT-8 (Presión Arteria Sanguínea)",
+            # "bloodVenousPressureData":      "PT-9 (Presión Vena Sanguínea)",
+            # "dialyPFilPmpPresProcessData":  "PT-10 (Presión Bomba Filtro)",
+            # "CALC_PTM":                     "PTM", # Lo dejé como estaba, si es un valor calculado
+            # "dialyCondVariableData":        "Conductividad",
+            # "bloodSpeedVariableData":       "Flujo Sanguíneo",
+            # "dialyFlowControlOutput":       "Flujo Dializado",
+            # "dialyTempIFProcessData":       "Temperatura DI",
+            # "dialyTempControlOutput":       "Temperatura Tanque",
+            # "dialyTempControlSetPoint":     "Setpoint Temperatura",
+            # "dialyCondControlSetPoint":     "Setpoint Conductividad",
+            # "UF Total":                     "UF Total Acumulada",
+            # "ultraFilterPumpSpeed":         "Tasa UF",
+            # "heparineTherapyDosage":        "Dosis Heparina", # Ya tiene su propio display
+            # "therapy_time":                 "Tiempo Terapia", # Corregido "theraphy"
+            # "dialyTankHiLevelSwitch":       "Nivel Tanque Alto",
+            # "dialyWaterInletValveButt":     "Válvula Entrada Agua",
+            # "dialyDeaerChamLevSwitch":      "Cámara Desaireación",
+            # "watterTankHeaterProtect":      "Protector Calefactor",
+            # "airBubbleInBloodDetected":     "Burbuja en Sangre",
+            # "bloodInDialyCircDetected":     "Sangre en Circuito Dial.",
+            # "dialyPurgePumpStartButt":      "Purga Aire",
+            "dialyLinePresProcessData": "PT-3",
+            "dialyPresIFProcessData": "PT-4",
+            "dialyPresOFProcessData": "PT-5",
+            "dialyLineWaterPresData": "PT-6",
+            "dialyBChamPresProcessData": "PT-7",
+            "bloodArteryPressureData": "PT-8",
+            "bloodVenousPressureData": "PT-9",
+            "dialyPFilPmpPresProcessData": "PT-10",
+            "dialyTempIFProcessData": "Temperatura EF",
+            "dialyTempOFProcessData": "Temperatura SF",
+            "dialyTempControlOutput": "Temperatura Tanque",
+            "dialyCondControlSetPoint": "Setpoint Conductividad",
+            "dialyCondControlOutput": "Salida Conductividad",
+            "dialyTempControlSetPoint": "Setpoint Temperatura",
+            "CAL_PTM": "Presión Transmembrana",
+            "dialyTankHiLevelSwitch": "Nivel",
+            "dialyWaterInletValveButt": "Valvula 27",
+            "dialyDeaerChamLevSwitch": "C. Deareación",
+            "watterTankHeaterProtect": "Protector Calefactor",
+            "airBubbleInBloodDetected": "Aire en Sangre",
+            "bloodInDialyCircDetected": "Sangre en dializante",
+            "dialyPurgePumpStartButt": "Purga de aire",
+        }
+        # Control de tiempo de terapia (global)
+        self.therapy_start_time = None
+        self.total_therapy_seconds = 0
+        self.is_treatment_running = False
+
+        # Timer para actualizar tiempo cada segundo (en toda la app)
+        self.therapy_time_timer = QTimer(self)
+        self.therapy_time_timer.setInterval(1000)  # 1 segundo
+        self.therapy_time_timer.timeout.connect(self._update_therapy_time_displays)
+
+        # Timer para mediciones Kt/V cada 30 min
+        self.ktv_timer = QTimer(self)
+        self.ktv_timer.setInterval(30 * 60 * 1000)  # 30 minutos en ms
+        self.ktv_timer.timeout.connect(self.perform_ktv_measurement)
 
         self.setup_ui()
         self.update_current_screen_label("Inicio", "#000000")
         self.setFixedSize(1920, 1080)
         self.setStyleSheet("background: #FCFCFC;")
+
+        self.log_timer = QTimer(self)
+        self.log_timer.setInterval(5000) # Registrar cada 5 segundos (5000 ms)
+        self.log_timer.timeout.connect(self._log_current_data)
 
         # Serial communication
         self.current_values = {}
@@ -699,6 +774,8 @@ class HemodialysisHMI(QMainWindow):
             types=["numeric" if info["type"] == "double" else "boolean" for g in VARIABLES.values() for info in g.values()],
             boolean_triggers=[True] * len(tags)
         )
+        self.buzzer_silenced_by_user = False
+
         # handle for alarms and start monitoring
         self.alarm_system.alarm_changed.connect(self.handle_alarm)
         self.alarm_system.new_event.connect(self.log_event)
@@ -772,13 +849,11 @@ class HemodialysisHMI(QMainWindow):
         self.serial_comm.connect()
         self.serial_comm.start_reading()
 
-        self.left_container.hide()
-        self.right_container.hide()
-        self.right_content.setStyleSheet("background: transparent")
-        self.left_content.setStyleSheet("background: transparent")
-
-        # self.right_content.show()
-        # self.left_content.show()
+        self.right_content.hide()
+        self.left_content.hide()
+        self.left_container.setStyleSheet("background: transparent")
+        self.right_container.setStyleSheet("background: transparent")
+    
 
         # Disable home buttons at startup
         if "Inicio" in self.navigation_buttons:
@@ -812,14 +887,15 @@ class HemodialysisHMI(QMainWindow):
         self._main_screen = MainScreen()    
         self.screen_stack.addWidget(self._main_screen)
         self.main_layout.addWidget(self.screen_stack, 1, 1, 1, 4)
-
-        # ── Header (1920 × 177) ──────────────────────────
+        #==========================================================================================
+        # ============================ Header (1920 × 177) ========================================
+        #==========================================================================================
         header_container = QWidget()
-        header_container.setFixedHeight(177)
+        header_container.setFixedHeight(150)
         header_container.setStyleSheet("background: #EBEBEB;")
 
         header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(30, 20, 30, 20)
+        header_layout.setContentsMargins(10, 10, 10, 10)
         header_layout.setSpacing(20)
 
         # Connection / alarm status
@@ -861,37 +937,36 @@ class HemodialysisHMI(QMainWindow):
         # ==================================================================== 
         #                  GAUGES IZQUIERDA (PA + PV) 
         # ====================================================================
-        self.left_container = QWidget()
-        self.left_container.setFixedSize(192, 903)
+        self.left_container = QWidget()  #CONTENEDOR FIJO SIEMPRE VISIBLE
+        self.left_container.setFixedSize(180, 903)
         left_layout_outer = QVBoxLayout(self.left_container)
         left_layout_outer.setContentsMargins(0, 0, 0, 0)
 
-        self.left_content = QWidget()
-        self.left_content.setFixedSize(192, 903)
+        self.left_content = QWidget() # CONTENEDOR DE WIDGETS
+        self.left_content.setFixedSize(180, 903)
         left_inner_layout = QVBoxLayout(self.left_content)
         left_inner_layout.setContentsMargins(0, 0, 0, 0)
         left_inner_layout.setSpacing(0)
 
         self.arterial_pressure_gauge = TankGauge("Art", -100, 400, "mmHg", "#dc2626")
         self.venous_pressure_gauge   = TankGauge("Ven",  -50, 400, "mmHg", "#1640f9")
-
-        self.arterial_pressure_gauge.setFixedSize(192, 451)
-        self.venous_pressure_gauge.setFixedSize(192, 452)
-
+        self.arterial_pressure_gauge.setFixedSize(180, 451)
+        self.venous_pressure_gauge.setFixedSize(180, 452)
         left_inner_layout.addWidget(self.arterial_pressure_gauge)
         left_inner_layout.addWidget(self.venous_pressure_gauge)
 
         left_layout_outer.addWidget(self.left_content)
         self.main_layout.addWidget(self.left_container, 1, 0, 2, 1)
-
-        # ── Right gauges (Temp + Conductivity) ───────────
-        self.right_container = QWidget()
-        self.right_container.setFixedSize(192, 903)
+        #=========================================================================================
+        # ===================== Right gauges (Temp + Conductivity) ===============================
+        #=========================================================================================
+        self.right_container = QWidget() # CONTENEDOR DERECHO FIJO 
+        self.right_container.setFixedSize(180, 903)
         right_outer_layout = QVBoxLayout(self.right_container)
         right_outer_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.right_content = QWidget()
-        self.right_content.setFixedSize(192, 903)
+        self.right_content = QWidget() # CONTENEDOR DE WIDGETS 
+        self.right_content.setFixedSize(180, 903)
         right_inner_layout = QVBoxLayout(self.right_content)
         right_inner_layout.setContentsMargins(0, 0, 0, 0)
         right_inner_layout.setSpacing(0)
@@ -899,8 +974,8 @@ class HemodialysisHMI(QMainWindow):
         self.dialysate_temp_gauge = TankGauge("Temp.\nDial", 0, 50, "°C", "#A31A1A")
         self.conductivity_bar = ConductivityBar()
 
-        self.dialysate_temp_gauge.setFixedWidth(192)
-        self.conductivity_bar.setFixedWidth(192)
+        self.dialysate_temp_gauge.setFixedWidth(180)
+        self.conductivity_bar.setFixedWidth(180)
 
         right_inner_layout.addWidget(self.dialysate_temp_gauge, 1)
         right_inner_layout.addWidget(self.conductivity_bar, 1)
@@ -910,7 +985,8 @@ class HemodialysisHMI(QMainWindow):
 
         # ── Bottom navigation bar ────────────────────────
         nav_bar = QWidget()
-        nav_bar.setFixedSize(1536, 177)
+        # nav_bar.setFixedSize(1536, 177)
+        nav_bar.setFixedSize(1560, 150)
         nav_bar.setStyleSheet("background: #FCFCFC;")
 
         nav_layout = QHBoxLayout(nav_bar)
@@ -948,38 +1024,157 @@ class HemodialysisHMI(QMainWindow):
     #              Navigation Methods
     # ────────────────────────────────────────────────
     def start_treatment(self):
-        # ← Implementar lógica de condiciones iniciales antes de iniciar
-        logger.info("iniciando tratamiento y mediciones externas: Bioempedancia")
+        logger.info("Iniciando tratamiento y mediciones externas: Bioimpedancia")
+
+        # Verificar que haya duración configurada
+        # Leer duración desde current_values (viene de therapy_config)
+        hours = int(self.current_values.get("heparineTherapyHours", 0))
+        minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
+        self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
+
+        if self.total_therapy_seconds <= 0:
+            QMessageBox.warning(self, "Configuración incompleta", 
+                                "Configure la duración de la terapia primero.")
+            self.show_therapy_config_screen()
+            return
+
+        # Guardar inicio y activar estado
+        self.therapy_start_time = QDateTime.currentDateTime()
+        self.is_treatment_running = True
+
+        # Iniciar timer de actualización (si no está corriendo)
+        if not self.therapy_time_timer.isActive():
+            self.therapy_time_timer.start()
+
+        # Iniciar bioimpedancia y Kt/V
         if self.bioz_urea_controller:
-            self.bioz_urea_controller.send_command("SRTB") # bioimpedancia
+            self.bioz_urea_controller.send_command("SRTB")
+    
         
-        self.perform_ktv_measurement()
-        ms_interval = 30*60*1000
-        self.ktv_timer.start(ms_interval)
+        self.perform_ktv_measurement()  # Primera medición inmediata
+        
+        if not self.ktv_timer.isActive():
+            self.ktv_timer.start()
+
+        # Feedback
+        QMessageBox.information(self, "Tratamiento Iniciado", 
+                                f"Sesión iniciada por {hours:02d}:{minutes:02d}")
+
+        # Actualizar pantalla de diálisis (si está visible)
+        if self.screen_stack.currentWidget() == self.dialysis_screen:
+            self.dialysis_screen.update_values(self.current_values)
+
+    def start_priming(self):
+        """
+        Inicia el proceso de cebado (priming / enjuague).
+        - Verifica conexión serial
+        - Cierra logger anterior si existe
+        - Inicia nuevo logging CSV
+        - Envía comandos booleanos al controlador
+        - Muestra feedback al usuario
+        """
+        # 1. Verificar conexión serial (obligatorio)
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            QMessageBox.warning(self, "Error de conexión", 
+                                "No hay conexión con el controlador.\n"
+                                "No se puede iniciar el cebado.")
+            logger.warning("Intento de iniciar cebado sin conexión serial")
+            return
+
+        # 2. Cerrar logger anterior si ya existe (evita duplicados/corrupción)
+        if self.csv_logger:
+            logger.info("Cerrando logger anterior antes de nuevo cebado")
+            self.log_timer.stop()
+            self.csv_logger.close()
+            self.csv_logger = None
+
+        # 3. Definir directorio de logs (puedes cambiar la ruta si quieres)
+        LOG_DIRECTORY = "logs/hemodialysis"  # Se crea automáticamente si no existe
+
+        # 4. Crear e iniciar el nuevo logger CSV
+        try:
+            self.csv_logger = CsvLogger(
+                log_directory=LOG_DIRECTORY,
+                parameter_key_map=self.parameter_mapping
+            )
+            self.log_timer.start()
+            logger.info("Logger CSV iniciado correctamente para cebado")
+        except Exception as e:
+            logger.error(f"Error al crear logger CSV para cebado: {e}")
+            QMessageBox.critical(self, "Error crítico", 
+                                 f"No se pudo iniciar el registro de datos:\n{str(e)}")
+            return
+
+        # 5. Enviar comandos al controlador
+        try:
+            self._write_boolean_command("dialyStartDialysisButt", True)
+            self._write_boolean_command("dialyStopDialysisButt", False)
+            logger.info("Comandos de cebado enviados: Start=True, Stop=False")
+        except Exception as e:
+            logger.error(f"Error enviando comandos de cebado: {e}")
+            QMessageBox.warning(self, "Advertencia", 
+                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
+
+        # 6. Feedback claro al usuario (muy importante en equipo médico)
+        QMessageBox.information(self, "Cebado Iniciado",
+                                "Proceso de cebado iniciado correctamente.\n\n"
+                                "• Registro de datos activo en logs/hemodialysis/\n"
+                                "• Duración típica: 5–10 minutos\n"
+                                "Presione 'DETENER' cuando finalice o espere condición automática.")
+
+        # 7. Cambiar a pantalla de diálisis para monitorear presiones, etc.
+        self.show_dialysis_screen()
+
 
     def stop_treatment(self):
-        if self.ktv_timer.isActive():
-            self.ktv_timer.stop()
-            logger.info("[kt/V] Medición detenida")
+   
+
+        self._write_boolean_command("dialyStartDialysisButt", False)
+        self._write_boolean_command("dialyStopDialysisButt", True)
+
+        # if self.ktv_timer.isActive():
+        #     self.ktv_timer.stop()
+        #     logger.info("[kt/V] Medición detenida")
 
         if self.bioz_urea_controller:
             self.bioz_urea_controller.send_command("STOP")
+
+        # Resetear estado de tiempo
+
+        self.is_treatment_running = False
+        self.therapy_start_time = None
+        self.total_therapy_seconds = 0
+
+        # Detener timer de actualización si no hay tratamiento
+        if hasattr(self, 'therapy_time_timer') and self.therapy_time_timer.isActive():
+            self.therapy_time_timer.stop()
+
+        # Actualizar displays inmediatamente
+        self._update_therapy_time_displays()
+
+        # Cerrar logger si existe
+        if self.csv_logger:
+            self.log_timer.stop()
+            self.csv_logger.close()
+            self.csv_logger = None
+            logger.info("Sesión detenida - logger cerrado")
 
 
 
     def show_home_screen(self):
         self.screen_stack.setCurrentIndex(self.INDEX_HOME)
         self.update_current_screen_label("Inicio", "#0A0A0A")
-        self.left_container.hide()
-        self.right_container.hide()
+        self.right_content.hide()
+        self.left_content.hide()
+
 
     def show_dialysis_screen(self):
         self.screen_stack.setCurrentWidget(self.dialysis_screen)
         if hasattr(self.dialysis_screen, "update_values"):
             self.dialysis_screen.update_values(self.current_values)
         self.update_current_screen_label("Diálisis", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
         self.navigation_buttons["Inicio"].setEnabled(True)
         self.navigation_buttons["Inicio"].setStyleSheet("""
             QPushButton { background: #1b10b9; color: #ffffff; font-weight: bold;
@@ -990,78 +1185,87 @@ class HemodialysisHMI(QMainWindow):
     def show_treatment_mode_screen(self):
         self.screen_stack.setCurrentWidget(self.treatment_mode_screen)
         self.update_current_screen_label("Modo de Tratamiento", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_cleaning_screen(self):
         self.screen_stack.setCurrentWidget(self.cleaning_screen)
         if hasattr(self.cleaning_screen, "update_values"):
             self.cleaning_screen.update_values(self.current_values)
         self.update_current_screen_label("Limpieza", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_options_screen(self):
         self.screen_stack.setCurrentWidget(self.options_screen)
         self.update_current_screen_label("Configuración", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_alarms_screen(self):
         self.screen_stack.setCurrentWidget(self.alarms_screen)
         self.update_current_screen_label("Alarmas", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_manual_mode_screen(self):
         self.screen_stack.setCurrentWidget(self.manual_mode_screen)
         if hasattr(self.manual_mode_screen, "update_values"):
             self.manual_mode_screen.update_values(self.current_values)
         self.update_current_screen_label("Modo Manual", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_test_panel_screen(self):
         self.screen_stack.setCurrentWidget(self.test_panel_screen)
         if hasattr(self.test_panel_screen, "update_values"):
             self.test_panel_screen.update_values(self.current_values)
         self.update_current_screen_label("Panel de Pruebas", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_calibration_screen(self):
         self.screen_stack.setCurrentWidget(self.calibration_screen)
         if hasattr(self.calibration_screen, "update_values"):
             self.calibration_screen.update_values(self.current_values)
         self.update_current_screen_label("Calibración", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_network_config_screen(self):
         self.screen_stack.setCurrentWidget(self.network_config_screen)
         self.update_current_screen_label("Configuración de Red", "#0f172a")
+        self.left_content.show()
+        self.right_content.show()
 
     def show_real_time_var_screen(self):
         self.screen_stack.setCurrentWidget(self.real_time_var)
         self.update_current_screen_label("Monitor de Variables", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_patient_config_screen(self):
         self.screen_stack.setCurrentWidget(self.patient_config_screen)
         if hasattr(self.patient_config_screen, "update_values"):
             self.patient_config_screen.update_values(self.current_values)
         self.update_current_screen_label("Paciente", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
 
     def show_therapy_config_screen(self):
         self.screen_stack.setCurrentWidget(self.therapy_config_screen)
         if hasattr(self.therapy_config_screen, "update_values"):
             self.therapy_config_screen.update_values(self.current_values)
         self.update_current_screen_label("Terapia", "#0f172a")
-        self.left_container.show()
-        self.right_container.show()
+        self.left_content.show()
+        self.right_content.show()
+
+
+    
+  
+        
+        
+        
 
     # ────────────────────────────────────────────────
     #              Utility Methods
@@ -1092,6 +1296,7 @@ class HemodialysisHMI(QMainWindow):
             "dialyTempVariableData":  self.dialysate_temp_gauge,
             "dialyCondVariableData":  self.conductivity_bar,
         }
+            
 
         if tag in gauge_mapping:
             gauge_mapping[tag].setValue(value)
@@ -1127,11 +1332,16 @@ class HemodialysisHMI(QMainWindow):
             """)
 
     def handle_alarm(self, idx, active, value, name, level, limit):
+        was_active = name in [a[0] for a in self.active_alarms]
         if active:
             if name not in [a[0] for a in self.active_alarms]:
                 self.active_alarms.append((name, value, level))
+                self.buzzer_silenced_by_user = False
         else:
             self.active_alarms = [a for a in self.active_alarms if a[0] != name]
+            self.active_alarms = [a for a in self.active_alarms if a[0] != name]
+            if not self.active_alarms:
+                self.buzzer_silenced_by_user = False
 
         self.refresh_alarms_label()
         self.update_connection_status()
@@ -1140,72 +1350,34 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
     #              LED Bar Logic
     # ────────────────────────────────────────────────
-    # def update_led_bar_state(self):
-    #     """
-    #     Determina el color de la barra LED segun la prioridad:
-    #     1. Desconexión Máquina -> Amarillo Parpadeo ('e')
-    #     2. Alarma Roja -> Rojo Fijo ('r')
-    #     3. Alarma Naranja -> Amarillo Parpadeo ('e')
-    #     4. Alarma Amarilla -> Amarillo Fijo ('y')
-    #     5. Alarma Cian -> Cian Fijo ('c')
-    #     6. Sin Alarmas -> Verde Fijo ('g')
-    #     """
-    #     if not self.serial_comm or not self.serial_comm.is_connected:
-    #         self.led_bar.send_state(self.led_bar.CMD_YELLOW_FLASH)
-    #         return
-    #     led_cmd_to_send = self.led_bar.CMD_GREEN_SOLID # Default: Verde sólido
-    #     should_silence_buzzer = False # Por defecto: buzzer activo (si hay alarma)
-
-
-    #     if self.active_alarms:
-    #         priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian":1}
-    #         # Get the alarm with the highest priority
-    #         top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2],0))
-    #         level = top_alarm[2]
-
-    #         if level == "rojo":
-    #             self.led_bar.send_state(self.led_bar.CMD_RED_SOLID)
-    #         elif level == "naranja":
-    #             self.led_bar.send_state(self.led_bar.CMD_YELLOW_FLASH)
-    #         elif level == "amarillo":
-    #             self.led_bar.send_state(self.led_bar.CMD_YELLOW_SOLID)
-    #         elif level == "cian":
-    #             self.led_bar.send_state(self.led_bar.CMD_CYAN_SOLID)
-    #     else:
-    #         self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID) # 'g'
-
 
     def update_led_bar_state(self):
-        """
-        Determina el color de la barra LED y el estado del buzzer según la prioridad.
-        """
-        # 1. Prioridad: Error de comunicación con la máquina principal
+        """Determina LED + estado del buzzer según prioridad y si el usuario silenció."""
         if not self.serial_comm or not self.serial_comm.is_connected:
-            self.led_bar.send_state(self.led_bar.CMD_CYAN_SOLID, silence_buzzer=False) # Cian para reconectando, buzzer activo para llamar atención
+            self.led_bar.send_state(self.led_bar.CMD_CYAN_SOLID, silence_buzzer=False)
             return
 
-        led_cmd_to_send = self.led_bar.CMD_GREEN_SOLID # Default: Verde sólido
-        # 2. Prioridad: Alarmas Activas
         if self.active_alarms:
             priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1, "info": 0}
             top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2], 0))
             level = top_alarm[2]
-                       
+
             if level == "rojo":
-                led_cmd_to_send = self.led_bar.CMD_RED_SOLID
+                cmd = self.led_bar.CMD_RED_SOLID
             elif level == "naranja":
-                led_cmd_to_send = self.led_bar.CMD_YELLOW_FLASH # Asumimos "naranja" mapea a "e" (amarillo flash) en Arduino
+                cmd = self.led_bar.CMD_YELLOW_FLASH
             elif level == "amarillo":
-                led_cmd_to_send = self.led_bar.CMD_YELLOW_SOLID
+                cmd = self.led_bar.CMD_YELLOW_SOLID
             elif level == "cian":
-                led_cmd_to_send = self.led_bar.CMD_CYAN_SOLID
-                        
-            self.led_bar.send_state(led_cmd_to_send, silence_buzzer=False) # Siempre false aquí
-            return # Finaliza si hay alarmas
+                cmd = self.led_bar.CMD_CYAN_SOLID
+            else:
+                cmd = self.led_bar.CMD_GREEN_SOLID
 
-        # 3. Sin alarmas activas, todo OK.
-        self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID, silence_buzzer=False)
-
+            # ← flag del usuario
+            silence = self.buzzer_silenced_by_user
+            self.led_bar.send_state(cmd, silence_buzzer=silence)
+        else:
+            self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID, silence_buzzer=False)
 
     
     def perform_ktv_measurement(self):
@@ -1317,9 +1489,172 @@ class HemodialysisHMI(QMainWindow):
         time.sleep(0.1)
         logger.error("[INFO] Controlled shutdown completed.")
 
+    def _log_current_data(self):
+        """
+        Método slot llamado por el QTimer para registrar los datos actuales.
+        """
+        if self.csv_logger:
+            self.csv_logger.log_data(self.current_values)
+
+
+    def _write_boolean_command(self, tag: str, state: bool):
+        """
+        Envía un comando booleano (True/False) al controlador vía serial.
+        """
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            logger.warning(f"No se puede enviar comando booleano '{tag} = {state}': serial no conectado")
+            # Opcional: QMessageBox.warning(self, "Error", "Serial no conectado")
+            return
+
+        try:
+            logger.debug(f"Buscando tag booleano: {tag} = {state}")
+
+            address = -1
+            for group_key, vars_group in VARIABLES.items():
+                if isinstance(vars_group, dict):
+                    for var_id, info in vars_group.items():
+                        if info.get("tag") == tag:
+                            address = var_id
+                            break
+                if address != -1:
+                    break
+
+            if address == -1:
+                logger.error(f"Tag booleano '{tag}' no encontrado en VARIABLES")
+                return
+
+            # Envío real
+            self.serial_comm.write_boolean(address, state)
+            logger.info(f"Comando booleano enviado: {tag} = {state} (Address {address})")
+
+        except Exception as e:
+            logger.error(f"Error al enviar comando booleano '{tag} = {state}': {e}")
+
+    def _write_setpoint(self, tag: str, value: float):
+        """
+        Envía un setpoint (double) al controlador vía serial.
+        """
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            logger.warning(f"No se puede escribir setpoint '{tag} = {value}': serial no conectado")
+            return  # Opcional: mostrar QMessageBox si quieres feedback visual
+
+        try:
+            logger.debug(f"Buscando tag para escritura: {tag} = {value}")
+
+            target_group = target_id = -1
+            found = False
+
+            for group_key, vars_group in VARIABLES.items():
+                if isinstance(vars_group, dict):
+                    for var_id, info in vars_group.items():
+                        if info.get("tag") == tag:
+                            target_group = group_key
+                            target_id = var_id
+                            found = True
+                            break
+                if found:
+                    break
+
+            if not found or target_group == -1 or target_id == -1:
+                logger.error(f"Tag '{tag}' no encontrado en VARIABLES")
+                return
+
+            if not VARIABLES[target_group][target_id].get("rw", False):
+                logger.warning(f"Tag '{tag}' es de solo lectura (rw=False)")
+                return
+
+            # Envío real
+            self.serial_comm.write_double(target_group, target_id, value)
+            logger.info(f"Setpoint escrito correctamente: {tag} = {value} (Grupo {hex(target_group)}, ID {target_id})")
+
+        except Exception as e:
+            logger.error(f"Error al escribir setpoint '{tag} = {value}': {e}")
+
     def closeEvent(self, event):
+        self.end_dialysis_session() # Llama a la función que cierra el logger
+        super().closeEvent(event)
         logger.error("[INFO] closeEvent → performing shutdown...")
         self.shutdown()
         time.sleep(1.0)  # Give OS time to release resources
         event.accept()
         QApplication.quit()
+
+#=========================================================================================================
+    # def _update_therapy_time_displays(self):
+    #     """
+    #     Actualiza los displays de tiempo en DialysisScreen si está visible.
+    #     También detiene automáticamente al finalizar.
+    #     """
+    #     # Solo si la pantalla de diálisis está activa
+    #     if not hasattr(self, 'dialysis_screen') or self.screen_stack.currentWidget() != self.dialysis_screen:
+    #         return
+
+    #     if not self.is_treatment_running or self.therapy_start_time is None:
+    #         self.dialysis_screen.elapsed_time_display.set_value("00:00")
+    #         self.dialysis_screen.remaining_time_display.set_value("00:00")
+    #         return
+
+    #     # Tiempo transcurrido
+    #     elapsed = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
+    #     elapsed_h = elapsed // 3600
+    #     elapsed_m = (elapsed % 3600) // 60
+    #     self.dialysis_screen.elapsed_time_display.set_value(f"{elapsed_h:02d}:{elapsed_m:02d}")
+
+    #     # Tiempo restante
+    #     remaining_sec = max(0, self.total_therapy_seconds - elapsed)
+    #     rem_h = remaining_sec // 3600
+    #     rem_m = (remaining_sec % 3600) // 60
+    #     self.dialysis_screen.remaining_time_display.set_value(f"{rem_h:02d}:{rem_m:02d}")
+
+    #     # Detener automáticamente al llegar a cero
+    #     if remaining_sec <= 0:
+    #         self.stop_treatment()
+    #         QMessageBox.information(self, "Terapia Finalizada", "Tiempo programado completado.")
+
+    def _update_therapy_time_displays(self):
+        if not hasattr(self, 'dialysis_screen') or self.screen_stack.currentWidget() != self.dialysis_screen:
+            return
+
+        if not self.is_treatment_running or self.therapy_start_time is None:
+            self.dialysis_screen.elapsed_time_display.set_value("00:00")
+            self.dialysis_screen.remaining_time_display.set_value("00:00")
+            return
+
+        # Calcular segundos transcurridos
+        elapsed_sec = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
+
+        # Transcurrido
+        elapsed_h = elapsed_sec // 3600
+        elapsed_m = (elapsed_sec % 3600) // 60
+        elapsed_s = elapsed_sec % 60   # ← AGREGADO: segundos reales
+        elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"  # Muestra segundos también
+
+        self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
+
+        # Restante
+        remaining_sec = max(0, self.total_therapy_seconds - elapsed_sec)
+        rem_h = remaining_sec // 3600
+        rem_m = (remaining_sec % 3600) // 60
+        rem_s = remaining_sec % 60
+        remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
+
+        self.dialysis_screen.remaining_time_display.set_value(remaining_str)
+
+        # Detener al llegar a cero
+        if remaining_sec <= 0:
+            self.stop_treatment()
+            QMessageBox.information(self, "Finalizado", "Tiempo de terapia completado.")
+
+
+    # def start_dialysis_session(self, patient_id: str):
+    #     # ... (Carga de datos del paciente, configuración de la máquina, etc.) ...
+
+    #     # Inicializar el logger CSV cuando la sesión comienza
+    #     log_dir = "dialysis_logs" # Directorio para guardar los logs
+    #     self.csv_logger = CsvLogger(log_dir, patient_id, self.parameter_mapping)
+        
+    #     self.log_timer.start() # Iniciar el temporizador para el registro
+
+  
+
+

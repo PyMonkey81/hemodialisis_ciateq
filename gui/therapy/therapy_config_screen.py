@@ -363,12 +363,18 @@ class TherapyConfigScreen(QWidget):
             if hours is not None and minutes is not None:
                 input_widget.setText(f"{hours:02d}:{minutes:02d}")
 
+
+                if tag_hours:
+                    self.values[tag_hours] = float(hours)          # o int(hours)
+                    self.parent_window.current_values[tag_hours] = float(hours)  # redundante pero seguro
+
+                if tag_minutes:
+                    self.values[tag_minutes] = float(minutes)
+                    self.parent_window.current_values[tag_minutes] = float(minutes)
+
                 # Send to controller if tags are available
                 if tag_hours and tag_minutes:
-                    print(f"[WRITE] Sending hours ({hours}) to tag: {tag_hours}")
                     self._write_setpoint(tag_hours, float(hours))
-
-                    print(f"[WRITE] Sending minutes ({minutes}) to tag: {tag_minutes}")
                     self._write_setpoint(tag_minutes, float(minutes))
                 elif tag_hours or tag_minutes:
                     print("[WARNING] Only one time tag provided. Both hours and minutes tags required.")
@@ -465,3 +471,9 @@ class TherapyConfigScreen(QWidget):
             hours = int(self.values.get(tag_hours, 0))
             minutes = int(self.values.get(tag_minutes, 0))
             widget.setText(f"{hours:02d}:{minutes:02d}")
+
+    def _format_ms_to_hh_mm(self, ms: int) -> str:
+        total_seconds = max(0, ms // 1000)
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}"

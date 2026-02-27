@@ -1,3 +1,1052 @@
+# gui/service/manual_mode_screen.py
+# Manual mode screen for direct control of pumps, valves, and critical actuators
+# Critical safety features: REQ-SW-005, REQ-SW-010, REQ-SW-012, REQ-SW-020
+
+import logging
+from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QSizePolicy
+from PySide6.QtCore import Qt, QTimer, QDateTime
+from PySide6.QtGui import QColor
+
+# Asumo que estas importaciones existen en tu proyecto
+from gui.components.LED import LED
+from gui.components.ToggleSwitch import ToggleSwitch
+from gui.components.numpad_modal import NumpadDialog
+from gui.components.time_numpad_modal import TimeNumpadDialog
+from gui.components.ui_components import ClickableLineEdit, LabeledParameterWidget, LabeledTimeInput
+
+from core.variables_map import VARIABLES
+from logic.calculos import (
+    convertir_flujo_a_ciclos,
+    convertir_ciclos_a_flujo,
+    convertir_litros_h_a_ml_min,
+    convertir_ml_min_a_litros_h
+)
+
+logger = logging.getLogger(__name__)
+
+
+class ValveCard(QFrame):
+    """Reusable card component for valve control (REQ-SW-005)."""
+
+    def __init__(self, code: str, description: str, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("""
+            QFrame {
+                background-color: #1e293b;
+                border-radius: 2px;
+                border: 1px solid #334155;
+            }
+        """)
+        self.setFixedHeight(80)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
+        # Aquí usamos HTML para el salto de línea y estilos
+        info_label = QLabel(f"<b>{code}</b><br><span style='font-size:18px; color:#cbd5e1;'>{description}</span>")
+        info_label.setStyleSheet("color: #ffffff; font-size: 18px; border:none; background: transparent;")
+        info_label.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
+
+        self.toggle = ToggleSwitch(width=70, height=30, parent=self)
+        layout.addWidget(info_label)
+        layout.addStretch()
+        layout.addWidget(self.toggle)
+
+
+class ManualModeScreen(QWidget):
+    def __init__(self, parent=None, values_dict=None):
+        super().__init__(parent)
+        self.parent_window = parent
+        self.values = values_dict if values_dict is not None else {}
+
+        self.write_hold_off = {}
+
+        self._setup_timers()
+        self.setup_ui()
+        logger.info("Manual mode module initialized (v1.0.0)")
+
+    def _setup_timers(self):
+        self.blood_pump_timer = QTimer(self)
+        self.blood_pump_timer.timeout.connect(self._stop_blood_pump_on_timeout)
+
+        self.dialysate_pump_timer = QTimer(self)
+        self.dialysate_pump_timer.timeout.connect(self._stop_dialysate_pump_on_timeout)
+
+        self.uf_pump_timer = QTimer(self)
+        self.uf_pump_timer.timeout.connect(self._stop_uf_pump_on_timeout)
+
+        self.heparin_pump_timer = QTimer(self)
+        self.heparin_pump_timer.timeout.connect(self._stop_heparin_pump_on_timeout)
+
+        self.balance_chamber_timer = QTimer(self)
+        self.balance_chamber_timer.timeout.connect(self._stop_balance_chamber_on_timeout)
+
+        self.display_update_timer = QTimer(self)
+        self.display_update_timer.timeout.connect(self._update_local_time_displays)
+        self.display_update_timer.start(500)
+
+        self.local_timer_states = {
+            "blood_pump":     {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},
+            "dialysate_pump": {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},
+            "uf_pump":        {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},
+            "heparin_pump":   {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},
+            "balance_chamber": {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},          
+        }
+
+    def setup_ui(self):
+        layout = QGridLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+
+        label_style = "color: #000000; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+        button_style = """
+            QPushButton { background: #3b82f6; color: #ffffff; border-radius: 20px; font-weight: bold; }
+            QPushButton:pressed { background: #1e40af; }
+        """
+        input_style = """
+            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            border: 2px solid #000000; border-radius: 5px; padding: 4px;
+        """
+
+        self.control_area = QWidget(self)
+        self.control_area.setStyleSheet("background: #fcfcfc; border: None;")
+        self.control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        grid = QGridLayout(self.control_area)
+        grid.setSpacing(10)
+        grid.setContentsMargins(5, 5, 5, 5)
+
+        # Configuración del Grid (Espacio en el medio)
+        # Izquierda: cols 0-3 | Espacio: col 4 | Derecha: cols 5-13
+        grid.setColumnStretch(4, 1) 
+
+        # ==============================================================================
+        # --- FILA 0: Dosis Heparina(1), Bolo(2) | Sangre(3,4,5,6,7) ---
+        # ==============================================================================
+        
+        # 1. Dosis de heparina (Izq)
+        self.input_heparin = LabeledParameterWidget(
+            label_text="Dosis Hep.", tag="heparineTherapyDosage",
+            value="0.0", units="ml/h", numpad_title="Dosis Heparina",
+            is_editable=True, parent=self.control_area
+        )
+        self.input_heparin.request_numpad.connect(self.open_numpad)
+        grid.addWidget(self.input_heparin, 0, 0, 1, 2)
+
+        # 2. Bolus (Izq)
+        self.input_bolus = LabeledParameterWidget(
+            label_text="Bolo", tag="heparineBolusQuantity",
+            value="0.0", units="ml", numpad_title="Dosis Bolo",
+            is_editable=True, parent=self.control_area
+        )
+        self.input_bolus.request_numpad.connect(self.open_numpad)
+        grid.addWidget(self.input_bolus, 0, 2, 1, 2)
+
+        # 3. Toggle b. sangre (Der)
+        lbl_blood_pump = QLabel("B. S.")
+        lbl_blood_pump.setStyleSheet(label_style)
+        grid.addWidget(lbl_blood_pump, 0, 5, 1, 1)
+
+        self.blood_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
+        self.blood_pump_toggle.toggled.connect(
+            lambda checked: self._handle_dual_pump_toggle(
+                "bloodPumpStartButton", "bloodPumpStopButton", checked, timer_id="blood_pump"
+            )
+        )
+        grid.addWidget(self.blood_pump_toggle, 0, 6, 1, 1)
+
+        # 4. Btn REV sangre (Der)
+        self.btn_rev = QPushButton("REV")
+        self.btn_rev.setFixedSize(80, 70) # Mantengo tu tamaño original
+        self.btn_rev.setStyleSheet(button_style)        
+        self.btn_rev.pressed.connect(lambda: self._write_boolean_command("bloodPumpREVButton", True))
+        self.btn_rev.released.connect(lambda: self._write_boolean_command("bloodPumpREVButton", False))
+        grid.addWidget(self.btn_rev, 0, 7, 1, 1)
+
+        # 5. Btn FWD sangre (Der)
+        btn_fwd = QPushButton("FWD")
+        btn_fwd.setFixedSize(80, 70)
+        btn_fwd.setStyleSheet(button_style)
+        btn_fwd.pressed.connect(lambda: self._write_boolean_command("bloodPumpFWDButton", True))
+        btn_fwd.released.connect(lambda: self._write_boolean_command("bloodPumpFWDButton", False))
+        grid.addWidget(btn_fwd, 0, 8, 1, 1)
+
+        # 6. Flujo Sangre (Der)
+        self.blood_flow_input = LabeledParameterWidget(
+            label_text="Flujo", tag="bloodFlowControlSetPoint",
+            value="0", units="ml/min", numpad_title="Flujo de Sangre",
+            is_editable=True, parent=self.control_area
+        )
+        self.blood_flow_input.request_numpad.connect(self.open_numpad)
+        grid.addWidget(self.blood_flow_input, 0, 9, 1, 2)
+
+        # 7. Velocidad Sangre (Der)
+        self.blood_speed_display = LabeledParameterWidget(
+            label_text="Vel", tag="bloodSpeedVariableData",
+            value="0.0", units="rpm", is_editable=False, parent=self.control_area
+        )
+        grid.addWidget(self.blood_speed_display, 0, 11, 1, 2)
+
+
+        # ==============================================================================
+        # --- FILA 1: Jeringa(8), Btn Bolo(9) | Tiempos Sangre(10, 11) ---
+        # ==============================================================================
+
+        # 8. Jeringa (Izq)
+        self.input_syringe_size = LabeledParameterWidget(
+            label_text="Jeringa", tag="heparineSyrinjeScaleSize",
+            value="0.0", units="mm/ml", numpad_title="Tamaño de jeringa",
+            is_editable=True, parent=self.control_area
+        )
+        self.input_syringe_size.request_numpad.connect(self.open_numpad)
+        grid.addWidget(self.input_syringe_size, 1, 0, 1, 2)
+
+        # 9. Btn aplicar bolo (Izq)
+        btn_bolus_apply = QPushButton("Aplicar\nbolo", self.control_area)
+        btn_bolus_apply.setFixedSize(120, 70)
+        btn_bolus_apply.setStyleSheet(button_style)
+        btn_bolus_apply.pressed.connect(lambda: self.parent_window._write_boolean_command("heparinApplyBolusDose", True))
+        btn_bolus_apply.released.connect(lambda: self.parent_window._write_boolean_command("heparinApplyBolusDose", False))
+        grid.addWidget(btn_bolus_apply, 1, 2, 1, 2, alignment=Qt.AlignCenter)
+
+        # 10. Tiempo operación b. sangre (Der)
+        self.blood_pump_time_input = LabeledTimeInput(
+            label_text="Tiempo Op.:", initial_hh_mm="00:00",
+            tag_hours=None, tag_minutes=None, local_timer_id="blood_pump",
+            numpad_title="Tiempo de operación de bomba de sangre",
+            is_editable=True,
+            parent=self.control_area
+        )
+        self.blood_pump_time_input.request_time_numpad.connect(self.open_time_numpad)
+        grid.addWidget(self.blood_pump_time_input, 1, 9, 1, 2)
+
+        # 11. Rest b. sangre (Der)
+        self.remaining_blood_time_label = LabeledTimeInput(
+            label_text="Rest.:", 
+            initial_hh_mm="00:00",
+            is_editable=False,
+            parent=self.control_area
+        )        
+        grid.addWidget(self.remaining_blood_time_label, 1, 11, 1, 2)
+        self.local_timer_states["blood_pump"]["remaining_lbl"] = self.remaining_blood_time_label.time_display
+
+
+        # ==============================================================================
+        # --- FILA 2: Terapia(12, 43) | B. Heparina (13-18) ---
+        # ==============================================================================
+
+        # 12. Tiempo terapia (Izq)
+        self.heparin_time_input = LabeledTimeInput(
+            label_text="T. Terapia:", initial_hh_mm="00:00",
+            tag_hours="heparineTherapyHours", tag_minutes="heparineTherapyMinutes",
+            local_timer_id="heparin_pump", numpad_title="Tiempo de terapia",
+            is_editable=True,
+            parent=self.control_area
+        )
+        self.heparin_time_input.request_time_numpad.connect(self.open_time_numpad)
+        grid.addWidget(self.heparin_time_input, 2, 0, 1, 2) 
+
+        # 43. Rest. Terapia (Izq)
+        self.remaining_heparin_pump = LabeledTimeInput(
+            label_text="Rest.:", 
+            initial_hh_mm="00:00",
+            is_editable=False,
+            parent=self.control_area
+        )        
+        grid.addWidget(self.remaining_heparin_pump, 2, 2, 1, 2)       
+
+        self.local_timer_states["heparin_pump"]["remaining_lbl"] = self.remaining_heparin_pump.time_display
+
+        # 13. Toggle b. heparina (Der)
+        lbl_heparin_pump = QLabel("B. Hep.", self.control_area)
+        lbl_heparin_pump.setStyleSheet(label_style)
+        grid.addWidget(lbl_heparin_pump, 2, 5, 1, 1)
+
+        self.heparin_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
+        self.heparin_pump_toggle.toggled.connect(
+            lambda checked: self._handle_dual_pump_toggle("heparinePumpsStartButton", "heparinePumpsStopButton", checked, timer_id="heparin_pump")
+        )
+        grid.addWidget(self.heparin_pump_toggle, 2, 6, 1, 1)
+
+        # 14. Btn HOME heparina
+        btn_heparin_home = QPushButton("HOME", self.control_area)
+        btn_heparin_home.setFixedSize(80, 70)
+        btn_heparin_home.setStyleSheet(button_style)
+        btn_heparin_home.pressed.connect(lambda: self._write_boolean_command("heparinePumpHomePosition", True))
+        btn_heparin_home.released.connect(lambda: self._write_boolean_command("heparinePumpHomePosition", False))
+        grid.addWidget(btn_heparin_home, 2, 7, 1, 1)
+
+        # 15. Btn REV heparina
+        btn_rev_hep = QPushButton("REV", self.control_area)
+        btn_rev_hep.setFixedSize(80, 70)
+        btn_rev_hep.setStyleSheet(button_style)
+        btn_rev_hep.pressed.connect(lambda: self._write_boolean_command("heparinePumpREVButton", True))
+        btn_rev_hep.released.connect(lambda: self._write_boolean_command("heparinePumpREVButton", False))
+        grid.addWidget(btn_rev_hep, 2, 8, 1, 1)
+
+        # 16. Btn PAUSE heparina
+        btn_pause_hep = QPushButton("PAUSE", self.control_area)
+        btn_pause_hep.setFixedSize(80, 70)
+        btn_pause_hep.setStyleSheet(button_style)
+        btn_pause_hep.pressed.connect(lambda: self._write_boolean_command("heparineOperPauseResume", True))
+        btn_pause_hep.released.connect(lambda: self._write_boolean_command("heparineOperPauseResume", False))
+        grid.addWidget(btn_pause_hep, 2, 9, 1, 1)
+
+        # 17. Btn FWD heparina
+        btn_fwd_hep = QPushButton("FWD", self.control_area)
+        btn_fwd_hep.setFixedSize(80, 70)
+        btn_fwd_hep.setStyleSheet(button_style)
+        btn_fwd_hep.pressed.connect(lambda: self._write_boolean_command("heparinePumpFWDButton", True))
+        btn_fwd_hep.released.connect(lambda: self._write_boolean_command("heparinePumpFWDButton", False))
+        grid.addWidget(btn_fwd_hep, 2, 10, 1, 1)
+
+        # 18. Heparina (Acumulado)
+        self.heparin_current_dosage_display = LabeledParameterWidget(
+            label_text="Hep.", tag="heparineCurrentDosage",
+            value="0.0", units="ml", is_editable=False, parent=self.control_area
+        )
+        grid.addWidget(self.heparin_current_dosage_display, 2, 11, 1, 2)
+
+
+        # ==============================================================================
+        # SEPARADOR CENTRAL (Usamos Frame HLine)
+        # ==============================================================================
+        # linea = QFrame(); linea.setFrameShape(QFrame.HLine); linea.setStyleSheet("color: #ccc;")
+        # grid.addWidget(linea, 3, 0, 1, 13)
+
+
+        # ==============================================================================
+        # --- FILA 4: Camara Balance(19,20) | B. Dializante (21-24) ---
+        # ==============================================================================
+
+        # 19. Toggle camara balance (Izq)
+        lbl_cb = QLabel("C. Balance", self.control_area)
+        lbl_cb.setStyleSheet(label_style)
+        grid.addWidget(lbl_cb, 4, 0, 1, 1)
+
+        self.balance_chamber_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
+        self.balance_chamber_toggle.toggled.connect(
+            lambda chk: self._handle_dual_pump_toggle("dialiserBalChambStrButt", "dialiserBalChambStpButt", chk, timer_id="balance_chamber")
+        )
+        grid.addWidget(self.balance_chamber_toggle, 4, 1, 1, 1)
+
+        # 20. Flujo CB (Izq)
+        self.input_flow_cb = LabeledParameterWidget(
+            label_text="Flujo", 
+            tag="balanceChamberSetTiming", # Opcional, referencia
+            value="0.0", 
+            units="ml/min", # mostrar unidades 
+            is_editable=True, 
+            parent=self.control_area
+        )
+        self.input_flow_cb.request_numpad.connect(lambda tag, wid, tit: self._handle_cb_flow_input())
+        grid.addWidget(self.input_flow_cb, 4, 2, 1, 2)    
+
+        # 21. Toggle dializante (Der)
+        lbl_dialysate = QLabel("B. Dial.", self.control_area)
+        lbl_dialysate.setStyleSheet(label_style)
+        grid.addWidget(lbl_dialysate, 4, 5, 1, 1)
+        self.dialysate_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
+        self.dialysate_pump_toggle.toggled.connect(            
+            lambda chk: self._handle_dual_pump_toggle("dialyserPumpStartButton", "dialyserPumpStopButton", chk, timer_id="dialysate_pump")
+        )
+        grid.addWidget(self.dialysate_pump_toggle, 4, 6, 1, 1)
+
+        # 22. Salida dializante (Der)
+   
+        self.dialysate_output_display = LabeledParameterWidget(
+            label_text="Salida", tag="dialyFlowControlOutput",
+            value="0.0", units="%", is_editable=True, parent=self.control_area
+        )
+        self.dialysate_output_display.request_numpad.connect(self.open_numpad)
+        grid.addWidget(self.dialysate_output_display, 4, 7, 1, 2)
+
+        # 23. Tiempo op. b dializante (Der)
+
+        self.dialysate_time_display = LabeledTimeInput(
+            label_text="T. Terapia:", initial_hh_mm="00:00",
+            tag_hours=None, tag_minutes=None,
+            local_timer_id="dialysate_pump", numpad_title="tiempo de Operación",
+            is_editable=True,
+            parent=self.control_area
+        )
+        self.dialysate_time_display.request_time_numpad.connect(self.open_time_numpad)
+        grid.addWidget(self.dialysate_time_display, 4, 9, 1, 2)
+
+        # 24. Tiempo rest dializante (Der)
+        self.lbl_remaining_pd = LabeledTimeInput(
+            label_text="Rest:",
+            initial_hh_mm="00:00",
+            is_editable=False,
+            parent=self.control_area,
+        )
+        grid.addWidget(self.lbl_remaining_pd, 4, 11, 1, 2)
+
+        self.local_timer_states["dialysate_pump"]["remaining_lbl"] = self.lbl_remaining_pd.time_display
+
+
+        # ==============================================================================
+        # --- FILA 5: Ciclos(25, 26) | B. Purga (27, 28) ---
+        # ==============================================================================
+
+        # 25. Set Ciclos CB (Izq)
+        self.balance_cycles_set_input = LabeledParameterWidget(
+            label_text="Ciclos CB", tag="balanceChamberCycleSet",
+            value="0.0",numpad_title="Número de ciclos de cCB",is_editable=True,
+            parent=self.control_area
+        )
+        self.balance_cycles_set_input.request_numpad.connect(self.open_numpad)
+        grid.addWidget(self.balance_cycles_set_input, 5, 0, 1, 2)
+
+        # 26. Ciclos actuales (Izq)
+        self.balance_cycles_actual_label = LabeledParameterWidget(
+            label_text="Ciclos Act.", tag="balanceChamberCycleCount",
+            value="0.0", units="",is_editable=False, parent=self.control_area
+        )
+        grid.addWidget(self.balance_cycles_actual_label, 5, 2, 1, 2)
+
+        # 27. Bomba Purga (Der)
+        lbl_purga = QLabel("B. Purga", self.control_area)
+        lbl_purga.setStyleSheet(label_style)
+        grid.addWidget(lbl_purga, 5, 5, 1, 1)
+
+        self.purge_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
+        self.purge_pump_toggle.toggled.connect(            
+            lambda chk: self._handle_dual_pump_toggle("dialyPurgePumpStartButt", "dialyPurgePumpStopButt", chk, timer_id=None)
+        )
+        grid.addWidget(self.purge_pump_toggle, 5, 6, 1, 1)
+
+        # 28. Salida purga % (Der)
+        self.purge_output_display = LabeledParameterWidget(
+            label_text="Salida", tag="dialyDeaerControlOutput",
+            value="0.0", units="%", is_editable=True, parent=self.control_area
+        )
+        self.purge_output_display.request_numpad.connect(self.open_numpad)
+        grid.addWidget(self.purge_output_display, 5, 7, 1, 2)
+
+        # ==============================================================================
+        # --- FILA 6: Tiempos CB (29, 30) | B. UF (31-34) ---
+        # ==============================================================================
+
+        # 29. Tiempo Op CB (Izq)
+        self.balance_chamber_time_input = LabeledTimeInput(
+            label_text="T. Operacion CB",
+            initial_hh_mm="00:00", tag_hours=None, tag_minutes=None,
+            local_timer_id="balance_chamber",numpad_title="Tiempo de operación CB",
+            is_editable=True,
+            parent=self.control_area
+        )
+        self.balance_chamber_time_input.request_time_numpad.connect(self.open_time_numpad)
+        grid.addWidget(self.balance_chamber_time_input, 6, 0, 1, 2)
+
+        # 30. Tiempo Rest CB (Izq)
+        self.lbl_remaining_cb = LabeledTimeInput(
+            label_text="Rest:",
+            initial_hh_mm="00:00",
+            is_editable=False,
+            parent=self.control_area,
+        )
+        grid.addWidget(self.lbl_remaining_cb, 6, 2, 1, 2)
+        self.local_timer_states["balance_chamber"]["remaining_lbl"] = self.lbl_remaining_cb.time_display
+
+        # 31. Bomba UF (Der)
+        lbl_ultrafiltado = QLabel("B. UF", self.control_area)
+        lbl_ultrafiltado.setStyleSheet(label_style)
+        grid.addWidget(lbl_ultrafiltado, 6, 5, 1, 1)
+        
+        self.uf_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
+        self.uf_pump_toggle.toggled.connect(
+            lambda chk: self._handle_dual_pump_toggle("dialyUltraFPumpStartButt", "dialyUltraFPumpStoptButt", chk, timer_id="uf_pump")
+        )
+        grid.addWidget(self.uf_pump_toggle, 6, 6, 1, 1)
+
+        # 32. Salida UF (Der)        
+        self.lbl_input_indUF = LabeledParameterWidget(
+            label_text="Flujo", tag="ultraFilterPumpSpeed",
+            value="0.0", units="L/h",
+            numpad_title="Flujo UF",is_editable=True,
+            parent=self.control_area
+        )
+        # self.lbl_input_indUF.request_numpad.connect(self._handle_uf_flow_input) 
+        self.lbl_input_indUF.request_numpad.connect(lambda tag, wid, tit: self._handle_uf_flow_input())
+        grid.addWidget(self.lbl_input_indUF, 6, 7, 1, 2)
+
+        # 33. Tiempo Op B UF (Der) 
+        self.uf_time_display = LabeledTimeInput(
+            label_text="T. Operación:",initial_hh_mm="00:00",
+            tag_hours=None, tag_minutes=None,
+            local_timer_id="uf_pump", numpad_title="T. Operación B. UF",
+            is_editable=True, parent=self.control_area
+        )
+        self.uf_time_display.request_time_numpad.connect(self.open_time_numpad)
+        grid.addWidget(self.uf_time_display, 6, 9, 1, 2)
+
+        # 34. Tiempo Rest B UF (Der)
+        self.lbl_remaining_puf = LabeledTimeInput(
+            label_text="Rest:", initial_hh_mm="00:00",
+            tag_hours=None, tag_minutes= None,
+            local_timer_id="uf_pump", is_editable=False,
+            parent=self.control_area
+        )
+        grid.addWidget(self.lbl_remaining_puf, 6, 11, 1, 2)
+
+        self.local_timer_states["uf_pump"]["remaining_lbl"] = self.lbl_remaining_puf.time_display
+
+
+        # ==============================================================================
+        # SEPARADOR HORIZONTAL
+        # ==============================================================================
+        linea2 = QFrame(); linea2.setFrameShape(QFrame.HLine); linea2.setStyleSheet("color: #ccc;")
+        grid.addWidget(linea2, 7, 0, 1, 13)
+
+
+        # ==============================================================================
+        # --- FILA 8: B. Na+ (35, 36) | B. Acido Citrico (39, 40) ---
+        # ==============================================================================
+        
+        # 35. Toggle NA (Izq)
+        lbl_bicarbonate = QLabel("B. Na+", self.control_area)
+        lbl_bicarbonate.setStyleSheet(label_style)
+        grid.addWidget(lbl_bicarbonate, 8, 0, 1, 1)
+
+        self.bicarbonate_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
+        self.bicarbonate_pump_toggle.toggled.connect(
+            lambda chk: self._handle_dual_pump_toggle("dialyBicarbonPumpStartButt", "dialyBicarbonPumpStopButt", chk, timer_id=None)
+        )
+        grid.addWidget(self.bicarbonate_pump_toggle, 8, 1, 1, 1)
+
+        # 36. Salida NA (Izq)
+        self.bicarbonate_output_display = LabeledParameterWidget(
+            label_text="Salida", tag="bicarbonatePumpSpeed",
+            value="0.0", units="%", is_editable=False, parent=self.control_area
+        )
+        grid.addWidget(self.bicarbonate_output_display, 8, 2, 1, 2)
+
+        # 39. Toggle Acido Citrico (Der)
+        lbl_acidocitrico = QLabel("B. A. Citrico", self.control_area)
+        lbl_acidocitrico.setStyleSheet(label_style)
+        grid.addWidget(lbl_acidocitrico, 8, 5, 1, 1)
+
+        self.citric_acid_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
+        self.citric_acid_pump_toggle.toggled.connect(
+            lambda chk: self._handle_dual_pump_toggle("dialyCitricAcPumpStartButt", "dialyCitricAcPumpStopButt", chk, timer_id=None)
+        )
+        grid.addWidget(self.citric_acid_pump_toggle, 8, 6, 1, 1)
+
+        # 40. Salida Acido Citrico (Der) citricAcidPumpSpeed
+        self.citric_acid_output_display = LabeledParameterWidget(
+            label_text="Salida", tag="citricAcidPumpSpeed",
+            value="0.0", units="%", is_editable=False, parent=self.control_area
+        )
+        grid.addWidget(self.citric_acid_output_display, 8, 7, 1, 2)
+
+        grid.setColumnStretch(0, 1)
+        grid.setColumnMinimumWidth(3, 70)
+        grid.setColumnMinimumWidth(13, 110)
+
+        
+
+        # --- VALVULAS ---
+        valves_container = QWidget()
+        # valves_container.setFixedSize(1300, 180)
+        valves_layout = QHBoxLayout(valves_container)
+        valves_layout.setContentsMargins(0, 0, 0, 0)
+        valves_layout.setSpacing(5)
+
+        mode_frame = QFrame()
+        mode_frame.setFixedSize(100, 180)
+        mode_frame.setStyleSheet("background-color: #0f172a; border-radius:8px; border: 2px solid #334155;")
+        mode_layout = QVBoxLayout(mode_frame)
+
+        mode_label = QLabel("Modo de<br>Op.")
+        mode_label.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 18px;")
+        mode_label.setAlignment(Qt.AlignCenter)
+
+        self.operation_mode_toggle = ToggleSwitch(width=70, height=30, active_color="#facc15", parent=mode_frame)
+        self.operation_mode_toggle.toggled.connect(
+            lambda checked: self._write_boolean_command("dialyCircuitElementsOpSel", checked)
+        )
+
+        mode_layout.addStretch()
+        mode_layout.addWidget(mode_label)
+        mode_layout.addSpacing(10)
+        mode_layout.addWidget(self.operation_mode_toggle, 0, Qt.AlignCenter)
+        mode_layout.addStretch()
+
+        valves_layout.addWidget(mode_frame)
+
+        valves_grid_widget = QWidget()
+        valves_grid = QGridLayout(valves_grid_widget)
+        valves_grid.setContentsMargins(0, 0, 0, 0)
+        valves_grid.setSpacing(10)
+
+        valve_info = [
+            (0, 0, "SV_24", "E. Filtro UF", "dialyInputFilterCutButt"),
+            (0, 1, "SV_25", "S. Filtro UF", "dialyOutputFilterCutButt"),
+            (1, 0, "SV_26", "Bypass UF",    "dialyBypassFilterButt"),
+            (1, 1, "SV_27", "E. Agua",      "dialyWaterInletValveButt"),
+            (2, 0, "SV_39", "Recirculación","dialyRecirculatValveButt"),
+            (2, 1, "SV_43", "Venteo CS Aire","dialyAirVentSepChambButt"),
+            (3, 0, "SV_50", "C. Caliente",  "dialyHotChambValveButt"),
+            (3, 1, "SV_30", "Drenaje",      "dialyWaterDrainValveButt"),
+        ]
+        self.valve_cards = {}
+
+        for r, c, code, desc, tag in valve_info:
+            card = ValveCard(code, desc, parent=valves_grid_widget)
+            self.valve_cards[tag] = card
+            valves_grid.addWidget(card, r, c)
+            card.toggle.toggled.connect(lambda checked, t=tag: self._write_boolean_command(t, checked))
+        valves_layout.addWidget(valves_grid_widget)
+        
+        #======================================================================================
+        #                           --- LEDS ---
+        #======================================================================================
+        indicators_area = QWidget()
+        # indicators_area.setFixedSize(180, 780)
+        indicators_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        indicators_area.setStyleSheet("background: #fcfcfc;")
+        led_grid = QGridLayout(indicators_area)
+        led_grid.setSpacing(10)
+        led_grid.setContentsMargins(10, 10, 10, 10)
+
+        led_info = [
+            (0, 0, 0, 1,"B. Sangre",     "bloodPumpStartButton"),
+            (1, 0, 1, 1,"B. Dialante", "dialyserPumpStartButton"),
+            (2, 0, 2, 1,"B.Heparina.",   "heparinePumpsStartButton"),
+            (3, 0, 3, 1,"B. UF",     "dialyUltraFPumpStartButt"),
+            (4, 0, 4, 1,"Purga de aire", "dialyPurgePumpStartButt"),
+            (5, 0, 5, 1,"C.Balance",     "dialiserBalChambStrButt"),
+            (0, 2, 0, 3,"Aire en sangre",     "airBubbleInBloodDetected"),
+            (1, 2, 1, 3,"C.Deaereación", "dialyDeaerChamLevSwitch"),
+            (2, 2, 2, 3,"Fin de ciclos", "dialyBalanceChambCycleEnd"),
+            (3, 2, 3, 3,"Protec. R.","watterTankHeaterProtect"),
+            (4, 2, 4, 3,"Sangre en Dial.",  "bloodInDialyCircDetected"),
+            (5, 2, 5, 3,"Nivel Tanque","dialyTankHiLevelSwitch"),        ]
+
+        self.led_indicators = []
+        for rowl,coll, rled,cled, name, tag in led_info:
+            lbl = QLabel(name)
+            lbl.setStyleSheet("color: #000000; font-size: 18px; font-weight: bold;") 
+            lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            led_grid.addWidget(lbl, rowl, coll)
+
+            led = LED(indicators_area)
+            led.setFixedSize(45, 45)
+            led_grid.addWidget(led, rled, cled, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+            self.led_indicators.append((led, tag))
+
+        layout.addWidget(self.control_area, 0, 0, 2, 2) 
+        layout.addWidget(valves_container, 0, 2, 1, 1) 
+        layout.addWidget(indicators_area, 1, 2, 1, 1)
+
+    # ────────────────────────────────────────────────
+    # Métodos Lógicos (Sin cambios, solo corrección en llamadas auxiliares)
+    # ────────────────────────────────────────────────
+
+    def update_values(self, new_values: dict):
+        self.values = new_values
+        current_ms = QDateTime.currentMSecsSinceEpoch()
+
+        for led, tag in self.led_indicators:
+            value = self.values.get(tag, 0.0)
+            if tag == "dialyTankHiLevelSwitch":
+                led.set_state("off" if value > 0 else "in")
+            else:
+                led.set_state("on" if value > 0 else "off")
+
+        for tag, card in self.valve_cards.items():
+            value = self.values.get(tag, 0.0)
+            new_state = value > 0
+            if card.toggle.is_checked() != new_state:
+                card.toggle.blockSignals(True)
+                card.toggle.setChecked(new_state)
+                card.toggle.blockSignals(False)
+
+        if "balanceChamberSetTiming" not in self.write_hold_off or \
+           current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
+            cycles = self.values.get("balanceChamberSetTiming", 0.0)
+            try:
+                flow_ml_min = convertir_ciclos_a_flujo(cycles)
+                self._update_input_display(self.input_flow_cb, flow_ml_min, precision=1) 
+            except Exception as e:
+                logger.error(f"Error converting CB flow: {e}")
+                self._update_input_display(self.input_flow_cb, 0.0, precision=1)
+
+        if "ultraFilterPumpSpeed" not in self.write_hold_off or \
+           current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
+            uf_ml_min = self.values.get("ultraFilterPumpSpeed", 0.0)
+            try:
+                uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)
+                self._update_input_display(self.lbl_input_indUF, uf_lh, precision=1) 
+            except Exception as e:
+                logger.error(f"Error converting UF flow: {e}")
+                self._update_input_display(self.lbl_input_indUF, 0.0, precision=1)
+
+        self._update_input_display(self.blood_flow_input, self.values.get("bloodFlowControlSetPoint", 0.0))
+        self._update_input_display(self.input_heparin, self.values.get("heparineTherapyDosage", 0.0))
+        self._update_input_display(self.input_bolus, self.values.get("heparineBolusQuantity", 0.0))
+        self._update_input_display(self.input_syringe_size, self.values.get("heparineSyrinjeScaleSize", 0.0))
+        self._update_input_display(self.dialysate_output_display, self.values.get("dialyFlowControlOutput", 0.0))
+        self._update_input_display(self.purge_output_display, self.values.get("dialyDeaerControlOutput", 0.0))
+        self._update_input_display(self.balance_cycles_set_input, self.values.get("balanceChamberCycleSet", 0))
+        self._update_label_display(self.balance_cycles_actual_label, self.values.get("balanceChamberCycleCount", 0))
+
+        self._update_label_display(self.blood_speed_display, self.values.get("bloodSpeedVariableData", 0.0))
+        self._update_label_display(self.bicarbonate_output_display, self.values.get("bicarbonatePumpSpeed", 0.0))
+        self._update_label_display(self.citric_acid_output_display, self.values.get("citricAcidPumpSpeed", 0.0))
+        self._update_label_display(self.heparin_current_dosage_display, self.values.get("heparineCurrentDosage", 0.0))
+
+        self._update_time_display(self.blood_pump_time_input, None, None, "blood_pump")
+        self._update_time_display(self.heparin_time_input, "heparineTherapyHours", "heparineTherapyMinutes", "heparin_pump")
+        self._update_time_display(self.dialysate_time_display, None, None, "dialysate_pump")
+        self._update_time_display(self.uf_time_display, None, None, "uf_pump")
+        self._update_time_display(self.balance_chamber_time_input, None, None, "balance_chamber")
+
+        self._sync_toggle(self.blood_pump_toggle, self.values.get("bloodPumpStartButton", 0.0))
+        self._sync_toggle(self.heparin_pump_toggle, self.values.get("heparinePumpsStartButton", 0.0))
+        self._sync_toggle(self.dialysate_pump_toggle, self.values.get("dialyserPumpStartButton", 0.0))
+        self._sync_toggle(self.citric_acid_pump_toggle, self.values.get("dialyCitricAcPumpStartButt", 0.0))
+        self._sync_toggle(self.bicarbonate_pump_toggle, self.values.get("dialyBicarbonPumpStartButt", 0.0))
+        self._sync_toggle(self.purge_pump_toggle, self.values.get("dialyPurgePumpStartButt", 0.0))
+        self._sync_toggle(self.uf_pump_toggle, self.values.get("dialyUltraFPumpStartButt", 0.0))
+        self._sync_toggle(self.operation_mode_toggle, self.values.get("dialyCircuitElementsOpSel", 0.0))
+        self._sync_toggle(self.balance_chamber_toggle, self.values.get("dialiserBalChambStrButt", 0.0))
+
+        logger.debug("Manual mode values updated from machine")
+
+    def _sync_toggle(self, toggle_widget, value: float):
+        new_state = value > 0
+        if toggle_widget.is_checked() != new_state:
+            toggle_widget.blockSignals(True)
+            toggle_widget.setChecked(new_state)
+            toggle_widget.blockSignals(False)
+
+    def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
+        if not tag_hours and not tag_minutes:
+            return
+        
+        current_ms = QDateTime.currentMSecsSinceEpoch()
+        hold_hours = self.write_hold_off.get(tag_hours, 0) if tag_hours else 0
+        hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
+
+        if current_ms < hold_hours or current_ms < hold_minutes:
+            return
+
+        hours = int(self.values.get(tag_hours, 0)) if tag_hours else 0
+        minutes = int(self.values.get(tag_minutes, 0)) if tag_minutes else 0
+
+        if isinstance(time_widget, LabeledTimeInput):
+            time_widget.set_time_value(hours, minutes)
+        elif hasattr(time_widget, 'setText'):
+            if not time_widget.hasFocus():
+                time_widget.setText(f"{hours:02d}:{minutes:02d}")
+
+        if timer_id and timer_id in self.local_timer_states:
+            if not self.local_timer_states[timer_id]["active"]:
+                total_ms = (hours * 3600 + minutes * 60) * 1000
+                self.local_timer_states[timer_id]["duration_ms"] = total_ms
+
+    def _update_input_display(self, widget, value, precision=1):
+        if not widget.hasFocus():
+            if isinstance(widget, LabeledParameterWidget):
+                widget.set_value(value)
+            elif hasattr(widget, 'setText'):
+                widget.setText(f"{value:.{precision}f}")
+
+    def _update_label_display(self, label, value, precision=1):
+        if isinstance(label, LabeledParameterWidget):
+            label.set_value(value)
+        elif hasattr(label, 'setText'):
+            label.setText(f"{value:.{precision}f}")
+
+    def _handle_dual_pump_toggle(self, start_tag: str, stop_tag: str, enabled: bool, timer_id: str = None):
+        """Handle dual start/stop pump control (REQ-SW-005)."""
+        if enabled:
+            logger.info(f"Starting pump: {start_tag}")
+            self._write_boolean_command(start_tag, True)
+            self._write_boolean_command(stop_tag, False)
+
+            if timer_id and timer_id in self.local_timer_states:
+                state = self.local_timer_states[timer_id]
+                total_ms = state["duration_ms"]
+                if total_ms > 0:
+                    state["active"] = True
+                    state["start_ms"] = QDateTime.currentMSecsSinceEpoch()
+                    timer = getattr(self, f"{timer_id}_timer", None)
+                    if timer: timer.start(total_ms)
+                    logger.info(f"Timer '{timer_id}' started for {total_ms} ms")
+        else:
+            logger.info(f"Stopping pump: {start_tag}")
+            self._write_boolean_command(stop_tag, True)
+            self._write_boolean_command(start_tag, False)
+
+            if timer_id and timer_id in self.local_timer_states:
+                state = self.local_timer_states[timer_id]
+                if state["active"]:
+                    state["active"] = False
+                    timer = getattr(self, f"{timer_id}_timer", None)
+                    if timer and timer.isActive():
+                        timer.stop()
+                    if state["elapsed_lbl"]:
+                        state["elapsed_lbl"].setText("00:00")
+                    if state["remaining_lbl"]:
+                        h = state["duration_ms"] // 3600000
+                        m = (state["duration_ms"] % 3600000) // 60000
+                        state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
+                    logger.info(f"Timer '{timer_id}' stopped")
+
+    def _write_boolean_command(self, tag: str, state: bool):
+        logger.info(f"Command: {tag} → {state}")
+        address = -1
+        for group_key, vars_group in VARIABLES.items():
+            if isinstance(vars_group, dict):
+                for var_id, info in vars_group.items():
+                    if info.get("tag") == tag:
+                        address = var_id
+                        break
+            if address != -1:
+                break
+
+        if address != -1:
+            if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
+                if self.parent_window.serial_comm.is_connected:
+                    self.parent_window.serial_comm.write_boolean(address, state)
+                    logger.info(f"Boolean command sent: Addr {address} = {state}")
+                else:
+                    logger.warning("Serial not connected")
+                    QMessageBox.warning(self, "Error", "Serial no conectado")
+            else:
+                logger.warning("Serial communication not available")
+        else:
+            logger.error(f"Tag '{tag}' not found in VARIABLES map")
+
+    def _write_setpoint(self, tag: str, value: float):
+        try:
+            logger.info(f"Writing setpoint {tag} = {value}")
+            target_group = target_id = -1
+            found = False
+            for group_key, vars_group in VARIABLES.items():
+                if isinstance(vars_group, dict):
+                    for var_id, info in vars_group.items():
+                        if info.get("tag") == tag:
+                            target_group = group_key
+                            target_id = var_id
+                            found = True
+                            break
+                if found:
+                    break
+
+            if found and target_group != -1 and target_id != -1:
+                if VARIABLES[target_group][target_id].get("rw", False):
+                    if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
+                        if self.parent_window.serial_comm.is_connected:
+                            self.parent_window.serial_comm.write_double(target_group, target_id, value)
+                            logger.info(f"Setpoint written: {tag} = {value}")
+                        else:
+                            logger.warning("Serial not connected")
+                    else:
+                        logger.warning("Serial communication not available")
+                else:
+                    logger.warning(f"Tag '{tag}' is read-only")
+            else:
+                logger.error(f"Tag '{tag}' not found in variables map")
+
+        except Exception as e:
+            logger.error(f"Critical error writing setpoint '{tag}': {e}")
+
+    def open_numpad(self, tag: str, input_widget, title: str = "Ingrese valor"):
+        if isinstance(input_widget, LabeledParameterWidget):
+            current_text = str(input_widget.get_value())
+        elif hasattr(input_widget, 'text'):
+            current_text = input_widget.text()
+        else:
+            current_text = "0.0"
+
+        dialog = NumpadDialog(self, initial_value=current_text, title=title)
+
+        if dialog.exec():
+            new_value = dialog.get_value()
+            if new_value is not None:
+                if isinstance(input_widget, LabeledParameterWidget):
+                    input_widget.set_value(new_value)
+                elif hasattr(input_widget, 'setText'):
+                    input_widget.setText(str(new_value))
+                
+                self._write_setpoint(tag, new_value)
+                self.write_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 3000
+
+    def open_time_numpad(self, time_widget, tag_hours: str = None, tag_minutes: str = None,
+                         timer_id: str = None, title: str = "Config. Tiempo"):
+        if isinstance(time_widget, LabeledTimeInput):
+            current_text = time_widget.get_time_value()
+        elif hasattr(time_widget, 'text'):
+            current_text = time_widget.text()
+        else:
+            current_text = "00:00"
+
+        dialog = TimeNumpadDialog(self, initial_hh_mm=current_text, title=title)
+
+        if dialog.exec():
+            hours, minutes = dialog.get_hours_minutes()
+            if hours is not None and minutes is not None:
+                if isinstance(time_widget, LabeledTimeInput):
+                    time_widget.set_time_value(hours, minutes)
+                elif hasattr(time_widget, 'setText'):
+                    time_widget.setText(f"{hours:02d}:{minutes:02d}")
+
+                total_ms = (hours * 3600 + minutes * 60) * 1000
+                current_ms = QDateTime.currentMSecsSinceEpoch()
+                hold_duration = 3000
+
+                if tag_hours and tag_minutes:
+                    self._write_setpoint(tag_hours, float(hours))
+                    self.write_hold_off[tag_hours] = current_ms + hold_duration
+                    self._write_setpoint(tag_minutes, float(minutes))
+                    self.write_hold_off[tag_minutes] = current_ms + hold_duration
+
+                if timer_id and timer_id in self.local_timer_states:
+                    state = self.local_timer_states[timer_id]
+                    state["duration_ms"] = total_ms
+                    if state["elapsed_lbl"]:
+                        state["elapsed_lbl"].setText("00:00")
+                    if state["remaining_lbl"]:
+                        state["remaining_lbl"].setText(f"{hours:02d}:{minutes:02d}")
+
+    def _stop_pump_generic(self, timer_key: str, stop_tag: str, start_tag: str, toggle_widget):
+        logger.warning(f"Timeout: {timer_key} - Automatic pump stop")
+        timer = getattr(self, f"{timer_key}_timer")
+        if timer:
+            timer.stop()
+
+        self.local_timer_states[timer_key]["active"] = False
+        self._write_boolean_command(stop_tag, True)
+        self._write_boolean_command(start_tag, False)
+
+        toggle_widget.blockSignals(True)
+        toggle_widget.setChecked(False)
+        toggle_widget.blockSignals(False)
+
+        state = self.local_timer_states[timer_key]
+        if state["elapsed_lbl"]:
+            state["elapsed_lbl"].setText("00:00")
+        if state["remaining_lbl"]:
+            h = state["duration_ms"] // 3600000
+            m = (state["duration_ms"] % 3600000) // 60000
+            state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
+
+    def _stop_blood_pump_on_timeout(self):
+        self._stop_pump_generic("blood_pump", "bloodPumpStopButton", "bloodPumpStartButton", self.blood_pump_toggle)
+
+    def _stop_dialysate_pump_on_timeout(self):
+        self._stop_pump_generic("dialysate_pump", "dialyserPumpStopButton", "dialyserPumpStartButton", self.dialysate_pump_toggle)
+
+    def _stop_uf_pump_on_timeout(self):
+        self._stop_pump_generic("uf_pump", "dialyUltraFPumpStoptButt", "dialyUltraFPumpStartButt", self.uf_pump_toggle)
+
+    def _stop_heparin_pump_on_timeout(self):
+        self._stop_pump_generic("heparin_pump", "heparinePumpsStopButton", "heparinePumpsStartButton", self.heparin_pump_toggle)
+
+    def _stop_balance_chamber_on_timeout(self):
+        self._stop_pump_generic("balance_chamber", "dialiserBalChambStpButt", "dialiserBalChambStrButt", self.balance_chamber_toggle)
+
+    def _update_local_time_displays(self):
+        current_ms = QDateTime.currentMSecsSinceEpoch()
+        for timer_id, state in self.local_timer_states.items():
+            if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
+                elapsed_ms = current_ms - state["start_ms"]
+                # remaining_ms = max(0, state["duration_ms"] - elapsed_ms)
+                remaining_ms = state["duration_ms"] - elapsed_ms
+
+                if remaining_ms <= 0:
+                    remaining_ms = 0
+                    # elapsed_ms = state["duration_ms"]
+
+                if state["elapsed_lbl"]:
+                    state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
+                if state["remaining_lbl"]:
+                    state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
+            
+            else:
+                if state["elapsed_lbl"] and state["elapsed_lbl"].text() != "00:00":
+                    state["elapsed_lbl"].setText("00:00")
+
+                if state["remaining_lbl"]:
+                    state["remaining_lbl"].setText(self._format_ms_to_hh_mm(state["duration_ms"]))
+                    # h = state["duration_ms"] // 3600000
+                    # m = (state["duration_ms"] % 3600000) // 60000
+                    # state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
+    
+    def _format_ms_to_label(self, label_widget, ms):
+        total_seconds = max(0, int(ms//1000))
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        label_widget.setText(f"{hours:02d}:{minutes:02d}")
+
+    def _format_ms_to_hh_mm(self, ms: int) -> str:
+        total_seconds = max(0, ms // 1000)
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}"
+
+    def _handle_cb_flow_input(self):
+        """Handle balance chamber flow input (ml/min → cycles)."""        
+        try:
+            current_text = self.input_flow_cb.get_value()
+            # ANTES: current_text = self.input_flow_cb.text()
+        except AttributeError:
+            current_text = "0.0"
+
+        dialog = NumpadDialog(self, initial_value=current_text, title="Flujo CB (ml/min)")
+        if dialog.exec():
+            new_value = dialog.get_value()
+            if hasattr(self.input_flow_cb, 'setText'):
+                self.input_flow_cb.setText(str(new_value))
+            
+            try:
+                cycles = convertir_flujo_a_ciclos(new_value)
+                self._write_setpoint("balanceChamberSetTiming", cycles)
+                self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
+            except Exception as e:
+                logger.error(f"Error converting CB flow: {e}")
+
+    def _handle_uf_flow_input(self):
+        """Handle UF flow input (L/h → ml/min)."""
+        # CORREGIDO: Usar text() 
+        try:
+            current_text = self.lbl_input_indUF.text()
+        except AttributeError:
+            current_text = "0.0"
+            
+        dialog = NumpadDialog(self, initial_value=current_text, title="Flujo UF (L/h)")
+        if dialog.exec():
+            new_value = dialog.get_value()
+            if hasattr(self.lbl_input_indUF, 'setText'):
+                self.lbl_input_indUF.setText(str(new_value))
+
+            try:
+                ml_min = convertir_litros_h_a_ml_min(new_value)
+                self._write_setpoint("ultraFilterPumpSpeed", ml_min)
+                self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
+            except Exception as e:
+                logger.error(f"Error converting UF flow: {e}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # gui/service/manual_mode_screem.py
 # CIATEQ A.C. - Módulo de control manual para máquina de hemodiálisis
 # Software Version: 1.0.0
@@ -1090,1019 +2139,4 @@
 #         return inp
 
 
-
-# gui/service/manual_mode_screen.py
-# Manual mode screen for direct control of pumps, valves, and critical actuators
-# Critical safety features: REQ-SW-005, REQ-SW-010, REQ-SW-012, REQ-SW-020
-
-import logging
-from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QSizePolicy
-from PySide6.QtCore import Qt, QTimer, QDateTime
-from PySide6.QtGui import QColor
-
-# Asumo que estas importaciones existen en tu proyecto
-from gui.components.LED import LED
-from gui.components.ToggleSwitch import ToggleSwitch
-from gui.components.numpad_modal import NumpadDialog
-from gui.components.time_numpad_modal import TimeNumpadDialog
-from gui.components.ui_components import ClickableLineEdit, LabeledParameterWidget, LabeledTimeInput
-
-from core.variables_map import VARIABLES
-from logic.calculos import (
-    convertir_flujo_a_ciclos,
-    convertir_ciclos_a_flujo,
-    convertir_litros_h_a_ml_min,
-    convertir_ml_min_a_litros_h
-)
-
-logger = logging.getLogger(__name__)
-
-
-class ValveCard(QFrame):
-    """Reusable card component for valve control (REQ-SW-005)."""
-
-    def __init__(self, code: str, description: str, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet("""
-            QFrame {
-                background-color: #1e293b;
-                border-radius: 2px;
-                border: 1px solid #334155;
-            }
-        """)
-        self.setFixedHeight(80)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
-
-        # Aquí usamos HTML para el salto de línea y estilos
-        info_label = QLabel(f"<b>{code}</b><br><span style='font-size:18px; color:#cbd5e1;'>{description}</span>")
-        info_label.setStyleSheet("color: #ffffff; font-size: 18px; border:none; background: transparent;")
-        info_label.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
-
-        self.toggle = ToggleSwitch(width=70, height=30, parent=self)
-        layout.addWidget(info_label)
-        layout.addStretch()
-        layout.addWidget(self.toggle)
-
-
-class ManualModeScreen(QWidget):
-    def __init__(self, parent=None, values_dict=None):
-        super().__init__(parent)
-        self.parent_window = parent
-        self.values = values_dict if values_dict is not None else {}
-
-        self.write_hold_off = {}
-
-        self._setup_timers()
-        self.setup_ui()
-        logger.info("Manual mode module initialized (v1.0.0)")
-
-    def _setup_timers(self):
-        self.blood_pump_timer = QTimer(self)
-        self.blood_pump_timer.timeout.connect(self._stop_blood_pump_on_timeout)
-
-        self.dialysate_pump_timer = QTimer(self)
-        self.dialysate_pump_timer.timeout.connect(self._stop_dialysate_pump_on_timeout)
-
-        self.uf_pump_timer = QTimer(self)
-        self.uf_pump_timer.timeout.connect(self._stop_uf_pump_on_timeout)
-
-        self.heparin_pump_timer = QTimer(self)
-        self.heparin_pump_timer.timeout.connect(self._stop_heparin_pump_on_timeout)
-
-        self.balance_chamber_timer = QTimer(self)
-        self.balance_chamber_timer.timeout.connect(self._stop_balance_chamber_on_timeout)
-
-        self.display_update_timer = QTimer(self)
-        self.display_update_timer.timeout.connect(self._update_local_time_displays)
-        self.display_update_timer.start(500)
-
-        self.local_timer_states = {
-            "blood_pump":     {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},
-            "dialysate_pump": {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},
-            "uf_pump":        {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},
-            "heparin_pump":   {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},
-            "balance_chamber": {"duration_ms": 0, "start_ms": 0, "active": False, "elapsed_lbl": None, "remaining_lbl": None},          
-        }
-
-    def setup_ui(self):
-        layout = QGridLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(15)
-
-        label_style = "color: #000000; font-size: 18px; font-weight: bold; border: none; background: transparent;"
-        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
-        button_style = """
-            QPushButton { background: #3b82f6; color: #ffffff; border-radius: 2px; font-weight: bold; }
-            QPushButton:pressed { background: #1e40af; }
-        """
-        input_style = """
-            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
-            border: 2px solid #000000; border-radius: 5px; padding: 4px;
-        """
-
-        self.control_area = QWidget(self)
-        self.control_area.setStyleSheet("background: #fcfcfc; border-radius: 2px; border: 2px solid #1e293b;")
-        self.control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid = QGridLayout(self.control_area)
-        grid.setSpacing(10)
-        grid.setContentsMargins(5, 5, 5, 5)
-
-        # --- FILA 0-1: BOMBA SANGRE ---
-        lbl_blood_pump = QLabel("B. Sangre")
-        lbl_blood_pump.setStyleSheet(label_style)
-        grid.addWidget(lbl_blood_pump, 0, 0, 2, 2)
-
-        self.blood_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
-        self.blood_pump_toggle.toggled.connect(
-            lambda checked: self._handle_dual_pump_toggle(
-                "bloodPumpStartButton", "bloodPumpStopButton", checked, timer_id="blood_pump"
-            )
-        )
-        grid.addWidget(self.blood_pump_toggle, 0, 2, 2, 1)
-
-        btn_rev = QPushButton("REV")
-        btn_rev.setFixedSize(80, 70)
-        btn_rev.setStyleSheet(button_style)
-        btn_rev.pressed.connect(lambda: self._write_boolean_command("bloodPumpREVButton", True))
-        btn_rev.released.connect(lambda: self._write_boolean_command("bloodPumpREVButton", False))
-        grid.addWidget(btn_rev, 0, 3, 2, 2)
-
-        btn_fwd = QPushButton("FWD")
-        btn_fwd.setFixedSize(80, 70)
-        btn_fwd.setStyleSheet(button_style)
-        btn_fwd.pressed.connect(lambda: self._write_boolean_command("bloodPumpFWDButton", True))
-        btn_fwd.released.connect(lambda: self._write_boolean_command("bloodPumpFWDButton", False))
-        grid.addWidget(btn_fwd, 0, 5, 2, 2)
-
-        self.blood_flow_input = LabeledParameterWidget(
-            label_text="Flujo", tag="bloodFlowControlSetPoint",
-            value="0", units="ml/min", numpad_title="Flujo de Sangre",
-            is_editable=True, parent=self.control_area
-        )
-        self.blood_flow_input.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.blood_flow_input, 0, 7, 2, 2)
-
-        self.blood_speed_display = LabeledParameterWidget(
-            label_text="Vel", tag="bloodSpeedVariableData",
-            value="0.0", units="rpm", is_editable=False, parent=self.control_area
-        )
-        grid.addWidget(self.blood_speed_display, 0, 9, 2, 2)
-
-        self.blood_pump_time_input = LabeledTimeInput(
-            label_text="Tiempo Op.:", initial_hh_mm="00:00",
-            tag_hours=None, tag_minutes=None, local_timer_id="blood_pump",
-            numpad_title="Tiempo de operación de bomba de sangre",
-            parent=self.control_area
-        )
-        self.blood_pump_time_input.request_time_numpad.connect(self.open_time_numpad)
-        grid.addWidget(self.blood_pump_time_input, 0, 11, 2, 2)
-
-        lbl_remaining_blood_title = QLabel("Rest.:")
-        lbl_remaining_blood_title.setStyleSheet(label_style)
-        grid.addWidget(lbl_remaining_blood_title, 0, 13, 2, 1, alignment=Qt.AlignRight)
-
-        self.remaining_blood_time_label = QLabel("00:00")
-        self.remaining_blood_time_label.setStyleSheet(indicator_style)
-        self.remaining_blood_time_label.setFixedSize(100, 35)
-        self.remaining_blood_time_label.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.remaining_blood_time_label, 0, 14, 2, 2, alignment=Qt.AlignLeft)
-
-        self.local_timer_states["blood_pump"]["remaining_lbl"] = self.remaining_blood_time_label
-        
-        # --- FILA 2-3: BOMBA HEPARINA ---
-        lbl_heparin_pump = QLabel("B. Hep.", self.control_area)
-        lbl_heparin_pump.setStyleSheet(label_style)
-        grid.addWidget(lbl_heparin_pump, 2, 0, 2, 2)
-
-        self.heparin_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
-        self.heparin_pump_toggle.toggled.connect(
-            lambda checked: self._handle_dual_pump_toggle("heparinePumpsStartButton", "heparinePumpsStopButton", checked, timer_id="heparin_pump")
-        )
-        grid.addWidget(self.heparin_pump_toggle, 2, 2, 2, 1)
-
-        btn_heparin_home = QPushButton("HOME", self.control_area)
-        btn_heparin_home.setFixedSize(80, 70)
-        btn_heparin_home.setStyleSheet(button_style)
-        btn_heparin_home.pressed.connect(lambda: self._write_boolean_command("heparinePumpHomePosition", True))
-        btn_heparin_home.released.connect(lambda: self._write_boolean_command("heparinePumpHomePosition", False))
-        grid.addWidget(btn_heparin_home, 2, 3, 2, 2)
-
-        btn_rev_hep = QPushButton("REV", self.control_area)
-        btn_rev_hep.setFixedSize(80, 70)
-        btn_rev_hep.setStyleSheet(button_style)
-        btn_rev_hep.pressed.connect(lambda: self._write_boolean_command("heparinePumpREVButton", True))
-        btn_rev_hep.released.connect(lambda: self._write_boolean_command("heparinePumpREVButton", False))
-        grid.addWidget(btn_rev_hep, 2, 5, 2, 2)
-        
-        btn_pause_hep = QPushButton("PAUSE", self.control_area)
-        btn_pause_hep.setFixedSize(80, 70)
-        btn_pause_hep.setStyleSheet(button_style)
-        btn_pause_hep.pressed.connect(lambda: self._write_boolean_command("heparineOperPauseResume", True))
-        btn_pause_hep.released.connect(lambda: self._write_boolean_command("heparineOperPauseResume", False))
-        grid.addWidget(btn_pause_hep, 2, 7, 2, 2)
-
-        btn_fwd_hep = QPushButton("FWD", self.control_area)
-        btn_fwd_hep.setFixedSize(80, 70)
-        btn_fwd_hep.setStyleSheet(button_style)
-        btn_fwd_hep.pressed.connect(lambda: self._write_boolean_command("heparinePumpFWDButton", True))
-        btn_fwd_hep.released.connect(lambda: self._write_boolean_command("heparinePumpFWDButton", False))
-        grid.addWidget(btn_fwd_hep, 2, 9, 2, 2)
-
-        self.heparin_current_dosage_display = LabeledParameterWidget(
-            label_text="Heparina", tag="heparineCurrentDosage",
-            value="0.0", units="ml", is_editable=False, parent=self.control_area
-        )
-        grid.addWidget(self.heparin_current_dosage_display, 2, 11, 2, 2)
-
-        self.input_heparin = LabeledParameterWidget(
-            label_text="Dosis Hep.", tag="heparineTherapyDosage",
-            value="0.0", units="ml/h", numpad_title="Dosis Heparina",
-            is_editable=True, parent=self.control_area
-        )
-        self.input_heparin.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.input_heparin, 2, 13, 2, 3)
-
-        # ==============================================================================
-        #================= FILA 2 BOLO, JERINGA, TIEMPO DE TERAPUA, BOMBA NA+ ==========
-        #===============================================================================
-        self.input_bolus  = LabeledParameterWidget(
-            label_text="Bolo", tag="heparineBolusQuantity",
-            value="0.0", units="ml", numpad_title="Dosis Bolo",
-            is_editable=True, parent=self.control_area
-        )
-        self.input_bolus.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.input_bolus, 4, 0, 2, 3)
-
-        self.input_syringe_size = LabeledParameterWidget(
-            label_text="Jeringa", tag="heparineSyrinjeScaleSize",
-            value="0.0", units="mm/ml", numpad_title="Tamaño de jeringa",
-            is_editable=True, parent=self.control_area
-        )
-        self.input_syringe_size.request_numpad.connect(self.open_numpad)
-        grid.addWidget(self.input_syringe_size, 4, 3, 2, 2)
-
-        self.heparin_time_input = LabeledTimeInput(
-            label_text="T. Terapia:", initial_hh_mm="00:00",
-            tag_hours="heparineTherapyHours", tag_minutes="heparineTherapyMinutes",
-            local_timer_id="heparin_pump", numpad_title="Tiempo de terapia",
-            parent=self.control_area
-        )
-        self.heparin_time_input.request_time_numpad.connect(self.open_time_numpad)
-        grid.addWidget(self.heparin_time_input, 4, 5, 2, 2)        
-       
-        lbl_remaining_ph_title = QLabel("Rest.:", self.control_area)
-        lbl_remaining_ph_title.setStyleSheet(label_style)
-        grid.addWidget(lbl_remaining_ph_title, 4, 7, 2, 1, alignment=Qt.AlignLeft)
-
-        self.remaining_heparin_pump = QLabel("00:00", self.control_area)
-        self.remaining_heparin_pump.setStyleSheet(indicator_style)
-        self.remaining_heparin_pump.setFixedSize(100, 35)
-        self.remaining_heparin_pump.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.remaining_heparin_pump, 4, 8, 2, 1, alignment=Qt.AlignCenter)
-
-        self.local_timer_states["heparin_pump"]["remaining_lbl"] = self.remaining_heparin_pump
-
-        lbl_bicarbonate = QLabel("B. Na+", self.control_area)
-        lbl_bicarbonate.setStyleSheet(label_style)
-        grid.addWidget(lbl_bicarbonate, 4, 9, 2, 2)
-
-        self.bicarbonate_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
-        self.bicarbonate_pump_toggle.toggled.connect(
-            # CORREGIDO: usar _handle_dual_pump_toggle
-            lambda chk: self._handle_dual_pump_toggle("dialyBicarbonPumpStartButt", "dialyBicarbonPumpStopButt", chk, timer_id=None)
-        )
-        grid.addWidget(self.bicarbonate_pump_toggle, 4, 11, 2, 2)
-
-        # CORREGIDO: nombre variable para coincidir con update_values
-        self.bicarbonate_output_display = LabeledParameterWidget(
-            label_text="Salida", tag="bicarbonatePumpSpeed",
-            value="0.0", units="%", is_editable=False, parent=self.control_area
-        )
-        grid.addWidget(self.bicarbonate_output_display, 4, 13, 2, 3)
-
-        #===============================================================================================
-        #============== FILA 3 B. DIALIZANTE, TIEMPO DE OPERACION ======================================
-        #===============================================================================================
-        lbl_dialysate = QLabel("B. Dializante", self.control_area)
-        lbl_dialysate.setStyleSheet(label_style)
-        grid.addWidget(lbl_dialysate, 6, 0, 1, 2)
-
-        self.dialysate_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
-        self.dialysate_pump_toggle.toggled.connect(            
-            lambda chk: self._handle_dual_pump_toggle("dialyserPumpStartButton", "dialyserPumpStopButton", chk, timer_id="dialysate_pump")
-        )
-        grid.addWidget(self.dialysate_pump_toggle, 6, 2, 1, 1)
-        
-        self.dialysate_output_display = ClickableLineEdit("0.0")
-        self.dialysate_output_display.setStyleSheet(input_style)
-        self.dialysate_output_display.setAlignment(Qt.AlignCenter)
-        self.dialysate_output_display.setReadOnly(True)
-        self.dialysate_output_display.clicked.connect(
-            lambda: self.open_numpad("dialyFlowControlOutput", self.dialysate_output_display, "Salida Dializante (%)")
-        )
-        grid.addWidget(self.dialysate_output_display, 6, 3, 1, 2)
-
-        lbl_operation_time_dialysate_pump = QLabel("Tiempo Op.:", self.control_area)
-        lbl_operation_time_dialysate_pump.setStyleSheet(label_style)
-        grid.addWidget(lbl_operation_time_dialysate_pump, 6, 7, 1, 2)
-
-
-        self.dialysate_time_display = ClickableLineEdit("00:00")
-        self.dialysate_time_display.setStyleSheet(input_style)
-        self.dialysate_time_display.setFixedSize(100, 35)
-        self.dialysate_time_display.setAlignment(Qt.AlignCenter)
-        self.dialysate_time_display.setReadOnly(True)
-        self.dialysate_time_display.clicked.connect(
-            lambda: self.open_time_numpad(
-                self.dialysate_time_display, None, None, "dialysate_pump", "Tiempo Op. Dializante"
-            )
-        )
-        grid.addWidget(self.dialysate_time_display, 6, 9, 1, 2)
-
-        lbl_remaining_pd_title = QLabel("Rest.:", self.control_area)
-        lbl_remaining_pd_title.setStyleSheet(label_style)
-        grid.addWidget(lbl_remaining_pd_title, 6, 11, 1, 2, alignment=Qt.AlignRight)
-
-        self.lbl_remaining_pd = QLabel("00:00", self.control_area)
-        self.lbl_remaining_pd.setStyleSheet(indicator_style)
-        self.lbl_remaining_pd.setFixedSize(100, 35)
-        self.lbl_remaining_pd.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_remaining_pd, 6, 13, 1, 3, alignment=Qt.AlignLeft)
-
-
-        self.local_timer_states["dialysate_pump"]["remaining_lbl"] = self.lbl_remaining_pd
-
-        # --- FILA 7: CAMARA BALANCE ---
-        lbl_cb = QLabel("C. Balance", self.control_area)
-        lbl_cb.setStyleSheet(label_style)
-        grid.addWidget(lbl_cb, 7, 0, 1, 2)
-
-        self.balance_chamber_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
-        self.balance_chamber_toggle.toggled.connect(
-
-            lambda chk: self._handle_dual_pump_toggle("dialiserBalChambStrButt", "dialiserBalChambStpButt", chk, timer_id="balance_chamber")
-        )
-
-        grid.addWidget(self.balance_chamber_toggle, 7, 2, 1, 1)
-
-        lbl_flow = QLabel("Flujo", self.control_area)
-        lbl_flow.setStyleSheet(label_style)
-        lbl_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_flow, 7, 3)
-
-        self.input_flow_cb = ClickableLineEdit("0.0")
-        self.input_flow_cb.setStyleSheet(input_style)
-        self.input_flow_cb.setAlignment(Qt.AlignCenter)
-        self.input_flow_cb.setReadOnly(True)
-        self.input_flow_cb.clicked.connect(self._handle_cb_flow_input)
-        grid.addWidget(self.input_flow_cb, 7, 4)
-
-        lbl_cycles_set = QLabel("Ciclos cb", self.control_area)
-        lbl_cycles_set.setStyleSheet(label_style)
-        lbl_cycles_set.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_cycles_set, 7, 5)
-
-        self.balance_cycles_set_input = ClickableLineEdit("0")
-        self.balance_cycles_set_input.setStyleSheet(input_style)
-        self.balance_cycles_set_input.setAlignment(Qt.AlignCenter)
-        self.balance_cycles_set_input.setReadOnly(True)
-        self.balance_cycles_set_input.clicked.connect(
-            lambda: self.open_numpad("balanceChamberCycleSet", self.balance_cycles_set_input, "Ciclos CB (Set)")
-        )
-        grid.addWidget(self.balance_cycles_set_input, 7, 6)
-
-        lbl_cycles_act = QLabel("Act.:", self.control_area)
-        lbl_cycles_act.setStyleSheet(label_style)
-        lbl_cycles_act.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_cycles_act, 7, 7)
-
-        self.balance_cycles_actual_label = QLabel("0")
-        self.balance_cycles_actual_label.setStyleSheet(indicator_style)
-        self.balance_cycles_actual_label.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.balance_cycles_actual_label, 7, 8)
-
-        lbl_t_op_cb = QLabel("T. Op.:", self.control_area)
-        lbl_t_op_cb.setStyleSheet(label_style)
-        lbl_t_op_cb.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_t_op_cb, 7, 9)
-
-        self.balance_chamber_time_input = ClickableLineEdit("00:00")
-        self.balance_chamber_time_input.setStyleSheet(input_style)
-        self.balance_chamber_time_input.setAlignment(Qt.AlignCenter)
-        self.balance_chamber_time_input.setReadOnly(True)
-        self.balance_chamber_time_input.clicked.connect(
-            lambda: self.open_time_numpad(
-                self.balance_chamber_time_input, None, None, "balance_chamber", "Tiempo Op. CB"
-            )
-        )
-        grid.addWidget(self.balance_chamber_time_input, 7, 10)
-
-        lbl_remaining_cb_title = QLabel("Rest.:", self.control_area)
-        lbl_remaining_cb_title.setStyleSheet(label_style)
-        lbl_remaining_cb_title.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(lbl_remaining_cb_title, 7, 11)
-
-        self.lbl_remaining_cb = QLabel("00:00", self.control_area)
-        self.lbl_remaining_cb.setStyleSheet(indicator_style)
-        self.lbl_remaining_cb.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_remaining_cb, 7, 12, 1, 2)
-
-        self.local_timer_states["balance_chamber"]["remaining_lbl"] = self.lbl_remaining_cb
-
-        #=============================================================================
-        #=========== FILA 5 B. PURGA, B ACIDO CITRICO=================================
-        #=============================================================================
-        lbl_purga = QLabel("B. Purga", self.control_area)
-        lbl_purga.setStyleSheet(label_style)
-        grid.addWidget(lbl_purga, 8, 0, 1, 2)
-
-        self.purge_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
-        self.purge_pump_toggle.toggled.connect(            
-            lambda chk: self._handle_dual_pump_toggle("dialyPurgePumpStartButt", "dialyPurgePumpStopButt", chk, timer_id=None)
-        )
-        grid.addWidget(self.purge_pump_toggle, 8, 2, 1, 1)
-
-        self.purge_output_display = ClickableLineEdit("0.0")
-        self.purge_output_display.setStyleSheet(input_style)
-        self.purge_output_display.setAlignment(Qt.AlignCenter)
-        self.purge_output_display.setReadOnly(True)
-        self.purge_output_display.clicked.connect(
-            lambda: self.open_numpad("dialyDeaerControlOutput", self.purge_output_display, "Salida b. Purga (%)")
-        )
-        grid.addWidget(self.purge_output_display, 8, 3, 1, 2)
-
-        lbl_unit_indPurga = QLabel("%", self.control_area)
-        lbl_unit_indPurga.setStyleSheet(label_style)
-        grid.addWidget(lbl_unit_indPurga, 8, 5, 1, 2)
-
-        lbl_acidocitrico = QLabel("B. A. Citrico", self.control_area)
-        lbl_acidocitrico.setStyleSheet(label_style)
-        grid.addWidget(lbl_acidocitrico, 8, 9, 1, 2)
-
-
-        self.citric_acid_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
-        self.citric_acid_pump_toggle.toggled.connect(
-            lambda chk: self._handle_dual_pump_toggle("dialyCitricAcPumpStartButt", "dialyCitricAcPumpStopButt", chk, timer_id=None)
-        )
-        grid.addWidget(self.citric_acid_pump_toggle, 8, 11, 1, 2)
-
-        lbl_output_BAC = QLabel("Salida (%)", self.control_area)
-        lbl_output_BAC.setStyleSheet(label_style)
-        grid.addWidget(lbl_output_BAC, 8, 13, 1, 1)
-        
-        self.citric_acid_output_display = QLabel("0.0", self.control_area)
-        self.citric_acid_output_display.setStyleSheet(indicator_style)
-        self.citric_acid_output_display.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.citric_acid_output_display, 8, 14, 1, 2)
-
-        
-        #=============================================================================
-        #=========== FILA 6 B. UF  TIEMPO DE OPERACION ===============================
-        #=============================================================================
-        lbl_ultrafiltado = QLabel("B. UF", self.control_area)
-        lbl_ultrafiltado.setStyleSheet(label_style)
-        grid.addWidget(lbl_ultrafiltado, 9, 0, 1, 2)
-
-        
-        self.uf_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
-        self.uf_pump_toggle.toggled.connect(
-            
-            lambda chk: self._handle_dual_pump_toggle("dialyUltraFPumpStartButt", "dialyUltraFPumpStoptButt", chk, timer_id="uf_pump")
-        )
-        grid.addWidget(self.uf_pump_toggle, 9, 2, 1, 1)
-
-        lbl_uf = QLabel("Flujo (L/h)", self.control_area)
-        lbl_uf.setStyleSheet(label_style)
-        grid.addWidget(lbl_uf, 9, 3, 1, 2)
-
-        self.lbl_input_indUF = ClickableLineEdit("0.0")
-        self.lbl_input_indUF.setStyleSheet(input_style)
-        self.lbl_input_indUF.setAlignment(Qt.AlignCenter)
-        self.lbl_input_indUF.setReadOnly(True)
-        self.lbl_input_indUF.clicked.connect(self._handle_uf_flow_input)
-        grid.addWidget(self.lbl_input_indUF, 9, 5, 1, 2)
-
-        lbl_e_tOpBUF = QLabel("Tiempo Op.:", self.control_area)
-        lbl_e_tOpBUF.setStyleSheet(label_style)
-        grid.addWidget(lbl_e_tOpBUF, 9, 7, 1, 2)
-
-        # CORREGIDO: Nombre variable uf_time_display
-        self.uf_time_display = ClickableLineEdit("00:00")
-        self.uf_time_display.setStyleSheet(input_style)
-        self.uf_time_display.setAlignment(Qt.AlignCenter)
-        self.uf_time_display.setReadOnly(True)
-        self.uf_time_display.clicked.connect(
-            lambda: self.open_time_numpad(
-                self.uf_time_display, None, None, "uf_pump", "Tiempo Op. Ultra Filtrado"
-            )
-        )
-        grid.addWidget(self.uf_time_display, 9, 9, 1, 2)
-
-        lbl_remaining_puf_title = QLabel("Rest.:", self.control_area)
-        lbl_remaining_puf_title.setStyleSheet(label_style)
-        grid.addWidget(lbl_remaining_puf_title, 9, 11, 1, 2, alignment=Qt.AlignRight)
-
-        self.lbl_remaining_puf = QLabel("00:00", self.control_area)
-        self.lbl_remaining_puf.setStyleSheet(indicator_style)
-        self.lbl_remaining_puf.setFixedSize(100, 35)
-        self.lbl_remaining_puf.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.lbl_remaining_puf, 9, 13, 1, 3, alignment=Qt.AlignLeft)
-
-        # CORREGIDO: local_timer_states
-        self.local_timer_states["uf_pump"]["remaining_lbl"] = self.lbl_remaining_puf
-
-        grid.setColumnStretch(0, 1)
-        grid.setColumnMinimumWidth(3, 70)
-        grid.setColumnMinimumWidth(13, 110)
-
-        layout.addWidget(self.control_area, 0, 0) 
-
-        # --- VALVULAS ---
-        valves_container = QWidget()
-        valves_container.setFixedSize(1300, 180)
-        valves_layout = QHBoxLayout(valves_container)
-        valves_layout.setContentsMargins(0, 0, 0, 0)
-        valves_layout.setSpacing(5)
-
-        mode_frame = QFrame()
-        mode_frame.setFixedSize(100, 180)
-        mode_frame.setStyleSheet("background-color: #0f172a; border-radius:8px; border: 2px solid #334155;")
-        mode_layout = QVBoxLayout(mode_frame)
-
-        mode_label = QLabel("Modo de<br>Op.")
-        mode_label.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 18px;")
-        mode_label.setAlignment(Qt.AlignCenter)
-
-        self.operation_mode_toggle = ToggleSwitch(width=70, height=30, active_color="#facc15", parent=mode_frame)
-        self.operation_mode_toggle.toggled.connect(
-            lambda checked: self._write_boolean_command("dialyCircuitElementsOpSel", checked)
-        )
-
-        mode_layout.addStretch()
-        mode_layout.addWidget(mode_label)
-        mode_layout.addSpacing(10)
-        mode_layout.addWidget(self.operation_mode_toggle, 0, Qt.AlignCenter)
-        mode_layout.addStretch()
-
-        valves_layout.addWidget(mode_frame)
-
-        valves_grid_widget = QWidget()
-        valves_grid = QGridLayout(valves_grid_widget)
-        valves_grid.setContentsMargins(0, 0, 0, 0)
-        valves_grid.setSpacing(10)
-
-        valve_info = [
-            (0, 0, "SV_24", "E. Filtro UF", "dialyInputFilterCutButt"),
-            (0, 1, "SV_25", "S. Filtro UF", "dialyOutputFilterCutButt"),
-            (0, 2, "SV_26", "Bypass UF",    "dialyBypassFilterButt"),
-            (0, 3, "SV_27", "E. Agua",      "dialyWaterInletValveButt"),
-            (1, 0, "SV_39", "Recirculación","dialyRecirculatValveButt"),
-            (1, 1, "SV_43", "Venteo CS Aire","dialyAirVentSepChambButt"),
-            (1, 2, "SV_50", "C. Caliente",  "dialyHotChambValveButt"),
-            (1, 3, "SV_30", "Drenaje",      "dialyWaterDrainValveButt"),
-        ]
-
-        self.valve_cards = {}
-
-        for r, c, code, desc, tag in valve_info:
-            card = ValveCard(code, desc, parent=valves_grid_widget)
-            self.valve_cards[tag] = card
-            valves_grid.addWidget(card, r, c)
-            card.toggle.toggled.connect(lambda checked, t=tag: self._write_boolean_command(t, checked))
-
-        valves_layout.addWidget(valves_grid_widget)
-
-        layout.addWidget(valves_container, 10, 0, 1, 1) 
-
-        # --- LEDS ---
-        indicators_area = QWidget()
-        indicators_area.setFixedSize(180, 726)
-        indicators_area.setStyleSheet("background: #fcfcfc;")
-        led_grid = QGridLayout(indicators_area)
-        led_grid.setSpacing(10)
-        led_grid.setContentsMargins(10, 10, 10, 10)
-
-        led_info = [
-            ("Sangre",     "bloodPumpStartButton"),
-            ("Dial.", "dialyserPumpStartButton"),
-            ("Heparina.",   "heparinePumpsStartButton"),
-            ("UF p.",     "dialyUltraFPumpStartButt"),
-            ("Purga", "dialyPurgePumpStartButt"),
-            ("C.Balance",     "dialiserBalChambStrButt"),
-            ("Aire",     "airBubbleInBloodDetected"),
-            ("C.Deaereación", "dialyDeaerChamLevSwitch"),
-            ("Ciclos", "dialyBalanceChambCycleEnd"),
-            ("Protec. R.","watterTankHeaterProtect"),
-            ("S.Dial.",  "bloodInDialyCircDetected"),
-            ("N. Tanque","dialyTankHiLevelSwitch"),
-        ]
-
-        self.led_indicators = []
-
-        for i, (name, tag) in enumerate(led_info):
-            lbl = QLabel(name)
-            lbl.setStyleSheet("color: #000000; font-size: 18px; font-weight: bold;") 
-            lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-            led_grid.addWidget(lbl, i, 0)
-
-            led = LED(indicators_area)
-            led.setFixedSize(45, 45)
-            led_grid.addWidget(led, i, 1, alignment=Qt.AlignLeft | Qt.AlignVCenter)
-            self.led_indicators.append((led, tag))
-
-        layout.addWidget(indicators_area, 0, 1, 2, 1)
-
-    # ────────────────────────────────────────────────
-    # Métodos Lógicos (Sin cambios, solo corrección en llamadas auxiliares)
-    # ────────────────────────────────────────────────
-
-    def update_values(self, new_values: dict):
-        self.values = new_values
-        current_ms = QDateTime.currentMSecsSinceEpoch()
-
-        for led, tag in self.led_indicators:
-            value = self.values.get(tag, 0.0)
-            if tag == "dialyTankHiLevelSwitch":
-                led.set_state("off" if value > 0 else "in")
-            else:
-                led.set_state("on" if value > 0 else "off")
-
-        for tag, card in self.valve_cards.items():
-            value = self.values.get(tag, 0.0)
-            new_state = value > 0
-            if card.toggle.is_checked() != new_state:
-                card.toggle.blockSignals(True)
-                card.toggle.setChecked(new_state)
-                card.toggle.blockSignals(False)
-
-        if "balanceChamberSetTiming" not in self.write_hold_off or \
-           current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
-            cycles = self.values.get("balanceChamberSetTiming", 0.0)
-            try:
-                flow_ml_min = convertir_ciclos_a_flujo(cycles)
-                self._update_input_display(self.input_flow_cb, flow_ml_min, precision=1) 
-            except Exception as e:
-                logger.error(f"Error converting CB flow: {e}")
-                self._update_input_display(self.input_flow_cb, 0.0, precision=1)
-
-        if "ultraFilterPumpSpeed" not in self.write_hold_off or \
-           current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
-            uf_ml_min = self.values.get("ultraFilterPumpSpeed", 0.0)
-            try:
-                uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)
-                self._update_input_display(self.lbl_input_indUF, uf_lh, precision=1) 
-            except Exception as e:
-                logger.error(f"Error converting UF flow: {e}")
-                self._update_input_display(self.lbl_input_indUF, 0.0, precision=1)
-
-        self._update_input_display(self.blood_flow_input, self.values.get("bloodFlowControlSetPoint", 0.0))
-        self._update_input_display(self.input_heparin, self.values.get("heparineTherapyDosage", 0.0))
-        self._update_input_display(self.input_bolus, self.values.get("heparineBolusQuantity", 0.0))
-        self._update_input_display(self.input_syringe_size, self.values.get("heparineSyrinjeScaleSize", 0.0))
-        self._update_input_display(self.dialysate_output_display, self.values.get("dialyFlowControlOutput", 0.0))
-        self._update_input_display(self.purge_output_display, self.values.get("dialyDeaerControlOutput", 0.0))
-        self._update_input_display(self.balance_cycles_set_input, self.values.get("balanceChamberCycleSet", 0))
-        self._update_label_display(self.balance_cycles_actual_label, self.values.get("balanceChamberCycleCount", 0))
-
-        self._update_label_display(self.blood_speed_display, self.values.get("bloodSpeedVariableData", 0.0))
-        self._update_label_display(self.bicarbonate_output_display, self.values.get("bicarbonatePumpSpeed", 0.0))
-        self._update_label_display(self.citric_acid_output_display, self.values.get("citricAcidPumpSpeed", 0.0))
-        self._update_label_display(self.heparin_current_dosage_display, self.values.get("heparineCurrentDosage", 0.0))
-
-        self._update_time_display(self.blood_pump_time_input, None, None, "blood_pump")
-        self._update_time_display(self.heparin_time_input, "heparineTherapyHours", "heparineTherapyMinutes", "heparin_pump")
-        self._update_time_display(self.dialysate_time_display, None, None, "dialysate_pump")
-        self._update_time_display(self.uf_time_display, None, None, "uf_pump")
-        self._update_time_display(self.balance_chamber_time_input, None, None, "balance_chamber")
-
-        self._sync_toggle(self.blood_pump_toggle, self.values.get("bloodPumpStartButton", 0.0))
-        self._sync_toggle(self.heparin_pump_toggle, self.values.get("heparinePumpsStartButton", 0.0))
-        self._sync_toggle(self.dialysate_pump_toggle, self.values.get("dialyserPumpStartButton", 0.0))
-        self._sync_toggle(self.citric_acid_pump_toggle, self.values.get("dialyCitricAcPumpStartButt", 0.0))
-        self._sync_toggle(self.bicarbonate_pump_toggle, self.values.get("dialyBicarbonPumpStartButt", 0.0))
-        self._sync_toggle(self.purge_pump_toggle, self.values.get("dialyPurgePumpStartButt", 0.0))
-        self._sync_toggle(self.uf_pump_toggle, self.values.get("dialyUltraFPumpStartButt", 0.0))
-        self._sync_toggle(self.operation_mode_toggle, self.values.get("dialyCircuitElementsOpSel", 0.0))
-        self._sync_toggle(self.balance_chamber_toggle, self.values.get("dialiserBalChambStrButt", 0.0))
-
-        logger.debug("Manual mode values updated from machine")
-
-    def _sync_toggle(self, toggle_widget, value: float):
-        new_state = value > 0
-        if toggle_widget.is_checked() != new_state:
-            toggle_widget.blockSignals(True)
-            toggle_widget.setChecked(new_state)
-            toggle_widget.blockSignals(False)
-
-    def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
-        if not tag_hours and not tag_minutes:
-            return
-        
-        current_ms = QDateTime.currentMSecsSinceEpoch()
-        hold_hours = self.write_hold_off.get(tag_hours, 0) if tag_hours else 0
-        hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
-
-        if current_ms < hold_hours or current_ms < hold_minutes:
-            return
-
-        hours = int(self.values.get(tag_hours, 0)) if tag_hours else 0
-        minutes = int(self.values.get(tag_minutes, 0)) if tag_minutes else 0
-
-        if isinstance(time_widget, LabeledTimeInput):
-            time_widget.set_time_value(hours, minutes)
-        elif hasattr(time_widget, 'setText'):
-            if not time_widget.hasFocus():
-                time_widget.setText(f"{hours:02d}:{minutes:02d}")
-
-        if timer_id and timer_id in self.local_timer_states:
-            if not self.local_timer_states[timer_id]["active"]:
-                total_ms = (hours * 3600 + minutes * 60) * 1000
-                self.local_timer_states[timer_id]["duration_ms"] = total_ms
-
-    def _update_input_display(self, widget, value, precision=1):
-        if not widget.hasFocus():
-            if isinstance(widget, LabeledParameterWidget):
-                widget.set_value(value)
-            elif hasattr(widget, 'setText'):
-                widget.setText(f"{value:.{precision}f}")
-
-    def _update_label_display(self, label, value, precision=1):
-        if isinstance(label, LabeledParameterWidget):
-            label.set_value(value)
-        elif hasattr(label, 'setText'):
-            label.setText(f"{value:.{precision}f}")
-
-    def _handle_dual_pump_toggle(self, start_tag: str, stop_tag: str, enabled: bool, timer_id: str = None):
-        """Handle dual start/stop pump control (REQ-SW-005)."""
-        if enabled:
-            logger.info(f"Starting pump: {start_tag}")
-            self._write_boolean_command(start_tag, True)
-            self._write_boolean_command(stop_tag, False)
-
-            if timer_id and timer_id in self.local_timer_states:
-                state = self.local_timer_states[timer_id]
-                total_ms = state["duration_ms"]
-                if total_ms > 0:
-                    state["active"] = True
-                    state["start_ms"] = QDateTime.currentMSecsSinceEpoch()
-                    timer = getattr(self, f"{timer_id}_timer", None)
-                    if timer: timer.start(total_ms)
-                    logger.info(f"Timer '{timer_id}' started for {total_ms} ms")
-        else:
-            logger.info(f"Stopping pump: {start_tag}")
-            self._write_boolean_command(stop_tag, True)
-            self._write_boolean_command(start_tag, False)
-
-            if timer_id and timer_id in self.local_timer_states:
-                state = self.local_timer_states[timer_id]
-                if state["active"]:
-                    state["active"] = False
-                    timer = getattr(self, f"{timer_id}_timer", None)
-                    if timer and timer.isActive():
-                        timer.stop()
-                    if state["elapsed_lbl"]:
-                        state["elapsed_lbl"].setText("00:00")
-                    if state["remaining_lbl"]:
-                        h = state["duration_ms"] // 3600000
-                        m = (state["duration_ms"] % 3600000) // 60000
-                        state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
-                    logger.info(f"Timer '{timer_id}' stopped")
-
-    def _write_boolean_command(self, tag: str, state: bool):
-        logger.info(f"Command: {tag} → {state}")
-        address = -1
-        for group_key, vars_group in VARIABLES.items():
-            if isinstance(vars_group, dict):
-                for var_id, info in vars_group.items():
-                    if info.get("tag") == tag:
-                        address = var_id
-                        break
-            if address != -1:
-                break
-
-        if address != -1:
-            if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                if self.parent_window.serial_comm.is_connected:
-                    self.parent_window.serial_comm.write_boolean(address, state)
-                    logger.info(f"Boolean command sent: Addr {address} = {state}")
-                else:
-                    logger.warning("Serial not connected")
-                    QMessageBox.warning(self, "Error", "Serial no conectado")
-            else:
-                logger.warning("Serial communication not available")
-        else:
-            logger.error(f"Tag '{tag}' not found in VARIABLES map")
-
-    def _write_setpoint(self, tag: str, value: float):
-        try:
-            logger.info(f"Writing setpoint {tag} = {value}")
-            target_group = target_id = -1
-            found = False
-            for group_key, vars_group in VARIABLES.items():
-                if isinstance(vars_group, dict):
-                    for var_id, info in vars_group.items():
-                        if info.get("tag") == tag:
-                            target_group = group_key
-                            target_id = var_id
-                            found = True
-                            break
-                if found:
-                    break
-
-            if found and target_group != -1 and target_id != -1:
-                if VARIABLES[target_group][target_id].get("rw", False):
-                    if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                        if self.parent_window.serial_comm.is_connected:
-                            self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            logger.info(f"Setpoint written: {tag} = {value}")
-                        else:
-                            logger.warning("Serial not connected")
-                    else:
-                        logger.warning("Serial communication not available")
-                else:
-                    logger.warning(f"Tag '{tag}' is read-only")
-            else:
-                logger.error(f"Tag '{tag}' not found in variables map")
-
-        except Exception as e:
-            logger.error(f"Critical error writing setpoint '{tag}': {e}")
-
-    def open_numpad(self, tag: str, input_widget, title: str = "Ingrese valor"):
-        if isinstance(input_widget, LabeledParameterWidget):
-            current_text = str(input_widget.get_value())
-        elif hasattr(input_widget, 'text'):
-            current_text = input_widget.text()
-        else:
-            current_text = "0.0"
-
-        dialog = NumpadDialog(self, initial_value=current_text, title=title)
-
-        if dialog.exec():
-            new_value = dialog.get_value()
-            if new_value is not None:
-                if isinstance(input_widget, LabeledParameterWidget):
-                    input_widget.set_value(new_value)
-                elif hasattr(input_widget, 'setText'):
-                    input_widget.setText(str(new_value))
-                
-                self._write_setpoint(tag, new_value)
-                self.write_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 3000
-
-    def open_time_numpad(self, time_widget, tag_hours: str = None, tag_minutes: str = None,
-                         timer_id: str = None, title: str = "Config. Tiempo"):
-        if isinstance(time_widget, LabeledTimeInput):
-            current_text = time_widget.get_time_value()
-        elif hasattr(time_widget, 'text'):
-            current_text = time_widget.text()
-        else:
-            current_text = "00:00"
-
-        dialog = TimeNumpadDialog(self, initial_hh_mm=current_text, title=title)
-
-        if dialog.exec():
-            hours, minutes = dialog.get_hours_minutes()
-            if hours is not None and minutes is not None:
-                if isinstance(time_widget, LabeledTimeInput):
-                    time_widget.set_time_value(hours, minutes)
-                elif hasattr(time_widget, 'setText'):
-                    time_widget.setText(f"{hours:02d}:{minutes:02d}")
-
-                total_ms = (hours * 3600 + minutes * 60) * 1000
-                current_ms = QDateTime.currentMSecsSinceEpoch()
-                hold_duration = 3000
-
-                if tag_hours and tag_minutes:
-                    self._write_setpoint(tag_hours, float(hours))
-                    self.write_hold_off[tag_hours] = current_ms + hold_duration
-                    self._write_setpoint(tag_minutes, float(minutes))
-                    self.write_hold_off[tag_minutes] = current_ms + hold_duration
-
-                if timer_id and timer_id in self.local_timer_states:
-                    state = self.local_timer_states[timer_id]
-                    state["duration_ms"] = total_ms
-                    if state["elapsed_lbl"]:
-                        state["elapsed_lbl"].setText("00:00")
-                    if state["remaining_lbl"]:
-                        state["remaining_lbl"].setText(f"{hours:02d}:{minutes:02d}")
-
-    def _stop_pump_generic(self, timer_key: str, stop_tag: str, start_tag: str, toggle_widget):
-        logger.warning(f"Timeout: {timer_key} - Automatic pump stop")
-        timer = getattr(self, f"{timer_key}_timer")
-        if timer:
-            timer.stop()
-
-        self.local_timer_states[timer_key]["active"] = False
-        self._write_boolean_command(stop_tag, True)
-        self._write_boolean_command(start_tag, False)
-
-        toggle_widget.blockSignals(True)
-        toggle_widget.setChecked(False)
-        toggle_widget.blockSignals(False)
-
-        state = self.local_timer_states[timer_key]
-        if state["elapsed_lbl"]:
-            state["elapsed_lbl"].setText("00:00")
-        if state["remaining_lbl"]:
-            h = state["duration_ms"] // 3600000
-            m = (state["duration_ms"] % 3600000) // 60000
-            state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
-
-    def _stop_blood_pump_on_timeout(self):
-        self._stop_pump_generic("blood_pump", "bloodPumpStopButton", "bloodPumpStartButton", self.blood_pump_toggle)
-
-    def _stop_dialysate_pump_on_timeout(self):
-        self._stop_pump_generic("dialysate_pump", "dialyserPumpStopButton", "dialyserPumpStartButton", self.dialysate_pump_toggle)
-
-    def _stop_uf_pump_on_timeout(self):
-        self._stop_pump_generic("uf_pump", "dialyUltraFPumpStoptButt", "dialyUltraFPumpStartButt", self.uf_pump_toggle)
-
-    def _stop_heparin_pump_on_timeout(self):
-        self._stop_pump_generic("heparin_pump", "heparinePumpsStopButton", "heparinePumpsStartButton", self.heparin_pump_toggle)
-
-    def _stop_balance_chamber_on_timeout(self):
-        self._stop_pump_generic("balance_chamber", "dialiserBalChambStpButt", "dialiserBalChambStrButt", self.balance_chamber_toggle)
-
-    def _update_local_time_displays(self):
-        current_ms = QDateTime.currentMSecsSinceEpoch()
-        for timer_id, state in self.local_timer_states.items():
-            if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
-                elapsed_ms = current_ms - state["start_ms"]
-                # remaining_ms = max(0, state["duration_ms"] - elapsed_ms)
-                remaining_ms = state["duration_ms"] - elapsed_ms
-
-                if remaining_ms <= 0:
-                    remaining_ms = 0
-                    # elapsed_ms = state["duration_ms"]
-
-                if state["elapsed_lbl"]:
-                    state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
-                if state["remaining_lbl"]:
-                    state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
-            # elif not state["active"]:
-            else:
-                if state["elapsed_lbl"] and state["elapsed_lbl"].text() != "00:00":
-                    state["elapsed_lbl"].setText("00:00")
-
-                if state["remaining_lbl"]:
-                    state["remaining_lbl"].setText(self._format_ms_to_hh_mm(state["duration_ms"]))
-                    # h = state["duration_ms"] // 3600000
-                    # m = (state["duration_ms"] % 3600000) // 60000
-                    # state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
-    
-    def _format_ms_to_label(self, label_widget, ms):
-        total_seconds = max(0, int(ms//1000))
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        label_widget.setText(f"{hours:02d}:{minutes:02d}")
-
-    def _format_ms_to_hh_mm(self, ms: int) -> str:
-        total_seconds = max(0, ms // 1000)
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        return f"{hours:02d}:{minutes:02d}"
-
-    def _handle_cb_flow_input(self):
-        """Handle balance chamber flow input (ml/min → cycles)."""
-        # CORREGIDO: Usar text() porque ClickableLineEdit es probablemente un QLineEdit
-        try:
-            current_text = self.input_flow_cb.text()
-        except AttributeError:
-            current_text = "0.0"
-
-        dialog = NumpadDialog(self, initial_value=current_text, title="Flujo CB (ml/min)")
-        if dialog.exec():
-            new_value = dialog.get_value()
-            if hasattr(self.input_flow_cb, 'setText'):
-                self.input_flow_cb.setText(str(new_value))
-            
-            try:
-                cycles = convertir_flujo_a_ciclos(new_value)
-                self._write_setpoint("balanceChamberSetTiming", cycles)
-                self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
-            except Exception as e:
-                logger.error(f"Error converting CB flow: {e}")
-
-    def _handle_uf_flow_input(self):
-        """Handle UF flow input (L/h → ml/min)."""
-        # CORREGIDO: Usar text() 
-        try:
-            current_text = self.lbl_input_indUF.text()
-        except AttributeError:
-            current_text = "0.0"
-            
-        dialog = NumpadDialog(self, initial_value=current_text, title="Flujo UF (L/h)")
-        if dialog.exec():
-            new_value = dialog.get_value()
-            if hasattr(self.lbl_input_indUF, 'setText'):
-                self.lbl_input_indUF.setText(str(new_value))
-
-            try:
-                ml_min = convertir_litros_h_a_ml_min(new_value)
-                self._write_setpoint("ultraFilterPumpSpeed", ml_min)
-                self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
-            except Exception as e:
-                logger.error(f"Error converting UF flow: {e}")
 

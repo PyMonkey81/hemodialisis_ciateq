@@ -89,145 +89,224 @@ class TestPanelScreen(QWidget):
         grid_top.setContentsMargins(10, 10, 10, 10)
 
         # Blood chamber flow (QCb)
-        lbl_cb_flow = QLabel("QCb (ml/min)")
-        lbl_cb_flow.setStyleSheet(label_style)
-        lbl_cb_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_cb_flow, 0, 0, 1, 2)
+        # lbl_cb_flow = QLabel("QCb (ml/min)")
+        # lbl_cb_flow.setStyleSheet(label_style)
+        # lbl_cb_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_cb_flow, 0, 0, 1, 2)
 
-        self.input_cb_flow = ClickableLineEdit("0.0")
-        self.input_cb_flow.setStyleSheet(input_style)
-        self.input_cb_flow.setAlignment(Qt.AlignCenter)
-        self.input_cb_flow.setReadOnly(True)
-        self.input_cb_flow.clicked.connect(self._handle_cb_flow_input)
-        grid_top.addWidget(self.input_cb_flow, 0, 2)
+        # self.input_cb_flow = ClickableLineEdit("0.0")
+        # self.input_cb_flow.setStyleSheet(input_style)
+        # self.input_cb_flow.setAlignment(Qt.AlignCenter)
+        # self.input_cb_flow.setReadOnly(True)
+        # self.input_cb_flow.clicked.connect(self._handle_cb_flow_input)
+
+        self.input_cb_flow = LabeledParameterWidget(
+            label_text="Flujo CB", 
+            tag="balanceChamberSetTiming", # Opcional, referencia
+            value="0.0", 
+            units="ml/min", # mostrar unidades 
+            is_editable=True, 
+            # parent=self.control_area
+        )
+        self.input_cb_flow.request_numpad.connect(lambda tag, wid, tit: self._handle_cb_flow_input())
+        grid_top.addWidget(self.input_cb_flow, 0, 0, 1, 2)
 
         # Blood flow (Qb)
-        lbl_blood_flow = QLabel("Qb (ml/min)")
-        lbl_blood_flow.setStyleSheet(label_style)
-        lbl_blood_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_blood_flow, 1, 0, 1, 2)
+        # lbl_blood_flow = QLabel("Qb (ml/min)")
+        # lbl_blood_flow.setStyleSheet(label_style)
+        # lbl_blood_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_blood_flow, 1, 0, 1, 2)
 
-        self.input_blood_flow = ClickableLineEdit("0.0")
-        self.input_blood_flow.setStyleSheet(input_style)
-        self.input_blood_flow.setAlignment(Qt.AlignCenter)
-        self.input_blood_flow.setReadOnly(True)
-        self.input_blood_flow.clicked.connect(
-            lambda: self.open_numpad("bloodFlowControlSetPoint", self.input_blood_flow, "Flujo de sangre (ml/min)")
+        # self.input_blood_flow = ClickableLineEdit("0.0")
+        # self.input_blood_flow.setStyleSheet(input_style)
+        # self.input_blood_flow.setAlignment(Qt.AlignCenter)
+        # self.input_blood_flow.setReadOnly(True)
+        # self.input_blood_flow.clicked.connect(
+        #     lambda: self.open_numpad("bloodFlowControlSetPoint", self.input_blood_flow, "Flujo de sangre (ml/min)")
+        # )
+
+        # self.blood_flow_input = LabeledParameterWidget(
+        #     label_text="Flujo", tag="bloodFlowControlSetPoint",
+        #     value="0", units="ml/min", numpad_title="Flujo de Sangre",
+        #     is_editable=True, parent=self.control_area
+        # )
+        # self.blood_flow_input.request_numpad.connect(self.open_numpad)
+
+        self.input_blood_flow = LabeledParameterWidget(
+            label_text="Qb", tag= "bloodFlowControlSetPoint",
+            value="0.0",units="ml/min",numpad_title="Flujo de sangre",
+            is_editable=True,
         )
-        grid_top.addWidget(self.input_blood_flow, 1, 2)
+        self.input_blood_flow.request_numpad.connect(self.open_numpad)
+        grid_top.addWidget(self.input_blood_flow, 1, 0, 1, 2)
 
         # UF flow
-        lbl_uf_flow = QLabel("UF (L/h)") # Corrected unit to L/h for input consistency
-        lbl_uf_flow.setStyleSheet(label_style)
-        lbl_uf_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_uf_flow, 2, 0, 1, 2)
+        # lbl_uf_flow = QLabel("UF (L/h)") # Corrected unit to L/h for input consistency
+        # lbl_uf_flow.setStyleSheet(label_style)
+        # lbl_uf_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_uf_flow, 2, 0, 1, 2)
 
-        self.input_uf_flow = ClickableLineEdit("0.0")
-        self.input_uf_flow.setStyleSheet(input_style)
-        self.input_uf_flow.setAlignment(Qt.AlignCenter)
-        self.input_uf_flow.setReadOnly(True)
-        self.input_uf_flow.clicked.connect(self._handle_uf_flow_input)
-        grid_top.addWidget(self.input_uf_flow, 2, 2)
+        # self.input_uf_flow = ClickableLineEdit("0.0")
+        # self.input_uf_flow.setStyleSheet(input_style)
+        # self.input_uf_flow.setAlignment(Qt.AlignCenter)
+        # self.input_uf_flow.setReadOnly(True)
+
+        self.input_uf_flow = LabeledParameterWidget(
+            label_text="UF", tag="",
+            value="0.0", units="L/h", numpad_title="Flujo UF",
+            is_editable=True
+        )
+        self.input_uf_flow.request_numpad.connect(lambda tag, wid, tit: self._handle_uf_flow_input())
+        grid_top.addWidget(self.input_uf_flow, 2, 0, 1, 2)
 
         # Conductivity setpoint
-        lbl_cond_setpoint = QLabel("Cond. (mS/cm)")
-        lbl_cond_setpoint.setStyleSheet(label_style)
-        lbl_cond_setpoint.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_cond_setpoint, 3, 0, 1, 2)
+        # lbl_cond_setpoint = QLabel("Cond. (mS/cm)")
+        # lbl_cond_setpoint.setStyleSheet(label_style)
+        # lbl_cond_setpoint.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_cond_setpoint, 3, 0, 1, 2)
 
-        self.input_cond_setpoint = ClickableLineEdit("0.0")
-        self.input_cond_setpoint.setStyleSheet(input_style)
-        self.input_cond_setpoint.setAlignment(Qt.AlignCenter)
-        self.input_cond_setpoint.setReadOnly(True)
-        self.input_cond_setpoint.clicked.connect(
-            lambda: self.open_numpad("dialyCondControlSetPoint", self.input_cond_setpoint, "Conductividad (mS/cm)")
+        # self.input_cond_setpoint = ClickableLineEdit("0.0")
+        # self.input_cond_setpoint.setStyleSheet(input_style)
+        # self.input_cond_setpoint.setAlignment(Qt.AlignCenter)
+        # self.input_cond_setpoint.setReadOnly(True)
+        # self.input_cond_setpoint.clicked.connect(
+        #     lambda: self.open_numpad("dialyCondControlSetPoint", self.input_cond_setpoint, "Conductividad (mS/cm)")
+        # )
+        self.input_cond_setpoint = LabeledParameterWidget(
+            label_text="Cond.", tag="dialyCondControlSetPoint",
+            value="0.0", units="mS/cm", numpad_title="Condutividad (mS/cm)",
+            is_editable=True
         )
-        grid_top.addWidget(self.input_cond_setpoint, 3, 2)
+        self.input_cond_setpoint.request_numpad.connect(self.open_numpad)
+        grid_top.addWidget(self.input_cond_setpoint, 3, 0, 1, 2)
 
         # Temperature setpoint
-        lbl_temp_setpoint = QLabel("Temp. D. (°C)")
-        lbl_temp_setpoint.setStyleSheet(label_style)
-        lbl_temp_setpoint.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_temp_setpoint, 4, 0, 1, 2)
+        # lbl_temp_setpoint = QLabel("Temp. D. (°C)")
+        # lbl_temp_setpoint.setStyleSheet(label_style)
+        # lbl_temp_setpoint.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_temp_setpoint, 4, 0, 1, 2)
 
-        self.input_temp_setpoint = ClickableLineEdit("0.0")
-        self.input_temp_setpoint.setStyleSheet(input_style)
-        self.input_temp_setpoint.setAlignment(Qt.AlignCenter)
-        self.input_temp_setpoint.setReadOnly(True)
-        self.input_temp_setpoint.clicked.connect(
-            lambda: self.open_numpad("dialyTempControlSetPoint", self.input_temp_setpoint, "Temperatura (°C)")
+        # self.input_temp_setpoint = ClickableLineEdit("0.0")
+        # self.input_temp_setpoint.setStyleSheet(input_style)
+        # self.input_temp_setpoint.setAlignment(Qt.AlignCenter)
+        # self.input_temp_setpoint.setReadOnly(True)
+        # self.input_temp_setpoint.clicked.connect(
+        #     lambda: self.open_numpad("dialyTempControlSetPoint", self.input_temp_setpoint, "Temperatura (°C)")
+        # )
+        self.input_temp_setpoint = LabeledParameterWidget(
+            label_text="Temp. Dial.", tag="dialyTempControlSetPoint",
+            value="0.0", units="°C", numpad_title="Temperatura Dializante",
+            is_editable=True,
         )
-        grid_top.addWidget(self.input_temp_setpoint, 4, 2)
+        self.input_temp_setpoint.request_numpad.connect(self.open_numpad)
+        grid_top.addWidget(self.input_temp_setpoint, 4, 0, 1, 2)
 
         # Balance chamber cycles
-        lbl_cycles = QLabel("No. Ciclos CB:")
-        lbl_cycles.setStyleSheet(label_style)
-        lbl_cycles.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_cycles, 0, 3)
+        # lbl_cycles = QLabel("No. Ciclos CB:")
+        # lbl_cycles.setStyleSheet(label_style)
+        # lbl_cycles.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_cycles, 0, 3)
 
-        self.label_cycles = QLabel("0")
-        self.label_cycles.setFixedWidth(100)
-        self.label_cycles.setStyleSheet(indicator_style)
-        self.label_cycles.setAlignment(Qt.AlignCenter)
-        grid_top.addWidget(self.label_cycles, 0, 4)
+        # self.label_cycles = QLabel("0")
+        # self.label_cycles.setFixedWidth(100)
+        # self.label_cycles.setStyleSheet(indicator_style)
+        # self.label_cycles.setAlignment(Qt.AlignCenter)
+
+        self.label_cycles = LabeledParameterWidget(
+            label_text="No. Ciclos CB", tag="balanceChamberCycleCount",
+            value="0.0", units="", numpad_title="",
+            is_editable=False,
+        )
+        grid_top.addWidget(self.label_cycles, 0, 3, 1, 2)
 
         # ── Sensor Readings ──────────────────────────────────────────────────────
-        lbl_temp_ef = QLabel("T. Dial. EF (°C)")
-        lbl_temp_ef.setStyleSheet(label_style)
-        lbl_temp_ef.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_temp_ef, 0, 6)
+        # lbl_temp_ef = QLabel("T. Dial. EF (°C)")
+        # lbl_temp_ef.setStyleSheet(label_style)
+        # lbl_temp_ef.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_temp_ef, 0, 6)
 
-        self.label_temp_ef = QLabel("0.0")
-        self.label_temp_ef.setStyleSheet(indicator_style)
-        self.label_temp_ef.setFixedSize(100, 35)
-        self.label_temp_ef.setAlignment(Qt.AlignCenter)
-        grid_top.addWidget(self.label_temp_ef, 0, 7)
+        # self.label_temp_ef = QLabel("0.0")
+        # self.label_temp_ef.setStyleSheet(indicator_style)
+        # self.label_temp_ef.setFixedSize(100, 35)
+        # self.label_temp_ef.setAlignment(Qt.AlignCenter)
 
-        lbl_temp_sf = QLabel("T. Dial. SF (°C)")
-        lbl_temp_sf.setStyleSheet(label_style)
-        lbl_temp_sf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_temp_sf, 1, 6)
+        self.label_temp_ef = LabeledParameterWidget(
+            label_text="T. Dial. EF", tag="dialyTempIFProcessData",
+            value="0.0", units="°C", numpad_title="",
+            is_editable=False,
+        )
+        grid_top.addWidget(self.label_temp_ef, 0, 6, 1, 2)
 
-        self.label_temp_sf = QLabel("0.0")
-        self.label_temp_sf.setStyleSheet(indicator_style)
-        self.label_temp_sf.setFixedSize(100, 35)
-        self.label_temp_sf.setAlignment(Qt.AlignCenter)
-        grid_top.addWidget(self.label_temp_sf, 1, 7)
+        # lbl_temp_sf = QLabel("T. Dial. SF (°C)")
+        # lbl_temp_sf.setStyleSheet(label_style)
+        # lbl_temp_sf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_temp_sf, 1, 6)
 
-        lbl_temp_tank = QLabel("T. Tanque (°C)")
-        lbl_temp_tank.setStyleSheet(label_style)
-        lbl_temp_tank.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_temp_tank, 2, 6)
+        # self.label_temp_sf = QLabel("0.0")
+        # self.label_temp_sf.setStyleSheet(indicator_style)
+        # self.label_temp_sf.setFixedSize(100, 35)
+        # self.label_temp_sf.setAlignment(Qt.AlignCenter)
 
-        self.label_temp_tank = QLabel("0.0")
-        self.label_temp_tank.setStyleSheet(indicator_style)
-        self.label_temp_tank.setFixedSize(100, 35)
-        self.label_temp_tank.setAlignment(Qt.AlignCenter)
-        grid_top.addWidget(self.label_temp_tank, 2, 7)
+        self.label_temp_sf = LabeledParameterWidget(
+            label_text="T. Dial. SF", tag="dialyTempOFProcessData",
+            value="0.0", units="°C",
+            is_editable=False
+        )
+        grid_top.addWidget(self.label_temp_sf, 1, 6, 1, 2)
 
-        lbl_cond_ef = QLabel("Cond. EF")
-        lbl_cond_ef.setStyleSheet(label_style)
-        lbl_cond_ef.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_cond_ef, 3, 6)
+        # lbl_temp_tank = QLabel("T. Tanque (°C)")
+        # lbl_temp_tank.setStyleSheet(label_style)
+        # lbl_temp_tank.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_temp_tank, 2, 6)
 
-        self.label_cond_ef = QLabel("0.0")
-        self.label_cond_ef.setStyleSheet(indicator_style)
-        self.label_cond_ef.setFixedSize(100, 35)
-        self.label_cond_ef.setAlignment(Qt.AlignCenter)
-        grid_top.addWidget(self.label_cond_ef, 3, 7)
+        # self.label_temp_tank = QLabel("0.0")
+        # self.label_temp_tank.setStyleSheet(indicator_style)
+        # self.label_temp_tank.setFixedSize(100, 35)
+        # self.label_temp_tank.setAlignment(Qt.AlignCenter)
+        # grid_top.addWidget(self.label_temp_tank, 2, 7)
+        self.label_temp_tank = LabeledParameterWidget(
+            label_text="T. Tanque", tag="dialyTempControlOutput",
+            value="0.0", units="°C",
+            is_editable=False
+        )
+        grid_top.addWidget(self.label_temp_tank, 2, 6, 1, 2)
 
-        lbl_cond_sf = QLabel("Cond. SF")
-        lbl_cond_sf.setStyleSheet(label_style)
-        lbl_cond_sf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid_top.addWidget(lbl_cond_sf, 4, 6)
+        # lbl_cond_ef = QLabel("Cond. EF")
+        # lbl_cond_ef.setStyleSheet(label_style)
+        # lbl_cond_ef.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_cond_ef, 3, 6)
 
-        self.label_cond_sf = QLabel("0.0")
-        self.label_cond_sf.setStyleSheet(indicator_style)
-        self.label_cond_sf.setFixedSize(100, 35)
-        self.label_cond_sf.setAlignment(Qt.AlignCenter)
-        grid_top.addWidget(self.label_cond_sf, 4, 7)
+        # self.label_cond_ef = QLabel("0.0")
+        # self.label_cond_ef.setStyleSheet(indicator_style)
+        # self.label_cond_ef.setFixedSize(100, 35)
+        # self.label_cond_ef.setAlignment(Qt.AlignCenter)
+        # grid_top.addWidget(self.label_cond_ef, 3, 7)
 
-        layout.addWidget(control_area, 0, 0, 1, 2) # control_area now takes col 0 and 1
+        self.label_cond_ef = LabeledParameterWidget(
+            label_text="Cond. EF", tag="dialyConductIFProcessData",
+            value="0.0", units="mS/cm", # Asumo mS/cm, puedes quitarlo si prefieres
+            is_editable=False
+        )
+        grid_top.addWidget(self.label_cond_ef, 3, 6, 1, 2)
+
+        # lbl_cond_sf = QLabel("Cond. SF")
+        # lbl_cond_sf.setStyleSheet(label_style)
+        # lbl_cond_sf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # grid_top.addWidget(lbl_cond_sf, 4, 6)
+
+        # self.label_cond_sf = QLabel("0.0")
+        # self.label_cond_sf.setStyleSheet(indicator_style)
+        # self.label_cond_sf.setFixedSize(100, 35)
+        # self.label_cond_sf.setAlignment(Qt.AlignCenter)
+        # grid_top.addWidget(self.label_cond_sf, 4, 7)
+
+        self.label_cond_sf = LabeledParameterWidget(
+            label_text="Cond. SF", tag="dialyConductOFProcessData",
+            value="0.0", units="mS/cm", # Asumo mS/cm
+            is_editable=False
+        )
+        grid_top.addWidget(self.label_cond_sf, 4, 6, 1, 2)
+
 
         # ── Bottom Control Area (Pressures & Navigation) ─────────────────────────
         bottom_control = QFrame() # Changed to QFrame for styling ease
@@ -281,11 +360,11 @@ class TestPanelScreen(QWidget):
         btn_manual.clicked.connect(self.parent_window.show_manual_mode_screen)
         grid_bottom.addWidget(btn_manual, row, col)
 
-        layout.addWidget(bottom_control, 1, 0, 1, 4) # bottom_control now takes col 0, 1, 2, 3
+        
 
         # ── Plots Area ───────────────────────────────────────────────────────────
         graphics_area = QFrame() # Changed to QFrame for styling ease
-        graphics_area.setStyleSheet("background: #fcfcfc; border-radius: 10px; border: 2px solid #1e293b;") # White background
+        graphics_area.setStyleSheet("background: #fcfcfc;") # White background
         graphics_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         grid_plots = QGridLayout(graphics_area)
         grid_plots.setSpacing(15)
@@ -327,12 +406,12 @@ class TestPanelScreen(QWidget):
             plot.getAxis('bottom').setStyle(tickTextOffset=5)
             plot.getAxis('left').setStyle(tickTextOffset=5)
 
-        layout.addWidget(graphics_area, 0, 2, 1, 1) # graphics_area now takes col 2
+        
 
         # ── LED Indicators Area ──────────────────────────────────────────────────
         led_area = QFrame() # Changed to QFrame for styling ease
-        led_area.setStyleSheet("background: #fcfcfc; border-radius: 10px; border: 2px solid #1e293b;") # White background
-        led_area.setFixedSize(180, 726) # This fixed size might conflict with policy
+        led_area.setStyleSheet("background: #fcfcfc;") # White background
+        led_area.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding) #
         grid_led = QGridLayout(led_area)
         grid_led.setSpacing(10)
         grid_led.setContentsMargins(10, 10, 10, 10) # Adjusted margins for consistency
@@ -358,7 +437,11 @@ class TestPanelScreen(QWidget):
             grid_led.addWidget(led, i, 1, alignment=Qt.AlignLeft | Qt.AlignVCenter)
             self.led_widgets.append((led, tag))
 
+        layout.addWidget(control_area, 0, 0, 1, 2) # control_area now takes col 0 and 1
+        layout.addWidget(graphics_area, 0, 2, 1, 1) # graphics_area now takes col 2
         layout.addWidget(led_area, 0, 3, 1, 1) # led_area now takes col 3
+        layout.addWidget(bottom_control, 1, 0, 1, 4) # bottom_control now takes col 0, 1, 2, 3
+
 
     def _add_output_row(self, grid, row, col, label_text, unit_text, label_style="color: #000000; font-size: 18px; font-weight: bold;", indicator_style="color: #000000; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; background: #e0e0e0;"):
         """Helper to add a labeled output row (label + value + unit)."""
@@ -401,13 +484,12 @@ class TestPanelScreen(QWidget):
            current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
             cycles = self.values.get("balanceChamberSetTiming", 0.0)
             try:
-                flow_ml_min = convertir_ciclos_a_flujo(cycles)
-                # ERROR FIX: self.input_flow_cb is not defined in TestPanelScreen.
-                # It should be self.input_cb_flow based on setup_ui.
+                flow_ml_min = convertir_ciclos_a_flujo(cycles)                                
                 self._update_input_display(self.input_cb_flow, flow_ml_min, precision=1) 
             except Exception as e:
                 logger.error(f"Error converting CB flow: {e}")
                 self._update_input_display(self.input_cb_flow, 0.0, precision=1)
+
 
         # ── UF Flow (ml/min → L/h) ──────────────────────────────────────────────
         if "ultraFilterPumpSpeed" not in self.write_hold_off or \
@@ -430,6 +512,8 @@ class TestPanelScreen(QWidget):
         self._update_label_display(self.label_cycles, self.values.get("balanceChamberCycleCount", 0))
         self._update_label_display(self.label_cond_ef, self.values.get("dialyConductIFProcessData", 0.0))
         self._update_label_display(self.label_cond_sf, self.values.get("dialyConductOFProcessData", 0.0))
+        self._update_label_display(self.label_temp_ef, self.values.get("dialyTempIFProcessData",0.0))
+        self._update_label_display(self.label_cond_sf, self.values.get("dialyTempOFProcessData",0.0))
 
         # ── Calculated PTM ──────────────────────────────────────────────────────
         pd_ef = self.values.get("dialyPresIFProcessData", 0.0)
@@ -456,6 +540,7 @@ class TestPanelScreen(QWidget):
         self._update_label_display(self.label_pt8, self.values.get("bloodArteryPressureData", 0.0))
         self._update_label_display(self.label_pt9, self.values.get("bloodVenousPressureData", 0.0))
         self._update_label_display(self.label_pt10, self.values.get("dialyPFilPmpPresProcessData", 0.0))
+        self._update_label_display(self.label_temp_tank, self.values.get("dialyTempControlOutput",0.0))
 
         # ── Temperature & Conductivity Plots ─────────────────────────────────────
         temp_ef = self.values.get("dialyTempIFProcessData", 0.0)
@@ -480,28 +565,63 @@ class TestPanelScreen(QWidget):
         self.temp_plot.setXRange(-self.history_length + 1, 0)
         self.cond_plot.setXRange(-self.history_length + 1, 0)
 
+    # def _update_input_display(self, widget, value, precision=1):
+    #     """Update ClickableLineEdit if not focused."""
+    #     # Check if the widget is a LabeledParameterWidget or a ClickableLineEdit
+    #     if not widget.hasFocus(): # This is for ClickableLineEdit
+    #         if isinstance(widget, LabeledParameterWidget):
+    #              widget.set_value(value)
+    #         elif hasattr(widget, 'setText'):
+    #             widget.setText(f"{value:.{precision}f}")
+
+
+    # def _update_label_display(self, label, value, precision=1):
+    #     """Update read-only QLabel."""
+    #     if hasattr(label, 'setText'):
+    #         label.setText(f"{value:.{precision}f}")
+
+
+
     def _update_input_display(self, widget, value, precision=1):
-        """Update ClickableLineEdit if not focused."""
-        # Check if the widget is a LabeledParameterWidget or a ClickableLineEdit
-        if not widget.hasFocus(): # This is for ClickableLineEdit
+        if not widget.hasFocus():
             if isinstance(widget, LabeledParameterWidget):
-                 widget.set_value(value)
+                widget.set_value(value)
             elif hasattr(widget, 'setText'):
                 widget.setText(f"{value:.{precision}f}")
 
-
     def _update_label_display(self, label, value, precision=1):
-        """Update read-only QLabel."""
-        if hasattr(label, 'setText'):
+        if isinstance(label, LabeledParameterWidget):
+            label.set_value(value)
+        elif hasattr(label, 'setText'):
             label.setText(f"{value:.{precision}f}")
 
+    # def _handle_cb_flow_input(self):
+    #     """Handle balance chamber flow input (ml/min → cycles)."""
+    #     current_text = self.input_cb_flow.text()
+    #     dialog = NumpadDialog(self, initial_value=current_text, title="Flujo CB (ml/min)")
+    #     if dialog.exec():
+    #         new_value = dialog.get_value()
+    #         self.input_cb_flow.setText(str(new_value))
+    #         try:
+    #             cycles = convertir_flujo_a_ciclos(new_value)
+    #             self._write_setpoint("balanceChamberSetTiming", cycles)
+    #             self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
+    #         except Exception as e:
+    #             logger.error(f"Error converting CB flow: {e}")
+
     def _handle_cb_flow_input(self):
-        """Handle balance chamber flow input (ml/min → cycles)."""
-        current_text = self.input_cb_flow.text()
+        """Handle balance chamber flow input (ml/min → cycles)."""        
+        try:
+            current_text = self.input_cb_flow.get_value()
+            # ANTES: current_text = self.input_flow_cb.text()
+        except AttributeError:
+            current_text = "0.0"
+
         dialog = NumpadDialog(self, initial_value=current_text, title="Flujo CB (ml/min)")
         if dialog.exec():
             new_value = dialog.get_value()
-            self.input_cb_flow.setText(str(new_value))
+            if hasattr(self.input_cb_flow, 'setText'):
+                self.input_cb_flow.setText(str(new_value))            
             try:
                 cycles = convertir_flujo_a_ciclos(new_value)
                 self._write_setpoint("balanceChamberSetTiming", cycles)
@@ -511,11 +631,17 @@ class TestPanelScreen(QWidget):
 
     def _handle_uf_flow_input(self):
         """Handle UF flow input (L/h → ml/min)."""
-        current_text = self.input_uf_flow.text()
+        try:
+            # current_text = self.input_uf_flow.text()
+            current_text = self.input_uf_flow.get_value()
+        except AttributeError:
+            current_text = "0.0"
+
         dialog = NumpadDialog(self, initial_value=current_text, title="Flujo UF (L/h)")
         if dialog.exec():
             new_value = dialog.get_value()
-            self.input_uf_flow.setText(str(new_value))
+            # self.input_uf_flow.setText(str(new_value))
+            self.input_uf_flow.set_value(new_value)
             try:
                 ml_min = convertir_litros_h_a_ml_min(new_value)
                 self._write_setpoint("ultraFilterPumpSpeed", ml_min)
@@ -524,15 +650,31 @@ class TestPanelScreen(QWidget):
                 logger.error(f"Error converting UF flow: {e}")
 
     def open_numpad(self, tag: str, input_widget, title: str = "Ingrese valor"):
-        """Open numeric keypad for setpoint entry."""
-        current_text = input_widget.text() # Assuming ClickableLineEdit
+        """Open numeric keypad for setpoint entry."""    
+    # 1. Obtener el valor actual de forma segura
+        if hasattr(input_widget, 'get_value'):
+        # Es un LabeledParameterWidget
+            current_text = input_widget.get_value()
+        else:
+            # Es un QLineEdit estándar
+            current_text = input_widget.text()
+
         dialog = NumpadDialog(self, initial_value=current_text, title=title)
+    
         if dialog.exec():
             new_value = dialog.get_value()
-            if new_value is not None:
-                input_widget.setText(str(new_value)) # Assuming ClickableLineEdit
+            if new_value is not None:            
+                # 2. Establecer el nuevo valor de forma segura
+                if hasattr(input_widget, 'set_value'):
+                     # Es un LabeledParameterWidget
+                    input_widget.set_value(new_value)
+                else:
+                    # Es un QLineEdit estándar
+                    input_widget.setText(str(new_value))
+            
                 self._write_setpoint(tag, new_value)
                 self.write_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 3000
+
 
     def _write_setpoint(self, tag: str, value: float):
         """Write setpoint value to controller safely."""

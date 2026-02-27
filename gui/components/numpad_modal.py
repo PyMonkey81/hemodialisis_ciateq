@@ -157,12 +157,32 @@ class NumpadDialog(QDialog):
         current_text = self.display.text()
         self.display.setText(current_text[:-1] if current_text else "")
 
-    def get_value(self) -> float:
-        """Return the entered value as float (0.0 if empty or invalid)."""
+    # def get_value(self) -> float:
+    #     """Return the entered value as float (0.0 if empty or invalid)."""
+    #     text = self.display.text().strip()
+    #     if not text or text == ".":
+    #         return 0.0
+    #     try:
+    #         return float(text)
+    #     except ValueError:
+    #         return 0.0
+
+
+    def get_value(self): # Ya no necesita tipo hint float
+        """
+        Return the entered value as float or int, depending on if it contains a decimal point.
+        Returns 0 if empty or invalid.
+        """
         text = self.display.text().strip()
         if not text or text == ".":
-            return 0.0
+            return 0 # Default to int 0 if empty/invalid
+
         try:
-            return float(text)
+            # Si el texto contiene un punto, es un float
+            if '.' in text:
+                return float(text)
+            # Si no contiene un punto, es un entero
+            else:
+                return int(text)
         except ValueError:
-            return 0.0
+            return 0 # Default to int 0 if conversion fails

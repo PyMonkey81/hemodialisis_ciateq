@@ -60,13 +60,16 @@ class CalibrationScreen(QWidget):
         self.temp_output_history   = deque(nan_array, maxlen=self.history_length)
 
         self.time_axis = np.arange(-self.history_length + 1, 1, dtype=np.float32)
-
+        
         self.setup_ui()
 
     def setup_ui(self):
         layout = QGridLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(15)
+
+        
+
 
         # ── Plots Area ───────────────────────────────────────────────────────────
         graphics_area = QWidget()
@@ -235,25 +238,26 @@ class CalibrationScreen(QWidget):
         """Helper to add a labeled control row (label + input/display + unit)."""
         label = QLabel(label_text)
         grid.addWidget(label, row, col)
+        label_style = "color: #000000; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+        button_style = """
+            QPushButton { background: #3b82f6; color: #ffffff; border-radius: 20px; font-weight: bold; }
+            QPushButton:pressed { background: #1e40af; }
+        """
+        input_style = """
+            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            border: 2px solid #000000; border-radius: 5px; padding: 4px;
+        """
 
         if is_input:
             widget = ClickableLineEdit(initial_value)
             widget.setReadOnly(True)
-            widget.setStyleSheet("""
-                background: #FFFFE5;
-                color: #000000;
-                border: 2px solid #000000;
-                border-radius: 6px;
-                padding: 4px;
-                font-family: Consolas, "Courier New", monospace;
-                font-size: 20px;
-                font-weight: bold;
-            """)
+            widget.setStyleSheet(input_style)
             if tag and numpad_title:
                 widget.clicked.connect(lambda: self.open_numpad(tag, widget, numpad_title))
         else:
-            widget = QLabel(initial_value)
-            widget.setStyleSheet("color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;")
+            widget = QLabel(initial_value)            
+            widget.setStyleSheet(indicator_style)                                 
             widget.setProperty("class", "highlighted")
 
         widget.setFixedSize(80, 35)
@@ -381,7 +385,7 @@ class CalibrationScreen(QWidget):
         # ── Conductivity ─────────────────────────────────────────────────────────
         cond_setpoint = self.values.get("dialyCondControlSetPoint", 0.0)
         cond_variable = self.values.get("dialyCondVariableData", 0.0)
-        cond_output_raw = self.values.get("dialyCondControlOutput", 0.0)
+        cond_output_raw = self.values.get("dialyCondControlOutput", 0.0) # Salida de conductividad
         cond_output_percent = cond_output_raw / 5  # Asumiendo escala
 
         self.cond_setpoint_history.append(cond_setpoint)
@@ -416,7 +420,7 @@ class CalibrationScreen(QWidget):
         self._update_label_display(self.blood_flow_variable_label, "bloodFlowVariableData")
 
         self._update_input_display(self.cond_setpoint_input, "dialyCondControlSetPoint")
-        self._update_input_display(self.cond_output_input, "dialyCondControlOutput")
+        self._update_input_display(self.cond_output_input, "dialyCondControlOutput") # Salida conductividad
         self._update_label_display(self.cond_variable_label, "dialyCondVariableData")
 
         self._update_input_display(self.temp_setpoint_input, "dialyTempControlSetPoint")

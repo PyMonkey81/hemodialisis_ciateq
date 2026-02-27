@@ -17,6 +17,7 @@ class AlarmsScreen(QWidget):
     def __init__(self, parent=None, values_dict=None, alarm_system=None):
         super().__init__(parent)
         # --- ESTILOS GENERALES DE LA PANTALLA ---
+
         self.setStyleSheet("background: #F8F8FA; color: #333333; font-family: 'Segoe UI';")
         self.parent_window = parent
         self.values = values_dict if values_dict is not None else {}
@@ -83,7 +84,7 @@ class AlarmsScreen(QWidget):
         self.btn_ack_all.setStyleSheet("""
             QPushButton {
                 background: #D9534F; /* Rojo suave */
-                color: white;
+                color: #ffffff;
                 font-size: 22px;
                 font-weight: bold;
                 border-radius: 8px;
@@ -235,18 +236,31 @@ class AlarmsScreen(QWidget):
                     data['acked'] = True
                     changed = True
             
+            # if changed:
+            #     self._update_active_alarms_display()
+            #     self.update_ack_button_state()
+
+            #     if self.parent_window and hasattr(self.parent_window, 'led_bar') and self.parent_window.led_bar:
+            #         self.parent_window.led_bar.send_state(self.parent_window.led_bar.CMD_SILENCE)
+            #         self._append_to_history("Comando de SILENCIO enviado al buzzer", None, "info", QTime.currentTime().toString("hh:mm:ss"))
+            
+                
+            #     self._append_to_history("Operador reconoció alarmas activas", None, "info", QTime.currentTime().toString("hh:mm:ss"))
+            #     QMessageBox.information(self, "Listo", f"{unacked_count} alarma(s) reconocida(s).")
+
+
             if changed:
                 self._update_active_alarms_display()
                 self.update_ack_button_state()
 
-                if self.parent_window and hasattr(self.parent_window, 'led_bar') and self.parent_window.led_bar:
-                    # Envia solo el comando de silencio, manteniendo el último comando de LED.
-                    self.parent_window.led_bar.send_state(self.parent_window.led_bar.CMD_SILENCE)
-                    self._append_to_history("Comando de SILENCIO enviado al buzzer", None, "info", QTime.currentTime().toString("hh:mm:ss"))
-            
-                
-                self._append_to_history("Operador reconoció alarmas activas", None, "info", QTime.currentTime().toString("hh:mm:ss"))
-                QMessageBox.information(self, "Listo", f"{unacked_count} alarma(s) reconocida(s).")
+                # === NUEVA LÓGICA DE SILENCIO ===
+                if self.parent_window and hasattr(self.parent_window, 'led_bar'):
+                    self.parent_window.buzzer_silenced_by_user = True
+                    self.parent_window.update_led_bar_state()   # ← fuerza envío inmediato
+
+                self._append_to_history("Operador reconoció alarmas activas y silenció buzzer", 
+                                      None, "info", QTime.currentTime().toString("hh:mm:ss"))
+                QMessageBox.information(self, "Listo", f"{unacked_count} alarma(s) reconocida(s). Buzzer silenciado.")
         else:
             QMessageBox.information(self, "Cancelado", "Reconocimiento de alarmas cancelado.")
 
@@ -348,6 +362,11 @@ class AlarmsScreen(QWidget):
         """Método de compatibilidad. No usado directamente aquí."""
         self.values = values_dict
 
+    def silence_buzzer_only(self):
+        """Silencia el buzzer SIN tocar el estado de los LEDs (útil desde otras pantallas)."""
+        if not self._last_buzzer_silence_state_sent:
+            self.command_queue.put(self.CMD_SILENCE)
+            self._last_buzzer_silence_state_sent = True
 
 
 
