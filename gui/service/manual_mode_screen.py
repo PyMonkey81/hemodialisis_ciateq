@@ -3,7 +3,7 @@
 # Critical safety features: REQ-SW-005, REQ-SW-010, REQ-SW-012, REQ-SW-020
 
 import logging
-from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QSizePolicy
+from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QSizePolicy, QCheckBox, QDialog
 from PySide6.QtCore import Qt, QTimer, QDateTime
 from PySide6.QtGui import QColor
 
@@ -61,6 +61,60 @@ class ManualModeScreen(QWidget):
         self.values = values_dict if values_dict is not None else {}
 
         self.write_hold_off = {}
+        self.grouped_pumps = set()
+
+        # Mapeo de pump_ids a sus configs (para apagado grupal)
+        self.pump_configs = {
+            "balance_chamber": {
+                "stop_tag": "dialiserBalChambStpButt",
+                "start_tag": "dialiserBalChambStrButt",
+                "toggle": lambda: self.balance_chamber_toggle,
+                "timer_key": "balance_chamber"
+            },
+            "heparin_pump": {
+                "stop_tag": "heparinePumpsStopButton",
+                "start_tag": "heparinePumpsStartButton",
+                "toggle": lambda: self.heparin_pump_toggle,
+                "timer_key": "heparin_pump"
+            },
+            "uf_pump": {
+                "stop_tag": "dialyUltraFPumpStoptButt",
+                "start_tag": "dialyUltraFPumpStartButt",
+                "toggle": lambda: self.uf_pump_toggle,
+                "timer_key": "uf_pump"
+            },
+            "purge_pump": {
+                "stop_tag": "dialyPurgePumpStopButt",
+                "start_tag": "dialyPurgePumpStartButt",
+                "toggle": lambda: self.purge_pump_toggle,
+                "timer_key": None  # No tiene timer propio, pero se apaga igual
+            },
+            "dialysate_pump": {
+                "stop_tag": "dialyserPumpStopButton",
+                "start_tag": "dialyserPumpStartButton",
+                "toggle": lambda: self.dialysate_pump_toggle,
+                "timer_key": "dialysate_pump"
+            },
+            "blood_pump": {
+                "stop_tag": "bloodPumpStopButton",
+                "start_tag": "bloodPumpStartButton",
+                "toggle": lambda: self.blood_pump_toggle,
+                "timer_key": "blood_pump"
+            },
+            "bicarbonate_pump": {  # NA+
+                "stop_tag": "dialyBicarbonPumpStopButt",
+                "start_tag": "dialyBicarbonPumpStartButt",
+                "toggle": lambda: self.bicarbonate_pump_toggle,
+                "timer_key": None
+            },
+            "citric_acid_pump": {  # Ácido
+                "stop_tag": "dialyCitricAcPumpStopButt",
+                "start_tag": "dialyCitricAcPumpStartButt",
+                "toggle": lambda: self.citric_acid_pump_toggle,
+                "timer_key": None
+            },
+        }
+
 
         self._setup_timers()
         self.setup_ui()
@@ -230,6 +284,7 @@ class ManualModeScreen(QWidget):
         )        
         grid.addWidget(self.remaining_blood_time_label, 1, 11, 1, 2)
         self.local_timer_states["blood_pump"]["remaining_lbl"] = self.remaining_blood_time_label.time_display
+        # self.local_timer_states["blood_pump"]["elapsed_lbl"] = self.blood_pump_time_input.time_display
 
 
         # ==============================================================================
@@ -257,6 +312,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.remaining_heparin_pump, 2, 2, 1, 2)       
 
         self.local_timer_states["heparin_pump"]["remaining_lbl"] = self.remaining_heparin_pump.time_display
+        # self.local_timer_states["heparin_pump"]["elapsed_lbl"]  = self.heparin_time_input.time_display
 
         # 13. Toggle b. heparina (Der)
         lbl_heparin_pump = QLabel("B. Hep.", self.control_area)
@@ -384,6 +440,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.lbl_remaining_pd, 4, 11, 1, 2)
 
         self.local_timer_states["dialysate_pump"]["remaining_lbl"] = self.lbl_remaining_pd.time_display
+        # self.local_timer_states["dialysate_pump"]["elapsed_lbl"] = self.dialysate_time_display.time_display
 
 
         # ==============================================================================
@@ -449,6 +506,7 @@ class ManualModeScreen(QWidget):
         )
         grid.addWidget(self.lbl_remaining_cb, 6, 2, 1, 2)
         self.local_timer_states["balance_chamber"]["remaining_lbl"] = self.lbl_remaining_cb.time_display
+        # self.local_timer_states["balance_chamber"]["elapsed_lbl"]   = self.balance_chamber_time_input.time_display
 
         # 31. Bomba UF (Der)
         lbl_ultrafiltado = QLabel("B. UF", self.control_area)
@@ -492,6 +550,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.lbl_remaining_puf, 6, 11, 1, 2)
 
         self.local_timer_states["uf_pump"]["remaining_lbl"] = self.lbl_remaining_puf.time_display
+        # self.local_timer_states["uf_pump"]["elapsed_lbl"] = self.uf_time_display.time_display
 
 
         # ==============================================================================
@@ -540,6 +599,17 @@ class ManualModeScreen(QWidget):
             value="0.0", units="%", is_editable=False, parent=self.control_area
         )
         grid.addWidget(self.citric_acid_output_display, 8, 7, 1, 2)
+
+        # 41 boton de configuraciones de prueba
+        self.test_parameter_configuration = QPushButton("Parámetros de prueba")
+        self.test_parameter_configuration.setFixedSize(200, 60)
+        self.test_parameter_configuration.setStyleSheet("""
+            QPushButton { background: #3b82f6; color: white; font-size: 18px; font-weight: bold; border-radius: 10px; }
+            QPushButton:hover { background: #60a5fa; }
+        """)
+        self.test_parameter_configuration.clicked.connect(self._open_group_pumps_dialog)
+        grid.addWidget(self.test_parameter_configuration, 8, 9, 1, 3)
+
 
         grid.setColumnStretch(0, 1)
         grid.setColumnMinimumWidth(3, 70)
@@ -645,6 +715,251 @@ class ManualModeScreen(QWidget):
     # Métodos Lógicos (Sin cambios, solo corrección en llamadas auxiliares)
     # ────────────────────────────────────────────────
 
+    # def _open_group_pumps_dialog(self):
+    #     """Abre el popup para seleccionar bombas a agrupar bajo timer de terapia."""
+    #     dialog = QDialog(self)
+    #     dialog.setWindowTitle("Configuración de Pruebas - Agrupar Bombas")
+    #     dialog.setFixedSize(400, 500)
+    #     dialog.setStyleSheet("background: #f8fafc; color: #0f172a;")
+
+    #     layout = QVBoxLayout(dialog)
+    #     layout.setContentsMargins(20, 20, 20, 20)
+    #     layout.setSpacing(15)
+
+    #     title = QLabel("Seleccione bombas/cámara a controlar con Tiempo de Terapia")
+    #     title.setStyleSheet("font-size: 20px; font-weight: bold; color: #3b82f6;")
+    #     layout.addWidget(title)
+
+    #     # Checkboxes con mapeo a pump_ids
+    #     self.checkboxes = {}
+    #     pump_labels = [
+    #         ("Cámara de balance", "balance_chamber"),
+    #         ("Bomba de heparina", "heparin_pump"),
+    #         ("Bomba de UF", "uf_pump"),
+    #         ("Bomba de purga", "purge_pump"),
+    #         ("Bomba dializante", "dialysate_pump"),
+    #         ("Bomba de sangre", "blood_pump"),
+    #         ("Bomba de NA+", "bicarbonate_pump"),
+    #         ("Bomba de ácido", "citric_acid_pump"),
+    #     ]
+
+    #     for label_text, pump_id in pump_labels:
+    #         checkbox = QCheckBox(label_text)
+    #         checkbox.setStyleSheet("font-size: 16px;")
+    #         checkbox.setChecked(pump_id in self.grouped_pumps)  # Mantener estado previo
+    #         layout.addWidget(checkbox)
+    #         self.checkboxes[pump_id] = checkbox
+
+    #     # Botones Aceptar/Cancelar
+    #     buttons_layout = QHBoxLayout()
+    #     btn_accept = QPushButton("Aceptar")
+    #     btn_accept.setStyleSheet("""
+    #         QPushButton { background: #22c55e; color: white; font-size: 16px; border-radius: 8px; padding: 8px; }
+    #         QPushButton:hover { background: #16a34a; }
+    #     """)
+    #     btn_accept.clicked.connect(lambda: self._apply_group_selection(dialog))
+    #     buttons_layout.addWidget(btn_accept)
+
+    #     btn_cancel = QPushButton("Cancelar")
+    #     btn_cancel.setStyleSheet("""
+    #         QPushButton { background: #dc2626; color: white; font-size: 16px; border-radius: 8px; padding: 8px; }
+    #         QPushButton:hover { background: #b91c1c; }
+    #     """)
+    #     btn_cancel.clicked.connect(dialog.reject)
+    #     buttons_layout.addWidget(btn_cancel)
+
+    #     layout.addLayout(buttons_layout)
+
+    #     dialog.exec()
+
+
+    def _open_group_pumps_dialog(self):
+        """Abre el popup estilizado para seleccionar bombas a agrupar."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Sincronización de Bombas")
+        dialog.setFixedSize(650, 500) # Un poco más ancho para 2 columnas cómodas
+        
+        # Estilo general del Dialog (Fondo limpio, gris muy claro)
+        dialog.setStyleSheet("""
+            QDialog { background-color: #f1f5f9; }
+            QLabel { color: #334155; }
+        """)
+
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setContentsMargins(25, 25, 25, 25)
+        main_layout.setSpacing(20)
+
+        # ─── 1. Encabezado ───
+        header_layout = QVBoxLayout()
+        header_layout.setSpacing(5)
+        
+        title = QLabel("Agrupación de Bombas")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1e293b;")
+        title.setAlignment(Qt.AlignCenter)
+        
+        subtitle = QLabel("Seleccione los elementos que se detendrán\nal finalizar el Tiempo de Terapia.")
+        subtitle.setStyleSheet("font-size: 16px; color: #64748b;")
+        subtitle.setAlignment(Qt.AlignCenter)
+        
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+        main_layout.addLayout(header_layout)
+
+        # Separador visual
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet("color: #cbd5e1;")
+        main_layout.addWidget(line)
+
+        # ─── 2. Grid de Selección (Checkboxes estilo tarjeta) ───
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(15)
+        
+        self.checkboxes = {}
+        pump_labels = [
+            ("Cámara de Balance", "balance_chamber"),
+            ("Bomba de Heparina", "heparin_pump"),
+            ("Bomba de UF", "uf_pump"),
+            ("Bomba de Purga", "purge_pump"),
+            ("Bomba Dializante", "dialysate_pump"),
+            ("Bomba de Sangre", "blood_pump"),
+            ("Bomba de Na+", "bicarbonate_pump"),
+            ("Bomba de Ácido", "citric_acid_pump"),
+        ]
+
+        # Estilo CSS avanzado para los checkboxes
+        # Transforma el checkbox aburrido en un panel clicable
+        checkbox_style = """
+            QCheckBox {
+                spacing: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                color: #475569;
+                background-color: #ffffff;
+                border: 2px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 15px;
+            }
+            QCheckBox::indicator {
+                width: 24px;
+                height: 24px;
+                border-radius: 6px;
+                border: 2px solid #94a3b8;
+                background: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #3b82f6;
+                border-color: #3b82f6;
+                image: url(resources/icons/check.png); /* Si tienes icono, sino usa estilo por defecto */
+            }
+            /* Estado Hover */
+            QCheckBox:hover {
+                border-color: #3b82f6;
+                background-color: #f8fafc;
+            }
+            /* Estado Checked (Cambia todo el fondo para feedback claro) */
+            QCheckBox:checked {
+                background-color: #eff6ff; /* Azul muy claro */
+                border-color: #3b82f6;
+                color: #1e3a8a;
+            }
+        """
+
+        for i, (label_text, pump_id) in enumerate(pump_labels):
+            checkbox = QCheckBox(label_text)
+            checkbox.setCursor(Qt.PointingHandCursor)
+            checkbox.setStyleSheet(checkbox_style)
+            checkbox.setChecked(pump_id in self.grouped_pumps)
+            
+            # Añadir al grid (2 columnas)
+            row = i // 2
+            col = i % 2
+            grid_layout.addWidget(checkbox, row, col)
+            
+            self.checkboxes[pump_id] = checkbox
+
+        main_layout.addLayout(grid_layout)
+        main_layout.addStretch() # Empujar botones al fondo
+
+        # ─── 3. Botones de Acción ───
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(15)
+
+        btn_cancel = QPushButton("Cancelar")
+        btn_cancel.setCursor(Qt.PointingHandCursor)
+        btn_cancel.setFixedSize(180, 50)
+        btn_cancel.setStyleSheet("""
+            QPushButton {
+                background-color: #ffffff;
+                color: #64748b;
+                border: 2px solid #cbd5e1;
+                font-size: 18px;
+                font-weight: bold;
+                border-radius: 12px;
+            }
+            QPushButton:hover {
+                background-color: #f1f5f9;
+                color: #334155;
+                border-color: #94a3b8;
+            }
+            QPushButton:pressed {
+                background-color: #e2e8f0;
+            }
+        """)
+        btn_cancel.clicked.connect(dialog.reject)
+
+        btn_accept = QPushButton("Guardar Configuración")
+        btn_accept.setCursor(Qt.PointingHandCursor)
+        btn_accept.setFixedHeight(50) # Que ocupe el resto del ancho
+        btn_accept.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        btn_accept.setStyleSheet("""
+            QPushButton {
+                background-color: #3b82f6;
+                color: white;
+                border: none;
+                font-size: 18px;
+                font-weight: bold;
+                border-radius: 12px;
+            }
+            QPushButton:hover { background-color: #2563eb; }
+            QPushButton:pressed { background-color: #1d4ed8; }
+        """)
+        btn_accept.clicked.connect(lambda: self._apply_group_selection(dialog))
+
+        buttons_layout.addWidget(btn_cancel)
+        buttons_layout.addWidget(btn_accept)
+
+        main_layout.addLayout(buttons_layout)
+
+        dialog.exec()
+
+
+    def _apply_group_selection(self, dialog):
+        """Aplica la selección de checkboxes al set grouped_pumps."""
+        self.grouped_pumps.clear()
+        for pump_id, checkbox in self.checkboxes.items():
+            if checkbox.isChecked():
+                self.grouped_pumps.add(pump_id)
+        logger.info(f"Bombas agrupadas bajo timer de terapia: {self.grouped_pumps}")
+        dialog.accept()
+
+    def _stop_heparin_pump_on_timeout(self):
+        # Apagar la bomba de heparina (como antes)
+        self._stop_pump_generic("heparin_pump", "heparinePumpsStopButton", "heparinePumpsStartButton", self.heparin_pump_toggle)
+
+        # Apagar todas las bombas agrupadas
+        for pump_id in self.grouped_pumps:
+            if pump_id != "heparin_pump":  # Evitar duplicado
+                config = self.pump_configs.get(pump_id)
+                if config:
+                    self._stop_pump_generic(
+                        config["timer_key"] or pump_id,  # Usa timer_key si existe
+                        config["stop_tag"],
+                        config["start_tag"],
+                        config["toggle"]()
+                    )
+        logger.info("Grupo de bombas apagado por timeout de terapia")
+
     def update_values(self, new_values: dict):
         self.values = new_values
         current_ms = QDateTime.currentMSecsSinceEpoch()
@@ -726,27 +1041,74 @@ class ManualModeScreen(QWidget):
     def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
         if not tag_hours and not tag_minutes:
             return
-        
-        current_ms = QDateTime.currentMSecsSinceEpoch()
-        hold_hours = self.write_hold_off.get(tag_hours, 0) if tag_hours else 0
-        hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
 
-        if current_ms < hold_hours or current_ms < hold_minutes:
+        current_ms = QDateTime.currentMSecsSinceEpoch()
+
+        # Nunca sobrescribir si el usuario está interactuando con el widget
+        if time_widget.hasFocus() or time_widget.underMouse():
             return
 
-        hours = int(self.values.get(tag_hours, 0)) if tag_hours else 0
+        # Hold-off después de escritura (más estricto)
+        hold_hours   = self.write_hold_off.get(tag_hours,   0) if tag_hours   else 0
+        hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
+
+        if current_ms < max(hold_hours, hold_minutes):
+            return
+
+        # Obtener valor real del serial
+        hours   = int(self.values.get(tag_hours,   0)) if tag_hours   else 0
         minutes = int(self.values.get(tag_minutes, 0)) if tag_minutes else 0
+        new_hh_mm = f"{hours:02d}:{minutes:02d}"
 
-        if isinstance(time_widget, LabeledTimeInput):
-            time_widget.set_time_value(hours, minutes)
-        elif hasattr(time_widget, 'setText'):
-            if not time_widget.hasFocus():
-                time_widget.setText(f"{hours:02d}:{minutes:02d}")
+        # Solo actualizar si es DIFERENTE al que ya muestra el widget
+        # Esto evita el parpadeo cuando el valor ya es correcto
+        current_display = time_widget.get_time_value() if hasattr(time_widget, 'get_time_value') else time_widget.text()
 
+        if current_display != new_hh_mm:
+            if isinstance(time_widget, LabeledTimeInput):
+                time_widget.set_time_value(hours, minutes)
+            else:
+                time_widget.setText(new_hh_mm)
+
+            logger.debug(f"Actualizado T. Terapia a {new_hh_mm} desde serial")
+
+        # Actualizar duración local SOLO si NO está en modo timer activo
+        # (evita resetear la configuración del usuario mientras corre el countdown)
         if timer_id and timer_id in self.local_timer_states:
-            if not self.local_timer_states[timer_id]["active"]:
+            state = self.local_timer_states[timer_id]
+            if not state["active"]:
                 total_ms = (hours * 3600 + minutes * 60) * 1000
-                self.local_timer_states[timer_id]["duration_ms"] = total_ms
+                if state["duration_ms"] != total_ms:  # solo si cambió
+                    state["duration_ms"] = total_ms
+                    if state["remaining_lbl"]:
+                        state["remaining_lbl"].setText(new_hh_mm)
+                    logger.debug(f"Actualizada duración local de {timer_id} a {total_ms} ms")
+
+
+    # def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
+    #     if not tag_hours and not tag_minutes:
+    #         return
+        
+    #     current_ms = QDateTime.currentMSecsSinceEpoch()
+    #     hold_hours = self.write_hold_off.get(tag_hours, 0) if tag_hours else 0
+    #     hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
+
+    #     if current_ms < hold_hours or current_ms < hold_minutes:
+    #         return
+
+    #     hours = int(self.values.get(tag_hours, 0)) if tag_hours else 0
+    #     minutes = int(self.values.get(tag_minutes, 0)) if tag_minutes else 0
+
+    #     if isinstance(time_widget, LabeledTimeInput):
+    #         time_widget.set_time_value(hours, minutes)
+    #     elif hasattr(time_widget, 'setText'):
+    #         if not time_widget.hasFocus():
+    #             time_widget.setText(f"{hours:02d}:{minutes:02d}")
+
+    #     if timer_id and timer_id in self.local_timer_states:
+    #         if not self.local_timer_states[timer_id]["active"]:
+    #             total_ms = (hours * 3600 + minutes * 60) * 1000
+    #             self.local_timer_states[timer_id]["duration_ms"] = total_ms
 
     def _update_input_display(self, widget, value, precision=1):
         if not widget.hasFocus():
@@ -956,27 +1318,64 @@ class ManualModeScreen(QWidget):
         for timer_id, state in self.local_timer_states.items():
             if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
                 elapsed_ms = current_ms - state["start_ms"]
-                # remaining_ms = max(0, state["duration_ms"] - elapsed_ms)
-                remaining_ms = state["duration_ms"] - elapsed_ms
+                remaining_ms = max(0, state["duration_ms"] - elapsed_ms)
 
-                if remaining_ms <= 0:
-                    remaining_ms = 0
-                    # elapsed_ms = state["duration_ms"]
-
+                # Actualizar labels si existen
                 if state["elapsed_lbl"]:
                     state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
-                if state["remaining_lbl"]:
-                    state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
-            
-            else:
-                if state["elapsed_lbl"] and state["elapsed_lbl"].text() != "00:00":
-                    state["elapsed_lbl"].setText("00:00")
+                    # Opcional: cambiar color cuando está activo
+                    # state["elapsed_lbl"].setStyleSheet("color: #22c55e;")  # verde activo
 
                 if state["remaining_lbl"]:
+                    state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
+                    if remaining_ms < 30000:  # menos de 30 segundos → alerta
+                        state["remaining_lbl"].setStyleSheet("color: #ef4444; font-weight: bold;")
+                    else:
+                        state["remaining_lbl"].setStyleSheet("color: #000000;")
+
+                # Si se acabó el tiempo → detener todo
+                if remaining_ms <= 0:
+                    # Forzar parada (por si el timer falló por algún motivo)
+                    self._stop_pump_generic(
+                        timer_id,
+                        f"{timer_id.replace('_', '')}StopButton",  # ajustar nombres reales
+                        f"{timer_id.replace('_', '')}StartButton",
+                        getattr(self, f"{timer_id}_toggle", None)
+                    )   
+
+            else:
+                # Estado inactivo
+                if state["elapsed_lbl"]:
+                    state["elapsed_lbl"].setText("00:00")
+                if state["remaining_lbl"]:
                     state["remaining_lbl"].setText(self._format_ms_to_hh_mm(state["duration_ms"]))
-                    # h = state["duration_ms"] // 3600000
-                    # m = (state["duration_ms"] % 3600000) // 60000
-                    # state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
+
+    # def _update_local_time_displays(self):
+    #     current_ms = QDateTime.currentMSecsSinceEpoch()
+    #     for timer_id, state in self.local_timer_states.items():
+    #         if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
+    #             elapsed_ms = current_ms - state["start_ms"]
+    #             # remaining_ms = max(0, state["duration_ms"] - elapsed_ms)
+    #             remaining_ms = state["duration_ms"] - elapsed_ms
+
+    #             if remaining_ms <= 0:
+    #                 remaining_ms = 0
+    #                 # elapsed_ms = state["duration_ms"]
+
+    #             if state["elapsed_lbl"]:
+    #                 state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
+    #             if state["remaining_lbl"]:
+    #                 state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
+            
+    #         else:
+    #             if state["elapsed_lbl"] and state["elapsed_lbl"].text() != "00:00":
+    #                 state["elapsed_lbl"].setText("00:00")
+
+    #             if state["remaining_lbl"]:
+    #                 state["remaining_lbl"].setText(self._format_ms_to_hh_mm(state["duration_ms"]))
+    #                 # h = state["duration_ms"] // 3600000
+    #                 # m = (state["duration_ms"] % 3600000) // 60000
+    #                 # state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
     
     def _format_ms_to_label(self, label_widget, ms):
         total_seconds = max(0, int(ms//1000))

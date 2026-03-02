@@ -114,12 +114,15 @@ class CleaningScreen(QWidget):
         main_layout.addStretch()
 
         # ── Start / Restart Button ───────────────────────────────────────────────
+
+        
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
         self.start_button = QPushButton("Iniciar limpieza")
         self.start_button.setFixedSize(300, 100)
         self.start_button.setEnabled(False)  # Disabled until ready state
+        self.start_button.setProperty("base_color", "#047857")         
         self.start_button.setStyleSheet("""
             QPushButton {
                 background: #047857;
@@ -130,16 +133,9 @@ class CleaningScreen(QWidget):
                 border-radius: 16px;
                 padding: 10px;
             }
-            QPushButton:hover {
-                background: #065f46;
-            }
-            QPushButton:pressed {
-                background: #064e3b;
-            }
-            QPushButton:disabled {
-                background: #334155;
-                color: #64748b;
-            }
+            QPushButton:hover { background: #065f46; }
+            QPushButton:pressed { background: #064e3b; }
+            QPushButton:disabled { background: #334155; color: #64748b; }
         """)
         self.start_button.clicked.connect(self._start_cleaning)
         button_layout.addWidget(self.start_button)
@@ -234,42 +230,61 @@ class CleaningScreen(QWidget):
     def update_values(self, new_values: dict):
         """Receive and process updated values from main window."""
         self.values = new_values
+        pass
 
-        # If cleaning is already in progress, do not interfere with button state
+
+    def update_buttons_state(self, status_code):
+        """
+        Habilita o deshabilita el botón de limpieza basado en el estado.
+        Estandarizado con DialysisScreen.
+        """
         if self.cleaning_in_progress:
             return
 
-        # Get priming/cleaning status (assuming tag "primingProcessStatus")
-        current_status = self.values.get("primingProcessStatus", 0.0)
+        # Estilo deshabilitado (Gris)
+        style_disabled = """
+            QPushButton {
+                background: #334155; color: #64748b;
+                font-size: 38px; font-weight: bold; border: none;
+                border-radius: 16px; padding: 10px;
+            }
+        """
+        # Función para aplicar estilo habilitado (Verde original)
+        def set_enabled_style(btn):
+            color = btn.property("base_color")
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {color}; color: white;
+                    font-size: 38px; font-weight: bold; border: none;
+                    border-radius: 16px; padding: 10px;
+                }}
+                QPushButton:hover {{ background: #065f46; }}
+                QPushButton:pressed {{ background: #064e3b; }}
+            """)
 
-        # Example ready state: 6 = infusion / ready for cleaning
-        IS_READY_STATE = (int(current_status) == 6)
-
-        if IS_READY_STATE:
+        # Lógica de Estados
+        # 6 = INFUSION (Listo para limpieza)
+        if status_code == 6:
             if not self.start_button.isEnabled():
                 self.start_button.setEnabled(True)
+                set_enabled_style(self.start_button)
+                
+                # Feedback visual en etiquetas
                 self.current_phase = "Sistema listo para limpieza"
                 self.phase_label.setText(self.current_phase)
                 self.phase_label.setStyleSheet("color: #4ade80; font-size: 32px; font-weight: bold;")
+        
         else:
+            # Cualquier otro estado deshabilita el botón
             if self.start_button.isEnabled():
                 self.start_button.setEnabled(False)
-
-                # Optional: friendly status names (for debug/UI)
-                status_names = {
-                    1: "INICIALIZANDO (1)",
-                    2: "LLENADO TANQUE (2)",
-                    3: "LLENADO LÍNEA (3)",
-                    4: "LLENADO DE CÁMARA (4)",
-                    5: "CALENTAMIENTO DIALIZANTE (5)",
-                    6: "INFUSIÓN (6)",
-                    7: "DIÁLISIS (7)",
-                    12: "LISTO (HDUF_RDY)"
-                }
-                status_name = status_names.get(int(current_status), f"ESPERANDO (Estado {int(current_status)})")
-                self.current_phase = status_name
+                self.start_button.setStyleSheet(style_disabled)
+                
+                # Feedback visual
+                self.current_phase = f"Esperando estado (Actual: {status_code})"
                 self.phase_label.setText(self.current_phase)
                 self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold;")
+
 
     def _write_setpoint(self, tag: str, value: float):
         """Safe setpoint write to controller."""
