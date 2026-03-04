@@ -16,7 +16,7 @@ from core.variables_map import VARIABLES
 from gui.components.LED import LED
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.ui_components import ClickableLineEdit, DoubleToggleBox, LabeledParameterWidget
-# Removed LabeledTimeInput as it's not used in this specific file's snippet, assuming it's only in ManualModeScreen
+
 from logic.calculos import (
     convertir_flujo_a_ciclos,
     convertir_ciclos_a_flujo,
@@ -38,7 +38,7 @@ class TestPanelScreen(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_window = parent
-        self.values = parent.current_values if parent else {}
+        self.current_values = parent.current_values if parent else {}
 
         # Hold-off timers to prevent rapid setpoint writes (tag → timestamp ms)
         self.write_hold_off = {}
@@ -88,18 +88,6 @@ class TestPanelScreen(QWidget):
         grid_top.setSpacing(15)
         grid_top.setContentsMargins(10, 10, 10, 10)
 
-        # Blood chamber flow (QCb)
-        # lbl_cb_flow = QLabel("QCb (ml/min)")
-        # lbl_cb_flow.setStyleSheet(label_style)
-        # lbl_cb_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_cb_flow, 0, 0, 1, 2)
-
-        # self.input_cb_flow = ClickableLineEdit("0.0")
-        # self.input_cb_flow.setStyleSheet(input_style)
-        # self.input_cb_flow.setAlignment(Qt.AlignCenter)
-        # self.input_cb_flow.setReadOnly(True)
-        # self.input_cb_flow.clicked.connect(self._handle_cb_flow_input)
-
         self.input_cb_flow = LabeledParameterWidget(
             label_text="Flujo CB", 
             tag="balanceChamberSetTiming", # Opcional, referencia
@@ -111,27 +99,6 @@ class TestPanelScreen(QWidget):
         self.input_cb_flow.request_numpad.connect(lambda tag, wid, tit: self._handle_cb_flow_input())
         grid_top.addWidget(self.input_cb_flow, 0, 0, 1, 2)
 
-        # Blood flow (Qb)
-        # lbl_blood_flow = QLabel("Qb (ml/min)")
-        # lbl_blood_flow.setStyleSheet(label_style)
-        # lbl_blood_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_blood_flow, 1, 0, 1, 2)
-
-        # self.input_blood_flow = ClickableLineEdit("0.0")
-        # self.input_blood_flow.setStyleSheet(input_style)
-        # self.input_blood_flow.setAlignment(Qt.AlignCenter)
-        # self.input_blood_flow.setReadOnly(True)
-        # self.input_blood_flow.clicked.connect(
-        #     lambda: self.open_numpad("bloodFlowControlSetPoint", self.input_blood_flow, "Flujo de sangre (ml/min)")
-        # )
-
-        # self.blood_flow_input = LabeledParameterWidget(
-        #     label_text="Flujo", tag="bloodFlowControlSetPoint",
-        #     value="0", units="ml/min", numpad_title="Flujo de Sangre",
-        #     is_editable=True, parent=self.control_area
-        # )
-        # self.blood_flow_input.request_numpad.connect(self.open_numpad)
-
         self.input_blood_flow = LabeledParameterWidget(
             label_text="Qb", tag= "bloodFlowControlSetPoint",
             value="0.0",units="ml/min",numpad_title="Flujo de sangre",
@@ -139,17 +106,6 @@ class TestPanelScreen(QWidget):
         )
         self.input_blood_flow.request_numpad.connect(self.open_numpad)
         grid_top.addWidget(self.input_blood_flow, 1, 0, 1, 2)
-
-        # UF flow
-        # lbl_uf_flow = QLabel("UF (L/h)") # Corrected unit to L/h for input consistency
-        # lbl_uf_flow.setStyleSheet(label_style)
-        # lbl_uf_flow.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_uf_flow, 2, 0, 1, 2)
-
-        # self.input_uf_flow = ClickableLineEdit("0.0")
-        # self.input_uf_flow.setStyleSheet(input_style)
-        # self.input_uf_flow.setAlignment(Qt.AlignCenter)
-        # self.input_uf_flow.setReadOnly(True)
 
         self.input_uf_flow = LabeledParameterWidget(
             label_text="UF", tag="",
@@ -159,19 +115,6 @@ class TestPanelScreen(QWidget):
         self.input_uf_flow.request_numpad.connect(lambda tag, wid, tit: self._handle_uf_flow_input())
         grid_top.addWidget(self.input_uf_flow, 2, 0, 1, 2)
 
-        # Conductivity setpoint
-        # lbl_cond_setpoint = QLabel("Cond. (mS/cm)")
-        # lbl_cond_setpoint.setStyleSheet(label_style)
-        # lbl_cond_setpoint.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_cond_setpoint, 3, 0, 1, 2)
-
-        # self.input_cond_setpoint = ClickableLineEdit("0.0")
-        # self.input_cond_setpoint.setStyleSheet(input_style)
-        # self.input_cond_setpoint.setAlignment(Qt.AlignCenter)
-        # self.input_cond_setpoint.setReadOnly(True)
-        # self.input_cond_setpoint.clicked.connect(
-        #     lambda: self.open_numpad("dialyCondControlSetPoint", self.input_cond_setpoint, "Conductividad (mS/cm)")
-        # )
         self.input_cond_setpoint = LabeledParameterWidget(
             label_text="Cond.", tag="dialyCondControlSetPoint",
             value="0.0", units="mS/cm", numpad_title="Condutividad (mS/cm)",
@@ -180,19 +123,6 @@ class TestPanelScreen(QWidget):
         self.input_cond_setpoint.request_numpad.connect(self.open_numpad)
         grid_top.addWidget(self.input_cond_setpoint, 3, 0, 1, 2)
 
-        # Temperature setpoint
-        # lbl_temp_setpoint = QLabel("Temp. D. (°C)")
-        # lbl_temp_setpoint.setStyleSheet(label_style)
-        # lbl_temp_setpoint.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_temp_setpoint, 4, 0, 1, 2)
-
-        # self.input_temp_setpoint = ClickableLineEdit("0.0")
-        # self.input_temp_setpoint.setStyleSheet(input_style)
-        # self.input_temp_setpoint.setAlignment(Qt.AlignCenter)
-        # self.input_temp_setpoint.setReadOnly(True)
-        # self.input_temp_setpoint.clicked.connect(
-        #     lambda: self.open_numpad("dialyTempControlSetPoint", self.input_temp_setpoint, "Temperatura (°C)")
-        # )
         self.input_temp_setpoint = LabeledParameterWidget(
             label_text="Temp. Dial.", tag="dialyTempControlSetPoint",
             value="0.0", units="°C", numpad_title="Temperatura Dializante",
@@ -200,17 +130,6 @@ class TestPanelScreen(QWidget):
         )
         self.input_temp_setpoint.request_numpad.connect(self.open_numpad)
         grid_top.addWidget(self.input_temp_setpoint, 4, 0, 1, 2)
-
-        # Balance chamber cycles
-        # lbl_cycles = QLabel("No. Ciclos CB:")
-        # lbl_cycles.setStyleSheet(label_style)
-        # lbl_cycles.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_cycles, 0, 3)
-
-        # self.label_cycles = QLabel("0")
-        # self.label_cycles.setFixedWidth(100)
-        # self.label_cycles.setStyleSheet(indicator_style)
-        # self.label_cycles.setAlignment(Qt.AlignCenter)
 
         self.label_cycles = LabeledParameterWidget(
             label_text="No. Ciclos CB", tag="balanceChamberCycleCount",
@@ -220,15 +139,6 @@ class TestPanelScreen(QWidget):
         grid_top.addWidget(self.label_cycles, 0, 3, 1, 2)
 
         # ── Sensor Readings ──────────────────────────────────────────────────────
-        # lbl_temp_ef = QLabel("T. Dial. EF (°C)")
-        # lbl_temp_ef.setStyleSheet(label_style)
-        # lbl_temp_ef.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_temp_ef, 0, 6)
-
-        # self.label_temp_ef = QLabel("0.0")
-        # self.label_temp_ef.setStyleSheet(indicator_style)
-        # self.label_temp_ef.setFixedSize(100, 35)
-        # self.label_temp_ef.setAlignment(Qt.AlignCenter)
 
         self.label_temp_ef = LabeledParameterWidget(
             label_text="T. Dial. EF", tag="dialyTempIFProcessData",
@@ -237,16 +147,6 @@ class TestPanelScreen(QWidget):
         )
         grid_top.addWidget(self.label_temp_ef, 0, 6, 1, 2)
 
-        # lbl_temp_sf = QLabel("T. Dial. SF (°C)")
-        # lbl_temp_sf.setStyleSheet(label_style)
-        # lbl_temp_sf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_temp_sf, 1, 6)
-
-        # self.label_temp_sf = QLabel("0.0")
-        # self.label_temp_sf.setStyleSheet(indicator_style)
-        # self.label_temp_sf.setFixedSize(100, 35)
-        # self.label_temp_sf.setAlignment(Qt.AlignCenter)
-
         self.label_temp_sf = LabeledParameterWidget(
             label_text="T. Dial. SF", tag="dialyTempOFProcessData",
             value="0.0", units="°C",
@@ -254,33 +154,12 @@ class TestPanelScreen(QWidget):
         )
         grid_top.addWidget(self.label_temp_sf, 1, 6, 1, 2)
 
-        # lbl_temp_tank = QLabel("T. Tanque (°C)")
-        # lbl_temp_tank.setStyleSheet(label_style)
-        # lbl_temp_tank.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_temp_tank, 2, 6)
-
-        # self.label_temp_tank = QLabel("0.0")
-        # self.label_temp_tank.setStyleSheet(indicator_style)
-        # self.label_temp_tank.setFixedSize(100, 35)
-        # self.label_temp_tank.setAlignment(Qt.AlignCenter)
-        # grid_top.addWidget(self.label_temp_tank, 2, 7)
         self.label_temp_tank = LabeledParameterWidget(
             label_text="T. Tanque", tag="dialyTempControlOutput",
             value="0.0", units="°C",
             is_editable=False
         )
         grid_top.addWidget(self.label_temp_tank, 2, 6, 1, 2)
-
-        # lbl_cond_ef = QLabel("Cond. EF")
-        # lbl_cond_ef.setStyleSheet(label_style)
-        # lbl_cond_ef.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_cond_ef, 3, 6)
-
-        # self.label_cond_ef = QLabel("0.0")
-        # self.label_cond_ef.setStyleSheet(indicator_style)
-        # self.label_cond_ef.setFixedSize(100, 35)
-        # self.label_cond_ef.setAlignment(Qt.AlignCenter)
-        # grid_top.addWidget(self.label_cond_ef, 3, 7)
 
         self.label_cond_ef = LabeledParameterWidget(
             label_text="Cond. EF", tag="dialyConductIFProcessData",
@@ -289,16 +168,6 @@ class TestPanelScreen(QWidget):
         )
         grid_top.addWidget(self.label_cond_ef, 3, 6, 1, 2)
 
-        # lbl_cond_sf = QLabel("Cond. SF")
-        # lbl_cond_sf.setStyleSheet(label_style)
-        # lbl_cond_sf.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # grid_top.addWidget(lbl_cond_sf, 4, 6)
-
-        # self.label_cond_sf = QLabel("0.0")
-        # self.label_cond_sf.setStyleSheet(indicator_style)
-        # self.label_cond_sf.setFixedSize(100, 35)
-        # self.label_cond_sf.setAlignment(Qt.AlignCenter)
-        # grid_top.addWidget(self.label_cond_sf, 4, 7)
 
         self.label_cond_sf = LabeledParameterWidget(
             label_text="Cond. SF", tag="dialyConductOFProcessData",
@@ -314,37 +183,37 @@ class TestPanelScreen(QWidget):
         bottom_control.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         grid_bottom = QGridLayout(bottom_control)
         grid_bottom.setSpacing(15)
-        grid_bottom.setContentsMargins(10, 10, 10, 10) # Adjusted margins for consistency
+        grid_bottom.setContentsMargins(5, 5, 5, 5) # Adjusted margins for consistency
 
         # Styles for labels in this area
-        bottom_label_style = "color: #000000; font-size: 18px; font-weight: bold;" # Black labels on white background
-        bottom_indicator_style = "color: #000000; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; background: #e0e0e0;"
+        
+       
 
         row = 0
         col = 0
-        self.label_ptm = self._add_output_row(grid_bottom, row, col, "PTM", "mmHg", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_ptm = self._add_output_row(grid_bottom, row, col, "PTM", "mmHg", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_peristaltic_flow = self._add_output_row(grid_bottom, row, col, "Qb", "ml/min", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_peristaltic_flow = self._add_output_row(grid_bottom, row, col, "Qb", "ml/min", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_pt3 = self._add_output_row(grid_bottom, row, col, "PT-3", "psi", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt3 = self._add_output_row(grid_bottom, row, col, "PT-3", "psi", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_pt4 = self._add_output_row(grid_bottom, row, col, "PT-4", "psi", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt4 = self._add_output_row(grid_bottom, row, col, "PT-4", "psi", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_pt5 = self._add_output_row(grid_bottom, row, col, "PT-5", "psi", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt5 = self._add_output_row(grid_bottom, row, col, "PT-5", "psi", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_pt7 = self._add_output_row(grid_bottom, row, col, "PT-7", "psi", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt7 = self._add_output_row(grid_bottom, row, col, "PT-7", "psi", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_pt8 = self._add_output_row(grid_bottom, row, col, "PT-8", "mmHg", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt8 = self._add_output_row(grid_bottom, row, col, "PT-8", "mmHg", label_style=label_style, indicator_style=indicator_style)
 
         row = 1
         col = 0
-        self.label_pt1 = self._add_output_row(grid_bottom, row, col, "PT-1", "mmHg", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt1 = self._add_output_row(grid_bottom, row, col, "PT-1", "mmHg", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_pt2 = self._add_output_row(grid_bottom, row, col, "PT-2", "mmHg", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt2 = self._add_output_row(grid_bottom, row, col, "PT-2", "mmHg", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_pt9 = self._add_output_row(grid_bottom, row, col, "PT-9", "mmHg", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt9 = self._add_output_row(grid_bottom, row, col, "PT-9", "mmHg", label_style=label_style, indicator_style=indicator_style)
         col += 3
-        self.label_pt10 = self._add_output_row(grid_bottom, row, col, "PT-10", "mmHg", label_style=bottom_label_style, indicator_style=bottom_indicator_style)
+        self.label_pt10 = self._add_output_row(grid_bottom, row, col, "PT-10", "mmHg", label_style=label_style, indicator_style=indicator_style)
         col += 3
 
         btn_controller = QPushButton("Controlador")
@@ -443,32 +312,38 @@ class TestPanelScreen(QWidget):
         layout.addWidget(bottom_control, 1, 0, 1, 4) # bottom_control now takes col 0, 1, 2, 3
 
 
-    def _add_output_row(self, grid, row, col, label_text, unit_text, label_style="color: #000000; font-size: 18px; font-weight: bold;", indicator_style="color: #000000; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; background: #e0e0e0;"):
+    def _add_output_row(self, grid, row, col, label_text, unit_text, label_style="", indicator_style=""):
         """Helper to add a labeled output row (label + value + unit)."""
+        label_style = "color: #000000; font-size: 18px; font-weight: bold;"
+        unit_style = "color: #94a3b8; font-size: 16px; border: none;"
+
         lbl = QLabel(label_text)
-        lbl.setStyleSheet(label_style)
+        lbl.setStyleSheet(label_style + "border: none;")
+        lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        
         grid.addWidget(lbl, row, col)
 
         value_label = QLabel("0.0")
         value_label.setStyleSheet(indicator_style)
-        value_label.setFixedSize(100, 35)
+        value_label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
         value_label.setAlignment(Qt.AlignCenter)
         grid.addWidget(value_label, row, col + 1)
 
         unit_lbl = QLabel(unit_text)
-        unit_lbl.setStyleSheet("color: #94a3b8; font-size: 16px;")
+        unit_lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        unit_lbl.setStyleSheet(unit_style)
         grid.addWidget(unit_lbl, row, col + 2)
 
         return value_label
 
     def update_values(self, new_values: dict):
         """Update all displayed values, plots, LEDs, and calculated parameters."""
-        self.values = new_values
+        self.current_values = new_values
         current_ms = QDateTime.currentMSecsSinceEpoch()
 
         # ── LEDs ────────────────────────────────────────────────────────────────
         for led, tag in self.led_widgets:
-            value = self.values.get(tag, 0.0)
+            value = self.current_values.get(tag, 0.0)
             if tag == "dialyTankHiLevelSwitch":
                 # Ensure 'LED' component has an 'in' state or adjust logic.
                 # Assuming 'in' means active/on and 'off' means off.
@@ -482,7 +357,7 @@ class TestPanelScreen(QWidget):
         # ── Balance Chamber Flow (cycles ↔ ml/min) ──────────────────────────────
         if "balanceChamberSetTiming" not in self.write_hold_off or \
            current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
-            cycles = self.values.get("balanceChamberSetTiming", 0.0)
+            cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
             try:
                 flow_ml_min = convertir_ciclos_a_flujo(cycles)                                
                 self._update_input_display(self.input_cb_flow, flow_ml_min, precision=1) 
@@ -494,60 +369,58 @@ class TestPanelScreen(QWidget):
         # ── UF Flow (ml/min → L/h) ──────────────────────────────────────────────
         if "ultraFilterPumpSpeed" not in self.write_hold_off or \
            current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
-            uf_ml_min = self.values.get("ultraFilterPumpSpeed", 0.0)
+            uf_ml_min = self.current_values.get("ultraFilterPumpSpeed", 0.0)
             try:
-                uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)
-                # ERROR FIX: self.lbl_input_indUF is not defined in TestPanelScreen.
-                # It should be self.input_uf_flow based on setup_ui.
+                uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)   
                 self._update_input_display(self.input_uf_flow, uf_lh, precision=1) 
             except Exception as e:
                 logger.error(f"Error converting UF flow: {e}")
                 self._update_input_display(self.input_uf_flow, 0.0, precision=1)
 
         # ── Other Inputs & Labels ───────────────────────────────────────────────
-        self._update_input_display(self.input_blood_flow, self.values.get("bloodFlowControlSetPoint", 0.0))
-        self._update_input_display(self.input_temp_setpoint, self.values.get("dialyTempControlSetPoint", 0.0))
-        self._update_input_display(self.input_cond_setpoint, self.values.get("dialyCondControlSetPoint", 0.0))
+        self._update_input_display(self.input_blood_flow, self.current_values.get("bloodFlowControlSetPoint", 0.0))
+        self._update_input_display(self.input_temp_setpoint, self.current_values.get("dialyTempControlSetPoint", 0.0))
+        self._update_input_display(self.input_cond_setpoint, self.current_values.get("dialyCondControlSetPoint", 0.0))
 
-        self._update_label_display(self.label_cycles, self.values.get("balanceChamberCycleCount", 0))
-        self._update_label_display(self.label_cond_ef, self.values.get("dialyConductIFProcessData", 0.0))
-        self._update_label_display(self.label_cond_sf, self.values.get("dialyConductOFProcessData", 0.0))
-        self._update_label_display(self.label_temp_ef, self.values.get("dialyTempIFProcessData",0.0))
-        self._update_label_display(self.label_cond_sf, self.values.get("dialyTempOFProcessData",0.0))
+        self._update_label_display(self.label_cycles, self.current_values.get("balanceChamberCycleCount", 0))
+        self._update_label_display(self.label_cond_ef, self.current_values.get("dialyConductIFProcessData", 0.0))
+        self._update_label_display(self.label_cond_sf, self.current_values.get("dialyConductOFProcessData", 0.0))
+        self._update_label_display(self.label_temp_ef, self.current_values.get("dialyTempIFProcessData",0.0))
+        self._update_label_display(self.label_cond_sf, self.current_values.get("dialyTempOFProcessData",0.0))
 
         # ── Calculated PTM ──────────────────────────────────────────────────────
-        pd_ef = self.values.get("dialyPresIFProcessData", 0.0)
-        pd_sf = self.values.get("dialyPresOFProcessData", 0.0)
-        pa = self.values.get("bloodArteryPressureData", 0.0)
-        pv = self.values.get("bloodVenousPressureData", 0.0)
+        pd_ef = self.current_values.get("dialyPresIFProcessData", 0.0)
+        pd_sf = self.current_values.get("dialyPresOFProcessData", 0.0)
+        pa = self.current_values.get("bloodArteryPressureData", 0.0)
+        pv = self.current_values.get("bloodVenousPressureData", 0.0)
 
         try:
             ptm = calculo_ptm(pd_ef, pd_sf, pa, pv)
         except Exception:
             ptm = 0.0
 
-        self.values["CALC_PTM"] = ptm
+        self.current_values["CALC_PTM"] = ptm
         self._update_label_display(self.label_ptm, ptm)
 
         # ── Pressure Outputs ────────────────────────────────────────────────────
-        self._update_label_display(self.label_peristaltic_flow, self.values.get("bloodFlowVariableData", 0.0))
-        self._update_label_display(self.label_pt1, self.values.get("dialyPFilPmpPresProcessData", 0.0))
-        self._update_label_display(self.label_pt2, self.values.get("dialyTankPresProcessData", 0.0))
-        self._update_label_display(self.label_pt3, self.values.get("dialyLinePresProcessData", 0.0))
-        self._update_label_display(self.label_pt4, self.values.get("dialyPresIFProcessData", 0.0))
-        self._update_label_display(self.label_pt5, self.values.get("dialyPresOFProcessData", 0.0))
-        self._update_label_display(self.label_pt7, self.values.get("dialyBChamPresProcessData", 0.0))
-        self._update_label_display(self.label_pt8, self.values.get("bloodArteryPressureData", 0.0))
-        self._update_label_display(self.label_pt9, self.values.get("bloodVenousPressureData", 0.0))
-        self._update_label_display(self.label_pt10, self.values.get("dialyPFilPmpPresProcessData", 0.0))
-        self._update_label_display(self.label_temp_tank, self.values.get("dialyTempControlOutput",0.0))
+        self._update_label_display(self.label_peristaltic_flow, self.current_values.get("bloodFlowVariableData", 0.0))
+        self._update_label_display(self.label_pt1, self.current_values.get("dialyPFilPmpPresProcessData", 0.0))
+        self._update_label_display(self.label_pt2, self.current_values.get("dialyTankPresProcessData", 0.0))
+        self._update_label_display(self.label_pt3, self.current_values.get("dialyLinePresProcessData", 0.0))
+        self._update_label_display(self.label_pt4, self.current_values.get("dialyPresIFProcessData", 0.0))
+        self._update_label_display(self.label_pt5, self.current_values.get("dialyPresOFProcessData", 0.0))
+        self._update_label_display(self.label_pt7, self.current_values.get("dialyBChamPresProcessData", 0.0))
+        self._update_label_display(self.label_pt8, self.current_values.get("bloodArteryPressureData", 0.0))
+        self._update_label_display(self.label_pt9, self.current_values.get("bloodVenousPressureData", 0.0))
+        self._update_label_display(self.label_pt10, self.current_values.get("dialyPFilPmpPresProcessData", 0.0))
+        self._update_label_display(self.label_temp_tank, self.current_values.get("dialyTempControlOutput",0.0))
 
         # ── Temperature & Conductivity Plots ─────────────────────────────────────
-        temp_ef = self.values.get("dialyTempIFProcessData", 0.0)
-        temp_sf = self.values.get("dialyTempOFProcessData", 0.0)
-        temp_tank = self.values.get("dialyTempControlOutput", 0.0) # Check if this should be VariableData
-        cond_ef = self.values.get("dialyConductIFProcessData", 0.0)
-        cond_sf = self.values.get("dialyConductOFProcessData", 0.0)
+        temp_ef = self.current_values.get("dialyTempIFProcessData", 0.0)
+        temp_sf = self.current_values.get("dialyTempOFProcessData", 0.0)
+        temp_tank = self.current_values.get("dialyTempControlOutput", 0.0) # Check if this should be VariableData
+        cond_ef = self.current_values.get("dialyConductIFProcessData", 0.0)
+        cond_sf = self.current_values.get("dialyConductOFProcessData", 0.0)
 
         self.temp_dialysate_ef_history.append(temp_ef)
         self.temp_dialysate_sf_history.append(temp_sf)
@@ -565,22 +438,6 @@ class TestPanelScreen(QWidget):
         self.temp_plot.setXRange(-self.history_length + 1, 0)
         self.cond_plot.setXRange(-self.history_length + 1, 0)
 
-    # def _update_input_display(self, widget, value, precision=1):
-    #     """Update ClickableLineEdit if not focused."""
-    #     # Check if the widget is a LabeledParameterWidget or a ClickableLineEdit
-    #     if not widget.hasFocus(): # This is for ClickableLineEdit
-    #         if isinstance(widget, LabeledParameterWidget):
-    #              widget.set_value(value)
-    #         elif hasattr(widget, 'setText'):
-    #             widget.setText(f"{value:.{precision}f}")
-
-
-    # def _update_label_display(self, label, value, precision=1):
-    #     """Update read-only QLabel."""
-    #     if hasattr(label, 'setText'):
-    #         label.setText(f"{value:.{precision}f}")
-
-
 
     def _update_input_display(self, widget, value, precision=1):
         if not widget.hasFocus():
@@ -595,19 +452,6 @@ class TestPanelScreen(QWidget):
         elif hasattr(label, 'setText'):
             label.setText(f"{value:.{precision}f}")
 
-    # def _handle_cb_flow_input(self):
-    #     """Handle balance chamber flow input (ml/min → cycles)."""
-    #     current_text = self.input_cb_flow.text()
-    #     dialog = NumpadDialog(self, initial_value=current_text, title="Flujo CB (ml/min)")
-    #     if dialog.exec():
-    #         new_value = dialog.get_value()
-    #         self.input_cb_flow.setText(str(new_value))
-    #         try:
-    #             cycles = convertir_flujo_a_ciclos(new_value)
-    #             self._write_setpoint("balanceChamberSetTiming", cycles)
-    #             self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
-    #         except Exception as e:
-    #             logger.error(f"Error converting CB flow: {e}")
 
     def _handle_cb_flow_input(self):
         """Handle balance chamber flow input (ml/min → cycles)."""        

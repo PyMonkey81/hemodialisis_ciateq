@@ -469,7 +469,7 @@ class HemodialysisHMI(QMainWindow):
         - Envía comandos booleanos al controlador
         - Muestra feedback al usuario
         """
-        # 1. Verificar conexión serial (obligatorio)
+        # 1. Verificar conexión serial
         if not self.serial_comm or not self.serial_comm.is_connected:
             QMessageBox.warning(self, "Error de conexión", 
                                 "No hay conexión con el controlador.\n"
@@ -503,28 +503,27 @@ class HemodialysisHMI(QMainWindow):
 
         # 5. Enviar comandos al controlador
         try:
-            self._write_boolean_command("dialyStartDialysisButt", True)
-            self._write_boolean_command("dialyStopDialysisButt", False)
+            self._write_boolean_command("dialyModeOperationStart", True)
+            self._write_boolean_command("dialyModeOperationStop", False)
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
             QMessageBox.warning(self, "Advertencia", 
                                 "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
 
-        # 6. Feedback claro al usuario (muy importante en equipo médico)
+        # 6. Feedback claro al usuario
         QMessageBox.information(self, "Cebado Iniciado",
                                 "Proceso de cebado iniciado correctamente.\n\n"
                                 "• Registro de datos activo en logs/hemodialysis/\n"
                                 "• Duración típica: 5–10 minutos\n"
                                 "Presione 'DETENER' cuando finalice o espere condición automática.")
 
-        # 7. Cambiar a pantalla de diálisis para monitorear presiones, etc.
         self.show_dialysis_screen()
 
 
     def stop_treatment(self):   
-        self._write_boolean_command("dialyStartDialysisButt", False)
-        self._write_boolean_command("dialyStopDialysisButt", True)
+        self._write_boolean_command("dialyModeOperationStart", False)
+        self._write_boolean_command("dialyModeOperationStop", True)
 
         # if self.ktv_timer.isActive():
         #     self.ktv_timer.stop()
@@ -767,7 +766,7 @@ class HemodialysisHMI(QMainWindow):
             top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2], 0))
             name, value, level = top_alarm
 
-            display_text = name.upper()
+            display_text = name.upper() # upper case 
             if value is not None:
                 display_text += f" {value:.1f}"
 

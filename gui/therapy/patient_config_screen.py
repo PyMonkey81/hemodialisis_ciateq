@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator, QIntValidator
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.keyboard_modal import KeyboardDialog
+from core.variables_map import VARIABLES
 
 
 class PatientConfigScreen(QWidget):
@@ -25,12 +26,9 @@ class PatientConfigScreen(QWidget):
         self.parent_window = parent
         self.current_values = parent.current_values if parent else {}
 
-        # Mini base de datos en memoria
         self.patients_db = {}
         self._load_test_patients()
 
-        # Establecemos un tamaño fijo para la ventana principal,
-        # pero el contenido interior será desplazable si no cabe.
         self.setFixedSize(1536, 726)
         self.setup_ui()
 
@@ -40,29 +38,32 @@ class PatientConfigScreen(QWidget):
             {
                 "patient_id": "P001",
                 "patient_name": "Juan Pérez López",
-                "gender": "M",
-                "age": 58,
-                "height_cm": 170.0,
-                "dry_weight_kg": 68.5,
-                "pre_dialysis_weight_kg": 73.2,
+                "patient_gender": 1,  # 1 = Hombre
+                "patient_age": 58,
+                "patient_height_cm": 170.0,
+                "patient_dry_weight_kg": 68.5,
+                "patient_pre_weight_kg": 73.2,
+                "uf_goal_liters": 4.7,  # Calculado de prueba
             },
             {
                 "patient_id": "P002",
                 "patient_name": "María González Ramírez",
-                "gender": "F",
-                "age": 65,
-                "height_cm": 158.0,
-                "dry_weight_kg": 55.0,
-                "pre_dialysis_weight_kg": 59.8,
+                "patient_gender": 2,  # 2 = Mujer
+                "patient_age": 65,
+                "patient_height_cm": 158.0,
+                "patient_dry_weight_kg": 55.0,
+                "patient_pre_weight_kg": 59.8,
+                "uf_goal_liters": 4.8,
             },
             {
                 "patient_id": "P003",
                 "patient_name": "Carlos Ramírez Torres",
-                "gender": "M",
-                "age": 42,
-                "height_cm": 175.0,
-                "dry_weight_kg": 82.0,
-                "pre_dialysis_weight_kg": 87.5,
+                "patient_gender": 1,
+                "patient_age": 42,
+                "patient_height_cm": 175.0,
+                "patient_dry_weight_kg": 82.0,
+                "patient_pre_weight_kg": 87.5,
+                "uf_goal_liters": 5.5,
             }
         ]
         for p in test_patients:
@@ -70,11 +71,7 @@ class PatientConfigScreen(QWidget):
 
     def setup_ui(self):
         # Estilos para la ventana contenedora (el QWidget principal)
-        # self.setStyleSheet("""
-        #     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        #                                stop:0 #e0e7ff, stop:1 #c7d2fe);
-        #     border-radius: 15px;
-        # """)
+
         self.setStyleSheet("""
             background-color: #fcfcfc; /* Nuevo color de fondo */
             border-radius: 15px;
@@ -314,72 +311,6 @@ class PatientConfigScreen(QWidget):
 
             print(f"[PatientConfig] {patient_key} → {self.current_values.get(patient_key)}")
 
-    # def open_touch_input(self, field_key: str, input_widget, mode: str = 'numeric'):
-    #     """
-    #     Abre el diálogo táctil adecuado según el modo.
-    #     Actualiza widget y current_values al aceptar.
-    #     """
-    #     current_text = input_widget.text().strip() if hasattr(input_widget, 'text') else ""
-
-    #     title_map = {
-    #         "patient_id": "ID del paciente",
-    #         "patient_name": "Nombre completo",
-    #         "age": "Edad (años)",
-    #         "height_cm": "Altura en cm",
-    #         "dry_weight_kg": "Peso seco (kg)",
-    #         "pre_dialysis_weight_kg": "Peso actual pre-diálisis (kg)"
-    #     }
-    #     title = title_map.get(field_key, "Ingrese valor")
-
-    #     # Asegurarse de que el QLineEdit que estamos editando NO esté en readOnly
-    #     # para que el validador funcione correctamente al salir del diálogo.
-    #     # No, mejor no hacer esto, ya que queremos que solo se edite con el teclado virtual.
-    #     # El validador se aplicará cuando se intente establecer el texto.
-
-    #     if mode == 'numeric':
-    #         dialog = NumpadDialog(self, initial_value=current_text, title=title)
-    #     else: # mode == 'text'
-    #         dialog = KeyboardDialog(self, initial_text=current_text, title=title)
-
-    #     if dialog.exec(): # Si el usuario presiona "ACEPTAR"
-    #         new_value = dialog.get_value()
-    #         if new_value is not None:
-    #             validator = input_widget.validator()
-    #             if mode == 'numeric':
-    #                 try:
-    #                     formatted = f"{float(new_value):.1f}" if '.' in str(new_value) else str(int(new_value))
-    #                 except: 
-    #                     formatted = str(new_value)
-    #                 input_widget.setText(formatted)
-    #             else:
-    #                 input_widget.setText(new_value)
-
-            
-    #         # Aplicar validación del QLineEdit
-            
-    #         # if validator:
-    #         #     state, value, pos = validator.validate(new_value, 0)
-    #         #     if state == QDoubleValidator.Acceptable or state == QIntValidator.Acceptable:
-    #         #         input_widget.setText(new_value)
-    #         #     else:
-    #         #         QMessageBox.warning(self, "Valor Inválido", f"El valor '{new_value}' no es válido para este campo.")
-    #         #         return # No actualizar si la validación falla
-    #         # else: # No hay validador, aceptar el texto directamente
-    #         #     input_widget.setText(new_value)
-
-    #         # --- Actualizar current_values (lo que se pasa entre pantallas) ---
-    #         patient_key = f"patient_{field_key}"
-    #         if mode == 'numeric':
-    #             try:
-    #                 # Intentar convertir a float, si falla, dejar 0.0
-    #                 self.current_values[patient_key] = float(input_widget.text()) 
-    #             except ValueError:
-    #                 self.current_values[patient_key] = 0.0
-    #         else:
-    #             self.current_values[patient_key] = input_widget.text().strip()
-
-    #         print(f"[PatientConfig] {patient_key} → {self.current_values.get(patient_key)}")
-
     def _refresh_patient_list(self):
         self.patient_list.clear()
         for pid, data in self.patients_db.items():
@@ -394,7 +325,6 @@ class PatientConfigScreen(QWidget):
             self.btn_save.setEnabled(True)
 
     def _open_new_patient_dialog(self):
-        # Para nuevo paciente: primero pedir ID con teclado
         dialog = KeyboardDialog(self, title="Ingrese ID del nuevo paciente")
         if dialog.exec():
             pid = dialog.get_value().strip().upper()
@@ -402,22 +332,23 @@ class PatientConfigScreen(QWidget):
                 QMessageBox.warning(self, "Error", "El ID no puede estar vacío.")
                 return
             if pid in self.patients_db:
-                QMessageBox.warning(self, "Error", f"El ID '{pid}' ya existe. Por favor, elija otro.")
+                QMessageBox.warning(self, "Error", f"El ID '{pid}' ya existe.")
                 return
 
             new_patient = {
                 "patient_id": pid,
                 "patient_name": "",
-                "gender": "",
-                "age": 0,
-                "height_cm": 0.0,
-                "dry_weight_kg": 0.0,
-                "pre_dialysis_weight_kg": 0.0,
+                "patient_gender": 0,
+                "patient_age": 0,
+                "patient_height_cm": 0.0,
+                "patient_dry_weight_kg": 0.0,
+                "patient_pre_weight_kg": 0.0,
+                "uf_goal_liters": 0.0,
             }
             self.patients_db[pid] = new_patient
             self._refresh_patient_list()
 
-            # Seleccionar automáticamente el nuevo paciente en la lista
+            # Seleccionar automáticamente
             for i in range(self.patient_list.count()):
                 if self.patient_list.item(i).text().startswith(pid):
                     self.patient_list.setCurrentRow(i)
@@ -428,67 +359,29 @@ class PatientConfigScreen(QWidget):
         for key, widget in self.fields.items():
             if key == "gender":
                 idx = 0
-                g = patient.get("gender", "")
-                if g == "M": idx = 1
-                elif g == "F": idx = 2
+                g = patient.get("patient_gender", 0)  # clave real en la DB
+                if g == 1: idx = 1
+                elif g == 2: idx = 2
                 widget.setCurrentIndex(idx)
             else:
-                value = patient.get(key)
+                # Usamos la clave real que está en el diccionario patient
+                real_key = {
+                    "patient_id": "patient_id",
+                    "patient_name": "patient_name",
+                    "age": "patient_age",
+                    "height_cm": "patient_height_cm",
+                    "dry_weight_kg": "patient_dry_weight_kg",
+                    "pre_dialysis_weight_kg": "patient_pre_weight_kg",
+                }.get(key, key)  # fallback
+
+                value = patient.get(real_key)
                 widget.setText(str(value) if value is not None else "")
 
     def _save_patient(self):
         data = {}
-        for key, widget in self.fields.items():
-            if key == "gender":
-                text = widget.currentText()
-                data[key] = "M" if "Masculino" in text else "F" if "Femenino" in text else ""
-            else:
-                text = widget.text().strip()
-                if key == "age":
-                    data[key] = int(text) if text.isdigit() else 0
-                elif key in ["height_cm", "dry_weight_kg", "pre_dialysis_weight_kg"]:
-                    try:
-                        data[key] = float(text)
-                    except ValueError: # Capturar error si el float está mal
-                        data[key] = 0.0
-                else:
-                    data[key] = text
-
-        # Validaciones más robustas
-        if not data.get("patient_id"):
-            QMessageBox.warning(self, "Error", "ID del paciente es obligatorio.")
-            return
-        if not data.get("patient_name"):
-            QMessageBox.warning(self, "Error", "El nombre es obligatorio.")
-            return
-        if data.get("gender") not in ["M", "F"]:
-            QMessageBox.warning(self, "Error", "Seleccione el género.")
-            return
-        if data.get("age", 0) < 18:
-            QMessageBox.warning(self, "Error", "La edad debe ser al menos 18 años.")
-            return
-        if not (100.0 <= data.get("height_cm", 0.0) <= 250.0):
-             QMessageBox.warning(self, "Error", "La altura debe estar entre 100 y 250 cm.")
-             return
-        if not (30.0 <= data.get("dry_weight_kg", 0.0) <= 150.0):
-             QMessageBox.warning(self, "Error", "El peso seco debe estar entre 30 y 150 kg.")
-             return
-        if not (30.0 <= data.get("pre_dialysis_weight_kg", 0.0) <= 200.0):
-             QMessageBox.warning(self, "Error", "El peso pre-diálisis debe estar entre 30 y 200 kg.")
-             return
-
-
-        # Calcular UF goal
-        pre_weight = data.get("pre_dialysis_weight_kg", 0.0)
-        dry_weight = data.get("dry_weight_kg", 0.0)
-        uf_goal = max(0.0, pre_weight - dry_weight) # Asegurarse de que no sea negativo
-        data["uf_goal_liters"] = round(uf_goal, 2) # Redondear a 2 decimales
-
-        # Guardar en DB
-        self.patients_db[data["patient_id"]] = data
-
-        # Guardar en current_values (solo campos relevantes que se usarán en otras pantallas)
-        key_map = {
+    
+        # Mapeo de campos del formulario a claves del mapa VARIABLES (0x08)
+        field_to_tag = {
             "patient_id": "patient_id",
             "patient_name": "patient_name",
             "gender": "patient_gender",
@@ -496,374 +389,127 @@ class PatientConfigScreen(QWidget):
             "height_cm": "patient_height_cm",
             "dry_weight_kg": "patient_dry_weight_kg",
             "pre_dialysis_weight_kg": "patient_pre_weight_kg",
-            "uf_goal_liters": "uf_goal_liters"
         }
-        for db_key, cv_key in key_map.items():
-            if db_key in data:
-                self.current_values[cv_key] = data[db_key]
+
+        for field_key, widget in self.fields.items():
+            tag = field_to_tag.get(field_key)
+            if not tag:
+                continue  # Ignorar si no está mapeado
+
+            if field_key == "gender":
+                text = widget.currentText()
+                data[tag] = 1 if "Masculino" in text else 2 if "Femenino" in text else 0
+            else:
+                text = widget.text().strip()
+                if field_key == "age":
+                    try:
+                        data[tag] = int(text)
+                    except ValueError:
+                        data[tag] = 0
+                elif field_key in ["height_cm", "dry_weight_kg", "pre_dialysis_weight_kg"]:
+                    try:
+                        data[tag] = float(text)
+                    except ValueError:
+                        data[tag] = 0.0
+                else:
+                    data[tag] = text
+
+        # Validaciones
+        if not data.get("patient_id"):
+            QMessageBox.warning(self, "Error", "ID del paciente es obligatorio.")
+            return
+        if not data.get("patient_name"):
+            QMessageBox.warning(self, "Error", "El nombre es obligatorio.")
+            return
+        if data.get("patient_gender") not in [1, 2]:
+            QMessageBox.warning(self, "Error", "Seleccione el género.")
+            return
+
+        # Validaciones de rango usando el mapa (muy buena práctica)
+        patient_map = VARIABLES.get(0x08, {})
+        for var in patient_map.values():
+            tag = var["tag"]
+            if tag in data:
+                limites = var.get("limites")
+                if limites and isinstance(limites, tuple):
+                    min_val, max_val = limites
+                    value = data[tag]
+                    if isinstance(value, (int, float)) and not (min_val <= value <= max_val):
+                        QMessageBox.warning(self, "Error",
+                                            f"{var['label']} debe estar entre {min_val} y {max_val} {var['unit']}.")
+                        return
+
+        # Calcular UF goal
+        pre_weight = data.get("patient_pre_weight_kg", 0.0)  # nota: clave corregida
+        dry_weight = data.get("patient_dry_weight_kg", 0.0)
+        uf_goal = max(0.0, pre_weight - dry_weight)
+        data["uf_goal_liters"] = round(uf_goal, 2)
+
+        # Guardar en DB
+        self.patients_db[data["patient_id"]] = data
+
+        # Guardar en current_values (claves exactas del mapa)
+        for tag in ["patient_id", "patient_name", "patient_gender", "patient_age", 
+                    "patient_height_cm", "patient_dry_weight_kg", 
+                    "patient_pre_weight_kg", "uf_goal_liters"]:
+            if tag in data:
+                self.current_values[tag] = data[tag]
+                print(f"[SAVE] Guardado {tag} = {data[tag]}")  # Debug
 
         self._refresh_patient_list()
         QMessageBox.information(self, "Guardado",
-                                f"Paciente '{data['patient_name']}' guardado correctamente.\n"
-                                f"Objetivo de Ultrafiltración (UF goal): {data['uf_goal_liters']:.2f} L")
+                                f"Paciente '{data.get('patient_name', '—')}' guardado correctamente.\n"
+                                f"Objetivo de Ultrafiltración: {data['uf_goal_liters']:.2f} L")
 
-        # Opcional: actualizar otras pantallas si es necesario (ej. pantalla de diálisis)
-        # Esto depende de cómo estés gestionando la navegación y el paso de datos
-        # entre tus diferentes pantallas principales.
         if hasattr(self.parent_window, 'dialysis_screen'):
             self.parent_window.dialysis_screen.update_values(self.current_values)
 
+    def update_values(self, new_values: dict):
+        """Esta pantalla solo ingresa datos, no monitorea en tiempo real. Solo mergea si llegan datos del paciente."""
+        if not new_values:
+            return
 
+        # Merge simple a current_values (por si otras pantallas envían updates)
+        self.current_values.update(new_values)
 
+        # Si quieres reflejar en el formulario (ej. si se actualiza desde máquina), puedes agregar:
+        # patient = {k: new_values.get(k, 0) for k in ["patient_id", "patient_name", ...]}
+        # self._populate_form(patient)
 
-# # gui/therapy/patient_config_screen.py
+        print("[PatientConfig] current_values actualizado")    
 
-# from PySide6.QtWidgets import (
-#     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-#     QComboBox, QPushButton, QMessageBox, QFormLayout,
-#     QGroupBox, QListWidget, QSizePolicy, QScrollArea
-# )
-# from PySide6.QtCore import Qt 
-# from PySide6.QtGui import QDoubleValidator, QIntValidator
+    def _map_gender_to_int(self, value):
+        """Convierte strings comunes de género a 1/2"""
+        if isinstance(value, (int, float)):
+            v = int(value)
+            return v if v in (1, 2) else 0
 
-# # Importa ambos diálogos
-# from gui.components.numpad_modal import NumpadDialog
-# from gui.components.keyboard_modal import KeyboardDialog
+        v = str(value).strip().upper()
+        if v in ("M", "MASCULINO", "HOMBRE", "1"):
+            return 1
+        if v in ("F", "FEMENINO", "MUJER", "2"):
+            return 2
+        return 0
+    
+    def _queue_patient_writes_if_needed(self):
+        """Ejemplo: preparar writes Modbus para campos rw=True"""
+        writes = []
 
+        if "patient_id" in self.values and self.values["patient_id"] != self.patient["id"]:
+            writes.append((0x08, 0x00, self.patient["id"]))          # string → manejar codificación
 
-# class PatientConfigScreen(QWidget):
-#     """
-#     Pantalla de configuración de paciente con entrada táctil.
-#     - Teclado QWERTY para texto (ID, nombre)
-#     - Numpad para valores numéricos
-#     - Mini DB en memoria con pacientes de prueba
-#     """
+        if "patient_name" in self.values and self.values["patient_name"] != self.patient["name"]:
+            writes.append((0x08, 0x01, self.patient["name"]))
 
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self.parent_window = parent
-#         self.current_values = parent.current_values if parent else {}
+        # Género: ya es int 1/2
+        if self.patient["gender"] != 0:
+            writes.append((0x08, 0x02, self.patient["gender"]))
 
-#         # Mini base de datos en memoria
-#         self.patients_db = {}
-#         self._load_test_patients()
+        # UF goal (double → probablemente 2 registros Modbus)
+        if abs(self.patient["uf_goal_liters"] - self.values.get("uf_goal_liters", 0.0)) > 0.01:
+            writes.append((0x08, 0x07, self.patient["uf_goal_liters"]))
 
-#         self.setFixedSize(1536, 726)
-#         self.setup_ui()
-
-#     def _load_test_patients(self):
-#         """Pacientes de prueba para demo"""
-#         test_patients = [
-#             {
-#                 "patient_id": "P001",
-#                 "patient_name": "Juan Pérez López",
-#                 "gender": "M",
-#                 "age": 58,
-#                 "height_cm": 170.0,
-#                 "dry_weight_kg": 68.5,
-#                 "pre_dialysis_weight_kg": 73.2,
-#             },
-#             {
-#                 "patient_id": "P002",
-#                 "patient_name": "María González Ramírez",
-#                 "gender": "F",
-#                 "age": 65,
-#                 "height_cm": 158.0,
-#                 "dry_weight_kg": 55.0,
-#                 "pre_dialysis_weight_kg": 59.8,
-#             },
-#             {
-#                 "patient_id": "P003",
-#                 "patient_name": "Carlos Ramírez Torres",
-#                 "gender": "M",
-#                 "age": 42,
-#                 "height_cm": 175.0,
-#                 "dry_weight_kg": 82.0,
-#                 "pre_dialysis_weight_kg": 87.5,
-#             }
-#         ]
-#         for p in test_patients:
-#             self.patients_db[p["patient_id"]] = p
-
-#     def setup_ui(self):
-#         self.setStyleSheet("""
-#             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-#                                        stop:0 #e0e7ff, stop:1 #c7d2fe);
-#             border-radius: 15px;
-#         """)
-
-#         main_layout = QVBoxLayout(self)
-#         main_layout.setContentsMargins(0, 0, 0, 0) 
-#         # main_layout.setSpacing(20)
-
-#         scroll_area = QScrollArea()
-#         scroll_area.setWidgetResizable(True) # ¡Crucial!
-#         scroll_area.setStyleSheet("border: none; background: transparent;")
-
-#         content_widget = QWidget()
-#         content_layout = QVBoxLayout(content_widget)
-#         content_layout.setContentsMargins(40, 30, 40, 30)
-#         content_layout.setSpacing(20)
-
-#         # Título
-#         title = QLabel("Configuración del Paciente")
-#         title.setStyleSheet("font-size: 42px; font-weight: bold; color: #1e40af;")
-#         title.setAlignment(Qt.AlignCenter)
-#         content_layout.addWidget(title)
-
-#         # Selector de paciente
-#         selector_group = QGroupBox("Seleccionar o crear paciente")
-#         selector_layout = QVBoxLayout()
-#         # selector_layout.setContentsMargins(20, 20, 20, 20)  # ← Aumenta espacio interno
-#         # selector_layout.setSpacing(15)
-#         selector_group.setLayout(selector_layout)
-#         content_layout.addWidget(selector_group)
-
-#         self.patient_list = QListWidget()
-#         self.patient_list.setStyleSheet("font-size: 22px;")  # ← Tamaño de fuente más grande
-#         self.patient_list.setMinimumHeight(300)               # ← Altura mínima para que se vea bien
-#         self.patient_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # ← IMPORTANTE
-#         self._refresh_patient_list()
-#         self.patient_list.itemClicked.connect(self._load_selected_patient)
-#         selector_layout.addWidget(self.patient_list, stretch=1)  # ← stretch=1 para que se expanda
-
-#         btn_new = QPushButton("Nuevo Paciente")
-#         btn_new.setFixedHeight(60)
-#         btn_new.setStyleSheet("font-size: 26px; background: #10b981; color: white;")
-#         btn_new.clicked.connect(self._open_new_patient_dialog)
-#         selector_layout.addWidget(btn_new)
-
-#         selector_group.setLayout(selector_layout)
-
-#         scroll_area = QScrollArea()
-#         scroll_area.setWidget(selector_group)
-#         scroll_area.setWidgetResizable(True)
-#         scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-#         scroll_area.setMinimumHeight(240) # Ajustado altura
-
-#         main_layout.addWidget(scroll_area)  # ← También stretch aquí  
-
-#         selector_group.setLayout(selector_layout)
-#         main_layout.addWidget(selector_group)
-
-#         # Formulario
-#         self.form_group = QGroupBox("Datos del paciente")
-#         self.form_layout = QFormLayout()
-#         self.form_layout.setLabelAlignment(Qt.AlignRight)
-#         self.form_layout.setFormAlignment(Qt.AlignLeft)
-#         self.form_layout.setSpacing(12)
-
-#         self.fields = {}
-
-        
-
-
-#         def add_field(label_text, key, default="", validator=None, input_mode='numeric'):
-#             label = QLabel(label_text)
-#             label.setStyleSheet("font-size: 22px; color: #1e293b;")
-#             if key == "gender":
-#                 widget = QComboBox()
-#                 widget.addItems(["", "Masculino (M)", "Femenino (F)"])
-#                 widget.setStyleSheet("font-size: 22px; padding: 8px;")
-#             else:
-#                 widget = QLineEdit(default)
-#                 widget.setStyleSheet("font-size: 22px; padding: 8px;")
-#                 if validator:
-#                     widget.setValidator(validator)
-
-#             self.form_layout.addRow(label, widget)
-#             self.fields[key] = widget
-
-#             # Conectar clic para abrir input táctil (excepto gender)
-#             if key != "gender":
-#                 widget.mousePressEvent = lambda e, k=key, w=widget, m=input_mode: \
-#                     self.open_touch_input(k, w, mode=m)
-
-#         add_field("ID Paciente:", "patient_id", input_mode='text')
-#         add_field("Nombre completo:", "patient_name", input_mode='text')
-#         add_field("Género:", "gender")
-#         add_field("Edad (años):", "age", validator=QIntValidator(18, 100))
-#         add_field("Altura (cm):", "height_cm", validator=QDoubleValidator(100.0, 250.0, 1))
-#         add_field("Peso seco (kg):", "dry_weight_kg", validator=QDoubleValidator(30.0, 150.0, 1))
-#         add_field("Peso pre-diálisis (kg):", "pre_dialysis_weight_kg", validator=QDoubleValidator(30.0, 150.0, 1))
-
-#         self.form_group.setLayout(self.form_layout)
-#         self.form_group.hide()
-#         main_layout.addWidget(self.form_group)
-
-#         # Botón guardar
-#         btn_layout = QHBoxLayout()
-#         self.btn_save = QPushButton("Guardar y Seleccionar")
-#         self.btn_save.setFixedSize(320, 70)
-#         self.btn_save.setStyleSheet("font-size: 26px; background: #3b82f6; color: white; font-weight: bold;")
-#         self.btn_save.clicked.connect(self._save_patient)
-#         self.btn_save.setEnabled(False)
-#         btn_layout.addStretch()
-#         btn_layout.addWidget(self.btn_save)
-#         main_layout.addLayout(btn_layout)
-#         main_layout.addStretch()
-
-#     def open_touch_input(self, field_key: str, input_widget, mode: str = 'numeric'):
-#         """
-#         Abre el diálogo táctil adecuado según el modo.
-#         Actualiza widget y current_values al aceptar.
-#         """
-#         current_text = input_widget.text().strip() if hasattr(input_widget, 'text') else ""
-
-#         title_map = {
-#             "patient_id": "ID del paciente",
-#             "patient_name": "Nombre completo",
-#             "age": "Edad (años)",
-#             "height_cm": "Altura en cm",
-#             "dry_weight_kg": "Peso seco (kg)",
-#             "pre_dialysis_weight_kg": "Peso actual pre-diálisis (kg)"
-#         }
-#         title = title_map.get(field_key, "Ingrese valor")
-
-#         if mode == 'numeric':
-#             dialog = NumpadDialog(self, initial_value=current_text, title=title)
-#         else:
-#             dialog = KeyboardDialog(self, initial_text=current_text, title=title)
-
-#         if dialog.exec():
-#             new_value = dialog.get_value()
-#             if new_value is not None:
-
-#                 # Actualizar widget visual
-#                 if mode == 'numeric':
-#                     try:
-#                         formatted = f"{float(new_value):.1f}" if '.' in str(new_value) else str(int(new_value))
-#                     except:
-#                         formatted = str(new_value)
-#                     input_widget.setText(formatted)
-#                 else:
-#                     input_widget.setText(new_value)
-
-#                 # Guardar en current_values
-#                 patient_key = f"patient_{field_key}"
-#                 if mode == 'numeric':
-#                     try:
-#                         self.current_values[patient_key] = float(new_value)
-#                     except:
-#                         self.current_values[patient_key] = 0.0
-#                 else:
-#                     self.current_values[patient_key] = new_value.strip()
-
-#                 print(f"[PatientConfig] {patient_key} → {self.current_values[patient_key]}")
-
-#     def _refresh_patient_list(self):
-#         self.patient_list.clear()
-#         for pid, data in self.patients_db.items():
-#             self.patient_list.addItem(f"{pid} - {data.get('patient_name', 'Sin nombre')}")
-
-#     def _load_selected_patient(self, item):
-#         pid = item.text().split(" - ")[0]
-#         patient = self.patients_db.get(pid)
-#         if patient:
-#             self._populate_form(patient)
-#             self.form_group.show()
-#             self.btn_save.setEnabled(True)
-
-#     def _open_new_patient_dialog(self):
-#         # Para nuevo paciente: primero pedir ID con teclado
-#         dialog = KeyboardDialog(self, title="Ingrese ID del nuevo paciente")
-#         if dialog.exec():
-#             pid = dialog.get_value().strip().upper()
-#             if not pid or pid in self.patients_db:
-#                 QMessageBox.warning(self, "Error", "ID inválido o ya existe.")
-#                 return
-
-#             new_patient = {
-#                 "patient_id": pid,
-#                 "patient_name": "",
-#                 "gender": "",
-#                 "age": 0,
-#                 "height_cm": 0.0,
-#                 "dry_weight_kg": 0.0,
-#                 "pre_dialysis_weight_kg": 0.0,
-#             }
-#             self.patients_db[pid] = new_patient
-#             self._refresh_patient_list()
-
-#             # Seleccionar automáticamente
-#             for i in range(self.patient_list.count()):
-#                 if self.patient_list.item(i).text().startswith(pid):
-#                     self.patient_list.setCurrentRow(i)
-#                     self._load_selected_patient(self.patient_list.item(i))
-#                     break
-
-#     def _populate_form(self, patient):
-#         for key, widget in self.fields.items():
-#             if key == "gender":
-#                 idx = 0
-#                 g = patient.get("gender", "")
-#                 if g == "M": idx = 1
-#                 elif g == "F": idx = 2
-#                 widget.setCurrentIndex(idx)
-#             else:
-#                 value = patient.get(key, "")
-#                 widget.setText(str(value) if value else "")
-
-#     def _save_patient(self):
-#         data = {}
-#         for key, widget in self.fields.items():
-#             if key == "gender":
-#                 text = widget.currentText()
-#                 data[key] = "M" if "Masculino" in text else "F" if "Femenino" in text else ""
-#             else:
-#                 text = widget.text().strip()
-#                 if key == "age":
-#                     data[key] = int(text) if text.isdigit() else 0
-#                 elif key in ["height_cm", "dry_weight_kg", "pre_dialysis_weight_kg"]:
-#                     try:
-#                         data[key] = float(text)
-#                     except:
-#                         data[key] = 0.0
-#                 else:
-#                     data[key] = text
-
-#         # Validaciones mínimas
-#         if not data.get("patient_id"):
-#             QMessageBox.warning(self, "Error", "ID del paciente es obligatorio.")
-#             return
-#         if not data.get("patient_name"):
-#             QMessageBox.warning(self, "Error", "El nombre es obligatorio.")
-#             return
-#         if data.get("gender") not in ["M", "F"]:
-#             QMessageBox.warning(self, "Error", "Seleccione el género.")
-#             return
-#         if data.get("dry_weight_kg", 0) <= 0:
-#             QMessageBox.warning(self, "Error", "Peso seco debe ser mayor a 0.")
-#             return
-
-#         # Calcular UF goal
-#         pre = data.get("pre_dialysis_weight_kg", 0)
-#         dry = data.get("dry_weight_kg", 0)
-#         uf_goal = max(0.0, pre - dry)
-#         data["uf_goal_liters"] = uf_goal
-
-#         # Guardar en DB
-#         self.patients_db[data["patient_id"]] = data
-
-#         # Guardar en current_values (solo campos relevantes)
-#         key_map = {
-#             "patient_id": "patient_id",
-#             "patient_name": "patient_name",
-#             "gender": "patient_gender",
-#             "age": "patient_age",
-#             "height_cm": "patient_height_cm",
-#             "dry_weight_kg": "patient_dry_weight_kg",
-#             "pre_dialysis_weight_kg": "patient_pre_weight_kg",
-#             "uf_goal_liters": "uf_goal_liters"
-#         }
-#         for db_key, cv_key in key_map.items():
-#             if db_key in data:
-#                 self.current_values[cv_key] = data[db_key]
-
-#         self._refresh_patient_list()
-#         QMessageBox.information(self, "Guardado", 
-#                                 f"Paciente guardado.\nUF goal: {uf_goal:.2f} L")
-
-#         # Opcional: actualizar otras pantallas
-#         if hasattr(self.parent_window, 'dialysis_screen'):
-#             self.parent_window.dialysis_screen.update_values(self.current_values) 
+        if writes:
+            print("[INFO] Pendientes de escritura a máquina:", writes)
+        # Aquí llamas tu función de Modbus write múltiple o secuencial
+        # ej: self.modbus_client.write_multiple_registers(...)
