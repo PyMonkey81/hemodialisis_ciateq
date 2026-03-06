@@ -1,11 +1,322 @@
 # gui/therapy/alarms_screen.py
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QTextEdit, QFrame,
-    QPushButton, QScrollArea, QMessageBox
+    QWidget, QVBoxLayout, QLabel, QTextEdit, QFrame, QLineEdit,
+    QPushButton, QScrollArea, QMessageBox, QDialog, QDialogButtonBox, QGroupBox,QFormLayout, QHBoxLayout
 )
 from PySide6.QtCore import Qt, QTime
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QDoubleValidator
+from gui.components.ui_components import LabeledParameterWidget, ClickableLineEdit
+from gui.components.numpad_modal import NumpadDialog
+from gui.configuration.alarm_limits import AlarmLimitsManager
+
+
+
+
+
+class AlarmLimitsConfigDialog(QDialog):
+    """
+    Diálogo para configurar los límites de alarma (inferior y superior)
+    de las variables críticas de la máquina de hemodiálisis.
+    Usa teclado numérico táctil y botón de restaurar por defecto.
+    """
+    def __init__(self, parent=None, current_values=None, limits_manager=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configuración de Límites de Alarma")
+        self.setMinimumSize(680, 720)  # un poco más ancho por el botón extra
+
+        self.current_values = current_values or {}
+        self.limits_manager = limits_manager
+
+        if not self.limits_manager:
+            raise ValueError("Se requiere pasar un AlarmLimitsManager válido")
+
+        self.inputs = {}          # tag → (min_edit, max_edit)
+        self.variables = []
+
+        self.setup_variables()
+        self.setup_ui()
+
+    def setup_variables(self):
+        self.variables = [
+            {
+                "tag": "dialyCondVariableData",
+                "name": "Conductividad medida",
+                "unit": "mS/cm",
+                "decimals": 2,
+                "hint": "Rango típico: 13.0 – 15.0 mS/cm"
+            },
+            {
+                "tag": "dialyTempVariableData",
+                "name": "Temperatura medida",
+                "unit": "°C",
+                "decimals": 1,
+                "hint": "Rango típico: 35.5 – 38.0 °C"
+            },
+            {
+                "tag": "bloodFlowVariableData",
+                "name": "Flujo de sangre calculado",
+                "unit": "ml/min",
+                "decimals": 0,
+                "hint": "Rango típico: 200 – 450 ml/min"
+            },
+            {
+                "tag": "arterPresProcessData",
+                "name": "Presión arterial (línea sangre)",
+                "unit": "mmHg",
+                "decimals": 0,
+                "hint": "Rango típico: -100 a +300 mmHg"
+            },
+            {
+                "tag": "venouPresProcessData",
+                "name": "Presión venosa (línea sangre)",
+                "unit": "mmHg",
+                "decimals": 0,
+                "hint": "Rango típico: 0 – 350 mmHg"
+            },
+        ]
+        
+    def create_numpad_opener(self, edit_widget: ClickableLineEdit, decimals: int, tag: str, field: str):
+        """Crea una función que abre el numpad sin problemas con argumentos de señal"""
+        def opener(checked=False):  # ignora el argumento 'checked' que envía Qt
+            self.open_numpad(edit_widget, decimals, tag, field)
+        return opener
+        
+    def setup_ui(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 15, 20, 15)
+        main_layout.setSpacing(12)
+
+        # Título
+        title = QLabel("Límites de alarma - Seguridad del paciente")
+        title.setStyleSheet("font-size: 22px; font-weight: bold; color: #c0392b; text-align: center;")
+        title.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title)
+
+        desc = QLabel("Toque los campos para ingresar valores. Use 'Restaurar' para volver a valores por defecto.")
+        desc.setStyleSheet("font-size: 14px; color: #555; text-align: center;")
+        desc.setWordWrap(True)
+        main_layout.addWidget(desc)
+
+        main_layout.addSpacing(15)
+
+        # Grupo de parámetros
+        group = QGroupBox("Parámetros configurables")
+        group_layout = QFormLayout()
+        group_layout.setLabelAlignment(Qt.AlignRight)
+        group_layout.setFormAlignment(Qt.AlignLeft)
+        group_layout.setSpacing(14)
+
+        for var in self.variables:
+            tag = var["tag"]
+            decimals = var["decimals"]
+
+            # Valor actual
+            current_val = self.current_values.get(tag)
+            current_str = f"{current_val:.{decimals}f}" if current_val is not None else "—"
+
+            # Límites actuales
+            min_val, max_val = self.limits_manager.get_limits(tag)
+
+            row_layout = QHBoxLayout()
+            row_layout.setSpacing(12)
+
+            lbl_current = QLabel(f"Actual: {current_str}")
+            lbl_current.setStyleSheet("color: #444; min-width: 130px; font-size: 14px;")
+
+            # Campo Inferior
+            min_edit = ClickableLineEdit(f"{min_val:.{decimals}f}")
+            min_edit.setAlignment(Qt.AlignCenter)
+            min_edit.setFixedWidth(120)
+            min_edit.setStyleSheet("""
+                QLineEdit {
+                    background: #f8fafc;
+                    border: 2px solid #cbd5e1;
+                    border-radius: 8px;
+                    font-size: 18px;
+                    padding: 8px;
+                }
+            """)
+            # min_edit.clicked.connect(lambda checked=False, e=min_edit, d=decimals, t=tag, f="min": self.open_numpad(e, d, t, f))
+            min_edit.clicked.connect(self.create_numpad_opener(min_edit, decimals, tag, "min"))
+
+            sep = QLabel(" – ")
+            sep.setStyleSheet("color: #64748b; font-size: 16px;")
+
+            # Campo Superior
+            max_edit = ClickableLineEdit(f"{max_val:.{decimals}f}")
+            max_edit.setAlignment(Qt.AlignCenter)
+            max_edit.setFixedWidth(120)
+            max_edit.setStyleSheet("""
+                QLineEdit {
+                    background: #f8fafc;
+                    border: 2px solid #cbd5e1;
+                    border-radius: 8px;
+                    font-size: 18px;
+                    padding: 8px;
+                }
+            """)
+            # max_edit.clicked.connect(lambda checked=False, e=max_edit, d=decimals, t=tag, f="max": self.open_numpad(e, d, t, f))
+            max_edit.clicked.connect(self.create_numpad_opener(max_edit, decimals, tag, "max")
+)
+
+            # Botón Restaurar por defecto
+            restore_btn = QPushButton("Restaurar")
+            restore_btn.setFixedSize(100, 45)
+            restore_btn.setStyleSheet("""
+                QPushButton {
+                    background: #f59e0b;
+                    color: white;
+                    font-size: 14px;
+                    border-radius: 8px;
+                    border: none;
+                }
+                QPushButton:hover { background: #d97706; }
+                QPushButton:pressed { background: #b45309; }
+            """)
+            # restore_btn.clicked.connect(self.create_numpad_opener())
+            restore_btn.clicked.connect(lambda _, t=tag, m=min_edit, M=max_edit, d=decimals: self.restore_defaults(t, m, M, d))
+
+            row_layout.addWidget(lbl_current)
+            row_layout.addWidget(min_edit)
+            row_layout.addWidget(sep)
+            row_layout.addWidget(max_edit)
+            row_layout.addWidget(restore_btn)
+            row_layout.addStretch()
+
+            lbl_name = QLabel(f"{var['name']} ({var['unit']})")
+            lbl_name.setStyleSheet("font-weight: bold; font-size: 16px; min-width: 280px;")
+
+            hint_lbl = QLabel(var["hint"])
+            hint_lbl.setStyleSheet("color: #64748b; font-size: 13px;")
+
+            group_layout.addRow(lbl_name, row_layout)
+            group_layout.addRow("", hint_lbl)
+
+            self.inputs[tag] = (min_edit, max_edit)
+
+        group.setLayout(group_layout)
+        main_layout.addWidget(group)
+
+        main_layout.addStretch()
+
+        # Botones principales
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.Save | QDialogButtonBox.Cancel,
+            Qt.Horizontal
+        )
+        button_box.accepted.connect(self.validate_and_save)
+        button_box.rejected.connect(self.reject)
+
+        save_btn = button_box.button(QDialogButtonBox.Save)
+        save_btn.setText("Guardar cambios")
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background: #22c55e; color: white; font-size: 18px; padding: 12px;
+                min-width: 180px; border-radius: 8px;
+            }
+            QPushButton:hover { background: #16a34a; }
+        """)
+
+        cancel_btn = button_box.button(QDialogButtonBox.Cancel)
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background: #ef4444; color: white; font-size: 18px; padding: 12px;
+                min-width: 140px; border-radius: 8px;
+            }
+            QPushButton:hover { background: #dc2626; }
+        """)
+
+        main_layout.addWidget(button_box, alignment=Qt.AlignRight)
+
+    def open_numpad(self, line_edit: ClickableLineEdit, decimals: int, tag: str, field: str):
+        current_text = line_edit.text().strip()
+        dialog = NumpadDialog(
+            parent=self,
+            initial_value=current_text,
+            title=f"Ingrese límite {field.upper()} para {tag}"
+        )
+        if dialog.exec() == QDialog.Accepted:
+            value = dialog.get_value()
+            if isinstance(value, float):
+                formatted = f"{value:.{decimals}f}"
+            else:
+                formatted = str(value)
+            line_edit.setText(formatted)
+    
+ 
+
+    def restore_defaults(self, tag: str, min_edit: ClickableLineEdit, max_edit: ClickableLineEdit, decimals: int):
+        """
+        Restaura los límites por defecto para esta variable específica.
+        """
+        if hasattr(self.limits_manager, 'defaults') and tag in self.limits_manager.defaults:
+            def_min, def_max = self.limits_manager.defaults[tag]
+            min_edit.setText(f"{def_min:.{decimals}f}")
+            max_edit.setText(f"{def_max:.{decimals}f}")
+            QMessageBox.information(
+                self,
+                "Restaurado",
+                f"Límites de {tag} restaurados a valores por defecto:\n"
+                f"Min: {def_min}   Max: {def_max}"
+            )
+        else:
+            QMessageBox.warning(
+                self,
+                "Sin valores por defecto",
+                f"No se encontraron valores por defecto para {tag}.\n"
+                "Los límites actuales se mantienen."
+            )
+
+    def validate_and_save(self):
+        errors = []
+
+        for var in self.variables:
+            tag = var["tag"]
+            min_edit, max_edit = self.inputs[tag]
+
+            try:
+                min_v = float(min_edit.text())
+                max_v = float(max_edit.text())
+            except ValueError:
+                errors.append(f"{var['name']}: ingrese valores numéricos válidos")
+                continue
+
+            if min_v >= max_v:
+                errors.append(f"{var['name']}: límite inferior debe ser menor que el superior")
+
+            if min_v < -1000 or max_v > 1000:
+                errors.append(f"{var['name']}: valores fuera de rango razonable (±1000)")
+
+        if errors:
+            QMessageBox.warning(
+                self,
+                "Errores detectados",
+                "No se pueden guardar los cambios:\n\n• " + "\n• ".join(errors) +
+                "\n\nCorrija los valores indicados."
+            )
+            return
+
+        # Guardar
+        for var in self.variables:
+            tag = var["tag"]
+            min_edit, max_edit = self.inputs[tag]
+            min_v = float(min_edit.text())
+            max_v = float(max_edit.text())
+
+            try:
+                self.limits_manager.set_limits(tag, min_v, max_v)
+            except ValueError as e:
+                QMessageBox.critical(self, "Error al guardar", str(e))
+                return
+
+        QMessageBox.information(
+            self,
+            "Guardado exitoso",
+            "Límites de alarma actualizados.\nLos cambios se aplican inmediatamente."
+        )
+        self.accept()
+        
 
 class AlarmsScreen(QWidget):
     """
@@ -20,7 +331,7 @@ class AlarmsScreen(QWidget):
 
         self.setStyleSheet("background: #F8F8FA; color: #333333; font-family: 'Segoe UI';")
         self.parent_window = parent
-        self.values = values_dict if values_dict is not None else {}
+        self.current_values = values_dict if values_dict is not None else {}
         self.alarm_system = alarm_system
 
         self.setFixedSize(1536, 726)
@@ -40,6 +351,8 @@ class AlarmsScreen(QWidget):
             self._sync_initial_state()
         else:
             print("Warning: alarm_system not available in AlarmsScreen")
+
+       
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -94,9 +407,27 @@ class AlarmsScreen(QWidget):
             QPushButton:disabled { background: #CCCCCC; color: #999999; }
         """)
         self.btn_ack_all.clicked.connect(self.acknowledge_all_alarms)
+
+        self.btn_config_limits = QPushButton("Configuración")
+        self.btn_config_limits.setFixedSize(320, 60)
+        self.btn_config_limits.setStyleSheet("""
+            QPushButton {
+                background: #3498DB; /* Azul Suave */
+                color: #ffffff;
+                font-size: 22px;
+                font-weight: bold;
+                border-radius: 8px;
+            }
+            QPushButton:hover { background: #2980B9; }
+            QPushButton:pressed { background: #1F6C8C; }
+        """)
+        self.btn_config_limits.clicked.connect(self.open_variable_configuration)
+
+
         
         btn_layout = QVBoxLayout()
         btn_layout.addWidget(self.btn_ack_all, alignment=Qt.AlignRight)
+        btn_layout.addWidget(self.btn_config_limits, alignment=Qt.AlignRight)
         layout.addLayout(btn_layout)
 
         sep2 = QFrame()
@@ -234,20 +565,7 @@ class AlarmsScreen(QWidget):
             for name, data in self.active_alarms.items():
                 if not data['acked']:
                     data['acked'] = True
-                    changed = True
-            
-            # if changed:
-            #     self._update_active_alarms_display()
-            #     self.update_ack_button_state()
-
-            #     if self.parent_window and hasattr(self.parent_window, 'led_bar') and self.parent_window.led_bar:
-            #         self.parent_window.led_bar.send_state(self.parent_window.led_bar.CMD_SILENCE)
-            #         self._append_to_history("Comando de SILENCIO enviado al buzzer", None, "info", QTime.currentTime().toString("hh:mm:ss"))
-            
-                
-            #     self._append_to_history("Operador reconoció alarmas activas", None, "info", QTime.currentTime().toString("hh:mm:ss"))
-            #     QMessageBox.information(self, "Listo", f"{unacked_count} alarma(s) reconocida(s).")
-
+                    changed = True   
 
             if changed:
                 self._update_active_alarms_display()
@@ -274,7 +592,7 @@ class AlarmsScreen(QWidget):
             return
 
         html = ""
-        # Ordenar: No reconocidas primero, luego por severidad (más alta primero)
+        # Ordenar: No reconocidas primero, luego por severidad 
         priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1, "info": 0}
         
         sorted_alarms = sorted(
@@ -368,533 +686,11 @@ class AlarmsScreen(QWidget):
             self.command_queue.put(self.CMD_SILENCE)
             self._last_buzzer_silence_state_sent = True
 
+    def open_variable_configuration(self):
+        dialog = AlarmLimitsConfigDialog(
+            self,
+            current_values=self.values,
+            limits_manager=self.limits_manager   
+            )
+        dialog.exec_()
 
-
-# # gui/therapy/alarms_screen.py
-
-# from PySide6.QtWidgets import (
-#     QWidget, QVBoxLayout, QLabel, QTextEdit, QFrame,
-#     QPushButton, QScrollArea, QMessageBox
-# )
-# from PySide6.QtCore import Qt, QTime
-# from PySide6.QtGui import QFont
-
-# class AlarmsScreen(QWidget):
-#     """
-#     Pantalla dedicada para alarmas activas e historial de eventos.
-#     Maneja el reconocimiento (ACK) sin borrar alarmas persistentes.
-#     """
-
-#     def __init__(self, parent=None, values_dict=None, alarm_system=None):
-#         super().__init__(parent)
-#         self.setStyleSheet("background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI';")
-
-#         self.values = values_dict if values_dict is not None else {}
-#         self.alarm_system = alarm_system
-
-#         self.setFixedSize(1536, 726)
-
-#         # Cache de alarmas activas.
-#         # Clave: nombre de la alarma
-#         # Valor: diccionario { 'value': float, 'level': str, 'time': str, 'acked': bool }
-#         self.active_alarms = {}
-
-#         self.setup_ui()
-
-#         if self.alarm_system:
-#             self.alarm_system.alarm_changed.connect(self.on_alarm_changed)
-#             self._sync_initial_state()
-#         else:
-#             print("Warning: alarm_system not available in AlarmsScreen")
-
-#     def setup_ui(self):
-#         layout = QVBoxLayout(self)
-#         layout.setContentsMargins(40, 30, 40, 30)
-#         layout.setSpacing(24)
-
-#         # Título
-#         title = QLabel("ALARMAS Y EVENTOS DEL SISTEMA")
-#         title.setStyleSheet("font-size: 42px; font-weight: bold; color: #f87171;")
-#         title.setAlignment(Qt.AlignCenter)
-#         layout.addWidget(title)
-
-#         # Sección Alarmas Activas
-#         lbl_active = QLabel("ALARMAS ACTIVAS")
-#         lbl_active.setStyleSheet("font-size: 32px; font-weight: bold; color: #ef4444; margin-top: 20px;")
-#         layout.addWidget(lbl_active)
-
-#         self.active_alarms_display = QTextEdit()
-#         self.active_alarms_display.setReadOnly(True)
-#         # Usamos CSS para dar formato, pero el contenido será HTML rico
-#         self.active_alarms_display.setStyleSheet("""
-#             QTextEdit {
-#                 background: #1e293b;
-#                 border: 2px solid #7f1d1d;
-#                 border-radius: 10px;
-#                 padding: 10px;
-#             }
-#         """)
-#         self.active_alarms_display.setMinimumHeight(250)
-#         layout.addWidget(self.active_alarms_display)
-
-#         # Botón Reconocer
-#         self.btn_ack_all = QPushButton("RECONOCER (SILENCIAR)")
-#         self.btn_ack_all.setFixedSize(320, 60)
-#         self.btn_ack_all.setStyleSheet("""
-#             QPushButton {
-#                 background: #dc2626; color: white; font-size: 22px; font-weight: bold; border-radius: 12px;
-#             }
-#             QPushButton:hover { background: #b91c1c; }
-#             QPushButton:pressed { background: #991b1b; }
-#         """)
-#         self.btn_ack_all.clicked.connect(self.acknowledge_all_alarms)
-        
-#         # Contenedor para alinear el botón a la derecha
-#         btn_layout = QVBoxLayout()
-#         btn_layout.addWidget(self.btn_ack_all, alignment=Qt.AlignRight)
-#         layout.addLayout(btn_layout)
-
-#         # Sección Historial
-#         lbl_history = QLabel("HISTORIAL DE EVENTOS")
-#         lbl_history.setStyleSheet("font-size: 26px; font-weight: bold; color: #94a3b8; margin-top: 20px;")
-#         layout.addWidget(lbl_history)
-
-#         self.history_display = QTextEdit()
-#         self.history_display.setReadOnly(True)
-#         self.history_display.setStyleSheet("background: #0f172a; color: #cbd5e1; font-family: Consolas; font-size: 16px; border: 1px solid #334155;")
-#         layout.addWidget(self.history_display)
-
-#         # Estado inicial
-#         self._update_active_alarms_display()
-
-#     def _sync_initial_state(self):
-#         """Sincroniza el estado inicial al abrir la pantalla."""
-#         if not hasattr(self.alarm_system, 'active_alarms_list'): 
-#             # Asumiendo que alarm_system tiene una forma de saber cuáles están activas actualmente
-#             # Si no, usamos previous_states como en tu código original
-#             for i, active in enumerate(self.alarm_system.previous_states):
-#                 if active:
-#                     name = self.alarm_system.display_names[i]
-#                     level = self.alarm_system.severity_levels[i]
-#                     # Si ya estaba en nuestra lista local, mantenemos su estado (ej. acked)
-#                     # Si no, la agregamos como nueva
-#                     if name not in self.active_alarms:
-#                         self.active_alarms[name] = {
-#                             'value': 0.0, # Valor dummy si no tenemos el real inmediato
-#                             'level': level,
-#                             'time': QTime.currentTime().toString("hh:mm:ss"),
-#                             'acked': False
-#                         }
-#             self._update_active_alarms_display()
-
-#     def on_alarm_changed(self, idx, is_active, value, name, level, limits):
-#         """Maneja la señal cuando una alarma se activa o desactiva físicamente."""
-#         current_time = QTime.currentTime().toString("hh:mm:ss")
-
-#         if is_active:
-#             # Si la alarma se activa (o se actualiza valor)
-#             # Si ya existía y estaba reconocida, la mantenemos reconocida o la reseteamos?
-#             # Usualmente si la condición persiste, se actualiza el valor pero se mantiene el ACK.
-#             # Si la alarma se fue y volvió, es una NUEVA alarma (acked = False).
-            
-#             if name in self.active_alarms:
-#                 # Solo actualizamos valor, mantenemos estado ACK y hora original
-#                 self.active_alarms[name]['value'] = value
-#             else:
-#                 # Nueva alarma
-#                 self.active_alarms[name] = {
-#                     'value': value,
-#                     'level': level,
-#                     'time': current_time,
-#                     'acked': False
-#                 }
-#                 # Opcional: Reproducir sonido aquí
-            
-#             self._append_to_history(f"ACTIVADA: {name}", value, level, current_time)
-
-#         else:
-#             # La condición física desapareció -> Borramos la alarma de la lista visual
-#             if name in self.active_alarms:
-#                 del self.active_alarms[name]
-#                 self._append_to_history(f"NORMALIZADA: {name}", value, "info", current_time)
-
-#         self._update_active_alarms_display()
-
-#     def acknowledge_all_alarms(self):
-#         """
-#         Marca todas las alarmas actuales como 'Reconocidas' (ACK).
-#         NO las borra. Solo cambian visualmente para indicar que el operador las vio.
-#         """
-#         if not self.active_alarms:
-#             return
-
-#         changed = False
-#         for name in self.active_alarms:
-#             if not self.active_alarms[name]['acked']:
-#                 self.active_alarms[name]['acked'] = True
-#                 changed = True
-        
-#         if changed:
-#             self._update_active_alarms_display()
-#             # Aquí deberías enviar señal para silenciar buzzer si existe
-#             # if self.parent(): self.parent().silence_buzzer()
-            
-#             self._append_to_history("Operador reconoció alarmas activas", None, "info", QTime.currentTime().toString("hh:mm:ss"))
-
-#     def _update_active_alarms_display(self):
-#         """Regenera el HTML de la lista de alarmas activas."""
-#         if not self.active_alarms:
-#             self.active_alarms_display.setHtml(
-#                 '<div style="text-align:center; color:#94a3b8; font-size:24px; margin-top:20px;">'
-#                 'SISTEMA NORMAL - SIN ALARMAS</div>'
-#             )
-#             return
-
-#         html = ""
-#         # Ordenar: No reconocidas primero, luego por severidad
-#         priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1, "info": 0}
-        
-#         sorted_alarms = sorted(
-#             self.active_alarms.items(),
-#             key=lambda item: (
-#                 not item[1]['acked'],  # False (0) va antes que True (1), así que 'not' invierte: True(No ack) primero
-#                 priority_map.get(item[1]['level'], 0)
-#             ),
-#             reverse=True
-#         )
-
-#         for name, data in sorted_alarms:
-#             level = data['level']
-#             acked = data['acked']
-#             time_str = data['time']
-#             val = f"{data['value']:.1f}" if data['value'] is not None else "--"
-
-#             # Colores base
-#             colors = {
-#                 "rojo": "#ef4444", "naranja": "#f97316", 
-#                 "amarillo": "#eab308", "cian": "#06b6d4"
-#             }
-#             base_color = colors.get(level, "#cbd5e1")
-
-#             # Estilo visual diferente para ACK vs NO-ACK
-#             if acked:
-#                 # Alarma Reconocida: Texto más oscuro, quizás icono de check, fondo normal
-#                 bg_style = "background-color: #334155;" # Gris oscuro
-#                 status_icon = "✔ ACK"
-#                 text_color = "#94a3b8" # Gris claro (atenuado)
-#                 border_color = "#475569"
-#             else:
-#                 # Alarma NO Reconocida: Fondo brillante o borde fuerte, texto alerta
-#                 bg_style = f"background-color: {base_color}22;" # Color base muy transparente
-#                 status_icon = "⚠️ ACTIVA"
-#                 text_color = base_color # Color vivo
-#                 border_color = base_color
-
-#             # Construcción de la tarjeta HTML para la alarma
-#             html += f"""
-#             <div style="border: 2px solid {border_color}; border-radius: 8px; margin-bottom: 8px; padding: 8px; {bg_style}">
-#                 <table width="100%">
-#                     <tr>
-#                         <td width="15%" style="color:{text_color}; font-weight:bold; font-size:18px;">{time_str}</td>
-#                         <td width="55%" style="color:{text_color}; font-weight:bold; font-size:22px;">{name}</td>
-#                         <td width="15%" style="color:#e2e8f0; font-size:22px; text-align:right;">{val}</td>
-#                         <td width="15%" style="color:{text_color}; font-weight:bold; text-align:right; font-size:16px;">{status_icon}</td>
-#                     </tr>
-#                 </table>
-#             </div>
-#             """
-
-#         self.active_alarms_display.setHtml(html)
-
-#     def _append_to_history(self, text, value, level, time_str):
-#         colors = {"rojo": "#f87171", "naranja": "#fb923c", "amarillo": "#fbbf24", "cian": "#22d3ee", "info": "#94a3b8"}
-#         color = colors.get(level, "#cbd5e1")
-#         val_str = f" [{value:.1f}]" if value is not None else ""
-        
-#         self.history_display.append(
-#             f'<span style="color:#64748b;">{time_str}</span> '
-#             f'<span style="color:{color}; font-weight:bold;">{text}{val_str}</span>'
-#         )
-
-#     def update_values(self, values_dict):
-#         self.values = values_dict
-
-
-
-# # gui/therapy/alarms_screen.py
-# # Dedicated screen for active alarms + event/history log
-# # Stacked index: 5 ("Alarmas")
-
-# from PySide6.QtWidgets import (
-#     QWidget, QVBoxLayout, QLabel, QTextEdit, QFrame,
-#     QPushButton, QScrollArea, QMessageBox
-# )
-# from PySide6.QtCore import Qt, QTime
-# from PySide6.QtGui import QFont
-
-# from core.variables_map import VARIABLES
-
-
-# class AlarmsScreen(QWidget):
-#     """
-#     Screen displaying currently active alarms and full event history.
-#     Connects to AlarmSystem signals for real-time updates.
-#     """
-
-#     def __init__(self, parent=None, values_dict=None, alarm_system=None):
-#         super().__init__(parent)
-#         self.setStyleSheet("background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI';")
-
-#         # References
-#         self.values = values_dict if values_dict is not None else {}
-#         self.alarm_system = alarm_system
-
-#         self.setFixedSize(1536, 726)
-
-#         # Active alarms cache: name → (value, severity_level, activation_time)
-#         self.active_alarms = {}
-
-#         self.setup_ui()
-
-#         # Connect signals and sync initial state
-#         if self.alarm_system:
-#             print("AlarmsScreen: alarm_system found. Known alarm count:",
-#                   len(getattr(self.alarm_system, 'display_names', [])))
-
-#             self.alarm_system.alarm_changed.connect(self.on_alarm_changed)
-#             self.alarm_system.new_event.connect(self.on_new_event)
-
-#             # Critical: Sync current alarm states on initialization
-#             self._sync_initial_state()
-#         else:
-#             print("Warning: alarm_system not available in AlarmsScreen")
-
-#     def setup_ui(self):
-#         layout = QVBoxLayout(self)
-#         layout.setContentsMargins(40, 30, 40, 30)
-#         layout.setSpacing(24)
-
-#         # Title
-#         title = QLabel("ALARMAS Y EVENTOS DEL SISTEMA")
-#         title.setStyleSheet("font-size: 42px; font-weight: bold; color: #f87171;")
-#         title.setAlignment(Qt.AlignCenter)
-#         layout.addWidget(title)
-
-#         sep1 = QFrame()
-#         sep1.setFrameShape(QFrame.HLine)
-#         sep1.setStyleSheet("background: #475569; max-height: 2px;")
-#         layout.addWidget(sep1)
-
-#         # Active Alarms Section
-#         lbl_active = QLabel("ALARMAS ACTIVAS")
-#         lbl_active.setStyleSheet("""
-#             font-size: 32px; 
-#             font-weight: bold; 
-#             color: #ef4444; 
-#             background: transparent;
-#             padding: 8px 0;
-#         """)
-#         layout.addWidget(lbl_active)
-
-#         self.active_alarms_display = QTextEdit()
-#         self.active_alarms_display.setReadOnly(True)
-#         self.active_alarms_display.setStyleSheet("""
-#             QTextEdit {
-#                 background: #1e293b;
-#                 color: #fef2f2;
-#                 font-family: Consolas, 'Courier New', monospace;
-#                 font-size: 20px;
-#                 border: 2px solid #7f1d1d;
-#                 border-radius: 10px;
-#                 padding: 16px;
-#             }
-#         """)
-#         self.active_alarms_display.setMinimumHeight(220)
-#         layout.addWidget(self.active_alarms_display)
-
-#         # Acknowledge All Button
-#         btn_ack_all = QPushButton("RECONOCER TODAS")
-#         btn_ack_all.setFixedSize(320, 60)
-#         btn_ack_all.setStyleSheet("""
-#             QPushButton {
-#                 background: #dc2626;
-#                 color: white;
-#                 font-size: 22px;
-#                 font-weight: bold;
-#                 border-radius: 12px;
-#             }
-#             QPushButton:hover { background: #b91c1c; }
-#             QPushButton:pressed { background: #991b1b; }
-#             QPushButton:disabled { background: #334155; color: #64748b; }
-#         """)
-#         btn_ack_all.clicked.connect(self.acknowledge_all_alarms)
-#         layout.addWidget(btn_ack_all, alignment=Qt.AlignRight)
-
-#         sep2 = QFrame()
-#         sep2.setFrameShape(QFrame.HLine)
-#         sep2.setStyleSheet("background: #475569; max-height: 2px;")
-#         layout.addWidget(sep2)
-
-#         # Event History Section
-#         lbl_history = QLabel("HISTORIAL COMPLETO")
-#         lbl_history.setStyleSheet("""
-#             font-size: 26px; 
-#             font-weight: bold; 
-#             color: #94a3b8;
-#         """)
-#         layout.addWidget(lbl_history)
-
-#         self.history_display = QTextEdit()
-#         self.history_display.setReadOnly(True)
-#         self.history_display.setStyleSheet("""
-#             QTextEdit {
-#                 background: #0f172a;
-#                 color: #cbd5e1;
-#                 font-family: Consolas, monospace;
-#                 font-size: 17px;
-#                 border: none;
-#                 padding: 8px;
-#             }
-#         """)
-
-#         scroll_area = QScrollArea()
-#         scroll_area.setWidget(self.history_display)
-#         scroll_area.setWidgetResizable(True)
-#         scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-#         scroll_area.setMinimumHeight(280)
-#         layout.addWidget(scroll_area)
-
-#         # Initial message
-#         self._update_active_alarms_display()
-#         self.history_display.append(
-#             f'<span style="color:#64748b;">[Sistema iniciado — {QTime.currentTime().toString("hh:mm:ss")}]</span>'
-#         )
-
-#     def _sync_initial_state(self):
-#         """Read current alarm states from AlarmSystem and populate active_alarms."""
-#         if not all(hasattr(self.alarm_system, attr) for attr in 
-#                    ['display_names', 'previous_states', 'severity_levels']):
-#             print("AlarmsScreen: alarm_system missing expected attributes "
-#                   "(display_names, previous_states, severity_levels)")
-#             return
-
-#         current_time = QTime.currentTime().toString("hh:mm:ss")
-#         loaded_count = 0
-
-#         for i, name in enumerate(self.alarm_system.display_names):
-#             if i < len(self.alarm_system.previous_states) and self.alarm_system.previous_states[i]:
-#                 level = (self.alarm_system.severity_levels[i] 
-#                          if i < len(self.alarm_system.severity_levels) else "info")
-#                 value = None  # Could fetch from self.values if tag is mapped
-#                 self.active_alarms[name] = (value, level, current_time)
-#                 loaded_count += 1
-
-#         print(f"AlarmsScreen: initial sync → {loaded_count} active alarms loaded")
-#         self._update_active_alarms_display()
-
-#     def on_alarm_changed(self, idx, is_active, value, name, level, limits):
-#         current_time = QTime.currentTime().toString("hh:mm:ss")
-
-#         if is_active:
-#             self.active_alarms[name] = (value, level, current_time)
-#         else:
-#             self.active_alarms.pop(name, None)
-
-#         self._update_active_alarms_display()
-#         self._append_to_history(name, value, level, is_active, current_time)
-
-#     def on_new_event(self, event_msg, value, timestamp):
-#         self._append_to_history(event_msg, value, "info", True, timestamp)
-
-#     def _update_active_alarms_display(self):
-#         if not self.active_alarms:
-#             html = '<center><span style="color:#94a3b8; font-size:20px;">Ninguna alarma activa en este momento</span></center>'
-#         else:
-#             priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1, "info": 0}
-#             sorted_alarms = sorted(
-#                 self.active_alarms.items(),
-#                 key=lambda item: priority_map.get(item[1][1], 0),
-#                 reverse=True
-#             )
-
-#             lines = []
-#             for name, (value, level, time_str) in sorted_alarms:
-#                 color_map = {
-#                     "rojo": "#f87171",
-#                     "naranja": "#fb923c",
-#                     "amarillo": "#fbbf24",
-#                     "cian": "#22d3ee",
-#                     "info": "#94a3b8"
-#                 }
-#                 color = color_map.get(level, "#cbd5e1")
-
-#                 value_str = f"  {value:.1f}" if value is not None else ""
-#                 line = (
-#                     f'<span style="color:{color}; font-weight:bold; font-size:21px;">'
-#                     f'[{time_str}]  {name.upper()}{value_str}</span>'
-#                     f'<span style="color:#64748b; font-size:18px;">  — {level.upper()}</span>'
-#                 )
-#                 lines.append(line)
-
-#             html = "<br>".join(lines)
-
-#         self.active_alarms_display.setHtml(html)
-
-#     def _append_to_history(self, text, value, level, is_active, time_str):
-#         color_map = {
-#             "rojo": "#f87171",
-#             "naranja": "#fb923c",
-#             "amarillo": "#fbbf24",
-#             "cian": "#22d3ee",
-#             "info": "#94a3b8"
-#         }
-#         color = color_map.get(level, "#94a3b8")
-
-#         if level == "info":
-#             status = ""
-#             value_str = ""
-#         else:
-#             status = "ACTIVADA" if is_active else "DESACTIVADA"
-#             value_str = f" ({value:.1f})" if value is not None and value != 0 else ""
-
-#         line = (
-#             f'<span style="color:#64748b;">[{time_str}]</span> '
-#             f'<span style="color:{color}; font-weight:bold;">'
-#             f'{status} {text}{value_str}</span>'
-#         )
-
-#         self.history_display.append(line)
-#         self.history_display.verticalScrollBar().setValue(
-#             self.history_display.verticalScrollBar().maximum()
-#         )
-
-#     def acknowledge_all_alarms(self):
-#         if not self.active_alarms:
-#             QMessageBox.information(self, "Información", "No hay alarmas activas.")
-#             return
-
-#         reply = QMessageBox.question(
-#             self, "Confirmar",
-#             "¿Reconocer TODAS las alarmas activas?",
-#             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-#         )
-
-#         if reply == QMessageBox.Yes:
-#             self.active_alarms.clear()
-#             self._update_active_alarms_display()
-#             current_time = QTime.currentTime().toString("hh:mm:ss")
-#             self._append_to_history(
-#                 "Todas las alarmas reconocidas por el usuario",
-#                 None, "info", True, current_time
-#             )
-#             QMessageBox.information(self, "Listo", "Alarmas reconocidas.")
-
-#     def update_values(self, values_dict):
-#         """Compatibility method called from main window."""
-#         self.values = values_dict
-#         # Not directly used here, but kept for interface consistency
-
-#     # Note: The write_setpoint method seems unrelated to alarms screen.
-#     #       If it's not used here, consider moving it to a more appropriate screen
-#     #       (e.g. therapy_config_screen or options_screen).
-#     #       For now, it's kept commented out or removed unless you confirm it's needed.

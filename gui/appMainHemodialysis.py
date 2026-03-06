@@ -29,7 +29,7 @@ from gui.service.cleaning_screen import CleaningScreen
 from gui.components.real_time_variables import RealTimeVariablesMonitor
 from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
-
+from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.service.manual_mode_screen import ManualModeScreen
 from gui.service.test_panel_screen import TestPanelScreen
 from gui.service.calibration_screen import CalibrationScreen
@@ -37,6 +37,7 @@ from gui.service.network_config_screen import NetworkConfigScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screen import TherapyConfigScreen
+
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +50,7 @@ def resource_path(relative_path):
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
-
-
-
-   
+    return os.path.join(base_path, relative_path)   
 
 class HemodialysisHMI(QMainWindow):
     # Screen indices
@@ -154,18 +150,22 @@ class HemodialysisHMI(QMainWindow):
 
         # Alarm system
         self.active_alarms = []
-        display_names = [info["name"] for g in VARIABLES.values() for info in g.values()]
+        display_names = [info["label"] for g in VARIABLES.values() for info in g.values()]
         tags = [info["tag"] for g in VARIABLES.values() for info in g.values()]
-
+        self.alarm_limits = AlarmLimitsManager()  ### CAMBIOS AQUI 
         self.alarm_system = AlarmSystem(
             display_names=display_names,                     # ← cambiado de names=
             tags=tags,
             limits=[info.get("limites", (0.0, 100.0)) for g in VARIABLES.values() for info in g.values()],
             severity_levels=[info.get("nivel", "cyan") for g in VARIABLES.values() for info in g.values()],
             types=["numeric" if info["type"] == "double" else "boolean" for g in VARIABLES.values() for info in g.values()],
-            boolean_triggers=[True] * len(tags)
+            boolean_triggers=[True] * len(tags),
+            limits_manager=self.alarm_limits
         )
         self.buzzer_silenced_by_user = False
+
+        
+        
 
         # handle for alarms and start monitoring
         self.alarm_system.alarm_changed.connect(self.handle_alarm)
@@ -179,11 +179,14 @@ class HemodialysisHMI(QMainWindow):
         self.led_bar.start()
 
         # Screens initialization
+        
         self.alarms_screen = AlarmsScreen(
             parent=self,
             values_dict=self.current_values,
             alarm_system=self.alarm_system
         )
+        
+        self.alarms_screen.limits_manager = self. alarm_limits
 
         self.real_time_var = RealTimeVariablesMonitor(
             parent=self,

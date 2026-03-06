@@ -1,0 +1,22 @@
+{
+  "dialyCondVariableData": [
+    14.0,
+    15.0
+  ],
+  "dialyTempVariableData": [
+    34.5,
+    39.5
+  ],
+  "bloodFlowVariableData": [
+    0.0,
+    600.0
+  ],
+  "arterPresProcessData": [
+    -100.0,
+    400.0
+  ],
+  "venouPresProcessData": [
+    -50.0,
+    300.0
+  ]
+}
