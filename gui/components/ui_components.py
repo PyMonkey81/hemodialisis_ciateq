@@ -120,7 +120,7 @@ class LabeledParameterWidget(QWidget):
     def __init__(self,
                  label_text: str, # label_text: str,
                  tag: str = None, #               tag: str = None,
-                 value: str = "0.0",
+                 value: str = "",
                  units: str = "",
                  numpad_title: str = "",
                  is_editable: bool = True,
@@ -128,9 +128,9 @@ class LabeledParameterWidget(QWidget):
         super().__init__(parent)
 
         
-        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+        indicator_style = "color: #22d3ee; font-size: 26px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
         input_style = """
-            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            background: #FFFFE5; color: #000000; font-size: 26px; font-weight: bold;
             border: 2px solid #000000; border-radius: 5px; padding: 4px;
         """
 
@@ -240,9 +240,9 @@ class LabeledTimeInput(QWidget):
         self._local_timer_id = local_timer_id
         self._numpad_title = numpad_title or label_text
 
-        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+        indicator_style = "color: #22d3ee; font-size: 26px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
         input_style = """
-            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            background: #FFFFE5; color: #000000; font-size: 26px; font-weight: bold;
             border: 2px solid #000000; border-radius: 5px; padding: 4px;
         """
 

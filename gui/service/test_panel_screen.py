@@ -68,15 +68,15 @@ class TestPanelScreen(QWidget):
 
         # Labels will be on white backgrounds within their own widgets,
         # but the general labels like these need adjustment if parent is dark.
-        label_style = "color: #000000; font-size: 18px; font-weight: bold;"
-        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; background: #e0e0e0;" # Added background for visibility
+        label_style = "color: #000000; font-size: 26px; font-weight: bold;"
+        indicator_style = "color: #22d3ee; font-size: 26px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; background: #e0e0e0;" # Added background for visibility
         button_style = """
             QPushButton { background: #3b82f6; color: #ffffff; border-radius: 8px; font-weight: bold; }
             QPushButton:pressed { background: #1e40af; }
         """
         unit_style = "color: #94a3b8; font-size: 16px;"
         input_style = """
-            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            background: #FFFFE5; color: #000000; font-size: 26px; font-weight: bold;
             border: 2px solid #000000; border-radius: 5px; padding: 4px;
         """
 
@@ -91,7 +91,7 @@ class TestPanelScreen(QWidget):
         self.input_cb_flow = LabeledParameterWidget(
             label_text="Flujo CB", 
             tag="balanceChamberSetTiming", # Opcional, referencia
-            value="0.0", 
+            value="", 
             units="ml/min", # mostrar unidades 
             is_editable=True, 
             # parent=self.control_area
@@ -101,7 +101,7 @@ class TestPanelScreen(QWidget):
 
         self.input_blood_flow = LabeledParameterWidget(
             label_text="Qb", tag= "bloodFlowControlSetPoint",
-            value="0.0",units="ml/min",numpad_title="Flujo de sangre",
+            value="",units="ml/min",numpad_title="Flujo de sangre",
             is_editable=True,
         )
         self.input_blood_flow.request_numpad.connect(self.open_numpad)
@@ -109,7 +109,7 @@ class TestPanelScreen(QWidget):
 
         self.input_uf_flow = LabeledParameterWidget(
             label_text="UF", tag="",
-            value="0.0", units="L/h", numpad_title="Flujo UF",
+            value="", units="L/h", numpad_title="Flujo UF",
             is_editable=True
         )
         self.input_uf_flow.request_numpad.connect(lambda tag, wid, tit: self._handle_uf_flow_input())
@@ -117,7 +117,7 @@ class TestPanelScreen(QWidget):
 
         self.input_cond_setpoint = LabeledParameterWidget(
             label_text="Cond.", tag="dialyCondControlSetPoint",
-            value="0.0", units="mS/cm", numpad_title="Condutividad (mS/cm)",
+            value="", units="mS/cm", numpad_title="Condutividad (mS/cm)",
             is_editable=True
         )
         self.input_cond_setpoint.request_numpad.connect(self.open_numpad)
@@ -125,7 +125,7 @@ class TestPanelScreen(QWidget):
 
         self.input_temp_setpoint = LabeledParameterWidget(
             label_text="Temp. Dial.", tag="dialyTempControlSetPoint",
-            value="0.0", units="°C", numpad_title="Temperatura Dializante",
+            value="", units="°C", numpad_title="Temperatura Dializante",
             is_editable=True,
         )
         self.input_temp_setpoint.request_numpad.connect(self.open_numpad)
@@ -133,7 +133,7 @@ class TestPanelScreen(QWidget):
 
         self.label_cycles = LabeledParameterWidget(
             label_text="No. Ciclos CB", tag="balanceChamberCycleCount",
-            value="0.0", units="", numpad_title="",
+            value="", units="", numpad_title="",
             is_editable=False,
         )
         grid_top.addWidget(self.label_cycles, 0, 3, 1, 2)
@@ -142,28 +142,28 @@ class TestPanelScreen(QWidget):
 
         self.label_temp_ef = LabeledParameterWidget(
             label_text="T. Dial. EF", tag="dialyTempIFProcessData",
-            value="0.0", units="°C", numpad_title="",
+            value="", units="°C", numpad_title="",
             is_editable=False,
         )
         grid_top.addWidget(self.label_temp_ef, 0, 6, 1, 2)
 
         self.label_temp_sf = LabeledParameterWidget(
             label_text="T. Dial. SF", tag="dialyTempOFProcessData",
-            value="0.0", units="°C",
+            value="", units="°C",
             is_editable=False
         )
         grid_top.addWidget(self.label_temp_sf, 1, 6, 1, 2)
 
         self.label_temp_tank = LabeledParameterWidget(
             label_text="T. Tanque", tag="dialyTempControlOutput",
-            value="0.0", units="°C",
+            value="", units="°C",
             is_editable=False
         )
         grid_top.addWidget(self.label_temp_tank, 2, 6, 1, 2)
 
         self.label_cond_ef = LabeledParameterWidget(
             label_text="Cond. EF", tag="dialyConductIFProcessData",
-            value="0.0", units="mS/cm", # Asumo mS/cm, puedes quitarlo si prefieres
+            value="", units="mS/cm", # Asumo mS/cm, puedes quitarlo si prefieres
             is_editable=False
         )
         grid_top.addWidget(self.label_cond_ef, 3, 6, 1, 2)
@@ -171,7 +171,7 @@ class TestPanelScreen(QWidget):
 
         self.label_cond_sf = LabeledParameterWidget(
             label_text="Cond. SF", tag="dialyConductOFProcessData",
-            value="0.0", units="mS/cm", # Asumo mS/cm
+            value="", units="mS/cm", # Asumo mS/cm
             is_editable=False
         )
         grid_top.addWidget(self.label_cond_sf, 4, 6, 1, 2)
@@ -314,8 +314,8 @@ class TestPanelScreen(QWidget):
 
     def _add_output_row(self, grid, row, col, label_text, unit_text, label_style="", indicator_style=""):
         """Helper to add a labeled output row (label + value + unit)."""
-        label_style = "color: #000000; font-size: 18px; font-weight: bold;"
-        unit_style = "color: #94a3b8; font-size: 16px; border: none;"
+        label_style = "color: #000000; font-size: 26px; font-weight: bold;"
+        unit_style = "color: #94a3b8; font-size: 26px; border: none;"
 
         lbl = QLabel(label_text)
         lbl.setStyleSheet(label_style + "border: none;")
@@ -323,7 +323,7 @@ class TestPanelScreen(QWidget):
         
         grid.addWidget(lbl, row, col)
 
-        value_label = QLabel("0.0")
+        value_label = QLabel("")
         value_label.setStyleSheet(indicator_style)
         value_label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
         value_label.setAlignment(Qt.AlignCenter)

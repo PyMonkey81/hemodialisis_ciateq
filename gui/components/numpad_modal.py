@@ -3,7 +3,7 @@
 
 from PySide6.QtWidgets import (
     QDialog, QGridLayout, QPushButton, QLineEdit,
-    QVBoxLayout, QHBoxLayout
+    QVBoxLayout, QHBoxLayout,QLabel
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -35,6 +35,21 @@ class NumpadDialog(QDialog):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
+
+# ── Título personalizado ──────────────────────────────────────────────────
+        title_label = QLabel(title)  # Usa el parámetro title que pasas al __init__
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 24px;
+                font-weight: bold;
+                background-color: #1e293b;
+                padding: 12px;
+                border-bottom: 2px solid #334155;
+            }
+        """)
+        main_layout.addWidget(title_label)
 
         # ── Display (read-only value preview) ────────────────────────────────────
         self.display = QLineEdit(initial_value)

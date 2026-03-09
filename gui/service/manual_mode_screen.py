@@ -58,7 +58,7 @@ class ManualModeScreen(QWidget):
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
-        self.values = values_dict if values_dict is not None else {}
+        self.current_values = values_dict if values_dict is not None else {}
 
         self.write_hold_off = {}
         self.grouped_pumps = set()
@@ -450,7 +450,7 @@ class ManualModeScreen(QWidget):
         # 25. Set Ciclos CB (Izq)
         self.balance_cycles_set_input = LabeledParameterWidget(
             label_text="Ciclos CB", tag="balanceChamberCycleSet",
-            value="",numpad_title="Número de ciclos de cCB",is_editable=True,
+            value="",numpad_title="No. Ciclos CB",is_editable=True,
             parent=self.control_area
         )
         self.balance_cycles_set_input.request_numpad.connect(self.open_numpad)
@@ -577,9 +577,10 @@ class ManualModeScreen(QWidget):
 
         # 36. Salida NA (Izq)
         self.bicarbonate_output_display = LabeledParameterWidget(
-            label_text="Salida", tag="bicarbonatePumpSpeed",
-            value="0.0", units="%", is_editable=True, parent=self.control_area
+            label_text="Salida Na+", tag="bicarbonatePumpSpeed",
+            value="", units="%", is_editable=True, parent=self.control_area
         )
+        self.bicarbonate_output_display.request_numpad.connect(self.open_numpad)
         grid.addWidget(self.bicarbonate_output_display, 8, 2, 1, 2)
 
         # 39. Toggle Acido Citrico (Der)
@@ -595,9 +596,10 @@ class ManualModeScreen(QWidget):
 
         # 40. Salida Acido Citrico (Der) citricAcidPumpSpeed
         self.citric_acid_output_display = LabeledParameterWidget(
-            label_text="Salida", tag="citricAcidPumpSpeed",
+            label_text=" B.A.C. Salida", tag="citricAcidPumpSpeed",
             value="", units="%", is_editable=True, parent=self.control_area
         )
+        self.citric_acid_output_display.request_numpad.connect(self.open_numpad)
         grid.addWidget(self.citric_acid_output_display, 8, 7, 1, 2)
 
         # 41 boton de configuraciones de prueba
@@ -961,18 +963,18 @@ class ManualModeScreen(QWidget):
         logger.info("Grupo de bombas apagado por timeout de terapia")
 
     def update_values(self, new_values: dict):
-        self.values = new_values
+        self.current_values = new_values
         current_ms = QDateTime.currentMSecsSinceEpoch()
 
         for led, tag in self.led_indicators:
-            value = self.values.get(tag, 0.0)
+            value = self.current_values.get(tag, 0.0)
             if tag == "dialyDeaerChamLevSwitch":
                 led.set_state("off" if value > 0 else "on")
             else:
                 led.set_state("on" if value > 0 else "off")
 
         for tag, card in self.valve_cards.items():
-            value = self.values.get(tag, 0.0)
+            value = self.current_values.get(tag, 0.0)
             new_state = value > 0
             if card.toggle.is_checked() != new_state:
                 card.toggle.blockSignals(True)
@@ -981,7 +983,7 @@ class ManualModeScreen(QWidget):
 
         if "balanceChamberSetTiming" not in self.write_hold_off or \
            current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
-            cycles = self.values.get("balanceChamberSetTiming", 0.0)
+            cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
             try:
                 flow_ml_min = convertir_ciclos_a_flujo(cycles)
                 self._update_input_display(self.input_flow_cb, flow_ml_min, precision=1) 
@@ -991,7 +993,7 @@ class ManualModeScreen(QWidget):
 
         if "ultraFilterPumpSpeed" not in self.write_hold_off or \
            current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
-            uf_ml_min = self.values.get("ultraFilterPumpSpeed", 0.0)
+            uf_ml_min = self.current_values.get("ultraFilterPumpSpeed", 0.0)
             try:
                 uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)
                 self._update_input_display(self.lbl_input_indUF, uf_lh, precision=1) 
@@ -999,19 +1001,19 @@ class ManualModeScreen(QWidget):
                 logger.error(f"Error converting UF flow: {e}")
                 self._update_input_display(self.lbl_input_indUF, 0.0, precision=1)
 
-        self._update_input_display(self.blood_flow_input, self.values.get("bloodFlowControlSetPoint", 0.0))
-        self._update_input_display(self.input_heparin, self.values.get("heparineTherapyDosage", 0.0))
-        self._update_input_display(self.input_bolus, self.values.get("heparineBolusQuantity", 0.0))
-        self._update_input_display(self.input_syringe_size, self.values.get("heparineSyrinjeScaleSize", 0.0))
-        self._update_input_display(self.dialysate_output_display, self.values.get("dialyFlowControlOutput", 0.0))
-        self._update_input_display(self.purge_output_display, self.values.get("dialyDeaerControlOutput", 0.0))
-        self._update_input_display(self.balance_cycles_set_input, self.values.get("balanceChamberCycleSet", 0))
-        self._update_label_display(self.balance_cycles_actual_label, self.values.get("balanceChamberCycleCount", 0))
+        self._update_input_display(self.blood_flow_input, self.current_values.get("bloodFlowControlSetPoint", 0.0))
+        self._update_input_display(self.input_heparin, self.current_values.get("heparineTherapyDosage", 0.0))
+        self._update_input_display(self.input_bolus, self.current_values.get("heparineBolusQuantity", 0.0))
+        self._update_input_display(self.input_syringe_size, self.current_values.get("heparineSyrinjeScaleSize", 0.0))
+        self._update_input_display(self.dialysate_output_display, self.current_values.get("dialyFlowControlOutput", 0.0))
+        self._update_input_display(self.purge_output_display, self.current_values.get("dialyDeaerControlOutput", 0.0))
+        self._update_input_display(self.balance_cycles_set_input, self.current_values.get("balanceChamberCycleSet", 0))
+        self._update_label_display(self.balance_cycles_actual_label, self.current_values.get("balanceChamberCycleCount", 0))
 
-        self._update_label_display(self.blood_speed_display, self.values.get("bloodSpeedVariableData", 0.0))
-        self._update_label_display(self.bicarbonate_output_display, self.values.get("bicarbonatePumpSpeed", 0.0))
-        self._update_label_display(self.citric_acid_output_display, self.values.get("citricAcidPumpSpeed", 0.0))
-        self._update_label_display(self.heparin_current_dosage_display, self.values.get("heparineCurrentDosage", 0.0))
+        self._update_label_display(self.blood_speed_display, self.current_values.get("bloodSpeedVariableData", 0.0))
+        self._update_label_display(self.bicarbonate_output_display, self.current_values.get("bicarbonatePumpSpeed", 0.0))
+        self._update_label_display(self.citric_acid_output_display, self.current_values.get("citricAcidPumpSpeed", 0.0))
+        self._update_label_display(self.heparin_current_dosage_display, self.current_values.get("heparineCurrentDosage", 0.0))
 
         self._update_time_display(self.blood_pump_time_input, None, None, "blood_pump")
         self._update_time_display(self.heparin_time_input, "heparineTherapyHours", "heparineTherapyMinutes", "heparin_pump")
@@ -1019,15 +1021,15 @@ class ManualModeScreen(QWidget):
         self._update_time_display(self.uf_time_display, None, None, "uf_pump")
         self._update_time_display(self.balance_chamber_time_input, None, None, "balance_chamber")
 
-        self._sync_toggle(self.blood_pump_toggle, self.values.get("bloodPumpStartButton", 0.0))
-        self._sync_toggle(self.heparin_pump_toggle, self.values.get("heparinePumpsStartButton", 0.0))
-        self._sync_toggle(self.dialysate_pump_toggle, self.values.get("dialyserPumpStartButton", 0.0))
-        self._sync_toggle(self.citric_acid_pump_toggle, self.values.get("dialyCitricAcPumpStartButt", 0.0))
-        self._sync_toggle(self.bicarbonate_pump_toggle, self.values.get("dialyBicarbonPumpStartButt", 0.0))
-        self._sync_toggle(self.purge_pump_toggle, self.values.get("dialyPurgePumpStartButt", 0.0))
-        self._sync_toggle(self.uf_pump_toggle, self.values.get("dialyUltraFPumpStartButt", 0.0))
-        self._sync_toggle(self.operation_mode_toggle, self.values.get("dialyCircuitElementsOpSel", 0.0))
-        self._sync_toggle(self.balance_chamber_toggle, self.values.get("dialiserBalChambStrButt", 0.0))
+        self._sync_toggle(self.blood_pump_toggle, self.current_values.get("bloodPumpStartButton", 0.0))
+        self._sync_toggle(self.heparin_pump_toggle, self.current_values.get("heparinePumpsStartButton", 0.0))
+        self._sync_toggle(self.dialysate_pump_toggle, self.current_values.get("dialyserPumpStartButton", 0.0))
+        self._sync_toggle(self.citric_acid_pump_toggle, self.current_values.get("dialyCitricAcPumpStartButt", 0.0))
+        self._sync_toggle(self.bicarbonate_pump_toggle, self.current_values.get("dialyBicarbonPumpStartButt", 0.0))
+        self._sync_toggle(self.purge_pump_toggle, self.current_values.get("dialyPurgePumpStartButt", 0.0))
+        self._sync_toggle(self.uf_pump_toggle, self.current_values.get("dialyUltraFPumpStartButt", 0.0))
+        self._sync_toggle(self.operation_mode_toggle, self.current_values.get("dialyCircuitElementsOpSel", 0.0))
+        self._sync_toggle(self.balance_chamber_toggle, self.current_values.get("dialiserBalChambStrButt", 0.0))
 
         logger.debug("Manual mode values updated from machine")
 
@@ -1056,8 +1058,8 @@ class ManualModeScreen(QWidget):
             return
 
         # Obtener valor real del serial
-        hours   = int(self.values.get(tag_hours,   0)) if tag_hours   else 0
-        minutes = int(self.values.get(tag_minutes, 0)) if tag_minutes else 0
+        hours   = int(self.current_values.get(tag_hours,   0)) if tag_hours   else 0
+        minutes = int(self.current_values.get(tag_minutes, 0)) if tag_minutes else 0
         new_hh_mm = f"{hours:02d}:{minutes:02d}"
 
         # Solo actualizar si es DIFERENTE al que ya muestra el widget
@@ -1085,31 +1087,6 @@ class ManualModeScreen(QWidget):
                     logger.debug(f"Actualizada duración local de {timer_id} a {total_ms} ms")
 
 
-    # def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
-    #     if not tag_hours and not tag_minutes:
-    #         return
-        
-    #     current_ms = QDateTime.currentMSecsSinceEpoch()
-    #     hold_hours = self.write_hold_off.get(tag_hours, 0) if tag_hours else 0
-    #     hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
-
-    #     if current_ms < hold_hours or current_ms < hold_minutes:
-    #         return
-
-    #     hours = int(self.values.get(tag_hours, 0)) if tag_hours else 0
-    #     minutes = int(self.values.get(tag_minutes, 0)) if tag_minutes else 0
-
-    #     if isinstance(time_widget, LabeledTimeInput):
-    #         time_widget.set_time_value(hours, minutes)
-    #     elif hasattr(time_widget, 'setText'):
-    #         if not time_widget.hasFocus():
-    #             time_widget.setText(f"{hours:02d}:{minutes:02d}")
-
-    #     if timer_id and timer_id in self.local_timer_states:
-    #         if not self.local_timer_states[timer_id]["active"]:
-    #             total_ms = (hours * 3600 + minutes * 60) * 1000
-    #             self.local_timer_states[timer_id]["duration_ms"] = total_ms
-
     def _update_input_display(self, widget, value, precision=1):
         if not widget.hasFocus():
             if isinstance(widget, LabeledParameterWidget):
@@ -1128,7 +1105,7 @@ class ManualModeScreen(QWidget):
         if enabled:
             logger.info(f"Starting pump: {start_tag}")
             self._write_boolean_command(start_tag, True)
-            self._write_boolean_command(stop_tag, False)
+            # self._write_boolean_command(stop_tag, False)
 
             if timer_id and timer_id in self.local_timer_states:
                 state = self.local_timer_states[timer_id]
@@ -1142,7 +1119,7 @@ class ManualModeScreen(QWidget):
         else:
             logger.info(f"Stopping pump: {start_tag}")
             self._write_boolean_command(stop_tag, True)
-            self._write_boolean_command(start_tag, False)
+            # self._write_boolean_command(start_tag, False)
 
             if timer_id and timer_id in self.local_timer_states:
                 state = self.local_timer_states[timer_id]
@@ -1224,7 +1201,7 @@ class ManualModeScreen(QWidget):
         elif hasattr(input_widget, 'text'):
             current_text = input_widget.text()
         else:
-            current_text = "0.0"
+            current_text = ""
 
         dialog = NumpadDialog(self, initial_value=current_text, title=title)
 
