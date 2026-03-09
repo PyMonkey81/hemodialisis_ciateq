@@ -61,6 +61,7 @@ class ManualModeScreen(QWidget):
         self.current_values = values_dict if values_dict is not None else {}
 
         self.write_hold_off = {}
+        self.toggle_hold_off = {}
         self.grouped_pumps = set()
 
         # Mapeo de pump_ids a sus configs (para apagado grupal)
@@ -717,62 +718,6 @@ class ManualModeScreen(QWidget):
     # Métodos Lógicos (Sin cambios, solo corrección en llamadas auxiliares)
     # ────────────────────────────────────────────────
 
-    # def _open_group_pumps_dialog(self):
-    #     """Abre el popup para seleccionar bombas a agrupar bajo timer de terapia."""
-    #     dialog = QDialog(self)
-    #     dialog.setWindowTitle("Configuración de Pruebas - Agrupar Bombas")
-    #     dialog.setFixedSize(400, 500)
-    #     dialog.setStyleSheet("background: #f8fafc; color: #0f172a;")
-
-    #     layout = QVBoxLayout(dialog)
-    #     layout.setContentsMargins(20, 20, 20, 20)
-    #     layout.setSpacing(15)
-
-    #     title = QLabel("Seleccione bombas/cámara a controlar con Tiempo de Terapia")
-    #     title.setStyleSheet("font-size: 20px; font-weight: bold; color: #3b82f6;")
-    #     layout.addWidget(title)
-
-    #     # Checkboxes con mapeo a pump_ids
-    #     self.checkboxes = {}
-    #     pump_labels = [
-    #         ("Cámara de balance", "balance_chamber"),
-    #         ("Bomba de heparina", "heparin_pump"),
-    #         ("Bomba de UF", "uf_pump"),
-    #         ("Bomba de purga", "purge_pump"),
-    #         ("Bomba dializante", "dialysate_pump"),
-    #         ("Bomba de sangre", "blood_pump"),
-    #         ("Bomba de NA+", "bicarbonate_pump"),
-    #         ("Bomba de ácido", "citric_acid_pump"),
-    #     ]
-
-    #     for label_text, pump_id in pump_labels:
-    #         checkbox = QCheckBox(label_text)
-    #         checkbox.setStyleSheet("font-size: 16px;")
-    #         checkbox.setChecked(pump_id in self.grouped_pumps)  # Mantener estado previo
-    #         layout.addWidget(checkbox)
-    #         self.checkboxes[pump_id] = checkbox
-
-    #     # Botones Aceptar/Cancelar
-    #     buttons_layout = QHBoxLayout()
-    #     btn_accept = QPushButton("Aceptar")
-    #     btn_accept.setStyleSheet("""
-    #         QPushButton { background: #22c55e; color: white; font-size: 16px; border-radius: 8px; padding: 8px; }
-    #         QPushButton:hover { background: #16a34a; }
-    #     """)
-    #     btn_accept.clicked.connect(lambda: self._apply_group_selection(dialog))
-    #     buttons_layout.addWidget(btn_accept)
-
-    #     btn_cancel = QPushButton("Cancelar")
-    #     btn_cancel.setStyleSheet("""
-    #         QPushButton { background: #dc2626; color: white; font-size: 16px; border-radius: 8px; padding: 8px; }
-    #         QPushButton:hover { background: #b91c1c; }
-    #     """)
-    #     btn_cancel.clicked.connect(dialog.reject)
-    #     buttons_layout.addWidget(btn_cancel)
-
-    #     layout.addLayout(buttons_layout)
-
-    #     dialog.exec()
 
 
     def _open_group_pumps_dialog(self):
@@ -1039,6 +984,44 @@ class ManualModeScreen(QWidget):
             toggle_widget.blockSignals(True)
             toggle_widget.setChecked(new_state)
             toggle_widget.blockSignals(False)
+    def _sync_toggle(self, toggle_widget, value: float):
+        """Sincroniza el toggle solo si NO está en hold-off"""
+    
+        # Buscamos el tag asociado a este toggle (necesitamos mapear toggle → tag)
+        # Puedes crear un diccionario de mapeo toggle → tag_start (o tag que indica ON)
+        tag = self._get_start_tag_for_toggle(toggle_widget)
+        if not tag:
+            return  # no mapeado, no hacemos nada
+
+        current_ms = QDateTime.currentMSecsSinceEpoch()
+    
+        # Si hay hold-off activo → ignoramos la sincronización desde PLC
+        if tag in self.toggle_hold_off and current_ms < self.toggle_hold_off[tag]:
+            logger.debug(f"Hold-off activo para {tag} → ignorando sync desde PLC")
+            return
+
+        new_state = value > 0
+        if toggle_widget.is_checked() != new_state:
+            toggle_widget.blockSignals(True)
+            toggle_widget.setChecked(new_state)
+            toggle_widget.blockSignals(False)
+            logger.debug(f"Toggle {tag} sincronizado a {new_state} desde PLC")
+
+    def _get_start_tag_for_toggle(self, toggle_widget):
+        """Devuelve el tag que indica ON para este toggle"""
+        toggle_map = {
+            self.blood_pump_toggle:       "bloodPumpStartButton",
+            self.heparin_pump_toggle:     "heparinePumpsStartButton",
+            self.dialysate_pump_toggle:   "dialyserPumpStartButton",
+            self.uf_pump_toggle:          "dialyUltraFPumpStartButt",
+            self.balance_chamber_toggle:  "dialiserBalChambStrButt",
+            self.purge_pump_toggle:       "dialyPurgePumpStartButt",
+            self.bicarbonate_pump_toggle: "dialyBicarbonPumpStartButt",
+            self.citric_acid_pump_toggle: "dialyCitricAcPumpStartButt",
+            self.operation_mode_toggle:   "dialyCircuitElementsOpSel",
+            # Agrega los que faltan si hay más
+        }
+        return toggle_map.get(toggle_widget)
 
     def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
         if not tag_hours and not tag_minutes:
@@ -1105,8 +1088,8 @@ class ManualModeScreen(QWidget):
         if enabled:
             logger.info(f"Starting pump: {start_tag}")
             self._write_boolean_command(start_tag, True)
-            # self._write_boolean_command(stop_tag, False)
-
+            self._write_boolean_command(stop_tag, False)
+            self.toggle_hold_off[start_tag] = QDateTime.currentMSecsSinceEpoch() + 7000
             if timer_id and timer_id in self.local_timer_states:
                 state = self.local_timer_states[timer_id]
                 total_ms = state["duration_ms"]
@@ -1119,8 +1102,8 @@ class ManualModeScreen(QWidget):
         else:
             logger.info(f"Stopping pump: {start_tag}")
             self._write_boolean_command(stop_tag, True)
-            # self._write_boolean_command(start_tag, False)
-
+            self._write_boolean_command(start_tag, False)
+            self.toggle_hold_off[start_tag] = QDateTime.currentMSecsSinceEpoch() + 7000
             if timer_id and timer_id in self.local_timer_states:
                 state = self.local_timer_states[timer_id]
                 if state["active"]:

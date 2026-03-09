@@ -317,7 +317,7 @@ class DialysisScreen(QWidget):
         def set_enabled_style(btn):
             color = btn.property("base_color")
             btn.setStyleSheet(f"""
-                QPushButton {{ background: {color}; color: #ffffff; font-weight: bold;
+                QPushButton {{ background: #0f172a; color: #ffffff; font-weight: bold;
                                font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }}
                 QPushButton:pressed {{ background: #334155; }}
             """)
@@ -326,12 +326,13 @@ class DialysisScreen(QWidget):
         # 7 = DIÁLISIS (Listo para iniciar)
         # 13 = TRATAMIENTO INICIADO (Ya corriendo, se puede detener)
         
-        if status_code == 7: # LISTO PARA INICIAR
+        if status_code == 12: # LISTO PARA INICIAR
             btn_iniciar.setEnabled(True)
             set_enabled_style(btn_iniciar)
             
             btn_detener.setEnabled(False)
             btn_detener.setStyleSheet(style_disabled)
+        
             
         elif status_code == 13: # TRATAMIENTO CORRIENDO
             btn_iniciar.setEnabled(False)

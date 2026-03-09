@@ -676,9 +676,6 @@ class HemodialysisHMI(QMainWindow):
         self.left_content.show()
         self.right_content.show()
 
-
-    
-  
         
         
         
@@ -737,7 +734,7 @@ class HemodialysisHMI(QMainWindow):
                 8: "BYPASS",
                 9: "CERRADO",
                 11: "ULTRAFILTRACIÓN OFF",
-                12: "LISTO",
+                12: "LISTO PARA INICIAR\nTRATAMIENTO",
                 13: "TRATAMIENTO INICIADO",
                 14: "PAUSA",
                 15: "TRATAMIENTO DETENIDO"
@@ -746,7 +743,7 @@ class HemodialysisHMI(QMainWindow):
             # Obtener texto, por defecto "DESCONOCIDO" si no está en la lista
             status_text = status_map.get(status_code, "")
             self.current_process_status.setText(status_text)
-            if status_code == 7: # DIÁLISIS
+            if status_code == 12: # DIÁLISIS
                 color = "#25AD37" # Verde
             elif status_code == 6: # INFUSION
                 color = "#25ad37"
@@ -762,8 +759,10 @@ class HemodialysisHMI(QMainWindow):
 
             if "Iniciar\nTratamiento" in self.navigation_buttons:
                 self.navigation_buttons["Iniciar\nTratamiento"].setEnabled(True)
+                self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet("background: #0f172a; color: #ffffff; font-weight: bold; font-size: 24px; border-radius: 10px")
             else:
                 self.navigation_buttons["Iniciar\nTratamiento"].setEnabled(False)
+                self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
                 self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet(button_disabled_style)
 
             if self.dialysis_screen:
