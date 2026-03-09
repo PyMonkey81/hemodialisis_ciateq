@@ -234,7 +234,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x09: {"name": "Flujo de líquido de sustitución", "label": "FLUJO SUST.", "type": "double", "rw": True, "unit": "ml/h", "limites": (0, 5000), "tag": "subsLiqFlowProcessData", "nivel": "cian"},      # 52
         0x0A: {"name": "Conductividad dializante antes del filtro", "label": "COND. PRE-F", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyConductIFProcessData", "nivel": "amarillo"}, # 53
         0x0B: {"name": "Conductividad dializante después del filtro", "label": "COND. POST-F", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyConductOFProcessData", "nivel": "amarillo"}, # 54
-        0x0C: {"name": "Parametro de control ", "label": "FREC. CARD.", "type": "double", "rw": True, "unit": "lpm", "limites": (0,1000), "tag": "patHeartFreqProcessData", "nivel": "rojo"},     # 55 (Asumí Frecuencia Cardiaca por el tag 'HeartFreq')
+        0x0C: {"name": "Parametro de control ", "label": "FREC. CARD.", "type": "double", "rw": True, "unit": "lpm", "limites": (0,1000), "tag": "patHeartFreqProcessData", "nivel": "rojo"},     # 55 
         0x0D: {"name": "Presión en el tanque de calentamiento", "label": "P. TQ CALENT", "type": "double", "rw": True, "unit": "mmHg", "limites": (-100, 100), "tag": "dialyTankPresProcessData", "nivel": "cian"}, # 56
         0x0E: {"name": "Presión en la línea del dializante", "label": "P. LIN DIAL", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyLinePresProcessData", "nivel": "amarillo"}, # 57
         0x0F: {"name": "Presión Prefiltrado", "label": "P. PRE-FILTRO", "type": "double", "rw": True, "unit": "mmHg", "limites": (0, 500), "tag": "dialyPFilPmpPresProcessData", "nivel": "cian"},              #58  
@@ -278,6 +278,10 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x06: {"name": "patient_pre_weight_kg","label": "PESO PRE-DIAL","type": "double","rw": False,"unit": "kg","limites": (20, 200),"tag": "patient_pre_weight_kg","nivel": "blanco"},
         0x07: {"name": "uf_goal_liters","label": "OBJETIVO UF","type": "double","rw": True,"unit": "L","limites": (0.0, 10.0),"tag": "uf_goal_liters","nivel": "cian"},
     },
+    0x09: {
+        0x00: {"name": "pattern conductivity sensor", "label": "PATTERN_CONDUCTIVITY", "type": "double", "rw": True, "units": "mS/cm","limites": (0, 20), "tag": "patternCondSensor", "nivel":"cian"},
+        0x01: {"name": "pattern temperature sensor", "label": "PATTERN_TEMPERATURE", "type": "double", "rw": True, "units": "°C","limites": (0, 100), "tag": "patternTempSensor", "nivel":"cian"}
+    }
 }
 
 # ================================================================
@@ -307,7 +311,8 @@ TVAR_TO_GROUP = {
     0x05: "Proceso",
     0x06: "Calibración",
     0x07: "Bioimpedancia y Urea",
-    0x08: "Datos del paciente"
+    0x08: "Datos del paciente",
+    0x09: "Sensor patron de conductividad"
 }
 
 

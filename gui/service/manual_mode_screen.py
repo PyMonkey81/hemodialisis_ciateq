@@ -182,7 +182,7 @@ class ManualModeScreen(QWidget):
         # 1. Dosis de heparina (Izq)
         self.input_heparin = LabeledParameterWidget(
             label_text="Dosis Hep.", tag="heparineTherapyDosage",
-            value="0.0", units="ml/h", numpad_title="Dosis Heparina",
+            value="", units="ml/h", numpad_title="Dosis Heparina",
             is_editable=True, parent=self.control_area
         )
         self.input_heparin.request_numpad.connect(self.open_numpad)
@@ -191,7 +191,7 @@ class ManualModeScreen(QWidget):
         # 2. Bolus (Izq)
         self.input_bolus = LabeledParameterWidget(
             label_text="Bolo", tag="heparineBolusQuantity",
-            value="0.0", units="ml", numpad_title="Dosis Bolo",
+            value="", units="ml", numpad_title="Dosis Bolo",
             is_editable=True, parent=self.control_area
         )
         self.input_bolus.request_numpad.connect(self.open_numpad)
@@ -238,7 +238,7 @@ class ManualModeScreen(QWidget):
         # 7. Velocidad Sangre (Der)
         self.blood_speed_display = LabeledParameterWidget(
             label_text="Vel", tag="bloodSpeedVariableData",
-            value="0.0", units="rpm", is_editable=False, parent=self.control_area
+            value="", units="rpm", is_editable=False, parent=self.control_area
         )
         grid.addWidget(self.blood_speed_display, 0, 11, 1, 2)
 
@@ -250,7 +250,7 @@ class ManualModeScreen(QWidget):
         # 8. Jeringa (Izq)
         self.input_syringe_size = LabeledParameterWidget(
             label_text="Jeringa", tag="heparineSyrinjeScaleSize",
-            value="0.0", units="mm/ml", numpad_title="Tamaño de jeringa",
+            value="", units="mm/ml", numpad_title="Tamaño de jeringa",
             is_editable=True, parent=self.control_area
         )
         self.input_syringe_size.request_numpad.connect(self.open_numpad)
@@ -360,7 +360,7 @@ class ManualModeScreen(QWidget):
         # 18. Heparina (Acumulado)
         self.heparin_current_dosage_display = LabeledParameterWidget(
             label_text="Hep.", tag="heparineCurrentDosage",
-            value="0.0", units="ml", is_editable=False, parent=self.control_area
+            value="", units="ml", is_editable=False, parent=self.control_area
         )
         grid.addWidget(self.heparin_current_dosage_display, 2, 11, 1, 2)
 
@@ -391,7 +391,7 @@ class ManualModeScreen(QWidget):
         self.input_flow_cb = LabeledParameterWidget(
             label_text="Flujo", 
             tag="balanceChamberSetTiming", # Opcional, referencia
-            value="0.0", 
+            value="", 
             units="ml/min", # mostrar unidades 
             is_editable=True, 
             parent=self.control_area
@@ -413,7 +413,7 @@ class ManualModeScreen(QWidget):
    
         self.dialysate_output_display = LabeledParameterWidget(
             label_text="Salida", tag="dialyFlowControlOutput",
-            value="0.0", units="%", is_editable=True, parent=self.control_area
+            value="", units="%", is_editable=True, parent=self.control_area
         )
         self.dialysate_output_display.request_numpad.connect(self.open_numpad)
         grid.addWidget(self.dialysate_output_display, 4, 7, 1, 2)
@@ -450,7 +450,7 @@ class ManualModeScreen(QWidget):
         # 25. Set Ciclos CB (Izq)
         self.balance_cycles_set_input = LabeledParameterWidget(
             label_text="Ciclos CB", tag="balanceChamberCycleSet",
-            value="0.0",numpad_title="Número de ciclos de cCB",is_editable=True,
+            value="",numpad_title="Número de ciclos de cCB",is_editable=True,
             parent=self.control_area
         )
         self.balance_cycles_set_input.request_numpad.connect(self.open_numpad)
@@ -459,7 +459,7 @@ class ManualModeScreen(QWidget):
         # 26. Ciclos actuales (Izq)
         self.balance_cycles_actual_label = LabeledParameterWidget(
             label_text="Ciclos Act.", tag="balanceChamberCycleCount",
-            value="0.0", units="",is_editable=False, parent=self.control_area
+            value="", units="",is_editable=False, parent=self.control_area
         )
         grid.addWidget(self.balance_cycles_actual_label, 5, 2, 1, 2)
 
@@ -477,7 +477,7 @@ class ManualModeScreen(QWidget):
         # 28. Salida purga % (Der)
         self.purge_output_display = LabeledParameterWidget(
             label_text="Salida", tag="dialyDeaerControlOutput",
-            value="0.0", units="%", is_editable=True, parent=self.control_area
+            value="", units="%", is_editable=True, parent=self.control_area
         )
         self.purge_output_display.request_numpad.connect(self.open_numpad)
         grid.addWidget(self.purge_output_display, 5, 7, 1, 2)
@@ -522,7 +522,7 @@ class ManualModeScreen(QWidget):
         # 32. Salida UF (Der)        
         self.lbl_input_indUF = LabeledParameterWidget(
             label_text="Flujo", tag="ultraFilterPumpSpeed",
-            value="0.0", units="L/h",
+            value="", units="L/h",
             numpad_title="Flujo UF",is_editable=True,
             parent=self.control_area
         )
@@ -578,7 +578,7 @@ class ManualModeScreen(QWidget):
         # 36. Salida NA (Izq)
         self.bicarbonate_output_display = LabeledParameterWidget(
             label_text="Salida", tag="bicarbonatePumpSpeed",
-            value="0.0", units="%", is_editable=False, parent=self.control_area
+            value="0.0", units="%", is_editable=True, parent=self.control_area
         )
         grid.addWidget(self.bicarbonate_output_display, 8, 2, 1, 2)
 
@@ -596,7 +596,7 @@ class ManualModeScreen(QWidget):
         # 40. Salida Acido Citrico (Der) citricAcidPumpSpeed
         self.citric_acid_output_display = LabeledParameterWidget(
             label_text="Salida", tag="citricAcidPumpSpeed",
-            value="0.0", units="%", is_editable=False, parent=self.control_area
+            value="", units="%", is_editable=True, parent=self.control_area
         )
         grid.addWidget(self.citric_acid_output_display, 8, 7, 1, 2)
 
@@ -966,8 +966,8 @@ class ManualModeScreen(QWidget):
 
         for led, tag in self.led_indicators:
             value = self.values.get(tag, 0.0)
-            if tag == "dialyTankHiLevelSwitch":
-                led.set_state("off" if value > 0 else "in")
+            if tag == "dialyDeaerChamLevSwitch":
+                led.set_state("off" if value > 0 else "on")
             else:
                 led.set_state("on" if value > 0 else "off")
 

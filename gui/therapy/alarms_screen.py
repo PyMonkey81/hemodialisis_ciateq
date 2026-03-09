@@ -1,11 +1,11 @@
 # gui/therapy/alarms_screen.py
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QTextEdit, QFrame, QLineEdit,
+    QWidget, QVBoxLayout, QLabel, QTextEdit, QFrame, QLineEdit, QSizePolicy,
     QPushButton, QScrollArea, QMessageBox, QDialog, QDialogButtonBox, QGroupBox,QFormLayout, QHBoxLayout
 )
 from PySide6.QtCore import Qt, QTime
-from PySide6.QtGui import QFont, QDoubleValidator
+from PySide6.QtGui import QFont, QDoubleValidator, QTextOption
 from gui.components.ui_components import LabeledParameterWidget, ClickableLineEdit
 from gui.components.numpad_modal import NumpadDialog
 from gui.configuration.alarm_limits import AlarmLimitsManager
@@ -334,7 +334,8 @@ class AlarmsScreen(QWidget):
         self.current_values = values_dict if values_dict is not None else {}
         self.alarm_system = alarm_system
 
-        self.setFixedSize(1536, 726)
+        
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Cache de alarmas activas.
         # Clave: nombre de la alarma
@@ -356,8 +357,32 @@ class AlarmsScreen(QWidget):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 30, 40, 30)
-        layout.setSpacing(18) # Reducido un poco el espaciado
+        # ── Estilo scrollbar más ancho y visible ────────────────
+        self.setStyleSheet(self.styleSheet() + """
+            QScrollBar:vertical {
+                border: none;
+                background: #e0e0e5;
+                width: 28px;               /* <--- aquí cambias el ancho */
+                margin: 0px 0px 0px 0px;
+                border-radius: 14px;
+            }
+            QScrollBar::handle:vertical {
+                background: #8a8a9c;
+                min-height: 60px;
+                border-radius: 14px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #6b6b7a;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5) # Reducido un poco el espaciado
 
         # Título
         title = QLabel("ALARMAS Y EVENTOS DEL SISTEMA")
@@ -442,6 +467,12 @@ class AlarmsScreen(QWidget):
 
         self.history_display = QTextEdit()
         self.history_display.setReadOnly(True)
+        self.history_display.setUndoRedoEnabled(False)
+
+        self.history_display.setLineWrapMode(QTextEdit.WidgetWidth)          # wrap al ancho del widget
+        self.history_display.setWordWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)  # corta en espacios cuando pueda, si no → en cualquier 
+        self.history_display.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # self.history_display.setWordWrap(True)
         self.history_display.setStyleSheet("""
             QTextEdit {
                 background: #F0F2F5; /* Fondo ligeramente gris para diferenciar del principal */

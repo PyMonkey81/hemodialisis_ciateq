@@ -506,8 +506,10 @@ class HemodialysisHMI(QMainWindow):
 
         # 5. Enviar comandos al controlador
         try:
-            self._write_boolean_command("dialyModeOperationStart", True)
-            self._write_boolean_command("dialyModeOperationStop", False)
+            self._write_boolean_command("dialyStartDialysisButt", True)
+            self._write_boolean_command("dialyStopDialysisButt",False)
+            # self._write_boolean_command("dialyModeOperationStart", True)            
+            # self._write_boolean_command("dialyModeOperationStop", False)
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
@@ -515,13 +517,25 @@ class HemodialysisHMI(QMainWindow):
                                 "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
 
         # 6. Feedback claro al usuario
-        QMessageBox.information(self, "Cebado Iniciado",
-                                "Proceso de cebado iniciado correctamente.\n\n"
-                                "• Registro de datos activo en logs/hemodialysis/\n"
-                                "• Duración típica: 5–10 minutos\n"
-                                "Presione 'DETENER' cuando finalice o espere condición automática.")
+        # QMessageBox.information(self, "Cebado Iniciado",
+        #                         "Proceso de cebado iniciado correctamente.\n\n"
+        #                         "• Registro de datos activo en logs/hemodialysis/\n"
+        #                         "• Duración típica: 5–10 minutos\n"
+        #                         "Presione 'DETENER' cuando finalice o espere condición automática.")
 
         self.show_dialysis_screen()
+
+    def stop_priming(self):
+        try:
+            self._write_boolean_command("dialyStartDialysisButt", False)
+            self._write_boolean_command("dialyStopDialysisButt",True)
+            # self._write_boolean_command("dialyModeOperationStart", True)            
+            # self._write_boolean_command("dialyModeOperationStop", False)
+            logger.info("Comandos de cebado enviados: Start=True, Stop=False")
+        except Exception as e:
+            logger.error(f"Error enviando comandos de cebado: {e}")
+            QMessageBox.warning(self, "Advertencia", 
+                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
 
 
     def stop_treatment(self):   
@@ -730,11 +744,13 @@ class HemodialysisHMI(QMainWindow):
             }
         
             # Obtener texto, por defecto "DESCONOCIDO" si no está en la lista
-            status_text = status_map.get(status_code, "ESTADO DESCONOCIDO")
+            status_text = status_map.get(status_code, "")
             self.current_process_status.setText(status_text)
             if status_code == 7: # DIÁLISIS
                 color = "#25AD37" # Verde
-            elif status_code in [1, 2, 3, 4, 5]: # Preparación
+            elif status_code == 6: # INFUSION
+                color = "#25ad37"
+            elif status_code in [1, 2, 3, 4, 5, 8]: # Preparación
                 color = "#eab308" # Amarillo/Naranja
             else:
                 color = "#0f172a" # Azul oscuro por defecto

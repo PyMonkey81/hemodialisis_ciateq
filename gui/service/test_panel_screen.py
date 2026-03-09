@@ -344,10 +344,8 @@ class TestPanelScreen(QWidget):
         # ── LEDs ────────────────────────────────────────────────────────────────
         for led, tag in self.led_widgets:
             value = self.current_values.get(tag, 0.0)
-            if tag == "dialyTankHiLevelSwitch":
-                # Ensure 'LED' component has an 'in' state or adjust logic.
-                # Assuming 'in' means active/on and 'off' means off.
-                led.set_state("on" if value > 0 else "off") # Changed 'in' to 'on' for general LED.
+            if tag == "dialyDeaerChamLevSwitch":                
+                led.set_state("off" if value > 0 else "on") 
             else:
                 led.set_state("on" if value > 0 else "off")
 
@@ -404,7 +402,7 @@ class TestPanelScreen(QWidget):
 
         # ── Pressure Outputs ────────────────────────────────────────────────────
         self._update_label_display(self.label_peristaltic_flow, self.current_values.get("bloodFlowVariableData", 0.0))
-        self._update_label_display(self.label_pt1, self.current_values.get("dialyPFilPmpPresProcessData", 0.0))
+        self._update_label_display(self.label_pt1, self.current_values.get("dialyLineWaterPresData", 0.0))
         self._update_label_display(self.label_pt2, self.current_values.get("dialyTankPresProcessData", 0.0))
         self._update_label_display(self.label_pt3, self.current_values.get("dialyLinePresProcessData", 0.0))
         self._update_label_display(self.label_pt4, self.current_values.get("dialyPresIFProcessData", 0.0))

@@ -158,7 +158,8 @@ class DialysisScreen(QWidget):
             ("DETENER", "#DD2911", self.parent_window.stop_treatment),
             ("MENÚ TERAPIA", "#0f172a", self.show_therapy_config),
             ("MENÚ PACIENTE", "#0f172a", self.show_patient_config),
-            ("CEBADO", "#0f172a", self.parent_window.start_priming),
+            ("INICIAR CEBADO", "#0f172a", self.parent_window.start_priming),
+            ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming),
         ]
 
         for i, (text, color, callback) in enumerate(button_config):
