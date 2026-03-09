@@ -110,6 +110,7 @@ class HemodialysisHMI(QMainWindow):
             "bloodInDialyCircDetected": "Sangre en dializante",
             "dialyPurgePumpStartButt": "Purga de aire",
         }
+        self._last_priming_status = -1
         # Control de tiempo de terapia (global)
         self.therapy_start_time = None
         self.total_therapy_seconds = 0
@@ -445,6 +446,16 @@ class HemodialysisHMI(QMainWindow):
         if not self.therapy_time_timer.isActive():
             self.therapy_time_timer.start()
 
+        try:        
+            self._write_boolean_command("dialyModeOperationStart", True)            
+            self._write_boolean_command("dialyModeOperationStop", False)
+            logger.info("Comandos de cebado enviados: Start=True, Stop=False")
+        except Exception as e:
+            logger.error(f"Error enviando comandos de cebado: {e}")
+            QMessageBox.warning(self, "Advertencia", 
+                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
+
+
         # Iniciar bioimpedancia y Kt/V
         if self.bioz_urea_controller:
             self.bioz_urea_controller.send_command("SRTB")
@@ -508,8 +519,7 @@ class HemodialysisHMI(QMainWindow):
         try:
             self._write_boolean_command("dialyStartDialysisButt", True)
             self._write_boolean_command("dialyStopDialysisButt",False)
-            # self._write_boolean_command("dialyModeOperationStart", True)            
-            # self._write_boolean_command("dialyModeOperationStop", False)
+           
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
@@ -593,7 +603,7 @@ class HemodialysisHMI(QMainWindow):
         self.right_content.show()
         self.navigation_buttons["Inicio"].setEnabled(True)
         self.navigation_buttons["Inicio"].setStyleSheet("""
-            QPushButton { background: #1b10b9; color: #ffffff; font-weight: bold;
+            QPushButton { background: #0f172a; color: #ffffff; font-weight: bold;
                           font-size: 24px; border-radius: 10px;}
             QPushButton:pressed { background: #334155;}
         """)
@@ -693,84 +703,197 @@ class HemodialysisHMI(QMainWindow):
         from datetime import datetime
         self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))
 
+    # def update_value(self, tag: str, value: float):
+    #     button_enabled_style ="""
+    #         QPushButton { background: #0f172a; color: #ffffff; border-radius: 8px; font-weight: bold;font-size:24px; }
+    #         QPushButton:pressed { background: #1e40af; }
+    #     """
+    #     button_disabled_style = """
+    #         QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px;border-radius: 8px; }
+    #     """
+                             
+    #     self.current_values[tag] = value
+
+    #     if self.alarm_system:
+    #         self.alarm_system.update_value_by_tag(tag, value)
+
+
+    #     if tag == "urea_adc2":
+    #         self.measurement_ktv()
+
+    #     gauge_mapping = {
+    #         "arterPresProcessData":   self.arterial_pressure_gauge,
+    #         "venouPresProcessData":   self.venous_pressure_gauge,
+    #         "dialyTempVariableData":  self.dialysate_temp_gauge,
+    #         "dialyCondVariableData":  self.conductivity_bar,
+    #     }  
+
+    #     if tag in gauge_mapping:
+    #         gauge_mapping[tag].setValue(value)
+
+        
+    #     if tag == "primingProcessStatus":
+    #         status_code = int (value)
+
+    #         status_map = {
+    #             1: "INICIO CEBADO",
+    #             2: "LLENADO DE TANQUE",
+    #             3: "LLENADO DE LINEA",
+    #             4: "LLENADO CÁMARA",
+    #             5: "CALENTAMIENTO",
+    #             6: "INFUSIÓN",
+    #             7: "DIÁLISIS",
+    #             8: "BYPASS",
+    #             9: "CERRADO",
+    #             11: "ULTRAFILTRACIÓN OFF",
+    #             12: "LISTO PARA INICIAR\nTRATAMIENTO",
+    #             13: "TRATAMIENTO INICIADO",
+    #             14: "PAUSA",
+    #             15: "TRATAMIENTO DETENIDO"
+    #         }
+
+    #         temp_ok = abs(self.current_values.get("dialyTempVariableData", 0.0) -
+    #               self.current_values.get("dialyTempControlSetPoint", 0.0)) < 0.1  # tolerancia
+    #         status_ready = self.current_values.get("primingProcessStatus", 0) == 12
+    #         btn = self.navigation_buttons["Iniciar\nTratamiento"]
+    #         btn.setEnabled(status_ready and temp_ok)
+    #         btn.setStyleSheet(button_enabled_style if btn.isEnabled() else button_disabled_style)
+    #         # Obtener texto, por defecto "DESCONOCIDO" si no está en la lista
+    #         status_text = status_map.get(status_code, "")
+    #         self.current_process_status.setText(status_text)
+    #         if status_code == 12: # DIÁLISIS
+    #             color = "#25AD37" # Verde              
+    #         elif status_code == 6: # INFUSION
+    #             color = "#25ad37"
+    #         elif status_code in [1, 2, 3, 4, 5, 8]: # Preparación
+    #             color = "#eab308" # Amarillo/Naranja
+    #         else:
+    #             color = "#EBEBEB" # Azul oscuro por defecto
+                
+    #         self.current_process_status.setStyleSheet(f"""
+    #             QLabel {{ color: #ffffff; background: {color};
+    #                      font-weight: bold; font-size: 25px;border-radius: 10px; }}
+    #         """)
+
+          
+
+    #         if self.dialysis_screen:
+    #             self.dialysis_screen.update_buttons_state(status_code)
+
+    #         if self.cleaning_screen:
+    #             self.cleaning_screen.update_buttons_state(status_code)
+    
+
     def update_value(self, tag: str, value: float):
-        button_enabled_style ="""
-            QPushButton { background: #39ec21; color: #ffffff; border-radius: 8px; font-weight: bold; }
+        button_enabled_style = """
+            QPushButton { background: #0f172a; color: #ffffff;border-radius: 8px;font-weight: bold;font-size: 24px; }
             QPushButton:pressed { background: #1e40af; }
         """
-        button_disabled_style = """background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px"""
+        button_disabled_style = """
+            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 8px; }
+        """
 
+        # Actualizar valor centralizado
         self.current_values[tag] = value
 
+        # Actualizar sistema de alarmas si existe
         if self.alarm_system:
             self.alarm_system.update_value_by_tag(tag, value)
 
-
+        # Lógica específica de KTV/urea
         if tag == "urea_adc2":
             self.measurement_ktv()
 
+        # Actualizar gauges
         gauge_mapping = {
             "arterPresProcessData":   self.arterial_pressure_gauge,
             "venouPresProcessData":   self.venous_pressure_gauge,
             "dialyTempVariableData":  self.dialysate_temp_gauge,
             "dialyCondVariableData":  self.conductivity_bar,
-        }  
-
+        }
         if tag in gauge_mapping:
             gauge_mapping[tag].setValue(value)
 
-        
+        # ────────────────────────────────────────────────────────────────
+        # Manejo de primingProcessStatus (estado del proceso)
+        # ────────────────────────────────────────────────────────────────
         if tag == "primingProcessStatus":
-            status_code = int (value)
+            status_code = int(value)
+            # Solo procesar si realmente cambió el estado
+            if status_code != self._last_priming_status:
+                self._last_priming_status = status_code
 
-            status_map = {
-                1: "INICIO CEBADO",
-                2: "LLENADO DE TANQUE",
-                3: "LLENADO DE LINEA",
-                4: "LLENADO CÁMARA",
-                5: "CALENTAMIENTO",
-                6: "INFUSIÓN",
-                7: "DIÁLISIS",
-                8: "BYPASS",
-                9: "CERRADO",
-                11: "ULTRAFILTRACIÓN OFF",
-                12: "LISTO PARA INICIAR\nTRATAMIENTO",
-                13: "TRATAMIENTO INICIADO",
-                14: "PAUSA",
-                15: "TRATAMIENTO DETENIDO"
-            }
+                # Mapa de estados
+                status_map = {
+                    1:  "INICIO CEBADO",
+                    2:  "LLENADO DE TANQUE",
+                    3:  "LLENADO DE LINEA",
+                    4:  "LLENADO CÁMARA",
+                    5:  "CALENTAMIENTO",
+                    6:  "INFUSIÓN",
+                    7:  "DIÁLISIS",
+                    8:  "BYPASS",
+                    9:  "CERRADO",
+                    11: "ULTRAFILTRACIÓN OFF",
+                    12: "LISTO PARA INICIAR\nTRATAMIENTO",
+                    13: "TRATAMIENTO INICIADO",
+                    14: "PAUSA",
+                    15: "TRATAMIENTO DETENIDO"
+                }
+
+                status_text = status_map.get(status_code, f"DESCONOCIDO ({status_code})")
+                self.current_process_status.setText(status_text)
+
+                # Colores según estado
+                if status_code in [6, 7, 12, 13]:      # Activos / listos / tratamiento
+                    color = "#25AD37"  # Verde
+                elif status_code in [1, 2, 3, 4, 5, 8]:  # Preparación / cebado
+                    color = "#eab308"  # Amarillo
+                elif status_code in [14, 15]:          # Pausa / detenido / error
+                    color = "#ef4444"  # Rojo
+                else:
+                    color = "#64748b"  # Gris neutro
+
+                self.current_process_status.setStyleSheet(f"""
+                    QLabel {{
+                        color: #ffffff;
+                        background: {color};
+                        font-weight: bold;
+                        font-size: 25px;
+                        border-radius: 10px;
+                    }}
+                """)
+
+                # Actualizar botones en pantallas hijas SOLO cuando cambió
+                if self.dialysis_screen:
+                    self.dialysis_screen.update_buttons_state(status_code)
+
+                if self.cleaning_screen:
+                    self.cleaning_screen.update_buttons_state(status_code)
+
+        # ────────────────────────────────────────────────────────────────
+        # Reevaluar botón "Iniciar Tratamiento" cuando cambien status o temp
+        # ────────────────────────────────────────────────────────────────
+        if tag in ["primingProcessStatus", "dialyTempVariableData", "dialyTempControlSetPoint"]:
+            self._update_start_treatment_button(button_enabled_style, button_disabled_style)
+
+    def _update_start_treatment_button(self, enabled_style: str, disabled_style: str):
+        """Habilita/desactiva el botón Iniciar Tratamiento según condiciones."""
+        temp_actual = self.current_values.get("dialyTempVariableData", 0.0)
+        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
         
-            # Obtener texto, por defecto "DESCONOCIDO" si no está en la lista
-            status_text = status_map.get(status_code, "")
-            self.current_process_status.setText(status_text)
-            if status_code == 12: # DIÁLISIS
-                color = "#25AD37" # Verde
-            elif status_code == 6: # INFUSION
-                color = "#25ad37"
-            elif status_code in [1, 2, 3, 4, 5, 8]: # Preparación
-                color = "#eab308" # Amarillo/Naranja
-            else:
-                color = "#0f172a" # Azul oscuro por defecto
-                
-            self.current_process_status.setStyleSheet(f"""
-                QLabel {{ color: {color}; background: transparent;
-                         font-weight: bold; font-size: 25px; }}
-            """)
-
-            if "Iniciar\nTratamiento" in self.navigation_buttons:
-                self.navigation_buttons["Iniciar\nTratamiento"].setEnabled(True)
-                self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet("background: #0f172a; color: #ffffff; font-weight: bold; font-size: 24px; border-radius: 10px")
-            else:
-                self.navigation_buttons["Iniciar\nTratamiento"].setEnabled(False)
-                self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
-                self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet(button_disabled_style)
-
-            if self.dialysis_screen:
-                self.dialysis_screen.update_buttons_state(status_code)
-
-            if self.cleaning_screen:
-                self.cleaning_screen.update_buttons_state(status_code)
-
+        # Tolerancia realista (ajusta según precisión de tus sensores)
+        temp_ok = abs(temp_actual - temp_set) <= 0.5
+        
+        status_ready = self.current_values.get("primingProcessStatus", 0) == 12
+        
+        btn = self.navigation_buttons["Iniciar\nTratamiento"]
+        should_enable = status_ready and temp_ok
+        
+        # Solo cambiar si es necesario (evita flicker innecesario)
+        if btn.isEnabled() != should_enable:
+            btn.setEnabled(should_enable)
+            btn.setStyleSheet(enabled_style if should_enable else disabled_style)
 
     def refresh_alarms_label(self):
         if not self.active_alarms:

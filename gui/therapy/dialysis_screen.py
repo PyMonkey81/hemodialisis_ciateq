@@ -297,9 +297,64 @@ class DialysisScreen(QWidget):
         
         pass  # Implement priming logic here
 
-    def update_buttons_state(self, status_code):
+    # def update_buttons_state(self, status_code):
+    #     """
+    #     Habilita o deshabilita INICIAR/DETENER basado en el estado de la máquina.
+    #     """
+    #     if not hasattr(self, 'action_buttons'):
+    #         return
+
+    #     btn_iniciar = self.action_buttons.get("INICIAR")
+    #     btn_detener = self.action_buttons.get("DETENER")
+
+    #     # Estilos
+    #     style_disabled = """
+    #         QPushButton { background: #334155; color: #94a3b8; font-weight: bold;
+    #                       font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+    #     """
+        
+    #     # Helper para aplicar estilo habilitado (recuperando su color original)
+    #     def set_enabled_style(btn):
+    #         color = btn.property("base_color")
+    #         btn.setStyleSheet(f"""
+    #             QPushButton {{ background: #0f172a; color: #ffffff; font-weight: bold;
+    #                            font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }}
+    #             QPushButton:pressed {{ background: #334155; }}
+    #         """)
+
+    #     # Lógica de estados
+    #     # 7 = DIÁLISIS (Listo para iniciar)
+    #     # 13 = TRATAMIENTO INICIADO (Ya corriendo, se puede detener)
+        
+    #     if status_code == 12: # LISTO PARA INICIAR
+    #         if self.current_values.get("dialyTempVariableData",0.0) == self.current_values.get("dialyTempControlSetPoint",0.0):
+    #             btn_iniciar.setEnabled(True)
+    #             set_enabled_style(btn_iniciar)
+            
+    #             btn_detener.setEnabled(False)
+    #             btn_detener.setStyleSheet(style_disabled)
+        
+            
+    #     elif status_code == 13: # TRATAMIENTO CORRIENDO
+    #         btn_iniciar.setEnabled(False)
+    #         btn_iniciar.setStyleSheet(style_disabled)
+            
+    #         btn_detener.setEnabled(True)
+    #         set_enabled_style(btn_detener)
+            
+    #     else: # CUALQUIER OTRO ESTADO (Cebado, Limpieza, Pausa, etc.)
+    #         # Por seguridad deshabilitamos ambos, o ajusta según necesites
+    #         # Si quieres permitir detener en PAUSA (14), agrega "or status_code == 14" arriba
+    #         btn_iniciar.setEnabled(False)
+    #         btn_iniciar.setStyleSheet(style_disabled)
+    #         btn_detener.setEnabled(False)
+    #         btn_detener.setStyleSheet(style_disabled)
+    def update_buttons_state(self, status_code: int):
         """
-        Habilita o deshabilita INICIAR/DETENER basado en el estado de la máquina.
+        Habi    lita o deshabilita botones INICIAR/DETENER basado en el estado de la máquina.
+        - status_code 12: Listo para iniciar → habilitar INICIAR si temperatura OK
+        - status_code 13: Tratamiento iniciado → habilitar DETENER
+        - Otros estados: ambos deshabilitados (por seguridad)
         """
         if not hasattr(self, 'action_buttons'):
             return
@@ -307,48 +362,67 @@ class DialysisScreen(QWidget):
         btn_iniciar = self.action_buttons.get("INICIAR")
         btn_detener = self.action_buttons.get("DETENER")
 
-        # Estilos
-        style_disabled = """
-            QPushButton { background: #334155; color: #94a3b8; font-weight: bold;
-                          font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+        if not btn_iniciar or not btn_detener:
+            return  # Evitar errores si los botones no existen
+
+        # Estilos base
+        style_enabled = """
+            QPushButton { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton:pressed { background: #334155; }
         """
-        
-        # Helper para aplicar estilo habilitado (recuperando su color original)
-        def set_enabled_style(btn):
-            color = btn.property("base_color")
-            btn.setStyleSheet(f"""
-                QPushButton {{ background: #0f172a; color: #ffffff; font-weight: bold;
-                               font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }}
-                QPushButton:pressed {{ background: #334155; }}
-            """)
+        style_disabled = """
+            QPushButton {
+                background: #334155;
+                color: #94a3b8;
+                font-weight: bold;
+                font-size: 16px;
+                border-radius: 15px;
+                border: 3px solid #1e293b;
+            }
+        """
 
-        # Lógica de estados
-        # 7 = DIÁLISIS (Listo para iniciar)
-        # 13 = TRATAMIENTO INICIADO (Ya corriendo, se puede detener)
-        
-        if status_code == 12: # LISTO PARA INICIAR
-            btn_iniciar.setEnabled(True)
-            set_enabled_style(btn_iniciar)
-            
+        # ────────────────────────────────────────────────────────────────
+        # Lógica principal
+        # ────────────────────────────────────────────────────────────────
+        if status_code == 12:  # LISTO PARA INICIAR TRATAMIENTO
+            temp_actual = self.current_values.get("dialyTempVariableData", 0.0)
+            temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+
+            # Usar tolerancia en lugar de == (muy importante con flotantes)
+            temp_ok = abs(temp_actual - temp_set) <= 0.1  # Ajusta el 0.1 según precisión real
+
+            if temp_ok:
+                btn_iniciar.setEnabled(True)
+                btn_iniciar.setStyleSheet(style_enabled)
+            else:
+                btn_iniciar.setEnabled(False)
+                btn_iniciar.setStyleSheet(style_disabled)
+
+            # DETENER siempre deshabilitado en estado 12
             btn_detener.setEnabled(False)
             btn_detener.setStyleSheet(style_disabled)
-        
-            
-        elif status_code == 13: # TRATAMIENTO CORRIENDO
+
+        elif status_code == 13:  # TRATAMIENTO INICIADO / CORRIENDO
+            # INICIAR deshabilitado
             btn_iniciar.setEnabled(False)
             btn_iniciar.setStyleSheet(style_disabled)
-            
+
+            # DETENER habilitado
             btn_detener.setEnabled(True)
-            set_enabled_style(btn_detener)
-            
-        else: # CUALQUIER OTRO ESTADO (Cebado, Limpieza, Pausa, etc.)
-            # Por seguridad deshabilitamos ambos, o ajusta según necesites
-            # Si quieres permitir detener en PAUSA (14), agrega "or status_code == 14" arriba
+            btn_detener.setStyleSheet(style_enabled)
+
+        else:  # Cualquier otro estado (cebado, pausa, limpieza, error, etc.)
+            # Por seguridad: ambos deshabilitados
             btn_iniciar.setEnabled(False)
             btn_iniciar.setStyleSheet(style_disabled)
+
             btn_detener.setEnabled(False)
             btn_detener.setStyleSheet(style_disabled)
 
+            # Opcional: si quieres permitir DETENER en PAUSA (status 14), descomenta:
+            # if status_code == 14:
+            #     btn_detener.setEnabled(True)
+            #     btn_detener.setStyleSheet(style_enabled)
 
     def show_therapy_config(self):
         """Navigate to therapy configuration screen."""

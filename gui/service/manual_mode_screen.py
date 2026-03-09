@@ -985,8 +985,7 @@ class ManualModeScreen(QWidget):
             toggle_widget.setChecked(new_state)
             toggle_widget.blockSignals(False)
     def _sync_toggle(self, toggle_widget, value: float):
-        """Sincroniza el toggle solo si NO está en hold-off"""
-    
+        """Sincroniza el toggle solo si NO está en hold-off"""    
         # Buscamos el tag asociado a este toggle (necesitamos mapear toggle → tag)
         # Puedes crear un diccionario de mapeo toggle → tag_start (o tag que indica ON)
         tag = self._get_start_tag_for_toggle(toggle_widget)
@@ -997,7 +996,7 @@ class ManualModeScreen(QWidget):
     
         # Si hay hold-off activo → ignoramos la sincronización desde PLC
         if tag in self.toggle_hold_off and current_ms < self.toggle_hold_off[tag]:
-            logger.debug(f"Hold-off activo para {tag} → ignorando sync desde PLC")
+            logger.debug(f"Hold-off activo para {tag} → ignorando sync")
             return
 
         new_state = value > 0
@@ -1005,7 +1004,7 @@ class ManualModeScreen(QWidget):
             toggle_widget.blockSignals(True)
             toggle_widget.setChecked(new_state)
             toggle_widget.blockSignals(False)
-            logger.debug(f"Toggle {tag} sincronizado a {new_state} desde PLC")
+            logger.debug(f"Toggle {tag} sincronizado a {new_state}")
 
     def _get_start_tag_for_toggle(self, toggle_widget):
         """Devuelve el tag que indica ON para este toggle"""
@@ -1019,7 +1018,7 @@ class ManualModeScreen(QWidget):
             self.bicarbonate_pump_toggle: "dialyBicarbonPumpStartButt",
             self.citric_acid_pump_toggle: "dialyCitricAcPumpStartButt",
             self.operation_mode_toggle:   "dialyCircuitElementsOpSel",
-            # Agrega los que faltan si hay más
+            # si hubiera mas, se agregan aqui 
         }
         return toggle_map.get(toggle_widget)
 
@@ -1275,6 +1274,10 @@ class ManualModeScreen(QWidget):
 
     def _update_local_time_displays(self):
         current_ms = QDateTime.currentMSecsSinceEpoch()
+        expired = [k for k, v in self.toggle_hold_off.items() if current_ms >= v]
+        for k in expired:
+            del self.toggle_hold_off[k]
+
         for timer_id, state in self.local_timer_states.items():
             if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
                 elapsed_ms = current_ms - state["start_ms"]
@@ -1310,32 +1313,7 @@ class ManualModeScreen(QWidget):
                 if state["remaining_lbl"]:
                     state["remaining_lbl"].setText(self._format_ms_to_hh_mm(state["duration_ms"]))
 
-    # def _update_local_time_displays(self):
-    #     current_ms = QDateTime.currentMSecsSinceEpoch()
-    #     for timer_id, state in self.local_timer_states.items():
-    #         if state["active"] and state["duration_ms"] > 0 and state["start_ms"] > 0:
-    #             elapsed_ms = current_ms - state["start_ms"]
-    #             # remaining_ms = max(0, state["duration_ms"] - elapsed_ms)
-    #             remaining_ms = state["duration_ms"] - elapsed_ms
 
-    #             if remaining_ms <= 0:
-    #                 remaining_ms = 0
-    #                 # elapsed_ms = state["duration_ms"]
-
-    #             if state["elapsed_lbl"]:
-    #                 state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
-    #             if state["remaining_lbl"]:
-    #                 state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
-            
-    #         else:
-    #             if state["elapsed_lbl"] and state["elapsed_lbl"].text() != "00:00":
-    #                 state["elapsed_lbl"].setText("00:00")
-
-    #             if state["remaining_lbl"]:
-    #                 state["remaining_lbl"].setText(self._format_ms_to_hh_mm(state["duration_ms"]))
-    #                 # h = state["duration_ms"] // 3600000
-    #                 # m = (state["duration_ms"] % 3600000) // 60000
-    #                 # state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
     
     def _format_ms_to_label(self, label_widget, ms):
         total_seconds = max(0, int(ms//1000))
