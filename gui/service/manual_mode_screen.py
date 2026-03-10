@@ -595,7 +595,7 @@ class ManualModeScreen(QWidget):
 
         # 36. Salida NA (Izq)
         self.bicarbonate_output_display = LabeledParameterWidget(
-            label_text="Salida Na+", tag="bicarbonatePumpSpeed",
+            label_text="Salida Na+", tag="dialyCondControlOutput",
             value="", units="%", is_editable=True, parent=self.control_area
         )
         self.bicarbonate_output_display.request_numpad.connect(self.open_numpad)
@@ -614,7 +614,7 @@ class ManualModeScreen(QWidget):
 
         # 40. Salida Acido Citrico (Der) citricAcidPumpSpeed
         self.citric_acid_output_display = LabeledParameterWidget(
-            label_text=" B.A.C. Salida", tag="citricAcidPumpSpeed",
+            label_text=" B.A.C. Salida", tag="dialyCondControlOutput",
             value="", units="%", is_editable=True, parent=self.control_area
         )
         self.citric_acid_output_display.request_numpad.connect(self.open_numpad)
@@ -973,8 +973,8 @@ class ManualModeScreen(QWidget):
         self._update_label_display(self.balance_cycles_actual_label, self.current_values.get("balanceChamberCycleCount", 0))
 
         self._update_label_display(self.blood_speed_display, self.current_values.get("bloodSpeedVariableData", 0.0))
-        self._update_label_display(self.bicarbonate_output_display, self.current_values.get("bicarbonatePumpSpeed", 0.0))
-        self._update_label_display(self.citric_acid_output_display, self.current_values.get("citricAcidPumpSpeed", 0.0))
+        self._update_label_display(self.bicarbonate_output_display, self.current_values.get("dialyCondControlOutput", 0.0))
+        self._update_label_display(self.citric_acid_output_display, self.current_values.get("dialyCondControlOutput", 0.0))
         self._update_label_display(self.heparin_current_dosage_display, self.current_values.get("heparineCurrentDosage", 0.0))
 
         self._update_time_display(self.blood_pump_time_input, None, None, "blood_pump")

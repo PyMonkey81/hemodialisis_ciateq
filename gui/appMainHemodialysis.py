@@ -20,6 +20,7 @@ from core.variables_map import VARIABLES
 from connection.serial_communication import SerialCommunication
 from connection.led_bar_controller import LedBarController
 from connection.bioz_urea_controller import BiozUreaController
+from connection.conductivity_sensor_comm import PatternConductivity
 from gui.therapy.main_screen import MainScreen
 from gui.therapy.alarms_screen import AlarmsScreen
 from gui.therapy.dialysis_screen import DialysisScreen
@@ -109,6 +110,9 @@ class HemodialysisHMI(QMainWindow):
             "airBubbleInBloodDetected": "Aire en Sangre",
             "bloodInDialyCircDetected": "Sangre en dializante",
             "dialyPurgePumpStartButt": "Purga de aire",
+            "patternCondSensor": "Cond. Sensor patrón",
+            "patternTempSensor": "Temp. Sensor patrón",
+            "patternCondRaw": "Cond. Sensor raw",
         }
         self._last_priming_status = -1
         # Control de tiempo de terapia (global)
@@ -144,6 +148,11 @@ class HemodialysisHMI(QMainWindow):
         self.bioz_urea_controller = BiozUreaController()
         self.bioz_urea_controller.data_received.connect(self.update_value) 
         self.bioz_urea_controller.start()
+
+        # Sensor de conductividad patrón
+        self.pattern_sensor = PatternConductivity()
+        self.pattern_sensor.data_received.connect(self.on_pattern_data)
+        self.pattern_sensor.start()
 
         
 
@@ -568,8 +577,9 @@ class HemodialysisHMI(QMainWindow):
 
     def stop_priming(self):
         try:
-            self._write_boolean_command("dialyStartDialysisButt", False)
+            self._write_boolean_command("dialyStartDialysisButt", False)  # En realidad es el cebado el que detiene, pero luis puso esos tags 
             self._write_boolean_command("dialyStopDialysisButt",True)
+
             # self._write_boolean_command("dialyModeOperationStart", True)            
             # self._write_boolean_command("dialyModeOperationStop", False)
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
@@ -802,48 +812,92 @@ class HemodialysisHMI(QMainWindow):
                 elif status_code in [14, 15]:          # Pausa / detenido / error
                     color = "#ef4444"  # Rojo
                 else:
-                    color = "#EBEBEB"  # Gris neutro
+                    color = "#C6E3E6"  # Gris neutro
 
                 self.current_process_status.setStyleSheet(f"""
                     QLabel {{
-                        color: #ffffff;
+                        color: #000000;
                         background: {color};
                         font-weight: bold;
                         font-size: 25px;
                         border-radius: 10px;
                     }}
-                """)
-
-                # Actualizar botones en pantallas hijas SOLO cuando cambió
-                if self.dialysis_screen:
-                    self.dialysis_screen.update_buttons_state(status_code)
-
-                if self.cleaning_screen:
-                    self.cleaning_screen.update_buttons_state(status_code)
+                """)   
 
         # ────────────────────────────────────────────────────────────────
         # Reevaluar botón "Iniciar Tratamiento" cuando cambien status o temp
         # ────────────────────────────────────────────────────────────────
-        if tag in ["primingProcessStatus", "dialyTempVariableData", "dialyTempControlSetPoint"]:
-            self._update_start_treatment_button(button_enabled_style, button_disabled_style)
+        if tag in ["primingProcessStatus", "dialyTempVariableData", 
+                   "dialyTempControlSetPoint", "dialyCondVariableData", 
+                   "dialyCondControlSetPoint"]:            
+            self._update_treatment_controls_state()
 
-    def _update_start_treatment_button(self, enabled_style: str, disabled_style: str):
-        """Habilita/desactiva el botón Iniciar Tratamiento según condiciones."""
+
+
+    # Modifica este método para que controle TODO
+    def _update_treatment_controls_state(self):
+        """
+        Calcula si se puede iniciar o detener tratamiento y actualiza
+        TANTO la barra de navegación COMO la pantalla de diálisis.
+        """
+        # 1. Obtener valores necesarios
+        status_code = int(self.current_values.get("primingProcessStatus", 0))
         temp_actual = self.current_values.get("dialyTempVariableData", 0.0)
         temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+
+        # 2. Lógica de validación (Tolerancias)
+        temp_ok = abs(temp_actual - temp_set) <= 2.0
+        cond_ok = abs(cond_actual - cond_set) <= 2.0
         
-        # Tolerancia realista (ajusta según precisión de tus sensores)
-        temp_ok = abs(temp_actual - temp_set) <= 0.5
-        
-        status_ready = self.current_values.get("primingProcessStatus", 0) == 12
-        
-        btn = self.navigation_buttons["Iniciar\nTratamiento"]
-        should_enable = status_ready and temp_ok
-        
-        # Solo cambiar si es necesario (evita flicker innecesario)
-        if btn.isEnabled() != should_enable:
-            btn.setEnabled(should_enable)
-            btn.setStyleSheet(enabled_style if should_enable else disabled_style)
+        # 3. Determinar qué botones deben estar activos
+        can_start = False
+        can_stop = False
+
+        if status_code == 12:  # LISTO PARA INICIAR
+            if temp_ok and cond_ok:
+                can_start = True
+                can_stop = False
+            else:
+                # Listo por estado, pero temperaturas/cond mal
+                can_start = False
+                can_stop = False
+
+        elif status_code == 13: # TRATAMIENTO CORRIENDO
+            can_start = False
+            can_stop = True
+
+        else: # CUALQUIER OTRO ESTADO (Cebado, Pausa, etc)
+            can_start = False
+            can_stop = False
+
+        # =========================================================
+        # 4. APLICAR A LA BARRA DE NAVEGACIÓN (Botón Grande)
+        # =========================================================
+        nav_btn = self.navigation_buttons.get("Iniciar\nTratamiento")
+        if nav_btn:
+            style_enabled = """
+                QPushButton { background: #39ec21; color: #ffffff; border-radius: 8px; font-weight: bold; }
+                QPushButton:pressed { background: #1e40af; }
+            """
+            style_disabled = """
+                background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px
+            """
+            
+            # Solo actualizamos si cambió el estado para evitar parpadeos
+            if nav_btn.isEnabled() != can_start:
+                nav_btn.setEnabled(can_start)
+                nav_btn.setStyleSheet(style_enabled if can_start else style_disabled)
+
+        # =========================================================
+        # 5. APLICAR A LA PANTALLA DE DIÁLISIS (Botones Chicos)
+        # =========================================================
+        # Verificamos si la pantalla ya fue creada y tiene el método
+        if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
+            if hasattr(self.dialysis_screen, 'set_start_stop_buttons_state'):
+                self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop)
+
 
     def refresh_alarms_label(self):
         if not self.active_alarms:
@@ -1113,6 +1167,31 @@ class HemodialysisHMI(QMainWindow):
 
         except Exception as e:
             logger.error(f"Error al escribir setpoint '{tag} = {value}': {e}")
+
+    def on_pattern_data(self, tag: str, value: float):
+        # Aquí SÍ actualizas el mapa global
+        if tag == "patternCondSensor":
+            VARIABLES[0x09][0x00]["value"] = value
+            # print(f"Actualizado PATTERN_CONDUCTIVITY (compensada): {value:.4f} mS/cm")
+
+        elif tag == "patternCondRaw":
+            VARIABLES[0x09][0x02]["value"] = value
+            # print(f"Actualizado PATTERN_CONDUCTIVITY_RAW: {value:.8f} mS/cm")
+
+        elif tag == "patternTempSensor":
+            VARIABLES[0x09][0x01]["value"] = value
+            # print(f"Actualizado PATTERN_TEMPERATURE: {value:.3f} °C")
+
+        self.current_values[tag] = value  
+        current_widget = self.screen_stack.currentWidget()
+        if hasattr(current_widget, "update_values"):
+            current_widget.update_values(self.current_values)
+
+
+
+        # Opcional: verifica límites y genera alarmas
+        # if tag == "patternCondSensor" and (value < 0 or value > 20):
+            # print("¡Alerta! Conductividad fuera de límites!")
 
     def closeEvent(self, event):
         self.end_dialysis_session() # Llama a la función que cierra el logger

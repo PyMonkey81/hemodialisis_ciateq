@@ -131,6 +131,8 @@ class TestPanelScreen(QWidget):
         self.input_temp_setpoint.request_numpad.connect(self.open_numpad)
         grid_top.addWidget(self.input_temp_setpoint, 4, 0, 1, 2)
 
+
+    #==========================SEGUNDA COLUMNA=====================
         self.label_cycles = LabeledParameterWidget(
             label_text="No. Ciclos CB", tag="balanceChamberCycleCount",
             value="", units="", numpad_title="",
@@ -138,32 +140,48 @@ class TestPanelScreen(QWidget):
         )
         grid_top.addWidget(self.label_cycles, 0, 3, 1, 2)
 
+        self.label_pattern_cond = LabeledParameterWidget(
+            label_text="Cond. Patrón", tag="patternCondSensor",
+            value="0.0", units="mS/cm", numpad_title="",
+            is_editable=False,
+        )
+        grid_top.addWidget(self.label_pattern_cond, 1, 3, 1, 2)
+
+        self.label_pattern_temp = LabeledParameterWidget(
+            label_text="Temp. Patrón", tag="patternTempSensor",
+            value="0.0", units="°C", numpad_title="",
+            is_editable=False
+        )
+        grid_top.addWidget(self.label_pattern_temp, 2, 3, 1, 2)
+
+
+
         # ── Sensor Readings ──────────────────────────────────────────────────────
 
         self.label_temp_ef = LabeledParameterWidget(
             label_text="T. Dial. EF", tag="dialyTempIFProcessData",
-            value="", units="°C", numpad_title="",
+            value="0.0", units="°C", numpad_title="",
             is_editable=False,
         )
         grid_top.addWidget(self.label_temp_ef, 0, 6, 1, 2)
 
         self.label_temp_sf = LabeledParameterWidget(
             label_text="T. Dial. SF", tag="dialyTempOFProcessData",
-            value="", units="°C",
+            value="0.0", units="°C",
             is_editable=False
         )
         grid_top.addWidget(self.label_temp_sf, 1, 6, 1, 2)
 
         self.label_temp_tank = LabeledParameterWidget(
             label_text="T. Tanque", tag="dialyTempControlOutput",
-            value="", units="°C",
+            value="0.0", units="°C",
             is_editable=False
         )
         grid_top.addWidget(self.label_temp_tank, 2, 6, 1, 2)
 
         self.label_cond_ef = LabeledParameterWidget(
             label_text="Cond. EF", tag="dialyConductIFProcessData",
-            value="", units="mS/cm", # Asumo mS/cm, puedes quitarlo si prefieres
+            value="0.0", units="mS/cm", # Asumo mS/cm, puedes quitarlo si prefieres
             is_editable=False
         )
         grid_top.addWidget(self.label_cond_ef, 3, 6, 1, 2)
@@ -323,7 +341,7 @@ class TestPanelScreen(QWidget):
         
         grid.addWidget(lbl, row, col)
 
-        value_label = QLabel("")
+        value_label = QLabel("0.0")
         value_label.setStyleSheet(indicator_style)
         value_label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
         value_label.setAlignment(Qt.AlignCenter)
@@ -381,10 +399,16 @@ class TestPanelScreen(QWidget):
         self._update_input_display(self.input_cond_setpoint, self.current_values.get("dialyCondControlSetPoint", 0.0))
 
         self._update_label_display(self.label_cycles, self.current_values.get("balanceChamberCycleCount", 0))
+
         self._update_label_display(self.label_cond_ef, self.current_values.get("dialyConductIFProcessData", 0.0))
         self._update_label_display(self.label_cond_sf, self.current_values.get("dialyConductOFProcessData", 0.0))
+
         self._update_label_display(self.label_temp_ef, self.current_values.get("dialyTempIFProcessData",0.0))
-        self._update_label_display(self.label_cond_sf, self.current_values.get("dialyTempOFProcessData",0.0))
+        self._update_label_display(self.label_cond_sf, self.current_values.get("dialyTempIOFProcessData",0.0))
+        self._update_input_display(self.label_temp_tank,self.current_values.get("dialyTempControlOutput",0.0))
+
+        self._update_label_display(self.label_pattern_cond, self.current_values.get("patternCondSensor", 0.0))
+        self._update_label_display(self.label_pattern_temp, self.current_values.get("patternTempSensor", 0.0))
 
         # ── Calculated PTM ──────────────────────────────────────────────────────
         pd_ef = self.current_values.get("dialyPresIFProcessData", 0.0)
@@ -415,7 +439,7 @@ class TestPanelScreen(QWidget):
 
         # ── Temperature & Conductivity Plots ─────────────────────────────────────
         temp_ef = self.current_values.get("dialyTempIFProcessData", 0.0)
-        temp_sf = self.current_values.get("dialyTempOFProcessData", 0.0)
+        temp_sf = self.current_values.get("dialyTempIOFProcessData", 0.0)
         temp_tank = self.current_values.get("dialyTempControlOutput", 0.0) # Check if this should be VariableData
         cond_ef = self.current_values.get("dialyConductIFProcessData", 0.0)
         cond_sf = self.current_values.get("dialyConductOFProcessData", 0.0)

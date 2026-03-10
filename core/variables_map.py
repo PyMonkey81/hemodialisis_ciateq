@@ -280,8 +280,9 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     },
     0x09: {
         0x00: {"name": "pattern conductivity sensor", "label": "PATTERN_CONDUCTIVITY", "type": "double", "rw": True, "units": "mS/cm","limites": (0, 20), "tag": "patternCondSensor", "nivel":"cian"},
-        0x01: {"name": "pattern temperature sensor", "label": "PATTERN_TEMPERATURE", "type": "double", "rw": True, "units": "°C","limites": (0, 100), "tag": "patternTempSensor", "nivel":"cian"}
-    }
+        0x01: {"name": "pattern temperature sensor", "label": "PATTERN_TEMPERATURE", "type": "double", "rw": True, "units": "°C","limites": (0, 100), "tag": "patternTempSensor", "nivel":"cian"},
+        0x02: {"name": "pattern conductivity raw","label": "PATTERN_CONDUCTIVITY_RAW","type": "double","rw": True,"units": "mS/cm","limites": (0, 50), "tag": "patternCondRaw","nivel": "cian","value": 0.0,"description": "Conductividad sin compensación de temperatura (debug/calibración)" },
+    },
 }
 
 # ================================================================

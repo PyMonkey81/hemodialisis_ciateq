@@ -80,7 +80,7 @@ class TankGauge(QWidget):
         # 7. TEXTOS
         # Título
         painter.setPen(QColor("#000000"))
-        painter.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        painter.setFont(QFont("Segoe UI", 20, QFont.Bold))
         painter.drawText(0, 15, w, 60, Qt.AlignCenter, self.titulo)
 
         # Valor
