@@ -4,7 +4,7 @@
 
 import logging
 from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QSizePolicy, QCheckBox, QDialog
-from PySide6.QtCore import Qt, QTimer, QDateTime
+from PySide6.QtCore import Qt, QTimer, QDateTime, QEvent
 from PySide6.QtGui import QColor
 
 # Asumo que estas importaciones existen en tu proyecto
@@ -24,6 +24,23 @@ from logic.calculos import (
 
 logger = logging.getLogger(__name__)
 
+class PushbuttonEvent(QPushButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setAttribute(Qt.WA_AcceptTouchEvents, True)
+
+    def event(self, event):
+        if event.type() == QEvent.Type.TouchBegin:
+            self.setDown(True)
+            self.pressed.emit()
+            return True
+
+        elif event.type() in (QEvent.Type.TouchEnd, QEvent.Type.TouchCancel):
+            self.setDown(False)
+            self.released.emit()
+            return True
+
+        return super().event(event)
 
 class ValveCard(QFrame):
     """Reusable card component for valve control (REQ-SW-005)."""
@@ -212,7 +229,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.blood_pump_toggle, 0, 6, 1, 1)
 
         # 4. Btn REV sangre (Der)
-        self.btn_rev = QPushButton("REV")
+        self.btn_rev = PushbuttonEvent("REV", self.control_area)
         self.btn_rev.setFixedSize(80, 70) # Mantengo tu tamaño original
         self.btn_rev.setStyleSheet(button_style)        
         self.btn_rev.pressed.connect(lambda: self._write_boolean_command("bloodPumpREVButton", True))
@@ -220,7 +237,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.btn_rev, 0, 7, 1, 1)
 
         # 5. Btn FWD sangre (Der)
-        btn_fwd = QPushButton("FWD")
+        btn_fwd = PushbuttonEvent("FWD", self.control_area)
         btn_fwd.setFixedSize(80, 70)
         btn_fwd.setStyleSheet(button_style)
         btn_fwd.pressed.connect(lambda: self._write_boolean_command("bloodPumpFWDButton", True))
@@ -327,7 +344,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.heparin_pump_toggle, 2, 6, 1, 1)
 
         # 14. Btn HOME heparina
-        btn_heparin_home = QPushButton("HOME", self.control_area)
+        btn_heparin_home = PushbuttonEvent("HOME", self.control_area)
         btn_heparin_home.setFixedSize(80, 70)
         btn_heparin_home.setStyleSheet(button_style)
         btn_heparin_home.pressed.connect(lambda: self._write_boolean_command("heparinePumpHomePosition", True))
@@ -335,7 +352,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(btn_heparin_home, 2, 7, 1, 1)
 
         # 15. Btn REV heparina
-        btn_rev_hep = QPushButton("REV", self.control_area)
+        btn_rev_hep = PushbuttonEvent("REV", self.control_area)
         btn_rev_hep.setFixedSize(80, 70)
         btn_rev_hep.setStyleSheet(button_style)
         btn_rev_hep.pressed.connect(lambda: self._write_boolean_command("heparinePumpREVButton", True))
@@ -343,7 +360,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(btn_rev_hep, 2, 8, 1, 1)
 
         # 16. Btn PAUSE heparina
-        btn_pause_hep = QPushButton("PAUSE", self.control_area)
+        btn_pause_hep = PushbuttonEvent("PAUSE", self.control_area)
         btn_pause_hep.setFixedSize(80, 70)
         btn_pause_hep.setStyleSheet(button_style)
         btn_pause_hep.pressed.connect(lambda: self._write_boolean_command("heparineOperPauseResume", True))
@@ -351,7 +368,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(btn_pause_hep, 2, 9, 1, 1)
 
         # 17. Btn FWD heparina
-        btn_fwd_hep = QPushButton("FWD", self.control_area)
+        btn_fwd_hep = PushbuttonEvent("FWD", self.control_area)
         btn_fwd_hep.setFixedSize(80, 70)
         btn_fwd_hep.setStyleSheet(button_style)
         btn_fwd_hep.pressed.connect(lambda: self._write_boolean_command("heparinePumpFWDButton", True))

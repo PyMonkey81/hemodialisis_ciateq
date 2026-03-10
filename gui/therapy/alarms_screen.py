@@ -166,7 +166,7 @@ class AlarmLimitsConfigDialog(QDialog):
             restore_btn.setStyleSheet("""
                 QPushButton {
                     background: #f59e0b;
-                    color: white;
+                    color: #ffffff;
                     font-size: 14px;
                     border-radius: 8px;
                     border: none;
@@ -212,7 +212,7 @@ class AlarmLimitsConfigDialog(QDialog):
         save_btn.setText("Guardar cambios")
         save_btn.setStyleSheet("""
             QPushButton {
-                background: #22c55e; color: white; font-size: 18px; padding: 12px;
+                background: #22c55e; color: #ffffff; font-size: 18px; padding: 12px;
                 min-width: 180px; border-radius: 8px;
             }
             QPushButton:hover { background: #16a34a; }
@@ -221,7 +221,7 @@ class AlarmLimitsConfigDialog(QDialog):
         cancel_btn = button_box.button(QDialogButtonBox.Cancel)
         cancel_btn.setStyleSheet("""
             QPushButton {
-                background: #ef4444; color: white; font-size: 18px; padding: 12px;
+                background: #ef4444; color: #ffffff; font-size: 18px; padding: 12px;
                 min-width: 140px; border-radius: 8px;
             }
             QPushButton:hover { background: #dc2626; }
@@ -337,9 +337,6 @@ class AlarmsScreen(QWidget):
         
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        # Cache de alarmas activas.
-        # Clave: nombre de la alarma
-        # Valor: diccionario { 'value': float, 'level': str, 'time': str, 'acked': bool }
         self.active_alarms = {}
 
         self.setup_ui()
@@ -362,7 +359,7 @@ class AlarmsScreen(QWidget):
             QScrollBar:vertical {
                 border: none;
                 background: #e0e0e5;
-                width: 28px;               /* <--- aquí cambias el ancho */
+                width: 34px;               /* <--- aquí cambias el ancho */
                 margin: 0px 0px 0px 0px;
                 border-radius: 14px;
             }
@@ -585,11 +582,47 @@ class AlarmsScreen(QWidget):
             QMessageBox.information(self, "Información", "Todas las alarmas activas ya están reconocidas.")
             return
 
-        reply = QMessageBox.question(
-            self, "Confirmar Reconocimiento",
-            f"¿Reconocer {unacked_count} alarma(s) activa(s) y silenciar?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-        )
+        # reply = QMessageBox.question(
+        #     self, "Confirmar Reconocimiento",
+        #     f"¿Reconocer {unacked_count} alarma(s) activa(s) y silenciar?",
+        #     QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        # )
+          # 1. Creamos la instancia manual del MessageBox
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Confirmar Reconocimiento")
+        msg_box.setText(f"¿Reconocer {unacked_count} alarma(s) activa(s) y silenciar?")
+        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+
+        # 2. APLICAMOS EL ESTILO (CSS)
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                background-color: #2b2b2b; /* Fondo de la ventana oscuro */
+                color: #ffffff;            /* Texto del QMessageBox (principal) */
+            }
+            QLabel {
+                color: #ffffff;            /* Asegura que el texto del mensaje sea blanco */
+                background-color: #2b2b2b; /* <-- ¡Añadido! Fondo del QLabel explícitamente oscuro */
+                padding: 5px;              /* Opcional: un pequeño padding para que el texto no se pegue al borde */
+            }
+            QPushButton {
+                background-color: #4CAF50; /* Color de fondo del botón (Verde ejemplo) */
+                color: #ffffff;              /* Color del texto del botón */
+                border-radius: 5px;        /* Bordes redondeados */
+                padding: 5px 15px;         /* Relleno para hacerlo más grande */
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049; /* Color al pasar el mouse por encima */
+            }
+            QPushButton:pressed {
+                background-color: #3e8e41; /* Color al presionar */
+            }
+        """)
+
+
+        reply = msg_box.exec()
 
         if reply == QMessageBox.Yes:
             changed = False

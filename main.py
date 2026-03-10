@@ -192,33 +192,3 @@ if __name__ == "__main__":
             "Contacte al soporte técnico de CIATEQ A.C." # Kept in Spanish as requested
         )
         sys.exit(1)
-
-# if __name__ == "__main__":
-#     print("PASO 1: Script iniciado")
-#     import sys
-#     print("PASO 2: sys importado")
-#     from PySide6.QtWidgets import QApplication
-#     print("PASO 3: QApplication importado")
-    
-#     try:
-#         app = QApplication(sys.argv)
-#         print("PASO 4: QApplication creada OK")
-#     except Exception as e:
-#         print(f"ERROR AL CREAR QApplication: {e}")
-#         sys.exit(1)
-    
-#     try:
-#         window = HemodialysisHMI()
-#         print("PASO 5: HemodialysisHMI creada OK")
-#     except Exception as e:
-#         print(f"ERROR AL CREAR HemodialysisHMI: {e}")
-#         sys.exit(1)
-    
-#     try:
-#         window.show()
-#         print("PASO 6: show() llamado")
-#     except Exception as e:
-#         print(f"ERROR EN show(): {e}")
-#         sys.exit(1)
-    
-#     sys.exit(app.exec())

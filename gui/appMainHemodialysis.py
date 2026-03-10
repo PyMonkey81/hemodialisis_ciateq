@@ -526,7 +526,38 @@ class HemodialysisHMI(QMainWindow):
             QMessageBox.warning(self, "Advertencia", 
                                 "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
 
+
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Cebado iniciado")
+        msg_box.setText(f"Proceso de cebado iniciado correctamente \n\n")
+        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
         # 6. Feedback claro al usuario
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                background-color: #2b2b2b; /* Fondo de la ventana oscuro */
+                color: #ffffff;            /* Texto del QMessageBox (principal) */
+            }
+            QLabel {
+                color: #ffffff;            /* Asegura que el texto del mensaje sea blanco */
+                background-color: #2b2b2b; /* <-- ¡Añadido! Fondo del QLabel explícitamente oscuro */
+                padding: 5px;              /* Opcional: un pequeño padding para que el texto no se pegue al borde */
+            }
+            QPushButton {
+                background-color: #4CAF50; /* Color de fondo del botón (Verde ejemplo) */
+                color: #ffffff;              /* Color del texto del botón */
+                border-radius: 5px;        /* Bordes redondeados */
+                padding: 5px 15px;         /* Relleno para hacerlo más grande */
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049; /* Color al pasar el mouse por encima */
+            }
+            QPushButton:pressed {
+                background-color: #3e8e41; /* Color al presionar */
+            }
+        """)
         # QMessageBox.information(self, "Cebado Iniciado",
         #                         "Proceso de cebado iniciado correctamente.\n\n"
         #                         "• Registro de datos activo en logs/hemodialysis/\n"
@@ -638,7 +669,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.manual_mode_screen)
         if hasattr(self.manual_mode_screen, "update_values"):
             self.manual_mode_screen.update_values(self.current_values)
-        self.update_current_screen_label("Modo Manual", "#0f172a")
+        self.update_current_screen_label("Modo\n Manual", "#0f172a")
         self.left_content.show()
         self.right_content.show()
 
@@ -646,7 +677,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.test_panel_screen)
         if hasattr(self.test_panel_screen, "update_values"):
             self.test_panel_screen.update_values(self.current_values)
-        self.update_current_screen_label("Panel de Pruebas", "#0f172a")
+        self.update_current_screen_label("Panel de\n Pruebas", "#0f172a")
         self.left_content.show()
         self.right_content.show()
 
@@ -660,13 +691,13 @@ class HemodialysisHMI(QMainWindow):
 
     def show_network_config_screen(self):
         self.screen_stack.setCurrentWidget(self.network_config_screen)
-        self.update_current_screen_label("Configuración de Red", "#0f172a")
+        self.update_current_screen_label("Configuración\n de Red", "#0f172a")
         self.left_content.show()
         self.right_content.show()
 
     def show_real_time_var_screen(self):
         self.screen_stack.setCurrentWidget(self.real_time_var)
-        self.update_current_screen_label("Monitor de Variables", "#0f172a")
+        self.update_current_screen_label("Monitor de\n Variables", "#0f172a")
         self.left_content.show()
         self.right_content.show()
 
@@ -701,88 +732,7 @@ class HemodialysisHMI(QMainWindow):
 
     def update_date_time(self):
         from datetime import datetime
-        self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))
-
-    # def update_value(self, tag: str, value: float):
-    #     button_enabled_style ="""
-    #         QPushButton { background: #0f172a; color: #ffffff; border-radius: 8px; font-weight: bold;font-size:24px; }
-    #         QPushButton:pressed { background: #1e40af; }
-    #     """
-    #     button_disabled_style = """
-    #         QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px;border-radius: 8px; }
-    #     """
-                             
-    #     self.current_values[tag] = value
-
-    #     if self.alarm_system:
-    #         self.alarm_system.update_value_by_tag(tag, value)
-
-
-    #     if tag == "urea_adc2":
-    #         self.measurement_ktv()
-
-    #     gauge_mapping = {
-    #         "arterPresProcessData":   self.arterial_pressure_gauge,
-    #         "venouPresProcessData":   self.venous_pressure_gauge,
-    #         "dialyTempVariableData":  self.dialysate_temp_gauge,
-    #         "dialyCondVariableData":  self.conductivity_bar,
-    #     }  
-
-    #     if tag in gauge_mapping:
-    #         gauge_mapping[tag].setValue(value)
-
-        
-    #     if tag == "primingProcessStatus":
-    #         status_code = int (value)
-
-    #         status_map = {
-    #             1: "INICIO CEBADO",
-    #             2: "LLENADO DE TANQUE",
-    #             3: "LLENADO DE LINEA",
-    #             4: "LLENADO CÁMARA",
-    #             5: "CALENTAMIENTO",
-    #             6: "INFUSIÓN",
-    #             7: "DIÁLISIS",
-    #             8: "BYPASS",
-    #             9: "CERRADO",
-    #             11: "ULTRAFILTRACIÓN OFF",
-    #             12: "LISTO PARA INICIAR\nTRATAMIENTO",
-    #             13: "TRATAMIENTO INICIADO",
-    #             14: "PAUSA",
-    #             15: "TRATAMIENTO DETENIDO"
-    #         }
-
-    #         temp_ok = abs(self.current_values.get("dialyTempVariableData", 0.0) -
-    #               self.current_values.get("dialyTempControlSetPoint", 0.0)) < 0.1  # tolerancia
-    #         status_ready = self.current_values.get("primingProcessStatus", 0) == 12
-    #         btn = self.navigation_buttons["Iniciar\nTratamiento"]
-    #         btn.setEnabled(status_ready and temp_ok)
-    #         btn.setStyleSheet(button_enabled_style if btn.isEnabled() else button_disabled_style)
-    #         # Obtener texto, por defecto "DESCONOCIDO" si no está en la lista
-    #         status_text = status_map.get(status_code, "")
-    #         self.current_process_status.setText(status_text)
-    #         if status_code == 12: # DIÁLISIS
-    #             color = "#25AD37" # Verde              
-    #         elif status_code == 6: # INFUSION
-    #             color = "#25ad37"
-    #         elif status_code in [1, 2, 3, 4, 5, 8]: # Preparación
-    #             color = "#eab308" # Amarillo/Naranja
-    #         else:
-    #             color = "#EBEBEB" # Azul oscuro por defecto
-                
-    #         self.current_process_status.setStyleSheet(f"""
-    #             QLabel {{ color: #ffffff; background: {color};
-    #                      font-weight: bold; font-size: 25px;border-radius: 10px; }}
-    #         """)
-
-          
-
-    #         if self.dialysis_screen:
-    #             self.dialysis_screen.update_buttons_state(status_code)
-
-    #         if self.cleaning_screen:
-    #             self.cleaning_screen.update_buttons_state(status_code)
-    
+        self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))    
 
     def update_value(self, tag: str, value: float):
         button_enabled_style = """
@@ -841,7 +791,7 @@ class HemodialysisHMI(QMainWindow):
                     15: "TRATAMIENTO DETENIDO"
                 }
 
-                status_text = status_map.get(status_code, f"DESCONOCIDO ({status_code})")
+                status_text = status_map.get(status_code, f"Espera.. ({status_code})")
                 self.current_process_status.setText(status_text)
 
                 # Colores según estado
@@ -852,7 +802,7 @@ class HemodialysisHMI(QMainWindow):
                 elif status_code in [14, 15]:          # Pausa / detenido / error
                     color = "#ef4444"  # Rojo
                 else:
-                    color = "#64748b"  # Gris neutro
+                    color = "#EBEBEB"  # Gris neutro
 
                 self.current_process_status.setStyleSheet(f"""
                     QLabel {{
