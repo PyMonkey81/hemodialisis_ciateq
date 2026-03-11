@@ -3,9 +3,10 @@
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGridLayout, QFrame
+    QGridLayout, QFrame, 
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
+
 
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
@@ -22,6 +23,9 @@ class TherapyConfigScreen(QWidget):
     Pantalla de configuración de parámetros numéricos para la terapia.
     Solo inputs de heparina, flujos, temperatura, conductividad, sodio y duración.
     """
+    valueChanged = Signal(str, float)  # Emite el tag y el nuevo valor
+
+
 
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
@@ -215,10 +219,13 @@ class TherapyConfigScreen(QWidget):
         if dialog.exec():
             new_value = dialog.get_value()
             if new_value is not None:
-                input_widget.setText(str(new_value))
-                input_widget.clearFocus() #quita el focus automaticamente 
-                self.parent_window.current_values[tag] = float(new_value)
+                input_widget.setText(str(new_value))                            
                 self._write_setpoint(tag, float(new_value))
+                               
+                if hasattr(input_widget, 'clearFocus'):
+                    input_widget.clearFocus()
+                self.setFocus()
+
 
 
     def open_time_numpad(self, input_widget: ClickableLineEdit,
@@ -236,6 +243,7 @@ class TherapyConfigScreen(QWidget):
                 if tag_hours:
                     self.current_values[tag_hours] = float(hours)
                     self.parent_window.current_values[tag_hours] = float(hours)
+                     
 
                 if tag_minutes:
                     self.current_values[tag_minutes] = float(minutes)
@@ -269,7 +277,9 @@ class TherapyConfigScreen(QWidget):
                     if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                         if self.parent_window.serial_comm.is_connected:
                             self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            self.parent_window.current_values[tag] = value
+                            self.valueChanged.emit(tag, float(value)) 
+                            self.current_values[tag] = float(value)
+
                         else:
                             print(f"[INFO] Serial no conectado. Skip: {tag}={value}")
                     else:
@@ -296,9 +306,7 @@ class TherapyConfigScreen(QWidget):
 
     def update_values(self, new_values: dict):
         """Actualiza solo los campos numéricos y de tiempo"""
-        for key in new_values:
-           if key in self.current_values and self.current_values[key] != new_values[key]:
-                print(f"[UPDATE] Valor sobrescrito: {key} de {self.current_values[key]} a {new_values[key]}")
+
         self.current_values = new_values
 
         self._update_input_display(self.input_heparin, "heparineTherapyDosage")

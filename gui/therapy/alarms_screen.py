@@ -511,7 +511,7 @@ class AlarmsScreen(QWidget):
                          if i < len(self.alarm_system.severity_levels) else "info")
                 
                 # Asignar un valor dummy, o buscar el valor real si tienes el tag mapeado
-                # (Para obtener el valor real necesitarías el tag de la alarma y buscarlo en self.values)
+           
                 value = None 
                 
                 # Si la alarma ya existía en nuestro diccionario, no la reseteamos a "no reconocida"
@@ -736,7 +736,7 @@ class AlarmsScreen(QWidget):
 
     def update_values(self, values_dict):
         """Método de compatibilidad. No usado directamente aquí."""
-        self.values = values_dict
+        self.current_values = values_dict
 
     def silence_buzzer_only(self):
         """Silencia el buzzer SIN tocar el estado de los LEDs (útil desde otras pantallas)."""
@@ -747,7 +747,7 @@ class AlarmsScreen(QWidget):
     def open_variable_configuration(self):
         dialog = AlarmLimitsConfigDialog(
             self,
-            current_values=self.values,
+            current_values=self.current_values,
             limits_manager=self.limits_manager   
             )
         dialog.exec_()

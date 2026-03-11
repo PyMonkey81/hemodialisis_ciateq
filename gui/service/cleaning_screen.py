@@ -25,7 +25,7 @@ class CleaningScreen(QWidget):
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
-        self.values = values_dict if values_dict is not None else {}
+        self.current_values = values_dict if values_dict is not None else {}
 
         # Internal state
         self.cleaning_in_progress = False
@@ -229,7 +229,7 @@ class CleaningScreen(QWidget):
 
     def update_values(self, new_values: dict):
         """Receive and process updated values from main window."""
-        self.values = new_values
+        self.current_values = new_values
         pass
 
 

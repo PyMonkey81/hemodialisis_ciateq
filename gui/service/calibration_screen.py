@@ -3,7 +3,7 @@
 # Allows enabling control loops, adjusting PID gains, feedforward, and monitoring setpoints/variables/outputs
 
 from PySide6.QtWidgets import QWidget, QGridLayout, QLabel, QSizePolicy
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QColor
 import pyqtgraph as pg
 import numpy as np
@@ -25,11 +25,12 @@ class CalibrationScreen(QWidget):
     and displays real-time setpoint/variable/output trends for blood flow,
     conductivity, and temperature controllers.
     """
+    valueChanged = Signal(str, float)
 
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
-        self.values = values_dict if values_dict is not None else {}
+        self.current_values = values_dict if values_dict is not None else {}
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setAutoFillBackground(True)
@@ -311,15 +312,18 @@ class CalibrationScreen(QWidget):
             new_value = dialog.get_value()
             if new_value is not None:
                 input_widget.setText(str(new_value))
-                self.parent_window.current_values[tag] = float(new_value)
                 self._write_setpoint(tag, input_widget)
+                if hasattr(input_widget, 'clearFocus'):
+                    input_widget.clearFocus()
+                self.setFocus()
+
 
     def _write_setpoint(self, tag: str, input_widget: ClickableLineEdit):
         """Safe setpoint write from input widget."""
         try:
             text = input_widget.text().replace(',', '.')
             if not text:
-                current_value = self.values.get(tag, 0.0)
+                current_value = self.current_values.get(tag, 0.0)
                 input_widget.setText(f"{current_value:.1f}")
                 return
 
@@ -346,7 +350,9 @@ class CalibrationScreen(QWidget):
                     if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                         if self.parent_window.serial_comm.is_connected:
                             self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            self.parent_window.current_values[tag] = value 
+                            self.valueChanged.emit(tag, float(value))   
+                            self.current_values[tag] = float(value)
+
                         else:
                             print(f"[INFO] Serial no conectado. {tag}: Grupo {hex(target_group)}, ID {target_id}, Valor {value}")
                     else:
@@ -356,12 +362,12 @@ class CalibrationScreen(QWidget):
             else:
                 print(f"[ERROR] Tag '{tag}' no encontrado en variables_map.")
 
-            input_widget.clearFocus()
+            input_widget.clearFocus()  # quita el focus del control 
             self.setFocus()
 
         except ValueError:
             print(f"[ERROR] Valor numérico inválido en input para {tag}: {input_widget.text()}")
-            current_value = self.values.get(tag, 0.0)
+            current_value = self.current_values.get(tag, 0.0)
             input_widget.setText(f"{current_value:.1f}")
             input_widget.clearFocus()
         except Exception as e:
@@ -369,12 +375,14 @@ class CalibrationScreen(QWidget):
 
     def update_values(self, new_values: dict):
         """Update displayed values, plots, and inputs from shared dictionary."""
-        self.values = new_values
+    
+
+        self.current_values = new_values
 
         # ── Blood Flow ───────────────────────────────────────────────────────────
-        bf_setpoint = self.values.get("bloodFlowControlSetPoint", 0.0)
-        bf_variable = self.values.get("bloodFlowVariableData", 0.0)
-        bf_output_raw = self.values.get("bloodFlowControlOutput", 0.0)
+        bf_setpoint = self.current_values.get("bloodFlowControlSetPoint", 0.0)
+        bf_variable = self.current_values.get("bloodFlowVariableData", 0.0)
+        bf_output_raw = self.current_values.get("bloodFlowControlOutput", 0.0)
         bf_output_percent = bf_output_raw * 10  # Asumiendo escala 0-10 → %
 
         self.blood_flow_setpoint_history.append(bf_setpoint)
@@ -386,9 +394,9 @@ class CalibrationScreen(QWidget):
         self.curve_bf_output.setData(self.time_axis, list(self.blood_flow_output_history))
 
         # ── Conductivity ─────────────────────────────────────────────────────────
-        cond_setpoint = self.values.get("dialyCondControlSetPoint", 0.0)
-        cond_variable = self.values.get("dialyCondVariableData", 0.0)
-        cond_output_raw = self.values.get("dialyCondControlOutput", 0.0) # Salida de conductividad
+        cond_setpoint = self.current_values.get("dialyCondControlSetPoint", 0.0)
+        cond_variable = self.current_values.get("dialyCondVariableData", 0.0)
+        cond_output_raw = self.current_values.get("dialyCondControlOutput", 0.0) # Salida de conductividad
         cond_output_percent = cond_output_raw / 5  # Asumiendo escala
 
         self.cond_setpoint_history.append(cond_setpoint)
@@ -400,9 +408,9 @@ class CalibrationScreen(QWidget):
         self.curve_cond_output.setData(self.time_axis, list(self.cond_output_history))
 
         # ── Temperature ──────────────────────────────────────────────────────────
-        temp_setpoint = self.values.get("dialyTempControlSetPoint", 0.0)
-        temp_variable = self.values.get("dialyTempVariableData", 0.0)
-        temp_output_raw = self.values.get("dialyTempControlOutput", 0.0)
+        temp_setpoint = self.current_values.get("dialyTempControlSetPoint", 0.0)
+        temp_variable = self.current_values.get("dialyTempVariableData", 0.0)
+        temp_output_raw = self.current_values.get("dialyTempControlOutput", 0.0)
         temp_output_percent = temp_output_raw / 2  # Asumiendo escala
 
         self.temp_setpoint_history.append(temp_setpoint)
@@ -450,13 +458,13 @@ class CalibrationScreen(QWidget):
 
     def _update_input_display(self, widget: ClickableLineEdit, tag: str, precision: int = 1):
         """Update input field if not focused."""
-        value = self.values.get(tag, 0.0)
+        value = self.current_values.get(tag, 0.0)
         if not widget.hasFocus():
             widget.setText(f"{value:.{precision}f}")
 
     def _update_label_display(self, label, tag: str, precision: int = 1):
         """Update read-only label."""
-        value = self.values.get(tag, 0.0)
+        value = self.current_values.get(tag, 0.0)
         label.setText(f"{value:.{precision}f}")
 
     def showEvent(self, event):

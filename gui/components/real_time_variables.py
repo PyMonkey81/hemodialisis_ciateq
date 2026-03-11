@@ -18,7 +18,7 @@ class RealTimeVariablesMonitor(QWidget):
         self.setStyleSheet("background: #f8fafc; font-family: 'Segoe UI';")
 
         # References
-        self.values = values_dict if values_dict is not None else {}
+        self.current_values = values_dict if values_dict is not None else {}
         self.alarm_system = alarm_system
 
         layout = QVBoxLayout(self)
@@ -141,7 +141,7 @@ class RealTimeVariablesMonitor(QWidget):
 
         for tag, (value_item, var_type, status_item, display_name) in self.cell_references.items():
             # 1. Update Value
-            raw_value = self.values.get(tag, 0.0)
+            raw_value = self.current_values.get(tag, 0.0)
 
             if var_type == "double":
                 display_text = f"{raw_value:.3f}"

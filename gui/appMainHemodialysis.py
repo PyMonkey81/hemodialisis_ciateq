@@ -111,6 +111,8 @@ class HemodialysisHMI(QMainWindow):
             "patternTempSensor": "Temp. Sensor patrón",
             "patternCondRaw": "Cond. Sensor raw",
         }
+
+
         self._last_priming_status = -1
         # Control de tiempo de terapia (global)
         self.therapy_start_time = None
@@ -229,6 +231,12 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.real_time_var)                # 10
         self.screen_stack.addWidget(self.patient_config_screen)        # 11
         self.screen_stack.addWidget(self.therapy_config_screen)        # 12
+
+
+        self.therapy_config_screen.valueChanged.connect(self.handleGlobalValueChange)
+        self.calibration_screen.valueChanged.connect(self.handleGlobalValueChange)
+        self.test_panel_screen.valueChanged.connect(self.handleGlobalValueChange)
+        self.manual_mode_screen.valueChanged.connect(self.handleGlobalValueChange)
 
         # Header update timers
         self.refresh_alarms_label()
@@ -757,7 +765,19 @@ class HemodialysisHMI(QMainWindow):
 
     # ────────────────────────────────────────────────
     #              Utility Methods
-    # ────────────────────────────────────────────────
+    # 
+    
+    def handleGlobalValueChange(self, tag: str, value: float):
+        # Actualiza el diccionario compartido y propaga a todas las pantallas si es necesario
+        self.current_values[tag] = value  # Actualiza el valor global
+        print(f"[GLOBAL] Valor actualizado: {tag} = {value}")  # Log para depuración
+        
+        # Opcional: Notifica a todas las pantallas para que se actualicen
+        for screen in [self.therapy_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var]:  # Agrega todas las pantallas
+            if hasattr(screen, 'update_values'):
+                screen.update_values(self.current_values)  # Llama al update en cada pantalla
+
+
     def update_current_screen_label(self, text, text_color="#0f172a"):
         self.current_screen_label.setText(text)
         self.current_screen_label.setStyleSheet(

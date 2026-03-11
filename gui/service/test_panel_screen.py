@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout,
     QLabel, QPushButton, QMessageBox, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer, QDateTime
+from PySide6.QtCore import Qt, QTimer, QDateTime, Signal
 from PySide6.QtGui import QColor, QFont
 import pyqtgraph as pg
 import numpy as np
@@ -34,6 +34,7 @@ class TestPanelScreen(QWidget):
     Allows manual control of key parameters, real-time monitoring of sensors,
     pressure/temperature/conductivity trends, and LED status indicators.
     """
+    valueChanged = Signal(str, float)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -478,7 +479,9 @@ class TestPanelScreen(QWidget):
     def _handle_cb_flow_input(self):
         """Handle balance chamber flow input (ml/min → cycles)."""        
         try:
-            current_text = self.input_cb_flow.get_value()
+            current_text = ""
+            # current_text = self.input_cb_flow.get_value()
+
             # ANTES: current_text = self.input_flow_cb.text()
         except AttributeError:
             current_text = "0.0"
@@ -499,7 +502,8 @@ class TestPanelScreen(QWidget):
         """Handle UF flow input (L/h → ml/min)."""
         try:
             # current_text = self.input_uf_flow.text()
-            current_text = self.input_uf_flow.get_value()
+            current_text = ""
+            # current_text = self.input_uf_flow.get_value()
         except AttributeError:
             current_text = "0.0"
 
@@ -527,7 +531,7 @@ class TestPanelScreen(QWidget):
             current_text = ""
             # current_text = input_widget.text()
 
-        dialog = NumpadDialog(self, initial_value=current_text, title=title)
+        dialog = NumpadDialog(self, initial_value="", title=title)
     
         if dialog.exec():
             new_value = dialog.get_value()
@@ -536,12 +540,17 @@ class TestPanelScreen(QWidget):
                 if hasattr(input_widget, 'set_value'):
                      # Es un LabeledParameterWidget
                     input_widget.set_value(new_value)
+                    
                 else:
                     # Es un QLineEdit estándar
                     input_widget.setText(str(new_value))
             
                 self._write_setpoint(tag, new_value)
+                
                 self.write_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 3000
+                if hasattr(input_widget, 'clearFocus'):
+                    input_widget.clearFocus()
+                self.setFocus()
 
 
     def _write_setpoint(self, tag: str, value: float):
@@ -567,6 +576,8 @@ class TestPanelScreen(QWidget):
                     if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                         if self.parent_window.serial_comm.is_connected:
                             self.parent_window.serial_comm.write_double(target_group, target_id, value)
+                            self.valueChanged.emit(tag, float(value))  
+                            self.current_values[tag] = float(value)
                             logger.info(f"Setpoint written: {tag} = {value}")
                         else:
                             logger.warning("Serial not connected")
@@ -580,6 +591,10 @@ class TestPanelScreen(QWidget):
                 logger.error(f"Tag '{tag}' not found in variables map")
                 QMessageBox.critical(self, "Error", f"Tag '{tag}' no encontrado")
 
+
         except Exception as e:
             logger.error(f"Critical error writing setpoint '{tag}': {e}")
             QMessageBox.critical(self, "Error Crítico", f"Error al escribir {tag}: {e}")
+        
+            
+

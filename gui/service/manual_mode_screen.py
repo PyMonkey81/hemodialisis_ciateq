@@ -4,7 +4,7 @@
 
 import logging
 from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QSizePolicy, QCheckBox, QDialog
-from PySide6.QtCore import Qt, QTimer, QDateTime, QEvent
+from PySide6.QtCore import Qt, QTimer, QDateTime, QEvent, Signal
 from PySide6.QtGui import QColor
 
 # Asumo que estas importaciones existen en tu proyecto
@@ -72,6 +72,7 @@ class ValveCard(QFrame):
 
 
 class ManualModeScreen(QWidget):
+    valueChanged = Signal(str, float)
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
@@ -1181,7 +1182,10 @@ class ManualModeScreen(QWidget):
                     if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                         if self.parent_window.serial_comm.is_connected:
                             self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            self.parent_window.current_values[tag] = value 
+                            
+                            self.valueChanged.emit(tag, float(value)) 
+                            self.current_values[tag] = float(value)
+ 
                             logger.info(f"Setpoint written: {tag} = {value}")
                         else:
                             logger.warning("Serial not connected")
@@ -1213,10 +1217,14 @@ class ManualModeScreen(QWidget):
                 if isinstance(input_widget, LabeledParameterWidget):
                     input_widget.set_value(new_value)
                 elif hasattr(input_widget, 'setText'):
-                    input_widget.setText(str(new_value))
-                
-                self._write_setpoint(tag, new_value)
+                    input_widget.setText(str(new_value))                
+                self._write_setpoint(tag, new_value)                
                 self.write_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 3000
+                if hasattr(input_widget, 'clearFocus'):
+                    input_widget.clearFocus()
+                self.setFocus()
+
+
 
     def open_time_numpad(self, time_widget, tag_hours: str = None, tag_minutes: str = None,
                          timer_id: str = None, title: str = "Config. Tiempo"):
