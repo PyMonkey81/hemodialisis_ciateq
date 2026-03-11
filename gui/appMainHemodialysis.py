@@ -1,8 +1,4 @@
-
 # # gui/appMainHemodialysis.py
-
-
-
 import os
 import sys
 import time
@@ -60,6 +56,7 @@ class HemodialysisHMI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.csv_logger = None
+        self.treatment_logger = None
         self.parameter_mapping = {            
             # "dialyLinePresProcessData":     "PT-3 (Presión Línea)",
             # "dialyPresIFProcessData":       "PT-4 (Presión IF)",
@@ -136,8 +133,12 @@ class HemodialysisHMI(QMainWindow):
         self.setStyleSheet("background: #FCFCFC;")
 
         self.log_timer = QTimer(self)
-        self.log_timer.setInterval(5000) # Registrar cada 5 segundos (5000 ms)
+        self.log_timer.setInterval(1000) # Registrar cada 5 segundos (5000 ms)
         self.log_timer.timeout.connect(self._log_current_data)
+
+        self.log_treatment_timer = QTimer(self)
+        self.log_treatment_timer.setInterval(1000) # Registrar cada segundo
+        self.log_treatment_timer.timeout.connect(self._log_treatment_current_data)
 
         # Serial communication
         self.current_values = {}
@@ -154,10 +155,6 @@ class HemodialysisHMI(QMainWindow):
         self.pattern_sensor.data_received.connect(self.on_pattern_data)
         self.pattern_sensor.start()
 
-        
-
-        
-
         # Alarm system
         self.active_alarms = []
         display_names = [info["label"] for g in VARIABLES.values() for info in g.values()]
@@ -172,10 +169,7 @@ class HemodialysisHMI(QMainWindow):
             boolean_triggers=[True] * len(tags),
             limits_manager=self.alarm_limits
         )
-        self.buzzer_silenced_by_user = False
-
-        
-        
+        self.buzzer_silenced_by_user = False     
 
         # handle for alarms and start monitoring
         self.alarm_system.alarm_changed.connect(self.handle_alarm)
@@ -188,8 +182,7 @@ class HemodialysisHMI(QMainWindow):
         self.led_bar = LedBarController()
         self.led_bar.start()
 
-        # Screens initialization
-        
+        # Screens initialization        
         self.alarms_screen = AlarmsScreen(
             parent=self,
             values_dict=self.current_values,
@@ -482,6 +475,26 @@ class HemodialysisHMI(QMainWindow):
         # Actualizar pantalla de diálisis (si está visible)
         if self.screen_stack.currentWidget() == self.dialysis_screen:
             self.dialysis_screen.update_values(self.current_values)
+        if self.treatment_logger:
+            logger.info("Cerrando logger anterior antes de nuevo tratamiento")
+            self.log_treatment_timer.stop()
+            self.treatment_logger.close()
+            self.treatment_logger = None
+
+        LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
+
+        try:
+            self.treatment_logger = CsvLogger(
+                log_directory = LOG_DIRECTORY,
+                parameter_key_map=self.parameter_mapping
+            )
+            self.log_treatment_timer.start()
+            logger.info("logger CSV iniciado correctamente para tratamiento")
+        except Exception as e:
+            logger.error(f"Error al crear logger CSV para tratamiento")
+            QMessageBox.critical(self, "Error crítico", f"no se pudo iniciar el registro de datos:\n{str(e)}")
+            return
+    
 
     def start_priming(self):
         """
@@ -508,7 +521,7 @@ class HemodialysisHMI(QMainWindow):
             self.csv_logger = None
 
         # 3. Definir directorio de logs (puedes cambiar la ruta si quieres)
-        LOG_DIRECTORY = "logs/hemodialysis"  # Se crea automáticamente si no existe
+        LOG_DIRECTORY = "logs/hemodialysis_cebado"  # Se crea automáticamente si no existe
 
         # 4. Crear e iniciar el nuevo logger CSV
         try:
@@ -541,8 +554,7 @@ class HemodialysisHMI(QMainWindow):
         msg_box.setText(f"Proceso de cebado iniciado correctamente \n\n")
         msg_box.setIcon(QMessageBox.Question)
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.No)
-        # 6. Feedback claro al usuario
+        msg_box.setDefaultButton(QMessageBox.No)        
         msg_box.setStyleSheet("""
             QMessageBox {
                 background-color: #2b2b2b; /* Fondo de la ventana oscuro */
@@ -587,6 +599,11 @@ class HemodialysisHMI(QMainWindow):
             logger.error(f"Error enviando comandos de cebado: {e}")
             QMessageBox.warning(self, "Advertencia", 
                                 "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
+        if self.csv_logger:
+            self.log_timer.stop()
+            self.csv_logger.close()
+            self.csv_logger = None
+            logger.info("Sesión detenida - logger cerrado")
 
 
     def stop_treatment(self):   
@@ -614,17 +631,24 @@ class HemodialysisHMI(QMainWindow):
         self._update_therapy_time_displays()
 
         # Cerrar logger si existe
-        if self.csv_logger:
-            self.log_timer.stop()
-            self.csv_logger.close()
-            self.csv_logger = None
+        if self.treatment_logger:
+            self.log_treatment_timer.stop()
+            self.treatment_logger.close()
+            self.treatment_logger = None
             logger.info("Sesión detenida - logger cerrado")
+            
 
     def end_dialysis_session(self):
         if self.csv_logger:
             self.log_timer.stop()
             self.csv_logger.close()
             self.csv_logger = None
+            logger.info("Sesión detenida - logger cerrado")
+
+        if self.treatment_logger:
+            self.log_treatment_timer.stop()
+            self.treatment_logger.close()
+            self.treatment_logger = None
             logger.info("Sesión detenida - logger cerrado")
         
 
@@ -832,9 +856,6 @@ class HemodialysisHMI(QMainWindow):
                    "dialyCondControlSetPoint"]:            
             self._update_treatment_controls_state()
 
-
-
-    # Modifica este método para que controle TODO
     def _update_treatment_controls_state(self):
         """
         Calcula si se puede iniciar o detener tratamiento y actualiza
@@ -1083,7 +1104,7 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(self, 'ktv_timer') and self.ktv_timer.isActive():
             self.ktv_timer.stop()
         
-
+        self.pattern_sensor.stop()
         time.sleep(0.1)
         logger.error("[INFO] Controlled shutdown completed.")
 
@@ -1093,6 +1114,10 @@ class HemodialysisHMI(QMainWindow):
         """
         if self.csv_logger:
             self.csv_logger.log_data(self.current_values)
+
+    def _log_treatment_current_data(self):
+        if self.treatment_logger:
+            self.treatment_logger.log_data(self.current_values)
 
 
     def _write_boolean_command(self, tag: str, state: bool):
@@ -1187,14 +1212,9 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
 
-
-
-        # Opcional: verifica límites y genera alarmas
-        # if tag == "patternCondSensor" and (value < 0 or value > 20):
-            # print("¡Alerta! Conductividad fuera de límites!")
-
     def closeEvent(self, event):
         self.end_dialysis_session() # Llama a la función que cierra el logger
+        
         super().closeEvent(event)
         logger.error("[INFO] closeEvent → performing shutdown...")
         self.shutdown()

@@ -155,6 +155,7 @@ class TreatmentModeScreen(QWidget):
                     if info.get("tag") == tag:
                         if info.get("rw", False):
                             self.parent_window.serial_comm.write_double(group_key, var_id, value)
+                            self.parent_window.current_values[tag] = value 
                             found = True
                         break
                 if found:

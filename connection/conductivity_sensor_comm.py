@@ -34,36 +34,70 @@ class PatternConductivity(QObject):
         self.isConnected = False
         self.last_successful_comm = time.time()
 
-    def connect(self) -> bool:
-        """Busca y conecta al puerto USB Serial Device"""
-        target_port = "COM9"
-        target_manufacturer = "MICROSOFT"
-        available_ports = serial.tools.list_ports.comports()
+    # def connect(self) -> bool:
+    #     """Busca y conecta al puerto USB Serial Device"""
+    #     target_port = "COM7"
+    #     target_manufacturer = "MICROSOFT"
+    #     available_ports = serial.tools.list_ports.comports()
 
-        for port_info in available_ports:
-            port_device = (port_info.device or "").upper()
-            manufacturer = (port_info.manufacturer or "").upper()
-            if target_port in port_device or target_manufacturer in manufacturer:  # amplía si sabes el driver exacto
-                try:
-                    self.serial_port = serial.Serial(
-                        port=port_info.device,
-                        baudrate=115200,
-                        bytesize=serial.EIGHTBITS,
-                        parity=serial.PARITY_NONE,
-                        stopbits=serial.STOPBITS_ONE,
-                        timeout=1.0,
-                        write_timeout=0.5
-                    )
-                    time.sleep(1.5)  # tiempo para que el sensor se estabilice
-                    print(f"[Connected Conductivity sensor] Port: {port_info.device}")
-                    self.isConnected = True
-                    self.last_successful_comm = time.time()
-                    return True
-                except Exception as e:
-                    print(f"[ERROR] Failed to open {port_info.device}: {e}")
-        print("[ERROR] No conductivity sensor detected on any USB serial port")
-        self.isConnected = False
-        return False
+    #     for port_info in available_ports:
+    #         port_device = (port_info.device or "").upper()
+    #         manufacturer = (port_info.manufacturer or "").upper()
+    #         if target_port in port_device or target_manufacturer in manufacturer:  # amplía si sabes el driver exacto
+    #             try:
+    #                 self.serial_port = serial.Serial(
+    #                     port=port_info.device,
+    #                     baudrate=115200,
+    #                     bytesize=serial.EIGHTBITS,
+    #                     parity=serial.PARITY_NONE,
+    #                     stopbits=serial.STOPBITS_ONE,
+    #                     timeout=1.0,
+    #                     write_timeout=0.5
+    #                 )
+    #                 time.sleep(1.5)  # tiempo para que el sensor se estabilice
+    #                 print(f"[Connected Conductivity sensor] Port: {port_info.device}")
+    #                 self.isConnected = True
+    #                 self.last_successful_comm = time.time()
+    #                 return True
+    #             except Exception as e:
+    #                 print(f"[ERROR] Failed to open {port_info.device}: {e}")
+    #     print("[ERROR] No conductivity sensor detected on any USB serial port")
+    #     self.isConnected = False
+    #     return False
+    
+    def connect(self) -> bool:
+        """Intenta conectar directamente al puerto COM7"""
+        target_port = "COM7"  # Puerto fijo como especificaste
+    
+        try:
+            # Intentar abrir el puerto directamente
+            self.serial_port = serial.Serial(
+                port=target_port,
+                baudrate=115200,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                timeout=1.0,
+                write_timeout=0.5
+            )
+        
+            # Esperar un momento para que el sensor se estabilice
+            time.sleep(1.5)
+        
+            print(f"[Connected Conductivity sensor] Port: {target_port}")
+            self.isConnected = True
+            self.last_successful_comm = time.time()
+            return True  # Conexión exitosa
+        except serial.SerialException as e:
+            # Error específico de pySerial, como puerto no encontrado
+            print(f"[ERROR] Failed to open {target_port}: {e}")
+        except Exception as e:
+            # Otro error inesperado
+            print(f"[ERROR] An unexpected error occurred while connecting: {e}")
+    
+        self.isConnected = False  # Marca como no conectado
+        return False  # Conexión fallida
+
 
     def start(self):
         """Inicia el hilo de comunicación si no está corriendo"""

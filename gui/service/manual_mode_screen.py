@@ -409,7 +409,7 @@ class ManualModeScreen(QWidget):
         self.input_flow_cb = LabeledParameterWidget(
             label_text="Flujo", 
             tag="balanceChamberSetTiming", # Opcional, referencia
-            value="", 
+            value="0.0", 
             units="ml/min", # mostrar unidades 
             is_editable=True, 
             parent=self.control_area
@@ -1181,6 +1181,7 @@ class ManualModeScreen(QWidget):
                     if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                         if self.parent_window.serial_comm.is_connected:
                             self.parent_window.serial_comm.write_double(target_group, target_id, value)
+                            self.parent_window.current_values[tag] = value 
                             logger.info(f"Setpoint written: {tag} = {value}")
                         else:
                             logger.warning("Serial not connected")
@@ -1196,9 +1197,11 @@ class ManualModeScreen(QWidget):
 
     def open_numpad(self, tag: str, input_widget, title: str = "Ingrese valor"):
         if isinstance(input_widget, LabeledParameterWidget):
-            current_text = str(input_widget.get_value())
+            # current_text = str(input_widget.get_value())
+            current_text = ""
         elif hasattr(input_widget, 'text'):
-            current_text = input_widget.text()
+            current_text = ""
+            # current_text = input_widget.text()
         else:
             current_text = ""
 
@@ -1224,7 +1227,8 @@ class ManualModeScreen(QWidget):
         else:
             current_text = "00:00"
 
-        dialog = TimeNumpadDialog(self, initial_hh_mm=current_text, title=title)
+        dialog = TimeNumpadDialog(self, initial_hh_mm="", title=title)
+        # dialog = TimeNumpadDialog(self, initial_hh_mm=current_text, title=title)
 
         if dialog.exec():
             hours, minutes = dialog.get_hours_minutes()

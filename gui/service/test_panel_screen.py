@@ -520,10 +520,12 @@ class TestPanelScreen(QWidget):
     # 1. Obtener el valor actual de forma segura
         if hasattr(input_widget, 'get_value'):
         # Es un LabeledParameterWidget
-            current_text = input_widget.get_value()
+            current_text = ""
+            # current_text = input_widget.get_value()
         else:
             # Es un QLineEdit estándar
-            current_text = input_widget.text()
+            current_text = ""
+            # current_text = input_widget.text()
 
         dialog = NumpadDialog(self, initial_value=current_text, title=title)
     

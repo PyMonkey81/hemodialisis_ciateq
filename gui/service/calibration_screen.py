@@ -305,11 +305,13 @@ class CalibrationScreen(QWidget):
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str = "Ingrese valor"):
         """Open numeric keypad for setpoint entry."""
         current_text = input_widget.text()
-        dialog = NumpadDialog(self, initial_value=current_text, title=title)
+        dialog = NumpadDialog(self, initial_value="", title=title)
+        # dialog = NumpadDialog(self, initial_value=current_text, title=title)
         if dialog.exec():
             new_value = dialog.get_value()
             if new_value is not None:
                 input_widget.setText(str(new_value))
+                self.parent_window.current_values[tag] = float(new_value)
                 self._write_setpoint(tag, input_widget)
 
     def _write_setpoint(self, tag: str, input_widget: ClickableLineEdit):
@@ -344,6 +346,7 @@ class CalibrationScreen(QWidget):
                     if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                         if self.parent_window.serial_comm.is_connected:
                             self.parent_window.serial_comm.write_double(target_group, target_id, value)
+                            self.parent_window.current_values[tag] = value 
                         else:
                             print(f"[INFO] Serial no conectado. {tag}: Grupo {hex(target_group)}, ID {target_id}, Valor {value}")
                     else:

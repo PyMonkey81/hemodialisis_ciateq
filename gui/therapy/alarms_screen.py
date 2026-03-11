@@ -564,8 +564,7 @@ class AlarmsScreen(QWidget):
 
     def on_new_event(self, event_msg, value, timestamp):
         """Maneja los eventos generales del AlarmSystem para el historial."""
-        # Se asume que event_msg ya contiene el tipo (ACTIVADA/DESACTIVADA) y el nombre
-        # Y que timestamp viene ya formateado
+        
         self._append_to_history(event_msg, value, "info", timestamp) # Usamos "info" para eventos generales
 
     def acknowledge_all_alarms(self):
@@ -582,12 +581,7 @@ class AlarmsScreen(QWidget):
             QMessageBox.information(self, "Información", "Todas las alarmas activas ya están reconocidas.")
             return
 
-        # reply = QMessageBox.question(
-        #     self, "Confirmar Reconocimiento",
-        #     f"¿Reconocer {unacked_count} alarma(s) activa(s) y silenciar?",
-        #     QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-        # )
-          # 1. Creamos la instancia manual del MessageBox
+   
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("Confirmar Reconocimiento")
         msg_box.setText(f"¿Reconocer {unacked_count} alarma(s) activa(s) y silenciar?")

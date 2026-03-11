@@ -130,7 +130,7 @@ class TimeNumpadDialog(QDialog):
             ('0', 3, 1), ('⌫', 3, 2)
         ]
 
-        button_font = QFont("Arial", 24, QFont.Bold)
+        button_font = QFont("Arial", 36, QFont.Bold)
 
         for key, row, col in keys:
             btn = QPushButton(key)
@@ -153,7 +153,7 @@ class TimeNumpadDialog(QDialog):
                 btn.setStyleSheet("""
                     QPushButton {
                         background-color: #334155;
-                        color: white;
+                        color: #ffffff;
                         border-radius: 12px;
                         border: 2px solid #1e293b;
                     }
@@ -181,7 +181,7 @@ class TimeNumpadDialog(QDialog):
         cancel_btn.setStyleSheet("""
             QPushButton {
                 background-color: #64748b;
-                color: white;
+                color: #ffffff;
                 border-radius: 12px;
                 border: none;
             }
@@ -197,7 +197,7 @@ class TimeNumpadDialog(QDialog):
         accept_btn.setStyleSheet("""
             QPushButton {
                 background-color: #22c55e;
-                color: white;
+                color: #ffffff;
                 border-radius: 12px;
                 border: none;
             }

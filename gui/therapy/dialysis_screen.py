@@ -387,6 +387,7 @@ class DialysisScreen(QWidget):
                     # Usa el nuevo nombre de la instancia serial
                     if self.parent_window and hasattr(self.parent_window, 'serial_comm') and self.parent_window.serial_comm:
                         self.parent_window.serial_comm.write_double(target_group, target_id, value)
+                        self.parent_window.current_values[tag] = value 
                     else:
                         print(f"[INFO] Serial not connected or 'serial_comm' attribute missing in parent. Cannot write {tag}.")
                 else:
@@ -415,6 +416,7 @@ class DialysisScreen(QWidget):
             if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                 if self.parent_window.serial_comm.is_connected:
                     self.parent_window.serial_comm.write_boolean(address, state)
+                    
                     logger.info(f"Boolean command sent: Addr {address} = {state}")
                 else:
                     logger.warning("Serial not connected")

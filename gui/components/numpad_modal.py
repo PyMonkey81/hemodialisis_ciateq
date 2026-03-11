@@ -41,7 +41,7 @@ class NumpadDialog(QDialog):
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("""
             QLabel {
-                color: white;
+                color: #ffffff;
                 font-size: 24px;
                 font-weight: bold;
                 background-color: #1e293b;
@@ -56,7 +56,7 @@ class NumpadDialog(QDialog):
         self.display.setFixedHeight(70)
         self.display.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.display.setReadOnly(True)
-        self.display.setFont(QFont("Arial", 32, QFont.Bold))
+        self.display.setFont(QFont("Arial", 36, QFont.Bold))
         self.display.setStyleSheet("""
             QLineEdit {
                 background-color: #1e293b;
@@ -79,7 +79,7 @@ class NumpadDialog(QDialog):
             ('.', 3, 0), ('0', 3, 1), ('⌫', 3, 2)
         ]
 
-        button_font = QFont("Arial", 24, QFont.Bold)
+        button_font = QFont("Arial", 36, QFont.Bold)
 
         for key, row, col in keys:
             btn = QPushButton(key)
