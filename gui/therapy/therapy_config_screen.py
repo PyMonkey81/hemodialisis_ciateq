@@ -318,4 +318,8 @@ class TherapyConfigScreen(QWidget):
 
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.setFocus()
+
  

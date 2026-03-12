@@ -1152,6 +1152,8 @@ class ManualModeScreen(QWidget):
             if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                 if self.parent_window.serial_comm.is_connected:
                     self.parent_window.serial_comm.write_boolean(address, state)
+                    
+                    self.current_values[tag] = int(state)
                     logger.info(f"Boolean command sent: Addr {address} = {state}")
                 else:
                     logger.warning("Serial not connected")
@@ -1381,7 +1383,8 @@ class ManualModeScreen(QWidget):
         """Handle UF flow input (L/h → ml/min)."""
         # CORREGIDO: Usar text() 
         try:
-            current_text = self.lbl_input_indUF.text()
+            # current_text = self.lbl_input_indUF.text()
+            current_text = ""
         except AttributeError:
             current_text = "0.0"
             
@@ -1398,9 +1401,9 @@ class ManualModeScreen(QWidget):
             except Exception as e:
                 logger.error(f"Error converting UF flow: {e}")
 
-
-
-
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.setFocus()
 
 
 

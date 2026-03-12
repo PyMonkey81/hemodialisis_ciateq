@@ -595,6 +595,9 @@ class TestPanelScreen(QWidget):
         except Exception as e:
             logger.error(f"Critical error writing setpoint '{tag}': {e}")
             QMessageBox.critical(self, "Error Crítico", f"Error al escribir {tag}: {e}")
-        
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.setFocus()
             
 
