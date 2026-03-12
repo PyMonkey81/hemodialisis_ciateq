@@ -238,6 +238,8 @@ class HemodialysisHMI(QMainWindow):
         self.test_panel_screen.valueChanged.connect(self.handleGlobalValueChange)
         self.manual_mode_screen.valueChanged.connect(self.handleGlobalValueChange)
 
+        self._update_priming_controls_state() 
+
         # Header update timers
         self.refresh_alarms_label()
         self.update_connection_status()
@@ -263,9 +265,9 @@ class HemodialysisHMI(QMainWindow):
         # Disable home buttons at startup
         if "Inicio" in self.navigation_buttons:
             self.navigation_buttons["Inicio"].setEnabled(False)
-            self.navigation_buttons["Inicio"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
+            self.navigation_buttons["Inicio"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px")
             self.navigation_buttons["Iniciar\nTratamiento"].setEnabled(False)
-            self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
+            self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px")
 
    
     # ────────────────────────────────────────────────
@@ -412,7 +414,7 @@ class HemodialysisHMI(QMainWindow):
             ("Tipo de\nTratamiento","#0f172a", self.show_treatment_mode_screen),   # antes "Tipo de Tratamiento"
             ("Iniciar\nTratamiento", "#39ec21", self.start_treatment),
             ("Limpieza",            "#0f172a", self.show_cleaning_screen),
-            ("Configuración", "#0f172a", self.show_options_screen),
+            ("Servicio", "#0f172a", self.show_options_screen),
             ("Alarmas",             "#0f172a", self.show_alarms_screen),
             ("Salir",               "#dc2626", self.close),
         ]
@@ -422,7 +424,7 @@ class HemodialysisHMI(QMainWindow):
             btn.setFixedHeight(110)
             btn.setStyleSheet(f"""
                 QPushButton {{ background: {color}; color: #ffffff; font-weight: bold;
-                               font-size: 24px; border-radius: 10px; }}
+                               font-size: 30px; border-radius: 10px; }}
                 QPushButton:pressed {{ background: #334155; }}
             """)            
             btn.clicked.connect(callback)
@@ -867,6 +869,7 @@ class HemodialysisHMI(QMainWindow):
                         border-radius: 10px;
                     }}
                 """)   
+                self._update_priming_controls_state()
 
         # ────────────────────────────────────────────────────────────────
         # Reevaluar botón "Iniciar Tratamiento" cuando cambien status o temp
@@ -875,6 +878,7 @@ class HemodialysisHMI(QMainWindow):
                    "dialyTempControlSetPoint", "dialyCondVariableData", 
                    "dialyCondControlSetPoint"]:            
             self._update_treatment_controls_state()
+        
 
     def _update_treatment_controls_state(self):
         """
@@ -889,8 +893,8 @@ class HemodialysisHMI(QMainWindow):
         cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
 
         # 2. Lógica de validación (Tolerancias)
-        temp_ok = abs(temp_actual - temp_set) <= 2.0
-        cond_ok = abs(cond_actual - cond_set) <= 2.0
+        temp_ok = abs(temp_actual - temp_set) <= 1.5
+        cond_ok = abs(cond_actual - cond_set) <= 1.5
         
         # 3. Determinar qué botones deben estar activos
         can_start = False
@@ -908,6 +912,14 @@ class HemodialysisHMI(QMainWindow):
         elif status_code == 13: # TRATAMIENTO CORRIENDO
             can_start = False
             can_stop = True
+        elif status_code == 14:
+            if temp_ok and cond_ok:
+                can_start = True
+                can_stop = False
+            else:
+                
+                can_start = False
+                can_stop = False
 
         else: # CUALQUIER OTRO ESTADO (Cebado, Pausa, etc)
             can_start = False
@@ -919,11 +931,11 @@ class HemodialysisHMI(QMainWindow):
         nav_btn = self.navigation_buttons.get("Iniciar\nTratamiento")
         if nav_btn:
             style_enabled = """
-                QPushButton { background: #39ec21; color: #ffffff; border-radius: 8px; font-weight: bold; }
+                QPushButton { background: #39ec21; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 30px;}
                 QPushButton:pressed { background: #1e40af; }
             """
             style_disabled = """
-                background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px
+                background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px
             """
             
             # Solo actualizamos si cambió el estado para evitar parpadeos
@@ -938,6 +950,49 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
             if hasattr(self.dialysis_screen, 'set_start_stop_buttons_state'):
                 self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop)
+
+
+    def _update_priming_controls_state(self):
+        """
+        Calcula el estado de los botones de cebado ('INICIAR CEBADO', 'DETENER CEBADO')
+        basándose en 'primingProcessStatus' y los actualiza en la DialysisScreen.
+        """
+        status_code = int(self.current_values.get("primingProcessStatus", 0))
+
+        enable_start_priming = False
+        enable_stop_priming = False
+
+        # --- Lógica para "INICIAR CEBADO" ---
+        # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
+        if status_code == 1: # "INICIO CEBADO"
+            enable_start_priming = True
+        
+        # --- Lógica para "DETENER CEBADO" ---
+        # Este botón parece actuar como un "Detener/Finalizar Proceso General".
+        # Debería estar activo si hay un proceso en curso (cebado, tratamiento, pausa)
+        # o si la máquina ha detenido un tratamiento y necesita una "limpieza" o reinicio manual.
+        
+        # Habilitar si el cebado está activo (estados 2 a 8)
+        if status_code >= 2 and status_code <= 8:
+            enable_stop_priming = True
+        # Habilitar si el tratamiento está activo (estado 13)
+        elif status_code == 13: # "TRATAMIENTO INICIADO"
+            enable_stop_priming = True
+        # Habilitar si el tratamiento está en pausa (estado 14)
+        elif status_code == 14: # "PAUSA"
+            enable_stop_priming = True
+        # Habilitar si el tratamiento acaba de ser detenido (estado 15)
+        elif status_code == 15: # "TRATAMIENTO DETENIDO" - ESTO RESPONDE A TU FEEDBACK
+            enable_stop_priming = True
+
+        # Deshabilitar en estados donde no hay nada que detener o ya está en un estado inactivo/listo
+        if status_code in [1, 9, 12]: # 1: INICIO CEBADO, 9: CERRADO, 12: LISTO PARA INICIAR TRATAMIENTO
+             enable_stop_priming = False
+
+        # Actualizar los botones en la pantalla de diálisis
+        if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
+            if hasattr(self.dialysis_screen, 'set_priming_buttons_state'):
+                self.dialysis_screen.set_priming_buttons_state(enable_start_priming, enable_stop_priming)
 
 
     def refresh_alarms_label(self):

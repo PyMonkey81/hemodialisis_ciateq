@@ -2,15 +2,18 @@
 # Pantalla de configuración de parámetros de terapia (sin selección de modo)
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QGridLayout, QFrame, 
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QDateTime
 
-
+import logging
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit
+from logic.calculos import convertir_flujo_a_ciclos, convertir_ciclos_a_flujo
+
+logger = logging.getLogger(__name__)
 
 try:
     from core.variables_map import VARIABLES
@@ -32,9 +35,9 @@ class TherapyConfigScreen(QWidget):
         self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}
 
-        self.setFixedSize(1536, 726)
+        self.setFixedSize(1536, 726)   # cambiar por sizepolicy
         self.setStyleSheet("background: #0f172a;")
-
+        self.write_hold_off = {}
         self.setup_ui()
 
     def setup_ui(self):
@@ -47,7 +50,7 @@ class TherapyConfigScreen(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(40, 30, 40, 30)
         main_layout.setSpacing(25)
-
+        logger.info("Configuracion de terapia (V1.0.0)")
         # Título
         title = QLabel("Configuración de Terapia")
         title.setStyleSheet("font-size: 42px; font-weight: bold; color: #60a5fa;")
@@ -112,16 +115,14 @@ class TherapyConfigScreen(QWidget):
         params_layout.addWidget(self.input_blood_flow, 1, 1)
 
         # Flujo Dializante (Qd)
-        lbl_dialysate_flow = QLabel("Flujo Dializante (Qd, mL/min):")
+        lbl_dialysate_flow = QLabel("Flujo Dializante (Qd, mL/min):")   # FLUJO DE CÁMARA DE BALANCE
         lbl_dialysate_flow.setStyleSheet(label_style)
         self.input_dialysate_flow = ClickableLineEdit("0.0")
         self.input_dialysate_flow.setFixedSize(120, 50)
         self.input_dialysate_flow.setAlignment(Qt.AlignCenter)
         self.input_dialysate_flow.setStyleSheet(input_style)
         self.input_dialysate_flow.setReadOnly(True)
-        self.input_dialysate_flow.clicked.connect(
-            lambda: self.open_numpad("dialyFlowControlSetPoint", self.input_dialysate_flow, "Flujo Dializante (Qd)")
-        )
+        self.input_dialysate_flow.clicked.connect(self._handle_cb_flow_input)
         params_layout.addWidget(lbl_dialysate_flow, 2, 0, Qt.AlignRight)
         params_layout.addWidget(self.input_dialysate_flow, 2, 1)
 
@@ -292,10 +293,10 @@ class TherapyConfigScreen(QWidget):
         except Exception as e:
             print(f"[ERROR] Fallo al escribir setpoint '{tag}': {e}")
 
-    def _update_input_display(self, widget: ClickableLineEdit, tag: str, precision: int = 1):
-        if not widget.hasFocus():
-            value = self.current_values.get(tag, 0.0)
-            widget.setText(f"{value:.{precision}f}")
+    # def _update_input_display(self, widget: ClickableLineEdit, tag: str, precision: int = 1):
+    #     if not widget.hasFocus():
+    #         value = self.current_values.get(tag, 0.0)
+    #         widget.setText(f"{value:.{precision}f}")
 
 
     def _update_time_display(self, widget: ClickableLineEdit, tag_hours: str, tag_minutes: str):
@@ -308,15 +309,81 @@ class TherapyConfigScreen(QWidget):
         """Actualiza solo los campos numéricos y de tiempo"""
 
         self.current_values = new_values
+        current_ms = QDateTime.currentMSecsSinceEpoch()
 
         self._update_input_display(self.input_heparin, "heparineTherapyDosage")
         self._update_input_display(self.input_blood_flow, "bloodFlowControlSetPoint")
-        self._update_input_display(self.input_dialysate_flow, "dialyFlowControlSetPoint")
         self._update_input_display(self.input_temperature, "dialyTempControlSetPoint")
         self._update_input_display(self.input_conductivity, "dialyCondControlSetPoint")
         self._update_input_display(self.input_sodium, "sodiumConcentrationSetPoint")
 
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
+        tag_cb = "balanceChamberSetTiming"
+        hold_time = self.write_hold_off.get(tag_cb, 0)
+
+        if current_ms < hold_time:
+            pass
+        else:
+            raw_cycles = self.current_values.get(tag_cb,0.0)
+            try:
+                if raw_cycles == 0:
+                    flow_to_show = 0.0
+                else:
+                    flow_to_show = convertir_ciclos_a_flujo(raw_cycles)
+                    if not self.input_dialysate_flow.hasFocus():
+                        self.input_dialysate_flow.setText(f"{flow_to_show:.1f}")
+            except Exception as e:
+                self.input_dialysate_flow.setText("0.0")
+
+
+
+    def _handle_cb_flow_input(self):
+        """
+        Maneja el input del usuario:
+        1. Abre el numpad para pedir mL/min.
+        2. Convierte mL/min -> Ciclos/timing.
+        3. Escribe el valor en ciclos a la máquina.
+        """
+        # Obtenemos el texto actual del widget correcto
+        current_text = self.input_dialysate_flow.text()
+
+        dialog = NumpadDialog(self, initial_value="", title="Flujo Dializante (mL/min)")
+        
+        if dialog.exec():
+            # El usuario ingresó un valor en mL/min (ej: 500)
+            value_str = dialog.get_value()
+            if not value_str:return 
+
+            flow_ml_min = float(value_str)            
+
+            self.input_dialysate_flow.setText(f"{flow_ml_min:.1f}")
+            self.input_dialysate_flow.clearFocus()
+            self.setFocus()
+            
+            try:
+                cycles_value = convertir_flujo_a_ciclos(flow_ml_min)                               
+                tag = "balanceChamberSetTiming"
+                self._write_setpoint(tag, cycles_value)                               
+                self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
+                
+            except Exception as e:
+                logger.error(f"Error convirtiendo flujo a ciclos: {e}")
+
+    def _update_input_display(self, widget: ClickableLineEdit, tag_or_value, precision: int = 1):
+        if widget.hasFocus():
+            self.setFocus()
+            return
+        val_to_show = 0.0
+        
+        if isinstance(tag_or_value, str):
+            # Es un tag, lo buscamos en el diccionario
+            val_to_show = self.current_values.get(tag_or_value, 0.0)
+        elif isinstance(tag_or_value, (int, float)):
+            # Es un valor directo (útil si ya hiciste la conversión afuera)
+            val_to_show = tag_or_value
+
+        widget.setText(f"{val_to_show:.{precision}f}")
+
 
     def showEvent(self, event):
         super().showEvent(event)

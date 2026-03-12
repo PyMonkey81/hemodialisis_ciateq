@@ -283,43 +283,7 @@ class DialysisScreen(QWidget):
         "dialyStartDialysisButt"
         
         pass  # Implement priming logic here
-
-    # def update_buttons_state(self, status_code: int):
-    #     """
-    #     Habi    lita o deshabilita botones INICIAR/DETENER basado en el estado de la máquina.
-    #     - status_code 12: Listo para iniciar → habilitar INICIAR si temperatura OK
-    #     - status_code 13: Tratamiento iniciado → habilitar DETENER
-    #     - Otros estados: ambos deshabilitados (por seguridad)
-    #     """
-    #     if not hasattr(self, 'action_buttons'):
-    #         return
-
-    #     btn_iniciar = self.action_buttons.get("INICIAR")
-    #     btn_detener = self.action_buttons.get("DETENER")
-
-    #     if not btn_iniciar or not btn_detener:
-    #         return  # Evitar errores si los botones no existen
-
-    #     # Estilos base
-    #     style_enabled = """
-    #         QPushButton { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
-    #         QPushButton:pressed { background: #334155; }
-    #     """
-    #     style_disabled = """
-    #         QPushButton {
-    #             background: #334155;
-    #             color: #94a3b8;
-    #             font-weight: bold;
-    #             font-size: 16px;
-    #             border-radius: 15px;
-    #             border: 3px solid #1e293b;
-    #         }
-    #     """
-# En gui/therapy/dialysis_screen.py
-
-    # BORRA O COMENTA TU MÉTODO update_buttons_state ACTUAL
-    # def update_buttons_state(self, status_code: int): ...
-    
+   
     
     def set_start_stop_buttons_state(self, enable_start: bool, enable_stop: bool):
         """
@@ -330,14 +294,14 @@ class DialysisScreen(QWidget):
 
         # Estilos (puedes mantenerlos aquí o pasarlos como constantes)
         style_enabled = """
-            QPushButton { background: #39ec21; color: #ffffff; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton { background: #39ec21; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
             QPushButton:pressed { background: #334155; }
         """
         style_disabled = """
-            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
         """
         style_stop_enabled = """
-             QPushButton { background: #DD2911; color: #ffffff; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+             QPushButton { background: #DD2911; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
              QPushButton:pressed { background: #334155; }
         """
 
@@ -489,5 +453,32 @@ class DialysisScreen(QWidget):
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
         return f"{hours:02d}:{minutes:02d}"
-    
+
+
+    def set_priming_buttons_state(self, enable_start_priming: bool, enable_stop_priming: bool):
+        """
+        Recibe instrucciones directas del Main para habilitar/deshabilitar
+        los botones de 'INICIAR CEBADO' y 'DETENER CEBADO'.
+        """
+        btn_start_priming = self.action_buttons.get("INICIAR CEBADO")
+        btn_stop_priming = self.action_buttons.get("DETENER CEBADO")
+
+        # Estilos
+        style_priming_enabled = """
+            QPushButton { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton:pressed { background: #334155; }
+        """
+        style_priming_disabled = """
+            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+        """
+
+        if btn_start_priming:
+            btn_start_priming.setEnabled(enable_start_priming)
+            btn_start_priming.setStyleSheet(style_priming_enabled if enable_start_priming else style_priming_disabled)
+        
+        if btn_stop_priming:
+            btn_stop_priming.setEnabled(enable_stop_priming)
+            btn_stop_priming.setStyleSheet(style_priming_enabled if enable_stop_priming else style_priming_disabled)
+
+
 

@@ -945,7 +945,7 @@ class ManualModeScreen(QWidget):
                 card.toggle.blockSignals(False)
 
         if "balanceChamberSetTiming" not in self.write_hold_off or \
-           current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
+            current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
             cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
             try:
                 flow_ml_min = convertir_ciclos_a_flujo(cycles)
@@ -1152,7 +1152,7 @@ class ManualModeScreen(QWidget):
             if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
                 if self.parent_window.serial_comm.is_connected:
                     self.parent_window.serial_comm.write_boolean(address, state)
-                    
+
                     self.current_values[tag] = int(state)
                     logger.info(f"Boolean command sent: Addr {address} = {state}")
                 else:
