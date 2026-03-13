@@ -53,38 +53,27 @@ class HemodialysisHMI(QMainWindow):
     # Screen indices
     INDEX_HOME = 0
 
+    BTN_ENABLED_DEFAULT_STYLE = """
+        QPushButton { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 10px; }
+        QPushButton:pressed { background: #334155; }
+    """
+    BTN_ENABLED_START_TREATMENT_STYLE = """
+        QPushButton { background: #39ec21; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 30px;}
+        QPushButton:pressed { background: #1e40af; }
+    """
+    BTN_ENABLED_EXIT_STYLE = """
+        QPushButton { background: #dc2626; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 10px; }
+        QPushButton:pressed { background: #b91c1c; }
+    """
+    BTN_DISABLED_STYLE = """
+        QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px; }
+    """
+
     def __init__(self):
         super().__init__()
         self.csv_logger = None
         self.treatment_logger = None
-        self.parameter_mapping = {            
-            # "dialyLinePresProcessData":     "PT-3 (Presión Línea)",
-            # "dialyPresIFProcessData":       "PT-4 (Presión IF)",
-            # "dialyPresOFProcessData":       "PT-5 (Presión OF)",
-            # "dialyLineWaterPresData":       "PT-6 (Presión Agua)",
-            # "dialyBChamPresProcessData":    "PT-7 (Presión Cámara B)",
-            # "bloodArteryPressureData":      "PT-8 (Presión Arteria Sanguínea)",
-            # "bloodVenousPressureData":      "PT-9 (Presión Vena Sanguínea)",
-            # "dialyPFilPmpPresProcessData":  "PT-10 (Presión Bomba Filtro)",
-            # "CALC_PTM":                     "PTM", # Lo dejé como estaba, si es un valor calculado
-            # "dialyCondVariableData":        "Conductividad",
-            # "bloodSpeedVariableData":       "Flujo Sanguíneo",
-            # "dialyFlowControlOutput":       "Flujo Dializado",
-            # "dialyTempIFProcessData":       "Temperatura DI",
-            # "dialyTempControlOutput":       "Temperatura Tanque",
-            # "dialyTempControlSetPoint":     "Setpoint Temperatura",
-            # "dialyCondControlSetPoint":     "Setpoint Conductividad",
-            # "UF Total":                     "UF Total Acumulada",
-            # "ultraFilterPumpSpeed":         "Tasa UF",
-            # "heparineTherapyDosage":        "Dosis Heparina", # Ya tiene su propio display
-            # "therapy_time":                 "Tiempo Terapia", # Corregido "theraphy"
-            # "dialyTankHiLevelSwitch":       "Nivel Tanque Alto",
-            # "dialyWaterInletValveButt":     "Válvula Entrada Agua",
-            # "dialyDeaerChamLevSwitch":      "Cámara Desaireación",
-            # "watterTankHeaterProtect":      "Protector Calefactor",
-            # "airBubbleInBloodDetected":     "Burbuja en Sangre",
-            # "bloodInDialyCircDetected":     "Sangre en Circuito Dial.",
-            # "dialyPurgePumpStartButt":      "Purga Aire",
+        self.parameter_mapping = {  
             "dialyLinePresProcessData": "PT-3",
             "dialyPresIFProcessData": "PT-4",
             "dialyPresOFProcessData": "PT-5",
@@ -94,8 +83,8 @@ class HemodialysisHMI(QMainWindow):
             "bloodVenousPressureData": "PT-9",
             "dialyPFilPmpPresProcessData": "PT-10",
             "dialyTempIFProcessData": "Temperatura EF",
-            "dialyTempOFProcessData": "Temperatura SF",
-            "dialyTempControlOutput": "Temperatura Tanque",
+            "dialyTempIOFProcessData": "Temperatura SF",
+            "dialyTempVariableData": "Temperatura Tanque",
             "dialyCondControlSetPoint": "Setpoint Conductividad",
             "dialyCondControlOutput": "Salida Conductividad",
             "dialyTempControlSetPoint": "Setpoint Temperatura",
@@ -129,9 +118,9 @@ class HemodialysisHMI(QMainWindow):
         self.ktv_timer.setInterval(30 * 60 * 1000)  # 30 minutos en ms
         self.ktv_timer.timeout.connect(self.perform_ktv_measurement)
 
-        self.setup_ui()
-        self.update_current_screen_label("Inicio", "#000000")
-        self.setFixedSize(1920, 1080)
+        self.setup_ui()        
+        # self.setFixedSize(1920, 1080)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet("background: #FCFCFC;")
 
         self.log_timer = QTimer(self)
@@ -146,6 +135,7 @@ class HemodialysisHMI(QMainWindow):
         self.current_values = {}
         self.serial_comm = SerialCommunication()
         self.serial_comm.data_received.connect(self.update_value)
+        self._is_connected_prev_state = False # Rastrea estado de conexción
 
         # lectura de sensores de bioimpedancia
         self.bioz_urea_controller = BiozUreaController()
@@ -156,19 +146,45 @@ class HemodialysisHMI(QMainWindow):
         self.pattern_sensor = PatternConductivity()
         self.pattern_sensor.data_received.connect(self.on_pattern_data)
         self.pattern_sensor.start()
-
-        # Alarm system
+     
         self.active_alarms = []
         display_names = [info["label"] for g in VARIABLES.values() for info in g.values()]
         tags = [info["tag"] for g in VARIABLES.values() for info in g.values()]
+        # Asegúrate de que VARIABLES esté correctamente cargado antes de esto.
+        # Una forma más robusta sería:
+        all_tags = []
+        for group_key, vars_group in VARIABLES.items():
+             if isinstance(vars_group, dict):
+                for var_id, info in vars_group.items():
+                    if "tag" in info:
+                        all_tags.append(info["tag"])
+        
+        display_names = [self.parameter_mapping.get(tag, tag) for tag in all_tags]
+        tags = all_tags # Ahora `tags` es una lista de todos los tags únicos
+
+        # Regenerar las listas para AlarmSystem
+        alarm_limits_from_vars = []
+        alarm_severity_from_vars = []
+        alarm_types_from_vars = []
+        boolean_triggers_from_vars = []
+
+        for group_key, vars_group in VARIABLES.items():
+            if isinstance(vars_group, dict):
+                for var_id, info in vars_group.items():
+                    if "tag" in info and info["tag"] in all_tags: # Asegurarse de que el tag esté en la lista
+                        alarm_limits_from_vars.append(info.get("limites", (0.0, 100.0)))
+                        alarm_severity_from_vars.append(info.get("nivel", "cian"))
+                        alarm_types_from_vars.append("numeric" if info["type"] == "double" else "boolean")
+                        boolean_triggers_from_vars.append(True if info["type"] == "boolean" else False) # Ajuste para boolean_triggers
+        
         self.alarm_limits = AlarmLimitsManager()  ### CAMBIOS AQUI 
         self.alarm_system = AlarmSystem(
             display_names=display_names,                     # ← cambiado de names=
             tags=tags,
-            limits=[info.get("limites", (0.0, 100.0)) for g in VARIABLES.values() for info in g.values()],
-            severity_levels=[info.get("nivel", "cyan") for g in VARIABLES.values() for info in g.values()],
-            types=["numeric" if info["type"] == "double" else "boolean" for g in VARIABLES.values() for info in g.values()],
-            boolean_triggers=[True] * len(tags),
+            limits=alarm_limits_from_vars,
+            severity_levels=alarm_severity_from_vars,
+            types=alarm_types_from_vars,
+            boolean_triggers=boolean_triggers_from_vars,
             limits_manager=self.alarm_limits
         )
         self.buzzer_silenced_by_user = False     
@@ -201,7 +217,7 @@ class HemodialysisHMI(QMainWindow):
 
         # # Therapy & service screens        
         self.dialysis_screen = DialysisScreen(parent=self)
-        self.treatment_mode_screen = TreatmentModeScreen(parent=self)  # ← revisar si debe ser distinta clase
+        self.treatment_mode_screen = TreatmentModeScreen(parent=self) 
         self.cleaning_screen = CleaningScreen(parent=self)
         self.options_screen = OptionsScreen(parent=self)
         
@@ -218,7 +234,7 @@ class HemodialysisHMI(QMainWindow):
      
         
         # Add all screens to stacked widget (order matters)
-        self.screen_stack.addWidget(self._main_screen)                      # 0 - Home
+        self.screen_stack.addWidget(self._main_screen)                 # 0 - Home
         self.screen_stack.addWidget(self.dialysis_screen)              # 1   funciona
         self.screen_stack.addWidget(self.treatment_mode_screen)        # 2 funciona 
         self.screen_stack.addWidget(self.cleaning_screen)              # 3
@@ -242,7 +258,7 @@ class HemodialysisHMI(QMainWindow):
 
         # Header update timers
         self.refresh_alarms_label()
-        self.update_connection_status()
+        # self.update_connection_status() # Revisar si no causa conflicto
 
         self.main_timer = QTimer(self)
         self.main_timer.timeout.connect(self.update_connection_status)
@@ -256,20 +272,15 @@ class HemodialysisHMI(QMainWindow):
         self.serial_comm.connect()
         self.serial_comm.start_reading()
 
+        self._set_ui_connected_state(False)
+        self.screen_stack.setCurrentIndex(self.INDEX_HOME) # ASEGURAR QUE SIEMPRE INICIA EN LA PANTALLA PRINCIAPAL
+
         self.right_content.hide()
         self.left_content.hide()
         self.left_container.setStyleSheet("background: transparent")
         self.right_container.setStyleSheet("background: transparent")
     
 
-        # Disable home buttons at startup
-        if "Inicio" in self.navigation_buttons:
-            self.navigation_buttons["Inicio"].setEnabled(False)
-            self.navigation_buttons["Inicio"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px")
-            self.navigation_buttons["Iniciar\nTratamiento"].setEnabled(False)
-            self.navigation_buttons["Iniciar\nTratamiento"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px")
-
-   
     # ────────────────────────────────────────────────
     #                   UI Setup
     # ────────────────────────────────────────────────
@@ -286,11 +297,7 @@ class HemodialysisHMI(QMainWindow):
         self.main_layout.setColumnStretch(3,1) # COLUMNA 3 → STACKED + NAV (parte 3/4)
         self.main_layout.setColumnStretch(4,1) # COLUMNA 4 → STACKED + NAV (parte 4/4)
         self.main_layout.setColumnStretch(5,0) # COLUMNA 5 → DERECHA
-        button_enabled_style ="""
-            QPushButton { background: #39ec21; color: #ffffff; border-radius: 8px; font-weight: bold; }
-            QPushButton:pressed { background: #1e40af; }
-        """
-        button_disabled_style = """background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px"""
+      
 
         # =========================================================================================
         #                                    MAIN STACKED
@@ -320,9 +327,9 @@ class HemodialysisHMI(QMainWindow):
         """)
         header_layout.addWidget(self.status_label)
 
-        self.active_alarms_label = QLabel("Alarmas:")
-        self.current_screen_label = QLabel("Inicio")
-        self.current_process_status = QLabel("Iniciando máquina")
+        self.active_alarms_label = QLabel("")
+        self.current_screen_label = QLabel("Desconectado")
+        self.current_process_status = QLabel("Esperando conexión")
         self.date_time_label = QLabel("25/12/2025  14:37:22")
 
         for lbl in [self.active_alarms_label, self.current_screen_label, self.current_process_status, self.date_time_label]:
@@ -421,12 +428,7 @@ class HemodialysisHMI(QMainWindow):
 
         for text, color, callback in nav_items:
             btn = QPushButton(text)
-            btn.setFixedHeight(110)
-            btn.setStyleSheet(f"""
-                QPushButton {{ background: {color}; color: #ffffff; font-weight: bold;
-                               font-size: 30px; border-radius: 10px; }}
-                QPushButton:pressed {{ background: #334155; }}
-            """)            
+            btn.setFixedHeight(110)           
             btn.clicked.connect(callback)
             nav_layout.addWidget(btn)
             self.navigation_buttons[text] = btn
@@ -664,7 +666,7 @@ class HemodialysisHMI(QMainWindow):
 
     def show_home_screen(self):
         self.screen_stack.setCurrentIndex(self.INDEX_HOME)
-        self.update_current_screen_label("Inicio", "#0A0A0A")
+        # self.update_current_screen_label("Inicio", "#0A0A0A")
         self.right_content.hide()
         self.left_content.hide()
 
@@ -677,11 +679,12 @@ class HemodialysisHMI(QMainWindow):
         self.left_content.show()
         self.right_content.show()
         self.navigation_buttons["Inicio"].setEnabled(True)
-        self.navigation_buttons["Inicio"].setStyleSheet("""
-            QPushButton { background: #0f172a; color: #ffffff; font-weight: bold;
-                          font-size: 24px; border-radius: 10px;}
-            QPushButton:pressed { background: #334155;}
-        """)
+        # self.navigation_buttons["Inicio"].setStyleSheet("""
+        #     QPushButton { background: #0f172a; color: #ffffff; font-weight: bold;
+        #                   font-size: 24px; border-radius: 10px;}
+        #     QPushButton:pressed { background: #334155;}
+        # """)
+        self.navigation_buttons["Inicio"].setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE) # NUEVO: usa el estilo de clase
 
     def show_treatment_mode_screen(self):
         self.screen_stack.setCurrentWidget(self.treatment_mode_screen)
@@ -768,6 +771,55 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
     #              Utility Methods
     # 
+        # ────────────────────────────────────────────────
+    # --- NUEVO MÉTODO: Gestión de estado UI por conexión ---
+    # ────────────────────────────────────────────────
+    def _set_ui_connected_state(self, is_connected: bool):
+        """
+        Manages the overall UI state (buttons, header labels) based on connection status.
+        """
+        if is_connected:
+            logger.info("Enabling UI elements for connected state.")
+            for btn_text, btn in self.navigation_buttons.items():
+                btn.setEnabled(True)
+                if btn_text == "Salir":
+                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
+                elif btn_text == "Iniciar\nTratamiento":
+                    btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
+                else:
+                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
+            
+            # Restaurar etiquetas del encabezado a su estado por defecto
+            self.refresh_alarms_label() # Mostrará alarmas reales o vacío
+            self.update_current_screen_label("Inicio", "#0f172a") # Establece "Inicio"
+            self.current_process_status.setText("Máquina conectada") 
+
+            # Asegurar que se muestre la pantalla de inicio y se oculten los paneles laterales
+            self.show_home_screen() 
+            
+            # Después de conectar, llama a estos para establecer correctamente los botones
+            # "Iniciar Tratamiento" y de cebado, en base a los valores actuales.
+            self._update_treatment_controls_state()
+            self._update_priming_controls_state()
+
+        else: # Desconectado
+            logger.warning("Disabling UI elements for disconnected state.")
+            for btn_text, btn in self.navigation_buttons.items():
+                btn.setEnabled(False)
+                if btn_text == "Salir": # 'Salir' siempre habilitado, incluso desconectado
+                    btn.setEnabled(True) 
+                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
+                else:
+                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
+            
+            # Actualizar etiquetas del encabezado para reflejar la desconexión
+            self.active_alarms_label.setText("") # Borra las alarmas
+            self.current_screen_label.setText("Desconectado")
+            self.current_process_status.setText("Esperando conexión")
+
+            # Siempre volver a la pantalla de inicio y ocultar paneles laterales cuando se desconecta
+            self.show_home_screen() # Esto ocultará el contenido lateral y establecerá el índice de pantalla a inicio.
+
     
     def handleGlobalValueChange(self, tag: str, value: float):
         # Actualiza el diccionario compartido y propaga a todas las pantallas si es necesario
@@ -791,13 +843,13 @@ class HemodialysisHMI(QMainWindow):
         self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))    
 
     def update_value(self, tag: str, value: float):
-        button_enabled_style = """
-            QPushButton { background: #0f172a; color: #ffffff;border-radius: 8px;font-weight: bold;font-size: 24px; }
-            QPushButton:pressed { background: #1e40af; }
-        """
-        button_disabled_style = """
-            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 8px; }
-        """
+        # button_enabled_style = """
+        #     QPushButton { background: #0f172a; color: #ffffff;border-radius: 8px;font-weight: bold;font-size: 24px; }
+        #     QPushButton:pressed { background: #1e40af; }
+        # """
+        # button_disabled_style = """
+        #     QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 8px; }
+        # """
 
         # Actualizar valor centralizado
         self.current_values[tag] = value
@@ -929,19 +981,11 @@ class HemodialysisHMI(QMainWindow):
         # 4. APLICAR A LA BARRA DE NAVEGACIÓN (Botón Grande)
         # =========================================================
         nav_btn = self.navigation_buttons.get("Iniciar\nTratamiento")
-        if nav_btn:
-            style_enabled = """
-                QPushButton { background: #39ec21; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 30px;}
-                QPushButton:pressed { background: #1e40af; }
-            """
-            style_disabled = """
-                background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px
-            """
-            
-            # Solo actualizamos si cambió el estado para evitar parpadeos
+        if nav_btn:                      
             if nav_btn.isEnabled() != can_start:
-                nav_btn.setEnabled(can_start)
-                nav_btn.setStyleSheet(style_enabled if can_start else style_disabled)
+                nav_btn.setEnabled(can_start)                        
+          # --- Modificado para usar los estilos de clase ---
+                nav_btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE if can_start else self.BTN_DISABLED_STYLE) 
 
         # =========================================================
         # 5. APLICAR A LA PANTALLA DE DIÁLISIS (Botones Chicos)
@@ -1106,8 +1150,18 @@ class HemodialysisHMI(QMainWindow):
 
 
     def update_connection_status(self):
-        if not hasattr(self, 'serial_comm') or not self.serial_comm or not self.serial_comm.is_connected:
-            text, color = "RECONECTANDO...", "#f97316"            
+        """
+        Actualiza el estado de la conexión en la UI y maneja la habilitación/deshabilitación
+        de elementos según el estado de la conexión.
+        """
+        current_is_connected = self.serial_comm and self.serial_comm.is_connected
+        if current_is_connected != self._is_connected_prev_state:
+            self._set_ui_connected_state(current_is_connected)
+
+        # if not hasattr(self, 'serial_comm') or not self.serial_comm or not self.serial_comm.is_connected:
+        #     text, color = "RECONECTANDO...", "#f97316"            
+        if not current_is_connected:
+            text, color = "RECONECTANDO...", "#f97316" 
         elif self.active_alarms:
             text = "ALARMA ACTIVA"
             color = "#dc2626" if int(time.time()) % 2 == 0 else "#991b1b"
@@ -1120,6 +1174,7 @@ class HemodialysisHMI(QMainWindow):
                       border-radius: 12px; font-weight: bold; font-size: 22px; }}
         """)
 
+        self._is_connected_prev_state = current_is_connected
         current_widget = self.screen_stack.currentWidget()
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
@@ -1296,6 +1351,7 @@ class HemodialysisHMI(QMainWindow):
         time.sleep(1.0)  # Give OS time to release resources
         event.accept()
         QApplication.quit()
+
 
 
 # gui/appMainHemodialisis.py

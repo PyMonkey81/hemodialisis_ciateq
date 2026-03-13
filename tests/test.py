@@ -135,3 +135,7 @@ class AlarmLimitsConfigDialog(QDialog):
 
         QMessageBox.information(self, "Guardado", "Límites actualizados")
         self.accept()
+
+
+          
+   
