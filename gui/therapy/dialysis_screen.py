@@ -167,7 +167,7 @@ class DialysisScreen(QWidget):
             btn.setFixedHeight(70)
             btn.setStyleSheet(f"""
                 QPushButton {{ background: {color}; color: #ffffff; font-weight: bold;
-                               font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }}
+                               font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }}
                 QPushButton:pressed {{ background: #334155; }}
             """)
             btn.clicked.connect(callback)
@@ -465,11 +465,11 @@ class DialysisScreen(QWidget):
 
         # Estilos
         style_priming_enabled = """
-            QPushButton { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
             QPushButton:pressed { background: #334155; }
         """
         style_priming_disabled = """
-            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 16px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
         """
 
         if btn_start_priming:

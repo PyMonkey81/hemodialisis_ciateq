@@ -862,7 +862,7 @@ class HemodialysisHMI(QMainWindow):
 
                 self.current_process_status.setStyleSheet(f"""
                     QLabel {{
-                        color: #000000;
+                        color: #ffffff;
                         background: {color};
                         font-weight: bold;
                         font-size: 25px;
@@ -964,7 +964,7 @@ class HemodialysisHMI(QMainWindow):
 
         # --- Lógica para "INICIAR CEBADO" ---
         # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
-        if status_code == 1: # "INICIO CEBADO"
+        if status_code == 1: # "INICIO CEBADO"   VERIFICAR SI HAY ESTADO CERO PARA INCLUIRLO 
             enable_start_priming = True
         
         # --- Lógica para "DETENER CEBADO" ---
