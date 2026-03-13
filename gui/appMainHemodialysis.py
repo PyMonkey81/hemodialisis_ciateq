@@ -68,6 +68,31 @@ class HemodialysisHMI(QMainWindow):
     BTN_DISABLED_STYLE = """
         QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px; }
     """
+    QMESSAGEBOX_GLOBAL_STYLE = """
+        QMessageBox {
+            background-color: #2b2b2b; /* Fondo de la ventana oscuro */
+            color: #ffffff;            /* Texto del QMessageBox (principal) */
+        }
+        QMessageBox QLabel { /* Reglas para QLabel DENTRO de un QMessageBox */
+            color: #ffffff;            /* Asegura que el texto del mensaje sea blanco */
+            background-color: #2b2b2b; /* <-- ¡Añadido! Fondo del QLabel explícitamente oscuro */
+            padding: 5px;              /* Opcional: un pequeño padding para que el texto no se pegue al borde */
+        }
+        QMessageBox QPushButton { /* Reglas para QPushButton DENTRO de un QMessageBox */
+            background-color: #4CAF50; /* Color de fondo del botón (Verde ejemplo) */
+            color: #ffffff;              /* Color del texto del botón */
+            border-radius: 5px;        /* Bordes redondeados */
+            padding: 5px 15px;         /* Relleno para hacerlo más grande */
+            font-weight: bold;
+        }
+        QMessageBox QPushButton:hover {
+            background-color: #45a049; /* Color al pasar el mouse por encima */
+        }
+        QMessageBox QPushButton:pressed {
+            background-color: #3e8e41; /* Color al presionar */
+        }
+    """
+
 
     def __init__(self):
         super().__init__()
@@ -561,41 +586,41 @@ class HemodialysisHMI(QMainWindow):
                                 "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
 
 
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Cebado iniciado")
-        msg_box.setText(f"Proceso de cebado iniciado correctamente \n\n")
-        msg_box.setIcon(QMessageBox.Question)
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.No)        
-        msg_box.setStyleSheet("""
-            QMessageBox {
-                background-color: #2b2b2b; /* Fondo de la ventana oscuro */
-                color: #ffffff;            /* Texto del QMessageBox (principal) */
-            }
-            QLabel {
-                color: #ffffff;            /* Asegura que el texto del mensaje sea blanco */
-                background-color: #2b2b2b; /* <-- ¡Añadido! Fondo del QLabel explícitamente oscuro */
-                padding: 5px;              /* Opcional: un pequeño padding para que el texto no se pegue al borde */
-            }
-            QPushButton {
-                background-color: #4CAF50; /* Color de fondo del botón (Verde ejemplo) */
-                color: #ffffff;              /* Color del texto del botón */
-                border-radius: 5px;        /* Bordes redondeados */
-                padding: 5px 15px;         /* Relleno para hacerlo más grande */
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #45a049; /* Color al pasar el mouse por encima */
-            }
-            QPushButton:pressed {
-                background-color: #3e8e41; /* Color al presionar */
-            }
-        """)
-        # QMessageBox.information(self, "Cebado Iniciado",
-        #                         "Proceso de cebado iniciado correctamente.\n\n"
-        #                         "• Registro de datos activo en logs/hemodialysis/\n"
-        #                         "• Duración típica: 5–10 minutos\n"
-        #                         "Presione 'DETENER' cuando finalice o espere condición automática.")
+        # msg_box = QMessageBox(self)
+        # msg_box.setWindowTitle("Cebado iniciado")
+        # msg_box.setText(f"Proceso de cebado iniciado correctamente \n\n")
+        # msg_box.setIcon(QMessageBox.Question)
+        # msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        # msg_box.setDefaultButton(QMessageBox.No)        
+        # msg_box.setStyleSheet("""
+        #     QMessageBox {
+        #         background-color: #2b2b2b; /* Fondo de la ventana oscuro */
+        #         color: #ffffff;            /* Texto del QMessageBox (principal) */
+        #     }
+        #     QLabel {
+        #         color: #ffffff;            /* Asegura que el texto del mensaje sea blanco */
+        #         background-color: #2b2b2b; /* <-- ¡Añadido! Fondo del QLabel explícitamente oscuro */
+        #         padding: 5px;              /* Opcional: un pequeño padding para que el texto no se pegue al borde */
+        #     }
+        #     QPushButton {
+        #         background-color: #4CAF50; /* Color de fondo del botón (Verde ejemplo) */
+        #         color: #ffffff;              /* Color del texto del botón */
+        #         border-radius: 5px;        /* Bordes redondeados */
+        #         padding: 5px 15px;         /* Relleno para hacerlo más grande */
+        #         font-weight: bold;
+        #     }
+        #     QPushButton:hover {
+        #         background-color: #45a049; /* Color al pasar el mouse por encima */
+        #     }
+        #     QPushButton:pressed {
+        #         background-color: #3e8e41; /* Color al presionar */
+        #     }
+        # """)
+        QMessageBox.information(self, "Cebado Iniciado",
+                                "Proceso de cebado iniciado correctamente.\n\n"
+                                "• Registro de datos activo en logs/hemodialysis/\n"
+                                "• Duración típica: 5–10 minutos\n"
+                                "Presione 'DETENER' cuando finalice o espere condición automática.")
 
         self.show_dialysis_screen()
 

@@ -133,7 +133,9 @@ if __name__ == "__main__":
     app.setFont(base_font)
 
     # Global style (uncomment and adjust as needed)
-    app.setStyleSheet("""
+    app.setStyleSheet(HemodialysisHMI.QMESSAGEBOX_GLOBAL_STYLE +
+        
+        """
         * {
             font-family: "Arial Narrow", "Helvetica Condensed", Arial, sans-serif;
             font-weight: bold;

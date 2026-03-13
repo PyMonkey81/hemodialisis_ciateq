@@ -338,13 +338,15 @@ class TestPanelScreen(QWidget):
 
         lbl = QLabel(label_text)
         lbl.setStyleSheet(label_style + "border: none;")
-        lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        lbl.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        # lbl.setFixedSize(60,35)
         
         grid.addWidget(lbl, row, col)
 
         value_label = QLabel("0.0")
         value_label.setStyleSheet(indicator_style)
-        value_label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        # value_label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        value_label.setFixedSize(70,35)
         value_label.setAlignment(Qt.AlignCenter)
         grid.addWidget(value_label, row, col + 1)
 
