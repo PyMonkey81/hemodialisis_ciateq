@@ -167,14 +167,14 @@ class TestPanelScreen(QWidget):
         grid_top.addWidget(self.label_temp_ef, 0, 6, 1, 2)
 
         self.label_temp_sf = LabeledParameterWidget(
-            label_text="T. Dial. SF", tag="dialyTempOFProcessData",
+            label_text="T. Dial. SF", tag="dialyTempIOFProcessData",
             value="0.0", units="°C",
             is_editable=False
         )
         grid_top.addWidget(self.label_temp_sf, 1, 6, 1, 2)
 
         self.label_temp_tank = LabeledParameterWidget(
-            label_text="T. Tanque", tag="dialyTempControlOutput",
+            label_text="T. Tanque", tag="dialyTempVariableData",
             value="0.0", units="°C",
             is_editable=False
         )
@@ -404,9 +404,11 @@ class TestPanelScreen(QWidget):
         self._update_label_display(self.label_cond_ef, self.current_values.get("dialyConductIFProcessData", 0.0))
         self._update_label_display(self.label_cond_sf, self.current_values.get("dialyConductOFProcessData", 0.0))
 
-        self._update_label_display(self.label_temp_ef, self.current_values.get("dialyTempIFProcessData",0.0))
-        self._update_label_display(self.label_cond_sf, self.current_values.get("dialyTempIOFProcessData",0.0))
-        self._update_input_display(self.label_temp_tank,self.current_values.get("dialyTempControlOutput",0.0))
+        self._update_label_display(self.label_temp_ef, self.current_values.get("dialyTempIFProcessData",0.0)) # temperatura a la entrada del filtro 
+        self._update_label_display(self.label_temp_sf, self.current_values.get("dialyTempIOFProcessData",0.0)) # temperatura a la salida del filtro
+        self._update_input_display(self.label_temp_tank,self.current_values.get("dialyTempVariableData",0.0))  #Calculo de control de temperatura de dializante 
+        
+
 
         self._update_label_display(self.label_pattern_cond, self.current_values.get("patternCondSensor", 0.0))
         self._update_label_display(self.label_pattern_temp, self.current_values.get("patternTempSensor", 0.0))
@@ -436,12 +438,11 @@ class TestPanelScreen(QWidget):
         self._update_label_display(self.label_pt8, self.current_values.get("bloodArteryPressureData", 0.0))
         self._update_label_display(self.label_pt9, self.current_values.get("bloodVenousPressureData", 0.0))
         self._update_label_display(self.label_pt10, self.current_values.get("dialyPFilPmpPresProcessData", 0.0))
-        self._update_label_display(self.label_temp_tank, self.current_values.get("dialyTempControlOutput",0.0))
 
         # ── Temperature & Conductivity Plots ─────────────────────────────────────
         temp_ef = self.current_values.get("dialyTempIFProcessData", 0.0)
         temp_sf = self.current_values.get("dialyTempIOFProcessData", 0.0)
-        temp_tank = self.current_values.get("dialyTempControlOutput", 0.0) # Check if this should be VariableData
+        temp_tank = self.current_values.get("dialyTempVariableData", 0.0) # Check if this should be VariableData
         cond_ef = self.current_values.get("dialyConductIFProcessData", 0.0)
         cond_sf = self.current_values.get("dialyConductOFProcessData", 0.0)
 
