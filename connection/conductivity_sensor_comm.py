@@ -33,37 +33,6 @@ class PatternConductivity(QObject):
         self.read_command = READ_COMMAND
         self.isConnected = False
         self.last_successful_comm = time.time()
-
-    # def connect(self) -> bool:
-    #     """Busca y conecta al puerto USB Serial Device"""
-    #     target_port = "COM7"
-    #     target_manufacturer = "MICROSOFT"
-    #     available_ports = serial.tools.list_ports.comports()
-
-    #     for port_info in available_ports:
-    #         port_device = (port_info.device or "").upper()
-    #         manufacturer = (port_info.manufacturer or "").upper()
-    #         if target_port in port_device or target_manufacturer in manufacturer:  # amplía si sabes el driver exacto
-    #             try:
-    #                 self.serial_port = serial.Serial(
-    #                     port=port_info.device,
-    #                     baudrate=115200,
-    #                     bytesize=serial.EIGHTBITS,
-    #                     parity=serial.PARITY_NONE,
-    #                     stopbits=serial.STOPBITS_ONE,
-    #                     timeout=1.0,
-    #                     write_timeout=0.5
-    #                 )
-    #                 time.sleep(1.5)  # tiempo para que el sensor se estabilice
-    #                 print(f"[Connected Conductivity sensor] Port: {port_info.device}")
-    #                 self.isConnected = True
-    #                 self.last_successful_comm = time.time()
-    #                 return True
-    #             except Exception as e:
-    #                 print(f"[ERROR] Failed to open {port_info.device}: {e}")
-    #     print("[ERROR] No conductivity sensor detected on any USB serial port")
-    #     self.isConnected = False
-    #     return False
     
     def connect(self) -> bool:
         """Intenta conectar directamente al puerto COM7"""
@@ -137,8 +106,8 @@ class PatternConductivity(QObject):
             return ""
         try:
             response = self.serial_port.read(100).decode('ascii', errors='ignore').rstrip('\r\n \x00')
-            # if response:
-            #     print(f"[VALAR raw] '{response}' (len={len(response)})")
+            if response:
+                print(f"[VALAR raw] '{response}' (len={len(response)})")
             return response
         except Exception as e:
             print(f"[ERROR] Read failed: {e}")
@@ -186,7 +155,7 @@ class PatternConductivity(QObject):
                 if not self._send_command(command):
                     raise serial.SerialException("Failed to send")
 
-                time.sleep(0.08)  # respiro corto para respuesta
+                time.sleep(0.1)  # respiro corto para respuesta
                 raw_response = self._read_response()
 
                 if raw_response:
@@ -195,16 +164,18 @@ class PatternConductivity(QObject):
                     if is_read:
                         cond_raw, cond_comp, temp = self._parse_response(raw_response)
                         if cond_comp is not None:
-                            self.data_received.emit("patternCondSensor", cond_comp)
-                            # print(f"[Emit] patternCondSensor → {cond_comp:.4f} mS/cm")
+                            conductivity_comp = cond_comp * 1000 # conversion a milisiemens 
+                            self.data_received.emit("patternCondSensor", conductivity_comp)
+                            print(f"[Emit] patternCondSensor → {cond_comp:.4f} mS/cm")
 
                         if cond_raw is not None:
-                            self.data_received.emit("patternCondRaw", cond_raw)
-                            # print(f"[Emit] patternCondRaw → {cond_raw:.8f} mS/cm")  # más decimales para raw
+                            conductivity_raw = cond_raw * 1000
+                            self.data_received.emit("patternCondRaw", conductivity_raw)
+                            print(f"[Emit] patternCondRaw → {cond_raw:.8f} mS/cm")  # más decimales para raw
 
                         if temp is not None:
                             self.data_received.emit("patternTempSensor", temp)
-                            # print(f"[Emit] patternTempSensor → {temp:.3f} °C")
+                            print(f"[Emit] patternTempSensor → {temp:.3f} °C")
 
                 # Chequeo de comunicación saludable (opcional: si >10s sin respuesta, reconectar)
                 if time.time() - self.last_successful_comm > 10:

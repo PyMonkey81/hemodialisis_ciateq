@@ -134,6 +134,9 @@ class HemodialysisHMI(QMainWindow):
         self.total_therapy_seconds = 0
         self.is_treatment_running = False
 
+        self.accumulated_therapy_seconds = 0  
+        self.last_resume_time = None          
+
         # Timer para actualizar tiempo cada segundo (en toda la app)
         self.therapy_time_timer = QTimer(self)
         self.therapy_time_timer.setInterval(1000)  # 1 segundo
@@ -466,8 +469,7 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
     def start_treatment(self):
         logger.info("Iniciando tratamiento y mediciones externas: Bioimpedancia")
-        # Verificar que haya duración configurada
-        # Leer duración desde current_values (viene de therapy_config)
+
         hours = int(self.current_values.get("heparineTherapyHours", 0))
         minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
         self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
@@ -478,11 +480,15 @@ class HemodialysisHMI(QMainWindow):
                                 icon=QMessageBox.warning)
             self.show_therapy_config_screen()
             return
-
-        # Guardar inicio y activar estado
-        # self.therapy_start_time = QDateTime.currentDateTime()
-        self.accumulated_therapy_seconds = 0
-        self.last_resume_time = QDateTime.currentDateTime() # Marcamos el inicio
+        current_status = int(self.current_values.get("primingProcessStatus", 0))
+        
+        if current_status != 14: 
+            # Si NO es pausa (es inicio fresco), reseteamos el acumulado
+            self.accumulated_therapy_seconds = 0
+        else:
+            logger.info("Reanudando tratamiento desde Pausa (manteniendo tiempo acumulado)")
+                
+        self.last_resume_time = QDateTime.currentDateTime()   
         self.is_treatment_running = True
 
         # Iniciar timer de actualización (si no está corriendo)
@@ -511,9 +517,9 @@ class HemodialysisHMI(QMainWindow):
             self.ktv_timer.start()
 
         # Feedback
-        show_dark_message(self, "Tratamiento Iniciado", 
-                                f"Sesión iniciada por {hours:02d}:{minutes:02d}",
-                                icon=QMessageBox.Information)
+        # show_dark_message(self, "Tratamiento Iniciado", 
+        #                         f"Sesión iniciada por {hours:02d}:{minutes:02d}",
+        #                         icon=QMessageBox.Information)
 
         # Actualizar pantalla de diálisis (si está visible)
         if self.screen_stack.currentWidget() == self.dialysis_screen:
@@ -610,11 +616,9 @@ class HemodialysisHMI(QMainWindow):
 
     def stop_priming(self):
         try:
-            self._write_boolean_command("dialyStartDialysisButt", False)  # En realidad es el cebado el que detiene, pero luis puso esos tags 
             self._write_boolean_command("dialyStopDialysisButt",True)
-
-            # self._write_boolean_command("dialyModeOperationStart", True)            
-            # self._write_boolean_command("dialyModeOperationStop", False)
+            self._write_boolean_command("dialyStartDialysisButt", False)              
+           
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
@@ -629,8 +633,8 @@ class HemodialysisHMI(QMainWindow):
 
 
     def stop_treatment(self):   
-        self._write_boolean_command("dialyModeOperationStart", False)
         self._write_boolean_command("dialyModeOperationStop", True)
+        self._write_boolean_command("dialyModeOperationStart", False)        
 
         # if self.ktv_timer.isActive():
         #     self.ktv_timer.stop()
@@ -1366,11 +1370,6 @@ class HemodialysisHMI(QMainWindow):
     def _update_therapy_time_displays(self):
         if not hasattr(self, 'dialysis_screen') or self.screen_stack.currentWidget() != self.dialysis_screen:
             return
-
-        # if not self.is_treatment_running or self.therapy_start_time is None:
-        #     self.dialysis_screen.elapsed_time_display.set_value("00:00")
-        #     self.dialysis_screen.remaining_time_display.set_value("00:00")
-        #     return
         
         if not self.is_treatment_running:
             self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
@@ -1378,7 +1377,7 @@ class HemodialysisHMI(QMainWindow):
             return
 
         # Calcular segundos transcurridos
-        # elapsed_sec = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
+        
         current_elapsed_seconds = self.accumulated_therapy_seconds
         if self.last_resume_time is not None:
             current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
@@ -1386,13 +1385,6 @@ class HemodialysisHMI(QMainWindow):
 
 
         # Transcurrido
-        # elapsed_h = elapsed_sec // 3600
-        # elapsed_m = (elapsed_sec % 3600) // 60
-        # elapsed_s = elapsed_sec % 60   # ← AGREGADO: segundos reales
-        # elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"  # Muestra segundos también
-
-        # self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
-
         elapsed_h = current_elapsed_seconds // 3600
         elapsed_m = (current_elapsed_seconds % 3600) // 60
         elapsed_s = current_elapsed_seconds % 60
@@ -1400,17 +1392,7 @@ class HemodialysisHMI(QMainWindow):
 
         self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
 
-
-
         # Restante
-        # remaining_sec = max(0, self.total_therapy_seconds - elapsed_sec)
-        # rem_h = remaining_sec // 3600
-        # rem_m = (remaining_sec % 3600) // 60
-        # rem_s = remaining_sec % 60
-        # remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
-
-        # self.dialysis_screen.remaining_time_display.set_value(remaining_str)
-
         remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
         rem_h = remaining_sec // 3600
         rem_m = (remaining_sec % 3600) // 60
@@ -1422,12 +1404,8 @@ class HemodialysisHMI(QMainWindow):
         # Detener al llegar a cero
         if remaining_sec <= 0:
             self.stop_treatment()
-            show_dark_message(self, "Información", "Tiempo de terapia completado", QMessageBox.information)
-
-        # if remaining_sec <= 0:
-        #     self.stop_treatment()
-        #     # QMessageBox.information(self, "Finalizado", "Tiempo de terapia completado.")
-        #     show_dark_message(self, "Información","Tiempo de terapia completado",QMessageBox.information)
+            # show_dark_message(self, "Información", "Tiempo de terapia completado", QMessageBox.information)
+    
 
     def closeEvent(self, event):
         self.end_dialysis_session() # Llama a la función que cierra el logger
@@ -1438,4 +1416,6 @@ class HemodialysisHMI(QMainWindow):
         time.sleep(1.0)  # Give OS time to release resources
         event.accept()
         QApplication.quit()
+
+
 

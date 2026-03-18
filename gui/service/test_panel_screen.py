@@ -419,7 +419,7 @@ class TestPanelScreen(QWidget):
         
 
 
-        self._update_label_display(self.label_pattern_cond, self.current_values.get("patternCondRaw", 0.0))
+        self._update_label_display(self.label_pattern_cond, self.current_values.get("patternCondRaw", 0.0))  # Multiplicar por 1000
         self._update_label_display(self.label_pattern_temp, self.current_values.get("patternTempSensor", 0.0))
         self._update_label_display(self.label_pattern_cond_raw, self.current_values.get("patternCondSensor", 0.0))
 
