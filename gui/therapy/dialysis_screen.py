@@ -97,18 +97,6 @@ class DialysisScreen(QWidget):
         self.arterial_pressure_history = deque(nan_array, maxlen=self.history_length)
         self.time_axis = np.arange(-self.history_length + 1, 1, dtype=np.float32)
 
- #==============================REVISAR ESTA PARTE DEL TIMER============================       
-        # Nuevos atributos para manejo de tiempo
-        # self.therapy_start_time = None          # Timestamp de inicio (QDateTime o segundos)
-        # self.total_therapy_seconds = 0          # Duración total programada en segundos
-        # self.is_treatment_running = False
-
-        # # Timer para actualizar tiempo cada segundo
-        # self.time_timer = QTimer(self)
-        # self.time_timer.timeout.connect(self._update_elapsed_and_remaining_time)
-        # self.time_timer.start(1000)  # cada 1 segundo
-
-
         self.setup_ui()
 
     def setup_ui(self):
@@ -262,27 +250,7 @@ class DialysisScreen(QWidget):
         self.ktv_display.set_value(ktv_value)
 
 
-    # ── Treatment Control Methods ────────────────────────────────────────────────
-    # def start_treatment(self):
-    #     """Initiate dialysis treatment."""
-    #     # Ejemplo: envía comandos de selección de modo (ajusta valores según protocolo)
-    #     self._write_setpoint("treatmentModeSelection", 0.0) # Hemodiálisis
-    #     # self._write_setpoint("treatmentModeSelection", 1.0) # Hemodiafiltración
-    #     # self._write_setpoint("treatmentModeSelection", 2.0) # Ultrafiltración sola
 
-    def pause_treatment(self):
-        """Pause the ongoing treatment session."""
-        pass  # Implement pause logic here
-
-    # def stop_treatment(self):
-    #     """Stop the treatment session completely."""
-    #     pass  # Implement stop logic here
-
-    def start_priming(self):
-        """Start priming / rinsing phase."""
-        "dialyStartDialysisButt"
-        
-        pass  # Implement priming logic here
    
     
     def set_start_stop_buttons_state(self, enable_start: bool, enable_stop: bool):

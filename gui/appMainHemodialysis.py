@@ -26,6 +26,7 @@ from gui.service.cleaning_screen import CleaningScreen
 from gui.components.real_time_variables import RealTimeVariablesMonitor
 from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
+from gui.components.ui_components import show_dark_message
 from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.service.manual_mode_screen import ManualModeScreen
 from gui.service.test_panel_screen import TestPanelScreen
@@ -472,13 +473,16 @@ class HemodialysisHMI(QMainWindow):
         self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
 
         if self.total_therapy_seconds <= 0:
-            QMessageBox.warning(self, "Configuración incompleta", 
-                                "Configure la duración de la terapia primero.")
+            show_dark_message(self, "Configuración incompleta", 
+                                "Configure la duración de la terapia primero.",
+                                icon=QMessageBox.warning)
             self.show_therapy_config_screen()
             return
 
         # Guardar inicio y activar estado
-        self.therapy_start_time = QDateTime.currentDateTime()
+        # self.therapy_start_time = QDateTime.currentDateTime()
+        self.accumulated_therapy_seconds = 0
+        self.last_resume_time = QDateTime.currentDateTime() # Marcamos el inicio
         self.is_treatment_running = True
 
         # Iniciar timer de actualización (si no está corriendo)
@@ -491,8 +495,9 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
-            QMessageBox.warning(self, "Advertencia", 
-                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
+            show_dark_message(self, "Advertencia", 
+                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.",
+                                icon=QMessageBox.Warning)
 
 
         # Iniciar bioimpedancia y Kt/V
@@ -506,8 +511,9 @@ class HemodialysisHMI(QMainWindow):
             self.ktv_timer.start()
 
         # Feedback
-        QMessageBox.information(self, "Tratamiento Iniciado", 
-                                f"Sesión iniciada por {hours:02d}:{minutes:02d}")
+        show_dark_message(self, "Tratamiento Iniciado", 
+                                f"Sesión iniciada por {hours:02d}:{minutes:02d}",
+                                icon=QMessageBox.Information)
 
         # Actualizar pantalla de diálisis (si está visible)
         if self.screen_stack.currentWidget() == self.dialysis_screen:
@@ -522,15 +528,17 @@ class HemodialysisHMI(QMainWindow):
 
         try:
             self.treatment_logger = CsvLogger(
-                log_directory = LOG_DIRECTORY,
+                log_directory=LOG_DIRECTORY,
                 parameter_key_map=self.parameter_mapping
             )
-            self.log_treatment_timer.start()
-            logger.info("logger CSV iniciado correctamente para tratamiento")
+            self.log_treatment_timer.start()  # Comienza el timer para registrar cada segundo
+            logger.info("Logger CSV iniciado correctamente para tratamiento")
         except Exception as e:
-            logger.error(f"Error al crear logger CSV para tratamiento")
-            QMessageBox.critical(self, "Error crítico", f"no se pudo iniciar el registro de datos:\n{str(e)}")
+            logger.error(f"Error al crear logger CSV para tratamiento: {e}")
+            show_dark_message(self, "Error crítico", f"No se pudo iniciar el registro de datos:\n{str(e)}", 
+                      icon=QMessageBox.Critical)
             return
+
     
 
     def start_priming(self):
@@ -544,9 +552,10 @@ class HemodialysisHMI(QMainWindow):
         """
         # 1. Verificar conexión serial
         if not self.serial_comm or not self.serial_comm.is_connected:
-            QMessageBox.warning(self, "Error de conexión", 
-                                "No hay conexión con el controlador.\n"
-                                "No se puede iniciar el cebado.")
+            show_dark_message(self, "Error de conexión", 
+                          "No hay conexión con el controlador.\n"
+                          "No se puede iniciar el cebado.",
+                          icon=QMessageBox.Warning)  
             logger.warning("Intento de iniciar cebado sin conexión serial")
             return
 
@@ -570,8 +579,9 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Logger CSV iniciado correctamente para cebado")
         except Exception as e:
             logger.error(f"Error al crear logger CSV para cebado: {e}")
-            QMessageBox.critical(self, "Error crítico", 
-                                 f"No se pudo iniciar el registro de datos:\n{str(e)}")
+            show_dark_message(self, "Error crítico", 
+                                 f"No se pudo iniciar el registro de datos:\n{str(e)}",
+                                 icon=QMessageBox.Critical)
             return
 
         # 5. Enviar comandos al controlador
@@ -582,45 +592,19 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
-            QMessageBox.warning(self, "Advertencia", 
-                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
+            
+            
+            show_dark_message(self, "Advertencia", 
+                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.",
+                                icon=QMessageBox.Warning)
 
 
-        # msg_box = QMessageBox(self)
-        # msg_box.setWindowTitle("Cebado iniciado")
-        # msg_box.setText(f"Proceso de cebado iniciado correctamente \n\n")
-        # msg_box.setIcon(QMessageBox.Question)
-        # msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        # msg_box.setDefaultButton(QMessageBox.No)        
-        # msg_box.setStyleSheet("""
-        #     QMessageBox {
-        #         background-color: #2b2b2b; /* Fondo de la ventana oscuro */
-        #         color: #ffffff;            /* Texto del QMessageBox (principal) */
-        #     }
-        #     QLabel {
-        #         color: #ffffff;            /* Asegura que el texto del mensaje sea blanco */
-        #         background-color: #2b2b2b; /* <-- ¡Añadido! Fondo del QLabel explícitamente oscuro */
-        #         padding: 5px;              /* Opcional: un pequeño padding para que el texto no se pegue al borde */
-        #     }
-        #     QPushButton {
-        #         background-color: #4CAF50; /* Color de fondo del botón (Verde ejemplo) */
-        #         color: #ffffff;              /* Color del texto del botón */
-        #         border-radius: 5px;        /* Bordes redondeados */
-        #         padding: 5px 15px;         /* Relleno para hacerlo más grande */
-        #         font-weight: bold;
-        #     }
-        #     QPushButton:hover {
-        #         background-color: #45a049; /* Color al pasar el mouse por encima */
-        #     }
-        #     QPushButton:pressed {
-        #         background-color: #3e8e41; /* Color al presionar */
-        #     }
-        # """)
-        QMessageBox.information(self, "Cebado Iniciado",
-                                "Proceso de cebado iniciado correctamente.\n\n"
-                                "• Registro de datos activo en logs/hemodialysis/\n"
-                                "• Duración típica: 5–10 minutos\n"
-                                "Presione 'DETENER' cuando finalice o espere condición automática.")
+   
+    
+        show_dark_message(self, "Cebado Iniciado",
+                  "Proceso de cebado iniciado correctamente.\n\n"
+                  "Presione 'DETENER' cuando finalice o espere condición automática.",
+                  icon=QMessageBox.Information)
 
         self.show_dialysis_screen()
 
@@ -634,8 +618,9 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
-            QMessageBox.warning(self, "Advertencia", 
-                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.")
+            show_dark_message(self, "Advertencia", 
+                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.",
+                                icon=QMessageBox.Warning)
         if self.csv_logger:
             self.log_timer.stop()
             self.csv_logger.close()
@@ -656,9 +641,14 @@ class HemodialysisHMI(QMainWindow):
 
         # Resetear estado de tiempo
 
+        # self.is_treatment_running = False
+        # self.therapy_start_time = None
+        # self.total_therapy_seconds = 0
+
         self.is_treatment_running = False
-        self.therapy_start_time = None
-        self.total_therapy_seconds = 0
+        self.accumulated_therapy_seconds = 0  # Limpiar
+        self.last_resume_time = None          # Limpiar
+
 
         # Detener timer de actualización si no hay tratamiento
         if hasattr(self, 'therapy_time_timer') and self.therapy_time_timer.isActive():
@@ -703,12 +693,7 @@ class HemodialysisHMI(QMainWindow):
         self.update_current_screen_label("Diálisis", "#0f172a")
         self.left_content.show()
         self.right_content.show()
-        self.navigation_buttons["Inicio"].setEnabled(True)
-        # self.navigation_buttons["Inicio"].setStyleSheet("""
-        #     QPushButton { background: #0f172a; color: #ffffff; font-weight: bold;
-        #                   font-size: 24px; border-radius: 10px;}
-        #     QPushButton:pressed { background: #334155;}
-        # """)
+        self.navigation_buttons["Inicio"].setEnabled(True)        
         self.navigation_buttons["Inicio"].setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE) # NUEVO: usa el estilo de clase
 
     def show_treatment_mode_screen(self):
@@ -868,13 +853,8 @@ class HemodialysisHMI(QMainWindow):
         self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))    
 
     def update_value(self, tag: str, value: float):
-        # button_enabled_style = """
-        #     QPushButton { background: #0f172a; color: #ffffff;border-radius: 8px;font-weight: bold;font-size: 24px; }
-        #     QPushButton:pressed { background: #1e40af; }
-        # """
-        # button_disabled_style = """
-        #     QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 8px; }
-        # """
+        
+        
 
         # Actualizar valor centralizado
         self.current_values[tag] = value
@@ -927,6 +907,23 @@ class HemodialysisHMI(QMainWindow):
                 status_text = status_map.get(status_code, f"Espera.. ({status_code})")
                 self.current_process_status.setText(status_text)
 
+                # --- LÓGICA DE PAUSA DE TIEMPO ---
+                # Caso A: Estaba corriendo (o listo) y pasa a PAUSA (14)
+                if status_code == 14 and self.last_resume_time is not None:
+                    # Calculamos cuánto tiempo pasó desde el último inicio hasta ahora y lo guardamos
+                    seconds_since_resume = self.last_resume_time.secsTo(QDateTime.currentDateTime())
+                    self.accumulated_therapy_seconds += seconds_since_resume
+                    self.last_resume_time = None  # Ponemos en None para indicar que NO estamos contando tiempo
+                    logger.info(f"Terapia PAUSADA. Tiempo acumulado: {self.accumulated_therapy_seconds}s")
+
+                # Caso B: Estaba en Pausa (14) y vuelve a TRATAMIENTO (13)
+                elif status_code == 13 and self.last_resume_time is None:
+                    # Volvemos a empezar a contar desde AHORA
+                    self.last_resume_time = QDateTime.currentDateTime()
+                    logger.info("Terapia REANUDADA. Contador activo.")
+
+                self._last_priming_status = status_code
+
                 # Colores según estado
                 if status_code in [6, 7, 12, 13]:      # Activos / listos / tratamiento
                     color = "#25AD37"  # Verde
@@ -970,8 +967,8 @@ class HemodialysisHMI(QMainWindow):
         cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
 
         # 2. Lógica de validación (Tolerancias)
-        temp_ok = abs(temp_actual - temp_set) <= 1.5
-        cond_ok = abs(cond_actual - cond_set) <= 1.5
+        temp_ok = abs(temp_actual - temp_set) <= 2.0
+        cond_ok = abs(cond_actual - cond_set) <= 2.0
         
         # 3. Determinar qué botones deben estar activos
         can_start = False
@@ -992,9 +989,8 @@ class HemodialysisHMI(QMainWindow):
         elif status_code == 14:
             if temp_ok and cond_ok:
                 can_start = True
-                can_stop = False
-            else:
-                
+                can_stop = True  #False se puede detener si se esta en pausa 
+            else:                
                 can_start = False
                 can_stop = False
 
@@ -1037,16 +1033,16 @@ class HemodialysisHMI(QMainWindow):
             enable_start_priming = True
         
         # --- Lógica para "DETENER CEBADO" ---
-        # Este botón parece actuar como un "Detener/Finalizar Proceso General".
-        # Debería estar activo si hay un proceso en curso (cebado, tratamiento, pausa)
-        # o si la máquina ha detenido un tratamiento y necesita una "limpieza" o reinicio manual.
+        # Este botón actua como un "Detener/Finalizar Proceso General".
         
         # Habilitar si el cebado está activo (estados 2 a 8)
         if status_code >= 2 and status_code <= 8:
             enable_stop_priming = True
+        elif status_code == 12:
+            enable_stop_priming = True    
         # Habilitar si el tratamiento está activo (estado 13)
         elif status_code == 13: # "TRATAMIENTO INICIADO"
-            enable_stop_priming = True
+            enable_stop_priming = False
         # Habilitar si el tratamiento está en pausa (estado 14)
         elif status_code == 14: # "PAUSA"
             enable_stop_priming = True
@@ -1055,7 +1051,7 @@ class HemodialysisHMI(QMainWindow):
             enable_stop_priming = True
 
         # Deshabilitar en estados donde no hay nada que detener o ya está en un estado inactivo/listo
-        if status_code in [1, 9, 12]: # 1: INICIO CEBADO, 9: CERRADO, 12: LISTO PARA INICIAR TRATAMIENTO
+        if status_code in [1, 9]: # 1: INICIO CEBADO, 9: CERRADO, 12: LISTO PARA INICIAR TRATAMIENTO
              enable_stop_priming = False
 
         # Actualizar los botones en la pantalla de diálisis
@@ -1366,684 +1362,56 @@ class HemodialysisHMI(QMainWindow):
         current_widget = self.screen_stack.currentWidget()
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
-
-    def closeEvent(self, event):
-        self.end_dialysis_session() # Llama a la función que cierra el logger
-        
-        super().closeEvent(event)
-        logger.error("[INFO] closeEvent → performing shutdown...")
-        self.shutdown()
-        time.sleep(1.0)  # Give OS time to release resources
-        event.accept()
-        QApplication.quit()
-
-
-
-# gui/appMainHemodialisis.py
-
-# import os
-# import sys
-# import time
-# import logging
-# from PySide6.QtWidgets import *
-# from PySide6.QtCore import Qt, QTimer
-# from PySide6.QtGui import QColor, QPixmap
-
-# # === MÓDULOS ===
-# from core.alarmas import SistemaAlarmas
-# from core.variables_map import VARIABLES
-
-# from connection.comunicacion_serial import ComunicacionSerial
-# from gui.therapy.main_screen import mainScr
-# from gui.therapy.dialysis_screen import dialysisScr
-# from gui.service.options_screen import optionScr
-# from gui.service.cleaning_screen import cleanScr
-# from gui.therapy.alarms_screen import alarmsScr
-# from gui.components.real_time_variables import monitorVariables
-# from gui.components.tank_gauge import TankGauge
-# from gui.components.conductivity_bar import ConductivityBar
-
-
-# from gui.service.manual_mode_screen import mManualScr #Pantalla modo manual 
-# from gui.service.test_panel_screen import testScr #Pantalla panel de pruebas 
-# from gui.service.calibration_screen import ctrlCfgScr #pantalla calibracion
-# from gui.service.network_config_screen import cfgRedScr # pantalla configuracion de red
-
-# from gui.therapy.patient_config_screen import patienCfgScr
-# from gui.therapy.therapy_config_screen import therapyCfgScr
-
-# logger = logging.getLogger(__name__)
-
-# #===============================================================================
-# #======================CODIGO PARA ADJUNTAR LOGOS EN EJECUTABLE=================
-# #===============================================================================
-
-# def resource_path(relative_path):
-#     """Devuelve la ruta correcta tanto en desarrollo como en .exe"""
-#     try:
-#         # PyInstaller crea una carpeta temporal y guarda la ruta en _MEIPASS
-#         base_path = sys._MEIPASS
-#     except Exception:
-#         base_path = os.path.abspath(".")
-#     return os.path.join(base_path, relative_path)
-# #===============================================================================
-
-
-# class HemodialysisHMI(QMainWindow):
-#     #INDEX DE PANTALLAS 
-#     INDEX_INICIO = 0   
-
-#     def __init__(self):
-#         super().__init__()
-
-#         # === DETECCIÓN DE ENTORNO DE PRUEBAS ===
-#         # import os
-#         # en_pruebas = os.getenv('PYTEST_VERSION') or 'pytest' in sys.modules
     
-#         # if en_pruebas:
-#         #     logger.error("[INFO] Modo pruebas detectado → puerto serial desactivado")
-#         #     self.serial = None
-#         #     self.conectado = False
-#         # else:
-#         #     self.serial = ComunicacionSerial(callback=self.actualizar_valor)
-#         #     self.conectado = self.serial.conectar()
-#         #     if self.conectado:
-#         #         self.serial.iniciar_lectura()
-       
-#         # 1. Crear estructura visual (ventana, label y stacked)
-#         self.setup_ui()
-#         self.actualizar_label_pantalla("Inicio", "#000000")     # <-------------cambio de color para en un futuro hacer temas 
-#         self.setFixedSize(1920, 1080) # Tamaño resolución de monitor
-#         self.setStyleSheet("background: #FCFCFC ;") ##090c33          <--------------------------- para consideracion de temas de colores 
-
-#         # 2. Iniciar comunicación serial
-#         #  === COMUNICACIÓN SERIAL ===    
-#         self.valores = {}           
-#         self.serial = ComunicacionSerial()
-#         self.serial.data_received.connect(self.actualizar_valor)
-#         # self.serial.conectar()
-        
-       
-
-#         # # 3. Crear pantallas 
-
-#         self.alarmas_activas = []      
-#         nombres = [info["name"] for g in VARIABLES.values() for info in g.values()]
-#         tags = [info["tag"] for g in VARIABLES.values() for info in g.values()]
-#         self.sistema_alarmas = SistemaAlarmas(
-#             nombres=nombres,
-#             tags=tags,
-#             limites=[info.get("limites", (0, 100)) for g in VARIABLES.values() for info in g.values()],
-#             niveles=[info.get("nivel", "cian") for g in VARIABLES.values() for info in g.values()],
-#             tipos=["numerico" if info["type"] == "double" else "booleano" for g in VARIABLES.values() for info in g.values()],
-#             trigger_booleano=[True] * len(tags)
-#         )
-     
-#         # conecta las señales de alarma   
-#         self.sistema_alarmas.cambio_alarma.connect(self.manejar_alarma)
-#         self.sistema_alarmas.nuevo_evento.connect(self.registrar_evento)
-#         self.sistema_alarmas.iniciar_monitoreo()
-#         self.valores = {n: 0.0 for n in tags}   
-
-#         self.pantalla_alarmas     = alarmsScr(
-#             parent=self,
-#             valores_dict=self.valores,          # opcional, pero ya lo tienes
-#             sistema_alarmas=self.sistema_alarmas
-#         )        
-#         # Monitor de variables (también necesita sistema_alarmas)
-#         self.pantalla_monitor_variables = monitorVariables(
-#             parent=self,
-#             valores_dict=self.valores,
-#             sistema_alarmas=self.sistema_alarmas
-#         )        
-
-
-#          # 4. Crear pantallas (en orden lógico)
-#         self.dialysis_scr    = dialysisScr(parent=self)
-#         self.pantalla_modo_       = dialysisScr(parent=self)  # ← considera renombrar esta clase
-#         self.pantalla_limpieza    = cleanScr(parent=self)
-#         self.pantalla_ajustes     = optionScr(parent=self)
-#         # Submenús de ajustes
-#         self.pantalla_modo_manual   = mManualScr(parent=self)
-#         self.pantalla_panel_pruebas = testScr(parent=self)
-#         self.pantalla_calibracion   = ctrlCfgScr(parent=self)
-#         self.pantalla_config_red    = cfgRedScr(parent=self)
-
-#         # Submenu de dialisis 
-#         self.pantalla_paciente = patienCfgScr(parent=self)
-#         self.pantalla_configuracion_terapia = therapyCfgScr(parent=self)
-
-#         # 5. Añadir TODAS al stacked (en el orden deseado)
-#         self.stacked.addWidget(mainScr())                    # 0
-#         self.stacked.addWidget(self.dialysis_scr)       # 1
-#         self.stacked.addWidget(self.pantalla_modo_)          # 2
-#         self.stacked.addWidget(self.pantalla_limpieza)       # 3
-#         self.stacked.addWidget(self.pantalla_ajustes)        # 4
-#         self.stacked.addWidget(self.pantalla_alarmas)        # 5  ← ahora sí está la correcta
-#         self.stacked.addWidget(self.pantalla_modo_manual)    # 6
-#         self.stacked.addWidget(self.pantalla_panel_pruebas)  # 7
-#         self.stacked.addWidget(self.pantalla_calibracion)    # 8
-#         self.stacked.addWidget(self.pantalla_config_red)     # 9
-       
-#         self.stacked.addWidget(self.pantalla_monitor_variables) # 10
-#         self.stacked.addWidget(self.pantalla_paciente)       # 11
-#         self.stacked.addWidget(self.pantalla_configuracion_terapia) 
-        
-
-        
-#         # 7. Iniciar timers y metodos de actualizacion de etiquedas en header
-#         self.refrescar_etiqueta_alarmas()
-#         self.actualizar_estado()
-        
-#         self.timer = QTimer(self)
-#         self.timer.timeout.connect(self.actualizar_estado)
-#         self.timer.start(500)
-
-#         self.timer_reloj = QTimer(self)
-#         self.timer_reloj.timeout.connect(self.actualizar_fecha_hora)
-#         self.timer_reloj.start(1000)
-#         self.actualizar_fecha_hora()    
-
-#         self.serial.conectar()
-#         self.serial.iniciar_lectura()  
-
-#         self.left.hide()
-#         self.right.hide()
-#         #contenedores vacios para el inicio de la app
-#         self.container_right.setStyleSheet("background: transparent")
-#         self.container_left.setStyleSheet("background: transparent")
-
-#         if "Inicio" in self.botones_nav: # DESACTIVACION DE BOTONES AL UNICIO DE LA APLICACIÓN.
-#             self.botones_nav["Inicio"].setEnabled(False)
-#             self.botones_nav["Inicio"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
-#             self.botones_nav["Inicio\nTratamiento"].setEnabled(False)
-#             self.botones_nav["Inicio\nTratamiento"].setStyleSheet("background: #334155; color: #94a3b8; font-weight: bold; font-size: 24px; border-radius: 10px")
-        
-#     #  === PANTALLAS ===
-#     def pantalla_principal(self):
-#         return mainScr()
-    
-#     # === SETUP UI ===
-#     def setup_ui(self):
-#         central = QWidget()
-#         self.setCentralWidget(central)
-#         self.layout = QGridLayout(central)
-#         self.layout.setSpacing(0)
-#         self.layout.setContentsMargins(0, 0, 0, 0)
-
-#         self.layout.setColumnStretch(0,0) # COLUMNA 0 → IZQUIERDA
-#         self.layout.setColumnStretch(1,1) # COLUMNA 1 → STACKED + NAV (parte 1/4)
-#         self.layout.setColumnStretch(2,1) # COLUMNA 2 → STACKED + NAV (parte 2/4)
-#         self.layout.setColumnStretch(3,1) # COLUMNA 3 → STACKED + NAV (parte 3/4)
-#         self.layout.setColumnStretch(4,1) # COLUMNA 4 → STACKED + NAV (parte 4/4)
-#         self.layout.setColumnStretch(5,0) # COLUMNA 5 → DERECHA
-
-
-#         # =========================================================================================
-#         #                                    MAIN STACKED
-#         # =========================================================================================
-       
-#         self.stacked = QStackedWidget()
-#         # self.stacked.setFixedSize(1536, 726)
-#         self.stacked.addWidget(self.pantalla_principal())
-       
-#         self.layout.addWidget(self.stacked, 1, 1, 1, 4)
-
-#         #================================================================
-#         # =========================== HEADER 1920x177 ===================
-#         #================================================================       
-#         header_container = QWidget()
-#         header_container.setFixedHeight(177)
-#         header_container.setStyleSheet("background: #EBEBEB;") 
-
-#         header = QHBoxLayout(header_container)
-#         header.setContentsMargins(30, 20, 30, 20)
-#         header.setSpacing(20)
-
-        
-
-#         # ESTADO (la única con fondo)       
-#         self.lbl_estado = QLabel("Conectado")
-#         self.lbl_estado.setFixedSize(260, 80)
-#         self.lbl_estado.setAlignment(Qt.AlignCenter)
-#         self.lbl_estado.setStyleSheet("""
-#               QLabel { background: #10b981; color: #ffffff; padding: 10px; border-radius: 12px;
-#                       font-weight: bold; font-size: 22px; }
-#         """)
-#         header.addWidget(self.lbl_estado)
-        
-#         self.lbl_alarmas = QLabel("Alarmas:")
-#         self.lbl_pantalla_actual = QLabel("Inicio")
-#         self.lbl_fecha_hora = QLabel("25/12/2025  14:37:22")
-#         # Especifica el tamaño de la etiqueta, alineacion, color de letra, etc. y lo agrega al widget
-#         for lbl in [self.lbl_alarmas, self.lbl_pantalla_actual, self.lbl_fecha_hora]:
-#             lbl.setFixedSize(400, 80)
-#             lbl.setAlignment(Qt.AlignCenter)
-#             lbl.setStyleSheet("""
-#                 QLabel { color: #0f172a; background: transparent;
-#                         font-weight: bold; font-size: 25px; }
-#             """)
-#             header.addWidget(lbl)
-
-#         header.addStretch()    
-
-#         logo1 = QLabel()
-#         logo1.setPixmap(QPixmap(resource_path("resources/images/logo_ciateq__.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-#         header.addWidget(logo1)
-#         logo2 = QLabel()
-#         logo2.setPixmap(QPixmap(resource_path("resources/images/Logo_secihti_.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-#         header.addWidget(logo2)
-#         self.layout.addWidget(header_container, 0, 0, 1, 6) #
-
-
-#         # ==================================================================== 
-#         #                  GAUGES IZQUIERDA (PA + PV) 
-#         # ====================================================================
-#         self.container_left = QWidget() # CONTENEDOR FIJO SIEMPRE VISIBLE
-#         self.container_left.setFixedSize(192, 903)
-#         layout_cont_left = QVBoxLayout(self.container_left)
-#         layout_cont_left.setContentsMargins(0, 0, 0, 0)
-
-#         self.left = QWidget() # CONTENEDOR DE WIDGETS 
-#         self.left.setFixedSize(192, 903)
-#         left_layout = QVBoxLayout(self.left)
-#         left_layout.setContentsMargins(0, 0, 0, 0)
-#         left_layout.setSpacing(0)
-
-#         self.gauge_art = TankGauge("Art", -100, 400, "mmHg", "#dc2626")
-#         self.gauge_ven = TankGauge("Ven", -50, 400, "mmHg", "#1640f9")
-
-#         self.gauge_art.setFixedSize(192, 451)
-#         self.gauge_ven.setFixedSize(192, 452)
-
-#         left_layout.addWidget(self.gauge_art)
-#         left_layout.addWidget(self.gauge_ven)
-
-#         layout_cont_left.addWidget(self.left)
-
-#         self.layout.addWidget(self.container_left, 1, 0, 2, 1)      
-
-        
-#         # ==================================================================================
-#         #                            GAUGE DERECHA (TEMPERATURA + CONDUCTIVIDAD)
-#         # ==================================================================================
-#         self.container_right = QWidget() # contenedor fijo
-#         self.container_right.setFixedSize(192,903)
-#         layout_cont_right = QVBoxLayout(self.container_right)
-#         layout_cont_right.setContentsMargins(0, 0, 0, 0)
-
-
-#         self.right = QWidget()
-#         self.right.setFixedSize(192, 903)
-#         right_layout = QVBoxLayout(self.right)
-#         right_layout.setContentsMargins(0, 0, 0, 0)
-#         right_layout.setSpacing(0)
-
-#         self.gauge_tempDial = TankGauge("Temp.\nDial", 0 ,50, "°C","#A31A1A")
-#         self.powbar = ConductivityBar()
-
-#         self.gauge_tempDial.setFixedWidth(192)        
-#         self.powbar.setFixedWidth(192)
-
-#         right_layout.addWidget(self.gauge_tempDial, 1)
-#         right_layout.addWidget(self.powbar, 1)
-
-#         layout_cont_right.addWidget(self.right)
-#         self.layout.addWidget(self.container_right, 1, 5, 2, 1)      
-
-#         # ==================================================================================
-#         #                           === NAVEGACIÓN INFERIOR ===
-#         # ==================================================================================
-    
-#         nav = QWidget()
-#         nav.setFixedSize(1536, 177)
-#         nav.setStyleSheet("background:  #FCFCFC;") # #090c33 <------------------- aqui tambien se cambiaria para hacer un tema diferente
-#         nav_layout = QHBoxLayout(nav)
-#         nav_layout.setContentsMargins(40, 20, 40, 20)
-#         nav_layout.setSpacing(10)
-
-#         self.botones_nav = {} 
-
-#         botones = [
-#             ("Inicio", "#0f172a", self.mostrar_pantalla_principal), # index 0 1b10b9
-#             ("Diálisis", "#0f172a", self.show_daialysis_scr), # index 1
-#             ("Tipo de\nTratamiento", "#0f172a", self.mostrar_pantalla_modo), # indes 2   ====================================modificar el nombre de esta pantalla para que coincida con el de labview, que es la seleccion del modo de operación
-#             ("Inicio\nTratamiento","#25AD37",self.iniciar_tratamiento_),
-#             ("Limpieza", "#0f172a", self.mostrar_pantalla_limpieza), # index 3
-#             ("Parámetros\n de sistema", "#0f172a", self.mostrar_pantalla_ajustes), # index 4
-#             ("Alarmas", "#0f172a", self.mostrar_pantalla_alarmas), # index 5           
-#             ("Salir", "#dc2626", self.close),
-#         ]
-        
-
-#         for texto, color, func in botones:
-#             btn = QPushButton(texto)
-#             btn.setFixedHeight(110)
-#             btn.setStyleSheet(f"""
-#                 QPushButton {{ background: {color}; color: #ffffff; font-weight: bold;
-#                               font-size: 24px; border-radius: 10px; /*border: 4px solid #1b10b9;*/ }}
-#                 QPushButton:pressed {{ background: #334155; }}
-#             """)
-#             btn.clicked.connect(func)
-#             nav_layout.addWidget(btn)
-
-#             self.botones_nav[texto] = btn 
-
-#         self.layout.addWidget(nav, 2, 1, 1, 4)
-    
-#     # ==================================================================================
-#     #                               === NAVEGACIÓN ===
-#     # ==================================================================================
-#     def iniciar_tratamiento_(self): #<------ el boton se debe activar cuando se cumplan las condiciones iniciales, inicia el tratamiento.
-#         pass
-
-#     def mostrar_pantalla_principal(self):
-#         self.stacked.setCurrentIndex(self.INDEX_INICIO)
-#         self.actualizar_label_pantalla("Inicio", "#0A0A0A")
-#         self.left.hide()
-#         self.right.hide()
-
-#     def show_daialysis_scr(self):       
-#         self.stacked.setCurrentWidget(self.dialysis_scr)
-#         if hasattr(self.dialysis_scr, "actualizar_valores"): # value_update
-#             self.dialysis_scr.actualizar_valores(self.valores)
-#         self.actualizar_label_pantalla("Diálisis", "#0f172a")
-#         self.left.show()
-#         self.right.show()
-#         if "Inicio" in self.botones_nav:
-#             self.botones_nav["Inicio"].setEnabled(True)
-#             self.botones_nav["Inicio"].setStyleSheet("""
-#                 QPushButton { background: #1b10b9; color: #ffffff; font-weight: bold;
-#                               font-size: 24px; border-radius: 10px;}
-#                 QPushButton:pressed { background: #334155;}
-#             """)
-
-#     def mostrar_pantalla_modo(self):
-#         self.stacked.setCurrentWidget(self.pantalla_modo_)
-#         self.actualizar_label_pantalla("Tipo de Tratamiento", "#0f172a")
-#         self.left.show()
-#         self.right.show()
-    
-#     def mostrar_pantalla_limpieza(self):    
-#         self.stacked.setCurrentWidget(self.pantalla_limpieza)
-#         if hasattr(self.pantalla_limpieza, "actualizar_valores"):
-#             self.pantalla_limpieza.actualizar_valores(self.valores)
-#         self.actualizar_label_pantalla("Limpieza", "#0f172a") 
-#         self.left.show()
-#         self.right.show()   
-    
-#     def mostrar_pantalla_ajustes(self): 
-#         self.stacked.setCurrentWidget(self.pantalla_ajustes)
-#         self.actualizar_label_pantalla("Configuración", "#0f172a")     
-#         self.left.show()
-#         self.right.show()
-
-#     def mostrar_pantalla_alarmas(self):
-#         self.stacked.setCurrentWidget(self.pantalla_alarmas)
-#         self.actualizar_label_pantalla("Alarmas", "#0f172a")
-#         self.left.show()
-#         self.right.show()
-    
-#     def mostrar_modo_manual(self):
-#         self.stacked.setCurrentWidget(self.pantalla_modo_manual)
-#         if hasattr(self.pantalla_modo_manual, "actualizar_valores"):
-#             self.pantalla_modo_manual.actualizar_valores(self.valores)
-#         self.actualizar_label_pantalla("Modo Manual","#0f172a")
-#         self.left.show()
-#         self.right.show()
-        
-    
-#     def mostrar_panel_pruebas(self):
-#         self.stacked.setCurrentWidget(self.pantalla_panel_pruebas)
-#         if hasattr(self.pantalla_panel_pruebas, "actualizar_valores"):
-#             self.pantalla_panel_pruebas.actualizar_valores(self.valores)
-#         self.actualizar_label_pantalla("Panel de pruebas", "#0f172a")
-#         self.left.show()
-#         self.right.show()
-        
-
-#     def mostrar_calibracion(self):
-#         self.stacked.setCurrentWidget(self.pantalla_calibracion)
-#         if hasattr(self.pantalla_calibracion,"actualizar_valores"):
-#             self.pantalla_calibracion.actualizar_valores(self.valores)    
-#         self.actualizar_label_pantalla("Calibración", "#0f172a")
-#         self.left.show()
-#         self.right.show()
-
-#     def mostrar_config_red(self):
-#         self.stacked.setCurrentWidget(self.pantalla_config_red)
-#         self.actualizar_label_pantalla("Configuración de red", "#0f172a")
-
-#     def mostrar_monitor_variables(self):
-#         self.stacked.setCurrentWidget(self.pantalla_monitor_variables)
-#         self.actualizar_label_pantalla("Monitor de variables", "#0f172a")
-#         self.left.show()
-#         self.right.show()
-
-#     def mostrar_pantalla_paciente(self):
-#         self.stacked.setCurrentWidget(self.pantalla_paciente)
-#         if hasattr(self.pantalla_paciente, "actualizar_valores"):
-#             self.pantalla_paciente.actualizar_valores(self.valores)
-#         self.actualizar_label_pantalla("Paciente", "#0f172a")
-#         self.left.show()
-#         self.right.show()
-
-#     def mostrar_pantalla_cfg_terapia(self):
-#         self.stacked.setCurrentWidget(self.pantalla_configuracion_terapia)
-#         if hasattr(self.pantalla_configuracion_terapia, "actualizar_valores"):
-#             self.pantalla_configuracion_terapia.actualizar_valores(self.valores)
-#         self.actualizar_label_pantalla("Terapia", "#0f172a")
-#         self.left.show()
-#         self.right.show()
- 
-  
-#     def actualizar_label_pantalla(self, texto, color_texto="#0f172a"):
-#         self.lbl_pantalla_actual.setText(texto)       
-#         self.lbl_pantalla_actual.setStyleSheet(f"color: {color_texto}; background: transparent; font-weight: bold; font-size: 30px;")
-
-
-#     def actualizar_fecha_hora(self):
-#         from datetime import datetime
-#         texto = datetime.now().strftime("%d/%m/%Y  %H:%M:%S")
-#         self.lbl_fecha_hora.setText(texto)
-
-
-#     def actualizar_valor(self, tag: str, valor: float):
-#         self.valores[tag] = valor
-#         mapeo = {
-#             "arterPresProcessData": self.gauge_art,
-#             "venouPresProcessData": self.gauge_ven,
-#             "dialyTempVariableData": self.gauge_tempDial,
-#             "dialyCondVariableData": self.powbar,
-#         }
-#         if tag in mapeo:
-#             mapeo[tag].setValue(valor)
-
-#     def refrescar_etiqueta_alarmas(self):
-#         """Actualiza la etiqueta de alarmas con la alarma activa de mayor prioridad"""
-#         if not self.alarmas_activas:
-#             self.lbl_alarmas.setText("")
-#             self.lbl_alarmas.setStyleSheet("""
-#                 QLabel { color: #ffffff; background: transparent;
-#                          font-weight: bold; font-size: 25px; }
-#             """)
-#         else:
-#             prioridad = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1}
-#             alarma_mayor = max(self.alarmas_activas, key=lambda x: prioridad.get(x[2], 0))
-#             nombre, valor, nivel = alarma_mayor
-
-#             texto = nombre.upper()
-#             if valor is not None:
-#                 texto += f" {valor:.1f}"
-
-#             colores = {
-#                 "rojo": "#dc2626",
-#                 "naranja": "#f97316",
-#                 "amarillo": "#eab308",
-#                 "cian": "#06b6d4"
-#             }
-#             color_fondo = colores.get(nivel, "#1e293b")
-
-#             self.lbl_alarmas.setText(texto)
-#             self.lbl_alarmas.setStyleSheet(f"""
-#                 QLabel {{ 
-#                     background: {color_fondo}; 
-#                     color: #ffffff; 
-#                     padding: 10px;
-#                     border-radius: 12px;
-#                     font-weight: bold; 
-#                     font-size: 20px; 
-#                 }}
-#             """)
-
-#     def manejar_alarma(self, idx, activada, valor, nombre, nivel, limite):
-#         if activada:
-#             if nombre not in [a[0] for a in self.alarmas_activas]:
-#                 self.alarmas_activas.append((nombre, valor, nivel))
-#         else:
-#             self.alarmas_activas = [a for a in self.alarmas_activas if a[0] != nombre]
-#         # actualiza la etiqueta
-#         self.refrescar_etiqueta_alarmas()
-#         self.actualizar_estado()  # parpadeo rojo
-
-#     def actualizar_estado(self):
-#         if not hasattr(self,'serial') or not self.serial or not self.serial.conectado:
-#             texto, color = "RECONECTANDO...", "#f97316"
-#         elif self.alarmas_activas:
-#             texto = "ALARMA ACTIVA"
-#             color = "#dc2626" if int(time.time()) % 2 == 0 else "#991b1b"
-#         else:
-#             texto, color = "CONECTADO", "#10b981"
-    
-#         self.lbl_estado.setText(texto)
-#         self.lbl_estado.setStyleSheet(f"""
-#             QLabel {{ background: {color}; color: #ffffff; padding: 10px;
-#                       border-radius: 12px; font-weight: bold; font-size: 22px; }}
-#         """)
-#         if self.stacked.count() > 0:
-#             widget_actual = self.stacked.currentWidget()
-#             if hasattr(widget_actual, "actualizar_valores"):
-#                 widget_actual.actualizar_valores(self.valores)
-      
-
-       
-    
-#     def registrar_evento(self, evento, valor, hora):
-#         logger.error(f"[EVENTO] {hora} → {evento}")
-
-#     def __del__(self):
-#         """Destructor: se llama cuando Python destruye el objeto"""
-#         logger.error("[INFO] Destructor llamado → deteniendo hilos...")
-#         self.detener_todo()
-     
-#     def detener_todo(self):
-#         """Detiene TODO de forma segura y limpia referencias."""
-#         logger.error("[INFO] Iniciando detención controlada.")
-
-#         # 1. Detener Timers (si existen)
-#         if hasattr(self, 'timer') and isinstance(self.timer, QTimer) and self.timer.isActive():
-#             self.timer.stop()
-#             logger.error("[INFO] Timer principal detenido.")
-#         if hasattr(self, 'timer_reloj') and isinstance(self.timer_reloj, QTimer) and self.timer_reloj.isActive():
-#             self.timer_reloj.stop()
-#             logger.error("[INFO] Timer reloj detenido.")
-    
-#         # 2. Detener Alarmas (Alto riesgo de fallo si no está bien implementado)
-#         if hasattr(self, 'sistema_alarmas') and self.sistema_alarmas:
-#             try:
-#                 # La función detener() es responsable de su propio hilo.               
-#                 self.sistema_alarmas.detener()
-#             except Exception as e:
-#                 # Este bloque de código ya no debería dar el error 'NoneType'
-#                 logger.error(f"[ERROR] Fallo al detener alarmas de forma limpia: {e}")            
-#             # Limpieza la referencia
-#             self.sistema_alarmas = None 
-#             logger.error("[INFO] Referencia a Sistema de Alarmas nulada.")
-    
-#         # 3. Detener Serial (Debe ser la última operación de I/O)
-#         if hasattr(self, 'serial') and self.serial:
-#             try:
-#                 # La función detener() es responsable de su propio hilo.
-#                 self.serial.detener() # Llama a la versión corregida que cierra el puerto primero
-#             except Exception as e:
-#                 logger.error(f"[ERROR] Fallo al detener serial: {e}")            
-#             # Limpieza defensiva de la referencia
-#             self.serial = None
-#             logger.error("[INFO] Referencia a Comunicación Serial nulada.")
-
-#         # 4. Pausa de seguridad final
-#         # Espera un momento para que los hilos terminen sus joins finales
-#         time.sleep(0.1) 
-#         logger.error("[INFO] Detención controlada finalizada.")
-
-
-#     def closeEvent(self, event):
-#         logger.error("[INFO] closeEvent → deteniendo todo...")        
-#         # Bloquea el hilo principal para terminar los procesos de los hilos
-#         self.detener_todo() 
-#         # Aumentamos la pausa a 1.0 segundo. Esto es fundamental para darle al sistema operativo
-#         # tiempo de liberar correctamente la memoria de los hilos C/C++ subyacentes (Qt/Serial).
-#         time.sleep(1.0) 
-        
-#         event.accept()
-#         QApplication.quit()
-
-
-
-#=========================================================================================================
-    # def _update_therapy_time_displays(self):
-    #     """
-    #     Actualiza los displays de tiempo en DialysisScreen si está visible.
-    #     También detiene automáticamente al finalizar.
-    #     """
-    #     # Solo si la pantalla de diálisis está activa
-    #     if not hasattr(self, 'dialysis_screen') or self.screen_stack.currentWidget() != self.dialysis_screen:
-    #         return
-
-    #     if not self.is_treatment_running or self.therapy_start_time is None:
-    #         self.dialysis_screen.elapsed_time_display.set_value("00:00")
-    #         self.dialysis_screen.remaining_time_display.set_value("00:00")
-    #         return
-
-    #     # Tiempo transcurrido
-    #     elapsed = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
-    #     elapsed_h = elapsed // 3600
-    #     elapsed_m = (elapsed % 3600) // 60
-    #     self.dialysis_screen.elapsed_time_display.set_value(f"{elapsed_h:02d}:{elapsed_m:02d}")
-
-    #     # Tiempo restante
-    #     remaining_sec = max(0, self.total_therapy_seconds - elapsed)
-    #     rem_h = remaining_sec // 3600
-    #     rem_m = (remaining_sec % 3600) // 60
-    #     self.dialysis_screen.remaining_time_display.set_value(f"{rem_h:02d}:{rem_m:02d}")
-
-    #     # Detener automáticamente al llegar a cero
-    #     if remaining_sec <= 0:
-    #         self.stop_treatment()
-    #         QMessageBox.information(self, "Terapia Finalizada", "Tiempo programado completado.")
-
     def _update_therapy_time_displays(self):
         if not hasattr(self, 'dialysis_screen') or self.screen_stack.currentWidget() != self.dialysis_screen:
             return
 
-        if not self.is_treatment_running or self.therapy_start_time is None:
-            self.dialysis_screen.elapsed_time_display.set_value("00:00")
-            self.dialysis_screen.remaining_time_display.set_value("00:00")
+        # if not self.is_treatment_running or self.therapy_start_time is None:
+        #     self.dialysis_screen.elapsed_time_display.set_value("00:00")
+        #     self.dialysis_screen.remaining_time_display.set_value("00:00")
+        #     return
+        
+        if not self.is_treatment_running:
+            self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
+            self.dialysis_screen.remaining_time_display.set_value("00:00:00")
             return
 
         # Calcular segundos transcurridos
-        elapsed_sec = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
+        # elapsed_sec = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
+        current_elapsed_seconds = self.accumulated_therapy_seconds
+        if self.last_resume_time is not None:
+            current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
+            current_elapsed_seconds += current_segment_seconds
+
 
         # Transcurrido
-        elapsed_h = elapsed_sec // 3600
-        elapsed_m = (elapsed_sec % 3600) // 60
-        elapsed_s = elapsed_sec % 60   # ← AGREGADO: segundos reales
-        elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"  # Muestra segundos también
+        # elapsed_h = elapsed_sec // 3600
+        # elapsed_m = (elapsed_sec % 3600) // 60
+        # elapsed_s = elapsed_sec % 60   # ← AGREGADO: segundos reales
+        # elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"  # Muestra segundos también
+
+        # self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
+
+        elapsed_h = current_elapsed_seconds // 3600
+        elapsed_m = (current_elapsed_seconds % 3600) // 60
+        elapsed_s = current_elapsed_seconds % 60
+        elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"
 
         self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
 
+
+
         # Restante
-        remaining_sec = max(0, self.total_therapy_seconds - elapsed_sec)
+        # remaining_sec = max(0, self.total_therapy_seconds - elapsed_sec)
+        # rem_h = remaining_sec // 3600
+        # rem_m = (remaining_sec % 3600) // 60
+        # rem_s = remaining_sec % 60
+        # remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
+
+        # self.dialysis_screen.remaining_time_display.set_value(remaining_str)
+
+        remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
         rem_h = remaining_sec // 3600
         rem_m = (remaining_sec % 3600) // 60
         rem_s = remaining_sec % 60
@@ -2054,18 +1422,20 @@ class HemodialysisHMI(QMainWindow):
         # Detener al llegar a cero
         if remaining_sec <= 0:
             self.stop_treatment()
-            QMessageBox.information(self, "Finalizado", "Tiempo de terapia completado.")
+            show_dark_message(self, "Información", "Tiempo de terapia completado", QMessageBox.information)
 
+        # if remaining_sec <= 0:
+        #     self.stop_treatment()
+        #     # QMessageBox.information(self, "Finalizado", "Tiempo de terapia completado.")
+        #     show_dark_message(self, "Información","Tiempo de terapia completado",QMessageBox.information)
 
-    # def start_dialysis_session(self, patient_id: str):
-    #     # ... (Carga de datos del paciente, configuración de la máquina, etc.) ...
-
-    #     # Inicializar el logger CSV cuando la sesión comienza
-    #     log_dir = "dialysis_logs" # Directorio para guardar los logs
-    #     self.csv_logger = CsvLogger(log_dir, patient_id, self.parameter_mapping)
+    def closeEvent(self, event):
+        self.end_dialysis_session() # Llama a la función que cierra el logger
         
-    #     self.log_timer.start() # Iniciar el temporizador para el registro
-
-  
-
+        super().closeEvent(event)
+        logger.error("[INFO] closeEvent → performing shutdown...")
+        self.shutdown()
+        time.sleep(1.0)  # Give OS time to release resources
+        event.accept()
+        QApplication.quit()
 

@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator, QIntValidator
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.keyboard_modal import KeyboardDialog
+from gui.components.ui_components import show_dark_message
 from core.variables_map import VARIABLES
 
 
@@ -257,7 +258,10 @@ class PatientConfigScreen(QWidget):
         """
         Abre el diálogo táctil adecuado según el modo.
         Actualiza widget y current_values al aceptar.
+
         """
+
+
         current_text = input_widget.text().strip() if hasattr(input_widget, 'text') else ""
 
         title_map = {
@@ -291,8 +295,10 @@ class PatientConfigScreen(QWidget):
                 if state == QDoubleValidator.Acceptable or state == QIntValidator.Acceptable:
                     input_widget.setText(new_value_as_str) # Actualiza el QLineEdit con la string válida
                 else:
-                    QMessageBox.warning(self, "Valor Inválido", 
-                                        f"El valor '{new_value_as_str}' no es válido para este campo o está incompleto.")
+                    show_dark_message(self, "Valor Inválido", 
+                                        f"El valor '{new_value_as_str}' no es válido para este campo o está incompleto.",
+                                        icon=QMessageBox.warning)
+                    
                     return # No actualizar si la validación falla
             else: # No hay validador, aceptar el texto directamente
                 input_widget.setText(new_value_as_str) # Asegurarse de que sea string para QLineEdit
@@ -325,14 +331,15 @@ class PatientConfigScreen(QWidget):
             self.btn_save.setEnabled(True)
 
     def _open_new_patient_dialog(self):
+
         dialog = KeyboardDialog(self, title="Ingrese ID del nuevo paciente")
         if dialog.exec():
             pid = dialog.get_value().strip().upper()
             if not pid:
-                QMessageBox.warning(self, "Error", "El ID no puede estar vacío.")
+                show_dark_message(self, "Error", "El ID no puede estar vacío.",icon=QMessageBox.warning)
                 return
             if pid in self.patients_db:
-                QMessageBox.warning(self, "Error", f"El ID '{pid}' ya existe.")
+                show_dark_message(self, "Error", f"El ID '{pid}' ya existe.",icon=QMessageBox.warning)
                 return
 
             new_patient = {
@@ -378,8 +385,7 @@ class PatientConfigScreen(QWidget):
                 widget.setText(str(value) if value is not None else "")
 
     def _save_patient(self):
-        data = {}
-    
+        data = {}              
         # Mapeo de campos del formulario a claves del mapa VARIABLES (0x08)
         field_to_tag = {
             "patient_id": "patient_id",
@@ -416,16 +422,16 @@ class PatientConfigScreen(QWidget):
 
         # Validaciones
         if not data.get("patient_id"):
-            QMessageBox.warning(self, "Error", "ID del paciente es obligatorio.")
+            show_dark_message(self, "Error", "ID del paciente es obligatorio.",icon=QMessageBox.warning)
             return
         if not data.get("patient_name"):
-            QMessageBox.warning(self, "Error", "El nombre es obligatorio.")
+            show_dark_message(self, "Error", "El nombre es obligatorio.",icon=QMessageBox.warning)
             return
         if data.get("patient_gender") not in [1, 2]:
-            QMessageBox.warning(self, "Error", "Seleccione el género.")
+            show_dark_message(self, "Error", "Seleccione el género.",icon=QMessageBox.warning)
             return
 
-        # Validaciones de rango usando el mapa (muy buena práctica)
+        # Validaciones de rango usando el mapa
         patient_map = VARIABLES.get(0x08, {})
         for var in patient_map.values():
             tag = var["tag"]
@@ -435,9 +441,12 @@ class PatientConfigScreen(QWidget):
                     min_val, max_val = limites
                     value = data[tag]
                     if isinstance(value, (int, float)) and not (min_val <= value <= max_val):
-                        QMessageBox.warning(self, "Error",
-                                            f"{var['label']} debe estar entre {min_val} y {max_val} {var['unit']}.")
-                        return
+                        show_dark_message(
+                            self,
+                            "Error",
+                            f"{var['label']} debe estar entre {min_val} y {max_val} {var['unit']}.",
+                            icon=QMessageBox.Warning
+                        )
 
         # Calcular UF goal
         pre_weight = data.get("patient_pre_weight_kg", 0.0)  # nota: clave corregida
@@ -457,9 +466,15 @@ class PatientConfigScreen(QWidget):
                 print(f"[SAVE] Guardado {tag} = {data[tag]}")  # Debug
 
         self._refresh_patient_list()
-        QMessageBox.information(self, "Guardado",
-                                f"Paciente '{data.get('patient_name', '—')}' guardado correctamente.\n"
-                                f"Objetivo de Ultrafiltración: {data['uf_goal_liters']:.2f} L")
+        
+        show_dark_message(
+            self,
+            "Guardado Exitoso",
+            f"Paciente '{data.get('patient_name', '—')}' guardado correctamente."
+            f"Objetivo de Ultrafiltración: {data['uf_goal_liters']:.2f} L",
+            icon=QMessageBox.Information
+            )
+
 
         if hasattr(self.parent_window, 'dialysis_screen'):
             self.parent_window.dialysis_screen.update_values(self.current_values)

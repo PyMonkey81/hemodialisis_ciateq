@@ -125,22 +125,64 @@ if __name__ == "__main__":
         )
 
     app = QApplication(sys.argv)
+    
     app.setStyle("Fusion")
+    # Justo después de app = QApplication(sys.argv)
+    from PySide6.QtGui import QPalette, QColor
+
+    dark_palette = QPalette()
+    dark_palette.setColor(QPalette.Window, QColor("#1e1e1e"))
+    dark_palette.setColor(QPalette.WindowText, Qt.white)
+    dark_palette.setColor(QPalette.Base, QColor("#2b2b2b"))
+    dark_palette.setColor(QPalette.AlternateBase, QColor("#353535"))
+    dark_palette.setColor(QPalette.ToolTipBase, QColor("#2b2b2b"))
+    dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+    dark_palette.setColor(QPalette.Text, Qt.white)
+    dark_palette.setColor(QPalette.Button, QColor("#4CAF50"))
+    dark_palette.setColor(QPalette.ButtonText, Qt.white)
+    app.setPalette(dark_palette)
 
     # Global font (optional but recommended for consistency)
-    base_font = QFont("Arial Narrow", 14)
+    base_font = QFont("Arial Narrow", 12)
     base_font.setWeight(QFont.Bold)
     app.setFont(base_font)
 
     # Global style (uncomment and adjust as needed)
-    app.setStyleSheet(HemodialysisHMI.QMESSAGEBOX_GLOBAL_STYLE +
-        
-        """
+    app.setStyleSheet("""
         * {
             font-family: "Arial Narrow", "Helvetica Condensed", Arial, sans-serif;
             font-weight: bold;
             color: #000000;
         }
+        QMessageBox {
+            background-color: #2b2b2b;
+            color: #ffffff;        
+        }
+        QMessageBox QLabel {
+            color: #ffffff;
+            background-color: #2b2b2b;
+            padding: 12px;
+            min-width: 350px;
+        }
+        QMessageBox QPushButton {
+            background-color: #4CAF50;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 24px;
+            min-width: 100px;
+            font-weight: bold;
+        }
+        QMessageBox QPushButton:hover {
+            background-color: #45a049;
+        }
+        QMessageBox QPushButton:pressed {
+            background-color: #3e8e41;
+        }
+        QMessageBox QDialogButtonBox {  /* Para alinear botones si es necesario */
+            background-color: transparent;
+        }                      
+    
         QLabel { font-size: 18px; }
         QLineEdit, ClickableLineEdit {
             font-family: Consolas, "Courier New", monospace;
