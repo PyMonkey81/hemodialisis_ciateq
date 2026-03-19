@@ -124,7 +124,7 @@ class HemodialysisHMI(QMainWindow):
             "dialyPurgePumpStartButt": "Purga de aire",
             "patternCondSensor": "Cond. Sensor patrón",
             "patternTempSensor": "Temp. Sensor patrón",
-            "patternCondRaw": "Cond. Sensor raw",
+            "patternCondRaw": "Cond. Sensor raw", # Valor de conductividad 
         }
 
 
@@ -633,8 +633,14 @@ class HemodialysisHMI(QMainWindow):
 
 
     def stop_treatment(self):   
-        self._write_boolean_command("dialyModeOperationStop", True)
-        self._write_boolean_command("dialyModeOperationStart", False)        
+
+        try:            
+            self._write_boolean_command("dialyModeOperationStop", True)
+            self._write_boolean_command("dialyModeOperationStart", False)                   
+            logger.info("Comandos de cebado enviados: Start=True, Stop=False")
+        except Exception as e:
+            logger.error(f"Error enviando comandos de paro de terapia: {e}")
+
 
         # if self.ktv_timer.isActive():
         #     self.ktv_timer.stop()
@@ -667,6 +673,8 @@ class HemodialysisHMI(QMainWindow):
             self.treatment_logger.close()
             self.treatment_logger = None
             logger.info("Sesión detenida - logger cerrado")
+
+
             
 
     def end_dialysis_session(self):
@@ -1404,6 +1412,7 @@ class HemodialysisHMI(QMainWindow):
         # Detener al llegar a cero
         if remaining_sec <= 0:
             self.stop_treatment()
+            self.stop_priming()
             # show_dark_message(self, "Información", "Tiempo de terapia completado", QMessageBox.information)
     
 

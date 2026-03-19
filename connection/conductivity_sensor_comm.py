@@ -164,12 +164,12 @@ class PatternConductivity(QObject):
                     if is_read:
                         cond_raw, cond_comp, temp = self._parse_response(raw_response)
                         if cond_comp is not None:
-                            conductivity_comp = cond_comp * 1000 # conversion a milisiemens 
+                            conductivity_comp = cond_comp 
                             self.data_received.emit("patternCondSensor", conductivity_comp)
                             print(f"[Emit] patternCondSensor → {cond_comp:.4f} mS/cm")
 
                         if cond_raw is not None:
-                            conductivity_raw = cond_raw * 1000
+                            conductivity_raw = cond_raw * 1000  # conversion a milisiemens 
                             self.data_received.emit("patternCondRaw", conductivity_raw)
                             print(f"[Emit] patternCondRaw → {cond_raw:.8f} mS/cm")  # más decimales para raw
 
