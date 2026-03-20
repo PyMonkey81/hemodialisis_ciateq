@@ -69,6 +69,10 @@ class HemodialysisHMI(QMainWindow):
     BTN_DISABLED_STYLE = """
         QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px; }
     """
+    BTN_ACTIVE_STYLE = """
+        QPushButton { background: #3b82f6; color: white; font-weight: bold; font-size: 30px; border-radius: 10px; border: 2px solid #60a5fa;}
+        QPushButton:pressed { background: #1e40af; }
+    """
     QMESSAGEBOX_GLOBAL_STYLE = """
         QMessageBox {
             background-color: #2b2b2b; /* Fondo de la ventana oscuro */
@@ -129,6 +133,13 @@ class HemodialysisHMI(QMainWindow):
 
 
         self._last_priming_status = -1
+        self._treatment_map = {
+            0: "Hemodiálisis",
+            1: "Hemodiafiltración",
+            2: "Ultrafiltración",
+            3: "Limpieza"
+        }
+
         # Control de tiempo de terapia (global)
         self.therapy_start_time = None
         self.total_therapy_seconds = 0
@@ -245,7 +256,8 @@ class HemodialysisHMI(QMainWindow):
         )
 
         # # Therapy & service screens        
-        self.dialysis_screen = DialysisScreen(parent=self)
+        self.dialysis_screen = DialysisScreen(parent=self, values_dict=self.current_values)
+        self.dialysis_screen.request_boolean_change.connect(self._write_boolean_command)
 
         self.treatment_mode_screen = TreatmentModeScreen(parent=self, values_dict=self.current_values)
         self.treatment_mode_screen.request_setpoint_change.connect(self._write_setpoint)  # Conexión: conecta la señal de pantalla con el método de escritura serial en main
@@ -303,6 +315,7 @@ class HemodialysisHMI(QMainWindow):
 
         # Header update timers
         self.refresh_alarms_label()
+        self.refresh_treatment_selected()
         # self.update_connection_status() # Revisar si no causa conflicto
 
         self.main_timer = QTimer(self)
@@ -360,32 +373,37 @@ class HemodialysisHMI(QMainWindow):
 
         header_layout = QHBoxLayout(header_container)
         header_layout.setContentsMargins(10, 10, 10, 10)
-        header_layout.setSpacing(20)
+        header_layout.setSpacing(5)
 
         # Connection / alarm status
         self.status_label = QLabel("Conectado")
-        self.status_label.setFixedSize(260, 80)
+        self.status_label.setFixedSize(260, 120)
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("""
-               QLabel { background: #10b981; color: #ffffff; padding: 10px; border-radius: 12px;
-                       font-weight: bold; font-size: 22px; }
+               QLabel { background: #10b981; color: #ffffff; 
+                       font-weight: bold; font-size: 25px; }
         """)
         header_layout.addWidget(self.status_label)
 
-        self.active_alarms_label = QLabel("")
-        self.current_screen_label = QLabel("Desconectado")
+        self.active_alarms_label = QLabel("") 
+        self.treatment_mode_selected = QLabel("")
+        # self.current_screen_label = QLabel("Desconectado")
         self.current_process_status = QLabel("Esperando conexión")
         self.date_time_label = QLabel("25/12/2025  14:37:22")
-
-        for lbl in [self.active_alarms_label, self.current_screen_label, self.current_process_status, self.date_time_label]:
-            lbl.setFixedSize(400, 80)
+        
+        for lbl in [self.active_alarms_label,  self.current_process_status, self.treatment_mode_selected, self.date_time_label]:
+            lbl.setFixedSize(330, 120)
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setStyleSheet("""
-                QLabel { color: #0f172a; background: transparent;
+                QLabel { color: #ffffff; background: #1E4573;
                          font-weight: bold; font-size: 25px; }
             """)
             header_layout.addWidget(lbl)
-
+        # lbl.setStyleSheet("""
+        #         QLabel { color: #0f172a; background: transparent;
+        #                  font-weight: bold; font-size: 25px; }
+        #     """)
+        
         header_layout.addStretch()
 
         # Logos
@@ -691,7 +709,8 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Sesión detenida - logger cerrado")
 
 
-            
+    def pause_treatment(self):
+        pass
 
     def end_dialysis_session(self):
         if self.csv_logger:
@@ -712,49 +731,55 @@ class HemodialysisHMI(QMainWindow):
         # self.update_current_screen_label("Inicio", "#0A0A0A")
         self.right_content.hide()
         self.left_content.hide()
+        self._highlight_active_nav_button("Inicio")
 
 
     def show_dialysis_screen(self):
         self.screen_stack.setCurrentWidget(self.dialysis_screen)
         if hasattr(self.dialysis_screen, "update_values"):
             self.dialysis_screen.update_values(self.current_values)
-        self.update_current_screen_label("Diálisis", "#0f172a")
+        # self.update_current_screen_label("Diálisis", "#ffffff")
         self.left_content.show()
         self.right_content.show()
         self.navigation_buttons["Inicio"].setEnabled(True)        
         self.navigation_buttons["Inicio"].setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE) # NUEVO: usa el estilo de clase
+        self._highlight_active_nav_button("Diálisis")
 
     def show_treatment_mode_screen(self):
         self.screen_stack.setCurrentWidget(self.treatment_mode_screen)
-        self.update_current_screen_label("Modo de\n Tratamiento", "#0f172a")
+        # self.update_current_screen_label("Modo de\n Tratamiento", "#ffffff")
         self.left_content.show()
         self.right_content.show()
+        self._highlight_active_nav_button("Tipo de\nTratamiento") 
 
     def show_cleaning_screen(self):
         self.screen_stack.setCurrentWidget(self.cleaning_screen)
         if hasattr(self.cleaning_screen, "update_values"):
             self.cleaning_screen.update_values(self.current_values)
-        self.update_current_screen_label("Limpieza", "#0f172a")
+        # self.update_current_screen_label("Limpieza", "#ffffff")
         self.left_content.show()
         self.right_content.show()
+        self._highlight_active_nav_button("Limpieza")
 
     def show_options_screen(self):
         self.screen_stack.setCurrentWidget(self.options_screen)
-        self.update_current_screen_label("Configuración", "#0f172a")
+        # self.update_current_screen_label("Configuración", "#ffffff")
         self.left_content.show()
         self.right_content.show()
+        self._highlight_active_nav_button("Servicio")
 
     def show_alarms_screen(self):
         self.screen_stack.setCurrentWidget(self.alarms_screen)
-        self.update_current_screen_label("Alarmas", "#0f172a")
+        # self.update_current_screen_label("Alarmas", "#ffffff")
         self.left_content.show()
         self.right_content.show()
+        self._highlight_active_nav_button("Alarmas")
 
     def show_manual_mode_screen(self):
         self.screen_stack.setCurrentWidget(self.manual_mode_screen)
         if hasattr(self.manual_mode_screen, "update_values"):
             self.manual_mode_screen.update_values(self.current_values)
-        self.update_current_screen_label("Modo\n Manual", "#0f172a")
+        # self.update_current_screen_label("Modo\n Manual", "#ffffff")
         self.left_content.show()
         self.right_content.show()
 
@@ -762,7 +787,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.test_panel_screen)
         if hasattr(self.test_panel_screen, "update_values"):
             self.test_panel_screen.update_values(self.current_values)
-        self.update_current_screen_label("Panel de\n Pruebas", "#0f172a")
+        # self.update_current_screen_label("Panel de\n Pruebas", "#ffffff")
         self.left_content.show()
         self.right_content.show()
 
@@ -770,19 +795,19 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.calibration_screen)
         if hasattr(self.calibration_screen, "update_values"):
             self.calibration_screen.update_values(self.current_values)
-        self.update_current_screen_label("Calibración", "#0f172a")
+        # self.update_current_screen_label("Calibración", "#ffffff")
         self.left_content.show()
         self.right_content.show()
 
     def show_network_config_screen(self):
         self.screen_stack.setCurrentWidget(self.network_config_screen)
-        self.update_current_screen_label("Configuración\n de Red", "#0f172a")
+        # self.update_current_screen_label("Configuración\n de Red", "#ffffff")
         self.left_content.show()
         self.right_content.show()
 
     def show_real_time_var_screen(self):
         self.screen_stack.setCurrentWidget(self.real_time_var)
-        self.update_current_screen_label("Monitor de\n Variables", "#0f172a")
+        # self.update_current_screen_label("Monitor de\n Variables", "#ffffff")
         self.left_content.show()
         self.right_content.show()
 
@@ -790,7 +815,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.patient_config_screen)
         if hasattr(self.patient_config_screen, "update_values"):
             self.patient_config_screen.update_values(self.current_values)
-        self.update_current_screen_label("Paciente", "#0f172a")
+        # self.update_current_screen_label("Paciente", "#ffffff")
         self.left_content.show()
         self.right_content.show()
 
@@ -798,7 +823,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.therapy_config_screen)
         if hasattr(self.therapy_config_screen, "update_values"):
             self.therapy_config_screen.update_values(self.current_values)
-        self.update_current_screen_label("Terapia", "#0f172a")
+        # self.update_current_screen_label("Terapia", "#ffffff")
         self.left_content.show()
         self.right_content.show()
 
@@ -829,7 +854,8 @@ class HemodialysisHMI(QMainWindow):
             
             # Restaurar etiquetas del encabezado a su estado por defecto
             self.refresh_alarms_label() # Mostrará alarmas reales o vacío
-            self.update_current_screen_label("Inicio", "#0f172a") # Establece "Inicio"
+            self.refresh_treatment_selected() # Mostrar tratamiento seleccionado actualmente - default Hemodiálisis
+            # self.update_current_screen_label("Inicio", "#ffffff") # Establece "Inicio"
             self.current_process_status.setText("Máquina conectada") 
 
             # Asegurar que se muestre la pantalla de inicio y se oculten los paneles laterales
@@ -851,8 +877,8 @@ class HemodialysisHMI(QMainWindow):
                     btn.setStyleSheet(self.BTN_DISABLED_STYLE)
             
             # Actualizar etiquetas del encabezado para reflejar la desconexión
-            self.active_alarms_label.setText("") # Borra las alarmas
-            self.current_screen_label.setText("Desconectado")
+            self.active_alarms_label.setText("") 
+            # self.current_screen_label.setText("Desconectado")
             self.current_process_status.setText("Esperando conexión")
 
             # Siempre volver a la pantalla de inicio y ocultar paneles laterales cuando se desconecta
@@ -870,20 +896,17 @@ class HemodialysisHMI(QMainWindow):
                 screen.update_values(self.current_values)  # Llama al update en cada pantalla
 
 
-    def update_current_screen_label(self, text, text_color="#0f172a"):
-        self.current_screen_label.setText(text)
-        self.current_screen_label.setStyleSheet(
-            f"color: {text_color}; background: transparent; font-weight: bold; font-size: 30px;"
-        )
+    # def update_current_screen_label(self, text, text_color="#ffffff"):
+    #     self.current_screen_label.setText(text)
+    #     self.current_screen_label.setStyleSheet(
+    #         f"color: {text_color}; background: #1E4573; font-weight: bold; font-size: 30px;"
+    #     )
 
     def update_date_time(self):
         from datetime import datetime
         self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))    
 
     def update_value(self, tag: str, value: float):
-        
-        
-
         # Actualizar valor centralizado
         self.current_values[tag] = value
 
@@ -904,6 +927,11 @@ class HemodialysisHMI(QMainWindow):
         }
         if tag in gauge_mapping:
             gauge_mapping[tag].setValue(value)
+
+        # Manejo del tratamiento seleccionado
+        if tag == "treatmentModeSelection":
+            self.refresh_treatment_selected() # Llama al nuevo método para actualizar el label
+
 
         # ────────────────────────────────────────────────────────────────
         # Manejo de primingProcessStatus (estado del proceso)
@@ -1032,8 +1060,7 @@ class HemodialysisHMI(QMainWindow):
         nav_btn = self.navigation_buttons.get("Iniciar\nTratamiento")
         if nav_btn:                      
             if nav_btn.isEnabled() != can_start:
-                nav_btn.setEnabled(can_start)                        
-          # --- Modificado para usar los estilos de clase ---
+                nav_btn.setEnabled(can_start)                                  
                 nav_btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE if can_start else self.BTN_DISABLED_STYLE) 
 
         # =========================================================
@@ -1114,9 +1141,22 @@ class HemodialysisHMI(QMainWindow):
 
             self.active_alarms_label.setText(display_text)
             self.active_alarms_label.setStyleSheet(f"""
-                QLabel {{ background: {bg_color}; color: #ffffff; padding: 10px;
-                          border-radius: 12px; font-weight: bold; font-size: 20px; }}
+                QLabel {{ background: {bg_color}; color: #ffffff; 
+                          font-weight: bold; font-size: 20px; }}
             """)
+
+    def refresh_treatment_selected(self):
+        # Obtener el valor actual del tag
+        mode_code = int(self.current_values.get("treatmentModeSelection", 0)) # Por defecto 0 (Hemodiálisis)
+        # Traducir el código a texto usando el mapa
+        mode_text = self._treatment_map.get(mode_code, "Desconocido") # "Desconocido" si el código no está en el mapa
+        # Actualizar el QLabel en el encabezado
+        self.treatment_mode_selected.setText(mode_text.upper()) # Mostrar en mayúsculas para consistencia
+        self.treatment_mode_selected.setStyleSheet(f"""
+            QLabel {{ color: #ffffff; background: #1E4573;
+                     font-weight: bold; font-size: 25px; }}
+        """)
+
 
     def handle_alarm(self, idx, active, value, name, level, limit):
         was_active = name in [a[0] for a in self.active_alarms]
@@ -1219,15 +1259,16 @@ class HemodialysisHMI(QMainWindow):
 
         self.status_label.setText(text)
         self.status_label.setStyleSheet(f"""
-            QLabel {{ background: {color}; color: #ffffff; padding: 10px;
-                      border-radius: 12px; font-weight: bold; font-size: 22px; }}
+            QLabel {{ background: {color}; color: #ffffff; 
+                      font-weight: bold; font-size: 22px; }}
         """)
 
         self._is_connected_prev_state = current_is_connected
         current_widget = self.screen_stack.currentWidget()
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
-
+        
+        self.refresh_alarms_label()
         self.update_led_bar_state()
 
     def log_event(self, event, value, timestamp):
@@ -1430,6 +1471,27 @@ class HemodialysisHMI(QMainWindow):
             self.stop_priming()
             # show_dark_message(self, "Información", "Tiempo de terapia completado", QMessageBox.information)
     
+    # ... otros métodos ...
+
+    def _highlight_active_nav_button(self, active_button_text: str):
+        """
+        Resalta el botón de navegación correspondiente a la pantalla activa
+        y restablece el estilo de los demás botones.
+        """
+        # Lista de textos de botones que representan pantallas navegables
+        screen_buttons = ["Inicio", "Diálisis", "Tipo de\nTratamiento", "Limpieza", "Servicio", "Alarmas"]
+
+        for btn_text, btn in self.navigation_buttons.items():
+            # Solo procesamos botones de pantalla que estén habilitados
+            if btn_text in screen_buttons and btn.isEnabled():
+                if btn_text == active_button_text:
+                    btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
+                else:
+                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
+            # Los botones "Iniciar Tratamiento" y "Salir" se mantienen con sus estilos
+            # específicos definidos en _set_ui_connected_state o directamente.
+            # Los botones deshabilitados mantienen su BTN_DISABLED_STYLE.
+
 
     def closeEvent(self, event):
         self.end_dialysis_session() # Llama a la función que cierra el logger

@@ -3,7 +3,7 @@
 # gui/therapy/dialysis_screen.py
 import logging
 from PySide6.QtWidgets import *
-from PySide6.QtCore import Qt, QDateTime, QTimer
+from PySide6.QtCore import Qt, QDateTime, QTimer, Signal
 from PySide6.QtGui import QColor, QFont
 import pyqtgraph as pg
 import numpy as np
@@ -77,6 +77,9 @@ class SimpleValueDisplay(QWidget):
 
 
 class DialysisScreen(QWidget):
+    
+    request_boolean_change = Signal(str, bool)
+
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent  # Referencia a HemodialysisHMI
@@ -143,11 +146,13 @@ class DialysisScreen(QWidget):
 
         button_config = [
             ("INICIAR", "#39ec21", self.parent_window.start_treatment),
+            ("PAUSAR", "#FFC400", self.parent_window.pause_treatment),
             ("DETENER", "#DD2911", self.parent_window.stop_treatment),
             ("MENÚ TERAPIA", "#0f172a", self.show_therapy_config),
             ("MENÚ PACIENTE", "#0f172a", self.show_patient_config),
+            ("APLICAR BOLO", "#0f172a", self.bolus_apply_dosage),
             ("INICIAR CEBADO", "#0f172a", self.parent_window.start_priming),
-            ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming),
+            ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming),            
         ]
 
         for i, (text, color, callback) in enumerate(button_config):
@@ -160,8 +165,8 @@ class DialysisScreen(QWidget):
             """)
             btn.clicked.connect(callback)
             self.action_buttons[text] = btn # === Guardar el botón en el diccionario ===
-            row = i // 2
-            col = i % 2
+            row = i // 3
+            col = i % 3
             buttons_layout.addWidget(btn, row, col)            
      
         layout.addWidget(buttons_container, 4, 0, 4, 1)
@@ -179,7 +184,7 @@ class DialysisScreen(QWidget):
         self.blood_flow_display        = SimpleValueDisplay("Qb", "0", "mL/min")
         self.dialysate_flow_display    = SimpleValueDisplay("Qd", "0", "mL/min")
         self.temperature_display       = SimpleValueDisplay("Temp.", "0.0", "°C")
-        self.sodium_display            = SimpleValueDisplay("Na+", "0.0", "mmol/L")
+        self.bolus_display             = SimpleValueDisplay("Bolo", "0.0", "ml")
         self.ktv_display               = SimpleValueDisplay("Kt/V", "0.00", "")
 
         
@@ -196,7 +201,7 @@ class DialysisScreen(QWidget):
         layout.addWidget(self.blood_flow_display,        4, 1)
         layout.addWidget(self.uf_rate_display,           4, 2)
         layout.addWidget(self.dialysate_flow_display,    5, 1)
-        layout.addWidget(self.sodium_display,            5, 2)
+        layout.addWidget(self.bolus_display,             5, 2)
         layout.addWidget(self.temperature_display,       6, 1)
         layout.addWidget(self.ktv_display,               6, 2)
         layout.addWidget(QWidget(), 7, 1)
@@ -233,10 +238,11 @@ class DialysisScreen(QWidget):
             "dialyCondVariableData":     self.conductivity_display,
             "bloodSpeedVariableData":    self.blood_flow_display,
             "dialyFlowControlOutput":    self.dialysate_flow_display,
-            "dialyTempVariableData":    self.temperature_display,
+            "dialyTempVariableData":     self.temperature_display,
             "ultraFilterPumpSpeed":      self.uf_rate_display,
             "UF Total":                  self.uf_total_display,
-            "uf_goal_liters":            self.uf_target_display,            
+            "uf_goal_liters":            self.uf_target_display,
+            "heparineBolusQuantity":     self.bolus_display,           
         }
 
 
@@ -249,8 +255,15 @@ class DialysisScreen(QWidget):
         self.ktv_display.set_value(ktv_value)
 
 
+    def bolus_apply_dosage(self):
+        try:
+            self.on_user_boolean_command("heparinApplyBolusDose",True)
+            self.on_user_boolean_command("heparinApplyBolusDose",False)
+        except Exception as e:
+            pass 
 
-   
+    def on_user_boolean_command(self, tag, state):
+        self.request_boolean_change.emit(tag, state)
     
     def set_start_stop_buttons_state(self, enable_start: bool, enable_stop: bool):
         """
