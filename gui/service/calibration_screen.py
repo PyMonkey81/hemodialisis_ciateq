@@ -26,6 +26,8 @@ class CalibrationScreen(QWidget):
     conductivity, and temperature controllers.
     """
     valueChanged = Signal(str, float)
+    request_setpoint_change = Signal(str, float)
+    request_boolean_change = Signal(str, bool)
 
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
@@ -275,33 +277,12 @@ class CalibrationScreen(QWidget):
         """Enable/disable a control loop."""
         if enabled:
             print(f"[CONTROL] Habilitado {tag}")
-            self._write_boolean_command(tag, True)
+            self.on_user_boolean_command(tag, True)
         else:
             print(f"[CONTROL] Deshabilitado {tag}")
-            self._write_boolean_command(tag, False)
+            self.on_user_boolean_command(tag, False)
 
-    def _write_boolean_command(self, tag: str, state: bool):
-        """Send boolean command to controller."""
-        print(f"[COMMAND] Usuario cambió {tag} a {state}")
 
-        address = -1
-        if 0x01 in VARIABLES:
-            for var_id, info in VARIABLES[0x01].items():
-                if info.get("tag") == tag:
-                    address = var_id
-                    break
-
-        if address != -1:
-            if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                if self.parent_window.serial_comm.is_connected:
-                    self.parent_window.serial_comm.write_boolean(address, state)
-                    print(f" → Enviado: Addr {address} = {state}")
-                else:
-                    print(" → Serial no conectado")
-            else:
-                print("[INFO] Serial no disponible")
-        else:
-            print(f" → Tag '{tag}' no encontrado")
 
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str = "Ingrese valor"):
         """Open numeric keypad for setpoint entry."""
@@ -312,66 +293,13 @@ class CalibrationScreen(QWidget):
             new_value = dialog.get_value()
             if new_value is not None:
                 input_widget.setText(str(new_value))
-                self._write_setpoint(tag, input_widget)
+                self.on_user_input_setpoint(tag, input_widget)
                 if hasattr(input_widget, 'clearFocus'):
                     input_widget.clearFocus()
                 self.setFocus()
 
 
-    def _write_setpoint(self, tag: str, input_widget: ClickableLineEdit):
-        """Safe setpoint write from input widget."""
-        try:
-            text = input_widget.text().replace(',', '.')
-            if not text:
-                current_value = self.current_values.get(tag, 0.0)
-                input_widget.setText(f"{current_value:.1f}")
-                return
 
-            value = float(text)
-            print(f"[SETPOINT] Intentando escribir {tag} = {value}")
-
-            target_group = target_id = -1
-            found = False
-
-            for group_key, vars_group in VARIABLES.items():
-                if isinstance(vars_group, dict):
-                    for var_id, info in vars_group.items():
-                        if info.get("tag") == tag:
-                            target_group = group_key
-                            target_id = var_id
-                            found = True
-                            break
-                if found:
-                    break
-
-            if found and target_group != -1 and target_id != -1:
-                if VARIABLES[target_group][target_id].get("rw", False):
-                    print(f" → Variable '{tag}' encontrada: Grupo {hex(target_group)}, ID {target_id}")
-                    if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                        if self.parent_window.serial_comm.is_connected:
-                            self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            self.valueChanged.emit(tag, float(value))   
-                            self.current_values[tag] = float(value)
-
-                        else:
-                            print(f"[INFO] Serial no conectado. {tag}: Grupo {hex(target_group)}, ID {target_id}, Valor {value}")
-                    else:
-                        print(f"[INFO] No serial_comm disponible en parent. {tag}={value}")
-                else:
-                    print(f"[ADVERTENCIA] Variable '{tag}' no escribible (rw=False).")
-            else:
-                print(f"[ERROR] Tag '{tag}' no encontrado en variables_map.")
-
-            input_widget.clearFocus()  # quita el focus del control 
-            self.setFocus()
-
-        except ValueError:
-            print(f"[ERROR] Valor numérico inválido en input para {tag}: {input_widget.text()}")
-            current_value = self.current_values.get(tag, 0.0)
-            input_widget.setText(f"{current_value:.1f}")
-            input_widget.clearFocus()
-        except Exception as e:
-            print(f"[ERROR] Error al escribir setpoint {tag}: {e}")
 
     def update_values(self, new_values: dict):
         """Update displayed values, plots, and inputs from shared dictionary."""
@@ -466,6 +394,19 @@ class CalibrationScreen(QWidget):
         """Update read-only label."""
         value = self.current_values.get(tag, 0.0)
         label.setText(f"{value:.{precision}f}")
+
+    def on_user_boolean_command(self, tag, state):
+        self.request_boolean_change.emit(tag, state)
+
+    def on_user_input_setpoint(self, tag: str, input_widget: ClickableLineEdit):
+        text = input_widget.text().replace(',', '.')
+        if not text:
+            current_value = self.current_values.get(tag, 0.0)
+            input_widget.setText(f"{current_value:.1f}")
+            return
+        value = float(text) 
+        
+        self.request_setpoint_change.emit(tag, value) 
 
     def showEvent(self, event):
         super().showEvent(event)

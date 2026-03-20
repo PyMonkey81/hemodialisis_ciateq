@@ -246,21 +246,38 @@ class HemodialysisHMI(QMainWindow):
 
         # # Therapy & service screens        
         self.dialysis_screen = DialysisScreen(parent=self)
-        self.treatment_mode_screen = TreatmentModeScreen(parent=self) 
-        self.cleaning_screen = CleaningScreen(parent=self)
+
+        self.treatment_mode_screen = TreatmentModeScreen(parent=self, values_dict=self.current_values)
+        self.treatment_mode_screen.request_setpoint_change.connect(self._write_setpoint)  # Conexión: conecta la señal de pantalla con el método de escritura serial en main
+
+        self.cleaning_screen = CleaningScreen(parent=self, values_dict=self.current_values)
+        self.cleaning_screen.request_setpoint_change.connect(self._write_setpoint)
+        self.cleaning_screen.request_boolean_change.connect(self._write_boolean_command)
+
         self.options_screen = OptionsScreen(parent=self)
         
         # # Service sub-screens
-        self.manual_mode_screen = ManualModeScreen(parent=self)
-        self.test_panel_screen = TestPanelScreen(parent=self)
-        self.calibration_screen = CalibrationScreen(parent=self)
+        self.manual_mode_screen = ManualModeScreen(parent=self, values_dict=self.current_values)
+        self.manual_mode_screen.request_setpoint_change.connect(self._write_setpoint)
+        self.manual_mode_screen.request_boolean_change.connect(self._write_boolean_command)
+
+        self.test_panel_screen = TestPanelScreen(parent=self, values_dict=self.current_values)
+        self.test_panel_screen.request_setpoint_change.connect(self._write_setpoint) # Conexión: conecta la señal de pantalla con el método de escritura serial en main        
+
+        self.calibration_screen = CalibrationScreen(parent=self, values_dict=self.current_values)
+        self.calibration_screen.request_setpoint_change.connect(self._write_setpoint)
+        self.calibration_screen.request_boolean_change.connect(self._write_boolean_command)
+
         self.network_config_screen = NetworkConfigScreen(parent=self)
         
 
         # # Therapy sub-screens
         self.patient_config_screen = PatientConfigScreen(parent=self)
-        self.therapy_config_screen = TherapyConfigScreen(parent=self)
-     
+        
+        self.therapy_config_screen = TherapyConfigScreen(parent=self, values_dict=self.current_values) # intanciar pasando los valores actuales (values_dict)
+        self.therapy_config_screen.request_setpoint_change.connect(self._write_setpoint) # Conexión: conecta la señal de pantalla con el método de escritura serial en main        
+        self.therapy_config_screen.valueChanged.connect(self.handleGlobalValueChange) # Actualizar UI localmente
+
         
         # Add all screens to stacked widget (order matters)
         self.screen_stack.addWidget(self._main_screen)                 # 0 - Home
@@ -280,7 +297,6 @@ class HemodialysisHMI(QMainWindow):
 
         self.therapy_config_screen.valueChanged.connect(self.handleGlobalValueChange)
         self.calibration_screen.valueChanged.connect(self.handleGlobalValueChange)
-        self.test_panel_screen.valueChanged.connect(self.handleGlobalValueChange)
         self.manual_mode_screen.valueChanged.connect(self.handleGlobalValueChange)
 
         self._update_priming_controls_state() 
@@ -1288,8 +1304,7 @@ class HemodialysisHMI(QMainWindow):
         Envía un comando booleano (True/False) al controlador vía serial.
         """
         if not self.serial_comm or not self.serial_comm.is_connected:
-            logger.warning(f"No se puede enviar comando booleano '{tag} = {state}': serial no conectado")
-            # Opcional: QMessageBox.warning(self, "Error", "Serial no conectado")
+            logger.warning(f"No se puede enviar comando booleano '{tag} = {state}': serial no conectado")            
             return
 
         try:
@@ -1322,7 +1337,7 @@ class HemodialysisHMI(QMainWindow):
         """
         if not self.serial_comm or not self.serial_comm.is_connected:
             logger.warning(f"No se puede escribir setpoint '{tag} = {value}': serial no conectado")
-            return  # Opcional: mostrar QMessageBox si quieres feedback visual
+            return  # Opcional: mostrar QMessageBox para feedback visual
 
         try:
             logger.debug(f"Buscando tag para escritura: {tag} = {value}")

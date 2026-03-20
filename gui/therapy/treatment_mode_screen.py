@@ -3,7 +3,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QButtonGroup, QFrame, QSizePolicy
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 import time
 
 from gui.components.ui_components import ClickableLineEdit  # si lo usas en otro lado, sino quítalo
@@ -14,10 +14,12 @@ class TreatmentModeScreen(QWidget):
     Pantalla exclusiva para seleccionar el tipo de tratamiento:
     Hemodiálisis, Hemodiafiltración, Ultrafiltración, Limpieza
     """
-    def __init__(self, parent=None):
+    request_setpoint_change = Signal(str, float)
+
+    def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
-        self.values = parent.current_values if parent else {}
+        self.current_values = values_dict if values_dict is not None else {}  
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # self.setFixedSize(1536, 726)  # mismo tamaño que la otra para consistencia
@@ -134,43 +136,18 @@ class TreatmentModeScreen(QWidget):
     def _on_mode_toggled(self, button: QPushButton, tag: str, value: float, checked: bool):
         if checked:
             button.setStyleSheet(self.style_mode_checked)
-            self._write_setpoint(tag, value)
+            self.on_user_input_setpoint(tag, value)
             self.pending_mode_change_deadline = time.monotonic() + 0.7
             self.commanded_mode_value = value
         else:
             button.setStyleSheet(self.style_mode_unchecked)
 
-    def _write_setpoint(self, tag: str, value: float):
-        """Método simplificado para escribir setpoint (cópialo o herédalo si prefieres)"""
-        try:
-            print(f"[SETPOINT] Escribiendo {tag} = {value}")
 
-            if not self.parent_window or not hasattr(self.parent_window, 'serial_comm'):
-                print("[INFO] No hay serial_comm disponible")
-                return
-
-            found = False
-            for group_key, vars_in_group in VARIABLES.items():
-                for var_id, info in vars_in_group.items():
-                    if info.get("tag") == tag:
-                        if info.get("rw", False):
-                            self.parent_window.serial_comm.write_double(group_key, var_id, value)
-                            self.parent_window.current_values[tag] = value 
-                            found = True
-                        break
-                if found:
-                    break
-
-            if not found:
-                print(f"[ERROR] Tag '{tag}' no encontrado o no escribible")
-
-        except Exception as e:
-            print(f"[ERROR] Fallo al escribir setpoint: {e}")
 
     def update_values(self, new_values: dict):
         """Sincroniza botones con el valor real recibido"""
-        self.values = new_values
-        current_mode = self.values.get("treatmentModeSelection", -1.0)
+        self.current_values = new_values
+        current_mode = self.current_values.get("treatmentModeSelection", -1.0)
         now = time.monotonic()
 
         if self.pending_mode_change_deadline is not None:
@@ -199,3 +176,9 @@ class TreatmentModeScreen(QWidget):
                 btn.setChecked(should_be_checked)
                 btn.setStyleSheet(self.style_mode_checked if should_be_checked else self.style_mode_unchecked)
                 btn.blockSignals(False)
+
+    def on_user_boolean_command(self, tag, state):
+        self.request_boolean_change.emit(tag, state)
+
+    def on_user_input_setpoint(self, tag, value):
+        self.request_setpoint_change.emit(tag, value)

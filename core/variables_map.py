@@ -70,8 +70,8 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Nivel Alto Tanque Agua", "NIVEL AGUA ALTO", "amarillo", "dialyTankHiLevelSwitch"),        # 50
                 ("Nivel Cámara Deaereación", "NIVEL DEAERAC.", "amarillo", "dialyDeaerChamLevSwitch"),      # 51
                 ("Disponible para Función Digital 11", "RESERVA 11", "cian", "availableBoolVariable7"),     # 52
-                ("Start Dialysis", "ESTADO START", "cian", "dialyModeOperationStart"),                      # 53
-                ("Stop Dialysis", "ESTADO STOP", "cian", "dialyModeOperationStop"),                         # 54
+                ("Start Operation mode", "ESTADO START", "cian", "dialyModeOperationStart"),                      # 53
+                ("Stop Operation mode", "ESTADO STOP", "cian", "dialyModeOperationStop"),                         # 54
                 ("Disponible para Función Digital 14", "RESERVA 14", "cian", "availableBoolVariable10"),    # 55
                 ("Disponible para Función Digital 15", "RESERVA 15", "cian", "availableBoolVariable11"),    # 56
                 ("Disponible para Función Digital 16", "RESERVA 16", "cian", "availableBoolVariable12"),    # 57

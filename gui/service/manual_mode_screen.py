@@ -73,6 +73,9 @@ class ValveCard(QFrame):
 
 class ManualModeScreen(QWidget):
     valueChanged = Signal(str, float)
+    request_setpoint_change = Signal(str, float)
+    request_boolean_change = Signal(str, bool)
+
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
@@ -233,16 +236,16 @@ class ManualModeScreen(QWidget):
         self.btn_rev = PushbuttonEvent("REV", self.control_area)
         self.btn_rev.setFixedSize(80, 70) # Mantengo tu tamaño original
         self.btn_rev.setStyleSheet(button_style)        
-        self.btn_rev.pressed.connect(lambda: self._write_boolean_command("bloodPumpREVButton", True))
-        self.btn_rev.released.connect(lambda: self._write_boolean_command("bloodPumpREVButton", False))
+        self.btn_rev.pressed.connect(lambda: self.on_user_boolean_command("bloodPumpREVButton", True))
+        self.btn_rev.released.connect(lambda: self.on_user_boolean_command("bloodPumpREVButton", False))
         grid.addWidget(self.btn_rev, 0, 7, 1, 1)
 
         # 5. Btn FWD sangre (Der)
         btn_fwd = PushbuttonEvent("FWD", self.control_area)
         btn_fwd.setFixedSize(80, 70)
         btn_fwd.setStyleSheet(button_style)
-        btn_fwd.pressed.connect(lambda: self._write_boolean_command("bloodPumpFWDButton", True))
-        btn_fwd.released.connect(lambda: self._write_boolean_command("bloodPumpFWDButton", False))
+        btn_fwd.pressed.connect(lambda: self.on_user_boolean_command("bloodPumpFWDButton", True))
+        btn_fwd.released.connect(lambda: self.on_user_boolean_command("bloodPumpFWDButton", False))
         grid.addWidget(btn_fwd, 0, 8, 1, 1)
 
         # 6. Flujo Sangre (Der)
@@ -279,8 +282,8 @@ class ManualModeScreen(QWidget):
         btn_bolus_apply = QPushButton("Aplicar\nbolo", self.control_area)
         btn_bolus_apply.setFixedSize(120, 70)
         btn_bolus_apply.setStyleSheet(button_style)
-        btn_bolus_apply.pressed.connect(lambda: self.parent_window._write_boolean_command("heparinApplyBolusDose", True))
-        btn_bolus_apply.released.connect(lambda: self.parent_window._write_boolean_command("heparinApplyBolusDose", False))
+        btn_bolus_apply.pressed.connect(lambda: self.parent_window.on_user_boolean_command("heparinApplyBolusDose", True))
+        btn_bolus_apply.released.connect(lambda: self.parent_window.on_user_boolean_command("heparinApplyBolusDose", False))
         grid.addWidget(btn_bolus_apply, 1, 2, 1, 2, alignment=Qt.AlignCenter)
 
         # 10. Tiempo operación b. sangre (Der)
@@ -303,7 +306,7 @@ class ManualModeScreen(QWidget):
         )        
         grid.addWidget(self.remaining_blood_time_label, 1, 11, 1, 2)
         self.local_timer_states["blood_pump"]["remaining_lbl"] = self.remaining_blood_time_label.time_display
-        # self.local_timer_states["blood_pump"]["elapsed_lbl"] = self.blood_pump_time_input.time_display
+        
 
 
         # ==============================================================================
@@ -348,32 +351,32 @@ class ManualModeScreen(QWidget):
         btn_heparin_home = PushbuttonEvent("HOME", self.control_area)
         btn_heparin_home.setFixedSize(80, 70)
         btn_heparin_home.setStyleSheet(button_style)
-        btn_heparin_home.pressed.connect(lambda: self._write_boolean_command("heparinePumpHomePosition", True))
-        btn_heparin_home.released.connect(lambda: self._write_boolean_command("heparinePumpHomePosition", False))
+        btn_heparin_home.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", True))
+        btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
         grid.addWidget(btn_heparin_home, 2, 7, 1, 1)
 
         # 15. Btn REV heparina
         btn_rev_hep = PushbuttonEvent("REV", self.control_area)
         btn_rev_hep.setFixedSize(80, 70)
         btn_rev_hep.setStyleSheet(button_style)
-        btn_rev_hep.pressed.connect(lambda: self._write_boolean_command("heparinePumpREVButton", True))
-        btn_rev_hep.released.connect(lambda: self._write_boolean_command("heparinePumpREVButton", False))
+        btn_rev_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", True))
+        btn_rev_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", False))
         grid.addWidget(btn_rev_hep, 2, 8, 1, 1)
 
         # 16. Btn PAUSE heparina
         btn_pause_hep = PushbuttonEvent("PAUSE", self.control_area)
         btn_pause_hep.setFixedSize(80, 70)
         btn_pause_hep.setStyleSheet(button_style)
-        btn_pause_hep.pressed.connect(lambda: self._write_boolean_command("heparineOperPauseResume", True))
-        btn_pause_hep.released.connect(lambda: self._write_boolean_command("heparineOperPauseResume", False))
+        btn_pause_hep.pressed.connect(lambda: self.on_user_boolean_command("heparineOperPauseResume", True))
+        btn_pause_hep.released.connect(lambda: self.on_user_boolean_command("heparineOperPauseResume", False))
         grid.addWidget(btn_pause_hep, 2, 9, 1, 1)
 
         # 17. Btn FWD heparina
         btn_fwd_hep = PushbuttonEvent("FWD", self.control_area)
         btn_fwd_hep.setFixedSize(80, 70)
         btn_fwd_hep.setStyleSheet(button_style)
-        btn_fwd_hep.pressed.connect(lambda: self._write_boolean_command("heparinePumpFWDButton", True))
-        btn_fwd_hep.released.connect(lambda: self._write_boolean_command("heparinePumpFWDButton", False))
+        btn_fwd_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", True))
+        btn_fwd_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", False))
         grid.addWidget(btn_fwd_hep, 2, 10, 1, 1)
 
         # 18. Heparina (Acumulado)
@@ -656,7 +659,7 @@ class ManualModeScreen(QWidget):
 
         self.operation_mode_toggle = ToggleSwitch(width=70, height=30, active_color="#facc15", parent=mode_frame)
         self.operation_mode_toggle.toggled.connect(
-            lambda checked: self._write_boolean_command("dialyCircuitElementsOpSel", checked)
+            lambda checked: self.on_user_boolean_command("dialyCircuitElementsOpSel", checked)
         )
 
         mode_layout.addStretch()
@@ -688,7 +691,7 @@ class ManualModeScreen(QWidget):
             card = ValveCard(code, desc, parent=valves_grid_widget)
             self.valve_cards[tag] = card
             valves_grid.addWidget(card, r, c)
-            card.toggle.toggled.connect(lambda checked, t=tag: self._write_boolean_command(t, checked))
+            card.toggle.toggled.connect(lambda checked, t=tag: self.on_user_boolean_command(t, checked))
         valves_layout.addWidget(valves_grid_widget)
         
         #======================================================================================
@@ -1002,17 +1005,17 @@ class ManualModeScreen(QWidget):
             toggle_widget.blockSignals(True)
             toggle_widget.setChecked(new_state)
             toggle_widget.blockSignals(False)
+
     def _sync_toggle(self, toggle_widget, value: float):
         """Sincroniza el toggle solo si NO está en hold-off"""    
-        # Buscamos el tag asociado a este toggle (necesitamos mapear toggle → tag)
-        # Puedes crear un diccionario de mapeo toggle → tag_start (o tag que indica ON)
+    
         tag = self._get_start_tag_for_toggle(toggle_widget)
         if not tag:
-            return  # no mapeado, no hacemos nada
+            return  
 
         current_ms = QDateTime.currentMSecsSinceEpoch()
     
-        # Si hay hold-off activo → ignoramos la sincronización desde PLC
+        # Si hay hold-off activo → ignoramos la sincronización 
         if tag in self.toggle_hold_off and current_ms < self.toggle_hold_off[tag]:
             logger.debug(f"Hold-off activo para {tag} → ignorando sync")
             return
@@ -1062,8 +1065,7 @@ class ManualModeScreen(QWidget):
         minutes = int(self.current_values.get(tag_minutes, 0)) if tag_minutes else 0
         new_hh_mm = f"{hours:02d}:{minutes:02d}"
 
-        # Solo actualizar si es DIFERENTE al que ya muestra el widget
-        # Esto evita el parpadeo cuando el valor ya es correcto
+   
         current_display = time_widget.get_time_value() if hasattr(time_widget, 'get_time_value') else time_widget.text()
 
         if current_display != new_hh_mm:
@@ -1074,13 +1076,12 @@ class ManualModeScreen(QWidget):
 
             logger.debug(f"Actualizado T. Terapia a {new_hh_mm} desde serial")
 
-        # Actualizar duración local SOLO si NO está en modo timer activo
-        # (evita resetear la configuración del usuario mientras corre el countdown)
+
         if timer_id and timer_id in self.local_timer_states:
             state = self.local_timer_states[timer_id]
             if not state["active"]:
                 total_ms = (hours * 3600 + minutes * 60) * 1000
-                if state["duration_ms"] != total_ms:  # solo si cambió
+                if state["duration_ms"] != total_ms: 
                     state["duration_ms"] = total_ms
                     if state["remaining_lbl"]:
                         state["remaining_lbl"].setText(new_hh_mm)
@@ -1104,8 +1105,8 @@ class ManualModeScreen(QWidget):
         """Handle dual start/stop pump control (REQ-SW-005)."""
         if enabled:
             logger.info(f"Starting pump: {start_tag}")
-            self._write_boolean_command(start_tag, True)
-            self._write_boolean_command(stop_tag, False)
+            self.on_user_boolean_command(start_tag, True)
+            self.on_user_boolean_command(stop_tag, False)
             self.toggle_hold_off[start_tag] = QDateTime.currentMSecsSinceEpoch() + 7000
             if timer_id and timer_id in self.local_timer_states:
                 state = self.local_timer_states[timer_id]
@@ -1118,8 +1119,8 @@ class ManualModeScreen(QWidget):
                     logger.info(f"Timer '{timer_id}' started for {total_ms} ms")
         else:
             logger.info(f"Stopping pump: {start_tag}")
-            self._write_boolean_command(stop_tag, True)
-            self._write_boolean_command(start_tag, False)
+            self.on_user_boolean_command(stop_tag, True)
+            self.on_user_boolean_command(start_tag, False)
             self.toggle_hold_off[start_tag] = QDateTime.currentMSecsSinceEpoch() + 7000
             if timer_id and timer_id in self.local_timer_states:
                 state = self.local_timer_states[timer_id]
@@ -1136,78 +1137,13 @@ class ManualModeScreen(QWidget):
                         state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
                     logger.info(f"Timer '{timer_id}' stopped")
 
-    def _write_boolean_command(self, tag: str, state: bool):
-        logger.info(f"Command: {tag} → {state}")
-        address = -1
-        for group_key, vars_group in VARIABLES.items():
-            if isinstance(vars_group, dict):
-                for var_id, info in vars_group.items():
-                    if info.get("tag") == tag:
-                        address = var_id
-                        break
-            if address != -1:
-                break
-
-        if address != -1:
-            if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                if self.parent_window.serial_comm.is_connected:
-                    self.parent_window.serial_comm.write_boolean(address, state)
-
-                    self.current_values[tag] = int(state)
-                    logger.info(f"Boolean command sent: Addr {address} = {state}")
-                else:
-                    logger.warning("Serial not connected")
-                    QMessageBox.warning(self, "Error", "Serial no conectado")
-            else:
-                logger.warning("Serial communication not available")
-        else:
-            logger.error(f"Tag '{tag}' not found in VARIABLES map")
-
-    def _write_setpoint(self, tag: str, value: float):
-        try:
-            logger.info(f"Writing setpoint {tag} = {value}")
-            target_group = target_id = -1
-            found = False
-            for group_key, vars_group in VARIABLES.items():
-                if isinstance(vars_group, dict):
-                    for var_id, info in vars_group.items():
-                        if info.get("tag") == tag:
-                            target_group = group_key
-                            target_id = var_id
-                            found = True
-                            break
-                if found:
-                    break
-
-            if found and target_group != -1 and target_id != -1:
-                if VARIABLES[target_group][target_id].get("rw", False):
-                    if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                        if self.parent_window.serial_comm.is_connected:
-                            self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            
-                            self.valueChanged.emit(tag, float(value)) 
-                            self.current_values[tag] = float(value)
- 
-                            logger.info(f"Setpoint written: {tag} = {value}")
-                        else:
-                            logger.warning("Serial not connected")
-                    else:
-                        logger.warning("Serial communication not available")
-                else:
-                    logger.warning(f"Tag '{tag}' is read-only")
-            else:
-                logger.error(f"Tag '{tag}' not found in variables map")
-
-        except Exception as e:
-            logger.error(f"Critical error writing setpoint '{tag}': {e}")
 
     def open_numpad(self, tag: str, input_widget, title: str = "Ingrese valor"):
         if isinstance(input_widget, LabeledParameterWidget):
-            # current_text = str(input_widget.get_value())
             current_text = ""
         elif hasattr(input_widget, 'text'):
             current_text = ""
-            # current_text = input_widget.text()
+
         else:
             current_text = ""
 
@@ -1220,7 +1156,7 @@ class ManualModeScreen(QWidget):
                     input_widget.set_value(new_value)
                 elif hasattr(input_widget, 'setText'):
                     input_widget.setText(str(new_value))                
-                self._write_setpoint(tag, new_value)                
+                self.on_user_input_setpoint(tag, new_value)                
                 self.write_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 3000
                 if hasattr(input_widget, 'clearFocus'):
                     input_widget.clearFocus()
@@ -1238,8 +1174,7 @@ class ManualModeScreen(QWidget):
             current_text = "00:00"
 
         dialog = TimeNumpadDialog(self, initial_hh_mm="", title=title)
-        # dialog = TimeNumpadDialog(self, initial_hh_mm=current_text, title=title)
-
+      
         if dialog.exec():
             hours, minutes = dialog.get_hours_minutes()
             if hours is not None and minutes is not None:
@@ -1253,9 +1188,9 @@ class ManualModeScreen(QWidget):
                 hold_duration = 3000
 
                 if tag_hours and tag_minutes:
-                    self._write_setpoint(tag_hours, float(hours))
+                    self.on_user_input_setpoint(tag_hours, float(hours))
                     self.write_hold_off[tag_hours] = current_ms + hold_duration
-                    self._write_setpoint(tag_minutes, float(minutes))
+                    self.on_user_input_setpoint(tag_minutes, float(minutes))
                     self.write_hold_off[tag_minutes] = current_ms + hold_duration
 
                 if timer_id and timer_id in self.local_timer_states:
@@ -1273,8 +1208,8 @@ class ManualModeScreen(QWidget):
             timer.stop()
 
         self.local_timer_states[timer_key]["active"] = False
-        self._write_boolean_command(stop_tag, True)
-        self._write_boolean_command(start_tag, False)
+        self.on_user_boolean_command(stop_tag, True)
+        self.on_user_boolean_command(start_tag, False)
 
         toggle_widget.blockSignals(True)
         toggle_widget.setChecked(False)
@@ -1317,9 +1252,7 @@ class ManualModeScreen(QWidget):
                 # Actualizar labels si existen
                 if state["elapsed_lbl"]:
                     state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
-                    # Opcional: cambiar color cuando está activo
-                    # state["elapsed_lbl"].setStyleSheet("color: #22c55e;")  # verde activo
-
+                    
                 if state["remaining_lbl"]:
                     state["remaining_lbl"].setText(self._format_ms_to_hh_mm(remaining_ms))
                     if remaining_ms < 30000:  # menos de 30 segundos → alerta
@@ -1332,7 +1265,7 @@ class ManualModeScreen(QWidget):
                     # Forzar parada (por si el timer falló por algún motivo)
                     self._stop_pump_generic(
                         timer_id,
-                        f"{timer_id.replace('_', '')}StopButton",  # ajustar nombres reales
+                        f"{timer_id.replace('_', '')}StopButton",  # ajustar nombres 
                         f"{timer_id.replace('_', '')}StartButton",
                         getattr(self, f"{timer_id}_toggle", None)
                     )   
@@ -1361,8 +1294,7 @@ class ManualModeScreen(QWidget):
     def _handle_cb_flow_input(self):
         """Handle balance chamber flow input (ml/min → cycles)."""        
         try:
-            current_text = self.input_flow_cb.get_value()
-            # ANTES: current_text = self.input_flow_cb.text()
+            current_text = self.input_flow_cb.get_value()            
         except AttributeError:
             current_text = "0.0"
 
@@ -1374,16 +1306,15 @@ class ManualModeScreen(QWidget):
             
             try:
                 cycles = convertir_flujo_a_ciclos(new_value)
-                self._write_setpoint("balanceChamberSetTiming", cycles)
+                self.on_user_input_setpoint("balanceChamberSetTiming", cycles)
                 self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
             except Exception as e:
                 logger.error(f"Error converting CB flow: {e}")
 
     def _handle_uf_flow_input(self):
         """Handle UF flow input (L/h → ml/min)."""
-        # CORREGIDO: Usar text() 
-        try:
-            # current_text = self.lbl_input_indUF.text()
+        
+        try:            
             current_text = ""
         except AttributeError:
             current_text = "0.0"
@@ -1396,10 +1327,16 @@ class ManualModeScreen(QWidget):
 
             try:
                 ml_min = convertir_litros_h_a_ml_min(new_value)
-                self._write_setpoint("ultraFilterPumpSpeed", ml_min)
+                self.on_user_input_setpoint("ultraFilterPumpSpeed", ml_min)
                 self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
             except Exception as e:
                 logger.error(f"Error converting UF flow: {e}")
+
+    def on_user_boolean_command(self, tag, state):
+        self.request_boolean_change.emit(tag, state)
+
+    def on_user_input_setpoint(self, tag, value):
+        self.request_setpoint_change.emit(tag, value)
 
     def showEvent(self, event):
         super().showEvent(event)

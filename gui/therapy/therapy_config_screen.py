@@ -3,7 +3,7 @@
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QGridLayout, QFrame, 
+    QGridLayout, QFrame, QSizePolicy
 )
 from PySide6.QtCore import Qt, Signal, QDateTime
 
@@ -27,15 +27,15 @@ class TherapyConfigScreen(QWidget):
     Solo inputs de heparina, flujos, temperatura, conductividad, sodio y duración.
     """
     valueChanged = Signal(str, float)  # Emite el tag y el nuevo valor
-
+    request_setpoint_change = Signal(str, float)
+    
 
 
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
-        self.current_values = values_dict if values_dict is not None else {}
-
-        self.setFixedSize(1536, 726)   # cambiar por sizepolicy
+        self.current_values = values_dict if values_dict is not None else {}         
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet("background: #0f172a;")
         self.write_hold_off = {}
         self.setup_ui()
@@ -155,18 +155,18 @@ class TherapyConfigScreen(QWidget):
         params_layout.addWidget(self.input_conductivity, 1, 3)
 
         # Sodio (Na+)
-        lbl_sodium = QLabel("Sodio (Na+, mmol/L):")
-        lbl_sodium.setStyleSheet(label_style)
-        self.input_sodium = ClickableLineEdit("0.0")
-        self.input_sodium.setFixedSize(120, 50)
-        self.input_sodium.setAlignment(Qt.AlignCenter)
-        self.input_sodium.setStyleSheet(input_style)
-        self.input_sodium.setReadOnly(True)
-        self.input_sodium.clicked.connect(
-            lambda: self.open_numpad("sodiumConcentrationSetPoint", self.input_sodium, "Sodio (Na+)")
-        )
-        params_layout.addWidget(lbl_sodium, 2, 2, Qt.AlignRight)
-        params_layout.addWidget(self.input_sodium, 2, 3)
+        # lbl_sodium = QLabel("Sodio (Na+, mmol/L):")
+        # lbl_sodium.setStyleSheet(label_style)
+        # self.input_sodium = ClickableLineEdit("0.0")
+        # self.input_sodium.setFixedSize(120, 50)
+        # self.input_sodium.setAlignment(Qt.AlignCenter)
+        # self.input_sodium.setStyleSheet(input_style)
+        # self.input_sodium.setReadOnly(True)
+        # self.input_sodium.clicked.connect(
+        #     lambda: self.open_numpad("sodiumConcentrationSetPoint", self.input_sodium, "Sodio (Na+)")
+        # )
+        # params_layout.addWidget(lbl_sodium, 2, 2, Qt.AlignRight)
+        # params_layout.addWidget(self.input_sodium, 2, 3)
 
         # Duración de Terapia (hh:mm)
         lbl_duration = QLabel("T. Terapia (hh:mm)")
@@ -216,24 +216,22 @@ class TherapyConfigScreen(QWidget):
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
         current_text = input_widget.text()
         dialog = NumpadDialog(self, initial_value="", title=title)
-
         if dialog.exec():
             new_value = dialog.get_value()
             if new_value is not None:
-                input_widget.setText(str(new_value))                            
-                self._write_setpoint(tag, float(new_value))
-                               
+                float_val = float(new_value)
+                input_widget.setText(str(new_value))   
+                self.current_values[tag] = float_val                         
+                self.on_user_input_setpoint(tag, float_val)  #solicitar cambio en comunicación serial
                 if hasattr(input_widget, 'clearFocus'):
                     input_widget.clearFocus()
                 self.setFocus()
-
-
 
     def open_time_numpad(self, input_widget: ClickableLineEdit,
                          tag_hours: str = None, tag_minutes: str = None,
                          title: str = "Config. Tiempo"):
         current_text = input_widget.text()
-        # dialog = TimeNumpadDialog(self, initial_hh_mm=current_text, title=title)
+       
         dialog = TimeNumpadDialog(self, initial_hh_mm="", title=title)
 
         if dialog.exec():
@@ -243,61 +241,14 @@ class TherapyConfigScreen(QWidget):
                 input_widget.clearFocus()  
                 if tag_hours:
                     self.current_values[tag_hours] = float(hours)
-                    self.parent_window.current_values[tag_hours] = float(hours)
-                     
-
+                    self.parent_window.current_values[tag_hours] = float(hours)   
                 if tag_minutes:
                     self.current_values[tag_minutes] = float(minutes)
                     self.parent_window.current_values[tag_minutes] = float(minutes)
-
                 if tag_hours and tag_minutes:
-                    self._write_setpoint(tag_hours, float(hours))
-                    self._write_setpoint(tag_minutes, float(minutes))
-
-    def _write_setpoint(self, tag: str, value: float):
-        try:
-            print(f"[SETPOINT] Escribiendo {tag} = {value}")
-
-            target_group = -1
-            target_id = -1
-            found = False
-
-            for group_key, vars_in_group in VARIABLES.items():
-                if isinstance(vars_in_group, dict):
-                    for var_id, info in vars_in_group.items():
-                        if info.get("tag") == tag:
-                            target_group = group_key
-                            target_id = var_id
-                            found = True
-                            break
-                if found:
-                    break
-
-            if found and target_group != -1 and target_id != -1:
-                if VARIABLES[target_group][target_id].get("rw", False):
-                    if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                        if self.parent_window.serial_comm.is_connected:
-                            self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            self.valueChanged.emit(tag, float(value)) 
-                            self.current_values[tag] = float(value)
-
-                        else:
-                            print(f"[INFO] Serial no conectado. Skip: {tag}={value}")
-                    else:
-                        print(f"[INFO] No hay serial_comm. Skip: {tag}={value}")
-                else:
-                    print(f"[WARNING] Variable '{tag}' no escribible (rw=False)")
-            else:
-                print(f"[ERROR] Tag '{tag}' no encontrado en variables map")
-
-        except Exception as e:
-            print(f"[ERROR] Fallo al escribir setpoint '{tag}': {e}")
-
-    # def _update_input_display(self, widget: ClickableLineEdit, tag: str, precision: int = 1):
-    #     if not widget.hasFocus():
-    #         value = self.current_values.get(tag, 0.0)
-    #         widget.setText(f"{value:.{precision}f}")
-
+                    self.on_user_input_setpoint(tag_hours, float(hours))
+                    self.on_user_input_setpoint(tag_minutes, float(minutes))
+                  
 
     def _update_time_display(self, widget: ClickableLineEdit, tag_hours: str, tag_minutes: str):
         if not widget.hasFocus():
@@ -315,7 +266,7 @@ class TherapyConfigScreen(QWidget):
         self._update_input_display(self.input_blood_flow, "bloodFlowControlSetPoint")
         self._update_input_display(self.input_temperature, "dialyTempControlSetPoint")
         self._update_input_display(self.input_conductivity, "dialyCondControlSetPoint")
-        self._update_input_display(self.input_sodium, "sodiumConcentrationSetPoint")
+        # self._update_input_display(self.input_sodium, "sodiumConcentrationSetPoint")
 
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
         tag_cb = "balanceChamberSetTiming"
@@ -363,7 +314,7 @@ class TherapyConfigScreen(QWidget):
             try:
                 cycles_value = convertir_flujo_a_ciclos(flow_ml_min)                               
                 tag = "balanceChamberSetTiming"
-                self._write_setpoint(tag, cycles_value)                               
+                self.on_user_input_setpoint(tag, cycles_value)                               
                 self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
                 
             except Exception as e:
@@ -374,15 +325,16 @@ class TherapyConfigScreen(QWidget):
             self.setFocus()
             return
         val_to_show = 0.0
-        
         if isinstance(tag_or_value, str):
-            # Es un tag, lo buscamos en el diccionario
             val_to_show = self.current_values.get(tag_or_value, 0.0)
         elif isinstance(tag_or_value, (int, float)):
-            # Es un valor directo (útil si ya hiciste la conversión afuera)
             val_to_show = tag_or_value
 
         widget.setText(f"{val_to_show:.{precision}f}")
+
+    def on_user_input_setpoint(self, tag, value):
+        self.request_setpoint_change.emit(tag, value)
+
 
 
     def showEvent(self, event):

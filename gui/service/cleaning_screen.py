@@ -6,14 +6,15 @@ from PySide6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QPushButton,
     QProgressBar, QVBoxLayout, QHBoxLayout, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont
-
+import logging
 try:
     from core.variables_map import VARIABLES
 except ImportError:
     VARIABLES = {0x01: {}, 0x02: {}}
 
+logger = logging.getLogger(__name__)
 
 class CleaningScreen(QWidget):
     """
@@ -21,6 +22,8 @@ class CleaningScreen(QWidget):
     Manages the chemical disinfection cycle with progress bar,
     remaining time display, and conditional start button.
     """
+    request_setpoint_change = Signal(str, float)
+    request_boolean_change = Signal(str, bool)
 
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
@@ -173,7 +176,11 @@ class CleaningScreen(QWidget):
         self.cleaning_in_progress = True
 
         # Send command to controller
-        self._write_setpoint("treatmentModeSelection", 3.0)
+        try:
+            self.on_user_input_setpoint("treatmentModeSelection", 3.0)
+            self.on_user_boolean_command("dialyModeOperationStart",True)
+        except Exception as e:
+            logger.error(f"Error {e}")
 
         # Configure cycle duration (900 seconds = 15 minutes)
         self.total_time_seconds = 900
@@ -286,42 +293,8 @@ class CleaningScreen(QWidget):
                 self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold;")
 
 
-    def _write_setpoint(self, tag: str, value: float):
-        """Safe setpoint write to controller."""
-        try:
-            print(f"[SETPOINT] Intentando escribir {tag} = {value}")
+    def on_user_boolean_command(self, tag, state):
+        self.request_boolean_change.emit(tag, state)
 
-            target_group = target_id = -1
-            found = False
-
-            for group_key, vars_group in VARIABLES.items():
-                if isinstance(vars_group, dict):
-                    for var_id, info in vars_group.items():
-                        if info.get("tag") == tag:
-                            target_group = group_key
-                            target_id = var_id
-                            found = True
-                            break
-                if found:
-                    break
-
-            if found and target_group != -1 and target_id != -1:
-                if VARIABLES[target_group][target_id].get("rw", False):
-                    print(f" → Variable '{tag}' encontrada: Grupo {hex(target_group)}, ID {target_id}")
-                    if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                        if self.parent_window.serial_comm.is_connected:
-                            self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            self.parent_window.current_values[tag] = value 
-                        else:
-                            print(f"[INFO] Serial no conectado. {tag}: Grupo {hex(target_group)}, ID {target_id}, Valor {value}")
-                    else:
-                        print(f"[INFO] No serial_comm disponible en parent. {tag}={value}")
-                else:
-                    print(f"[ADVERTENCIA] Variable '{tag}' no escribible (rw=False).")
-            else:
-                print(f"[ERROR] Tag '{tag}' no encontrado en variables_map.")
-
-            self.setFocus()
-
-        except Exception as e:
-            print(f"[ERROR] Error al escribir setpoint {tag}: {e}")
+    def on_user_input_setpoint(self, tag, value):
+        self.request_setpoint_change.emit(tag, value)       

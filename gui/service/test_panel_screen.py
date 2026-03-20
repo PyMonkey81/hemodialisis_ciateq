@@ -34,12 +34,12 @@ class TestPanelScreen(QWidget):
     Allows manual control of key parameters, real-time monitoring of sensors,
     pressure/temperature/conductivity trends, and LED status indicators.
     """
-    valueChanged = Signal(str, float)
-
-    def __init__(self, parent=None):
+    request_setpoint_change = Signal(str, float)
+    
+    def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
-        self.current_values = parent.current_values if parent else {}
+        self.current_values = values_dict if values_dict is not None else {}  
 
         # Hold-off timers to prevent rapid setpoint writes (tag → timestamp ms)
         self.write_hold_off = {}
@@ -377,8 +377,6 @@ class TestPanelScreen(QWidget):
             else:
                 led.set_state("on" if value > 0 else "off")
 
-        # Removed the self.valve_cards sync loop as it's not applicable to TestPanelScreen UI structure.
-        # This section was likely copied mistakenly from ManualModeScreen.
 
         # ── Balance Chamber Flow (cycles ↔ ml/min) ──────────────────────────────
         if "balanceChamberSetTiming" not in self.write_hold_off or \
@@ -491,9 +489,7 @@ class TestPanelScreen(QWidget):
         """Handle balance chamber flow input (ml/min → cycles)."""        
         try:
             current_text = ""
-            # current_text = self.input_cb_flow.get_value()
 
-            # ANTES: current_text = self.input_flow_cb.text()
         except AttributeError:
             current_text = "0.0"
 
@@ -504,28 +500,25 @@ class TestPanelScreen(QWidget):
                 self.input_cb_flow.setText(str(new_value))            
             try:
                 cycles = convertir_flujo_a_ciclos(new_value)
-                self._write_setpoint("balanceChamberSetTiming", cycles)
+                self.on_user_input_setpoint("balanceChamberSetTiming", cycles)
                 self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
             except Exception as e:
                 logger.error(f"Error converting CB flow: {e}")
 
     def _handle_uf_flow_input(self):
         """Handle UF flow input (L/h → ml/min)."""
-        try:
-            # current_text = self.input_uf_flow.text()
-            current_text = ""
-            # current_text = self.input_uf_flow.get_value()
+        try:            
+            current_text = ""            
         except AttributeError:
             current_text = "0.0"
 
         dialog = NumpadDialog(self, initial_value=current_text, title="Flujo UF (L/h)")
         if dialog.exec():
-            new_value = dialog.get_value()
-            # self.input_uf_flow.setText(str(new_value))
+            new_value = dialog.get_value()           
             self.input_uf_flow.set_value(new_value)
             try:
                 ml_min = convertir_litros_h_a_ml_min(new_value)
-                self._write_setpoint("ultraFilterPumpSpeed", ml_min)
+                self.on_user_input_setpoint("ultraFilterPumpSpeed", ml_min)
                 self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
             except Exception as e:
                 logger.error(f"Error converting UF flow: {e}")
@@ -556,57 +549,20 @@ class TestPanelScreen(QWidget):
                     # Es un QLineEdit estándar
                     input_widget.setText(str(new_value))
             
-                self._write_setpoint(tag, new_value)
+                self.on_user_input_setpoint(tag, new_value)
                 
                 self.write_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 3000
                 if hasattr(input_widget, 'clearFocus'):
                     input_widget.clearFocus()
                 self.setFocus()
 
-
-    def _write_setpoint(self, tag: str, value: float):
-        """Write setpoint value to controller safely."""
-        try:
-            logger.info(f"Writing setpoint {tag} = {value}")
-
-            target_group = target_id = -1
-            found = False
-            for group_key, vars_group in VARIABLES.items():
-                if isinstance(vars_group, dict):
-                    for var_id, info in vars_group.items():
-                        if info.get("tag") == tag:
-                            target_group = group_key
-                            target_id = var_id
-                            found = True
-                            break
-                if found:
-                    break
-
-            if found and target_group != -1 and target_id != -1:
-                if VARIABLES[target_group][target_id].get("rw", False):
-                    if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                        if self.parent_window.serial_comm.is_connected:
-                            self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                            self.valueChanged.emit(tag, float(value))  
-                            self.current_values[tag] = float(value)
-                            logger.info(f"Setpoint written: {tag} = {value}")
-                        else:
-                            logger.warning("Serial not connected")
-                            QMessageBox.warning(self, "Comunicación", "Serial no conectado")
-                    else:
-                        logger.warning("Serial communication not available")
-                else:
-                    logger.warning(f"Tag '{tag}' is read-only")
-                    QMessageBox.warning(self, "Error", f"'{tag}' es de solo lectura")
-            else:
-                logger.error(f"Tag '{tag}' not found in variables map")
-                QMessageBox.critical(self, "Error", f"Tag '{tag}' no encontrado")
-
-
-        except Exception as e:
-            logger.error(f"Critical error writing setpoint '{tag}': {e}")
-            QMessageBox.critical(self, "Error Crítico", f"Error al escribir {tag}: {e}")
     
+    
+        
+
+    def on_user_input_setpoint(self, tag, value):
+        self.request_setpoint_change.emit(tag, value)
+        
     def showEvent(self, event):
         super().showEvent(event)
         self.setFocus()

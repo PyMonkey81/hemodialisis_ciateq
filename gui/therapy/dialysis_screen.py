@@ -163,16 +163,15 @@ class DialysisScreen(QWidget):
             row = i // 2
             col = i % 2
             buttons_layout.addWidget(btn, row, col)            
-        # Deshabilitar botones por defecto al iniciar
-        # self.update_buttons_state(0) # Estado 0 o inicial
+     
         layout.addWidget(buttons_container, 4, 0, 4, 1)
 
         # ── Displays de Parámetros ──
         self.arterial_pressure_display = SimpleValueDisplay("Art", "0", "mmHg", is_critical=True)
         self.venous_pressure_display   = SimpleValueDisplay("Ven", "0", "mmHg", is_critical=True)
         self.ptm_display               = SimpleValueDisplay("PTM", "0", "mmHg", is_critical=True)
-        self.remaining_time_display    = SimpleValueDisplay("T. Restante", "00:00", "h:min") # y aqui el tiempo restante 
-        self.elapsed_time_display      = SimpleValueDisplay("Tiempo UF", "00:00", "h:min")  # aqui actualizar el tiempo
+        self.remaining_time_display    = SimpleValueDisplay("T. Restante", "00:00", "h:min") 
+        self.elapsed_time_display      = SimpleValueDisplay("T. Terapia", "00:00", "h:min")  
         self.uf_target_display         = SimpleValueDisplay("UF Objetivo", "0.00", "L")
         self.uf_total_display          = SimpleValueDisplay("UF Total", "0.00", "L")
         self.uf_rate_display           = SimpleValueDisplay("Tasa UF", "0", "mL/h")
@@ -278,8 +277,7 @@ class DialysisScreen(QWidget):
             btn_iniciar.setStyleSheet(style_enabled if enable_start else style_disabled)
         
         if btn_detener:
-            btn_detener.setEnabled(enable_stop)
-            # Nota: Al botón detener le ponemos rojo si está activo
+            btn_detener.setEnabled(enable_stop)            
             btn_detener.setStyleSheet(style_stop_enabled if enable_stop else style_disabled)
 
 
@@ -292,77 +290,6 @@ class DialysisScreen(QWidget):
         """Navigate to patient configuration screen."""
         if self.parent_window and hasattr(self.parent_window, "show_patient_config_screen"):
             self.parent_window.show_patient_config_screen()
-
-    def _write_setpoint(self, tag: str, value: float):
-        """Send a setpoint value to the controller via serial."""
-        try:
-            print(f"[SETPOINT] Writing {tag} = {value}")
-
-            target_group = -1
-            target_id = -1
-            found = False
-
-            for group_key, vars_in_group in VARIABLES.items():
-                if isinstance(vars_in_group, dict):
-                    for var_id, info in vars_in_group.items():
-                        if info.get("tag") == tag:
-                            target_group = group_key
-                            target_id = var_id
-                            found = True
-                            break
-                if found:
-                    break
-
-            if found and target_group != -1 and target_id != -1:
-                if VARIABLES[target_group][target_id].get("rw", False):
-                    print(f" → Variable '{tag}' encontrada: Grupo {hex(target_group)}, ID {target_id}")
-                    # Usa el nuevo nombre de la instancia serial
-                    if self.parent_window and hasattr(self.parent_window, 'serial_comm') and self.parent_window.serial_comm:
-                        self.parent_window.serial_comm.write_double(target_group, target_id, value)
-                        self.parent_window.current_values[tag] = value 
-                    else:
-                        print(f"[INFO] Serial not connected or 'serial_comm' attribute missing in parent. Cannot write {tag}.")
-                else:
-                    print(f"[ADVERTENCIA] Variable '{tag}' no escribible (rw=False).")
-            else:
-                print(f"[ERROR] Tag '{tag}' no encontrado en variables_map.")
-
-            self.setFocus() # Esto no tiene efecto en un QWidget. Podrías quitarlo.
-
-        except Exception as e:
-            print(f"[ERROR] Failed to write setpoint {tag}: {e}")
-
-    def _write_boolean_command(self, tag: str, state: bool):
-        logger.info(f"Command: {tag} → {state}")
-        address = -1
-        for group_key, vars_group in VARIABLES.items():
-            if isinstance(vars_group, dict):
-                for var_id, info in vars_group.items():
-                    if info.get("tag") == tag:
-                        address = var_id
-                        break
-            if address != -1:
-                break
-
-        if address != -1:
-            if self.parent_window and hasattr(self.parent_window, 'serial_comm'):
-                if self.parent_window.serial_comm.is_connected:
-                    self.parent_window.serial_comm.write_boolean(address, state)
-                    
-                    logger.info(f"Boolean command sent: Addr {address} = {state}")
-                else:
-                    logger.warning("Serial not connected")
-                    QMessageBox.warning(self, "Error", "Serial no conectado")
-            else:
-                logger.warning("Serial communication not available")
-        else:
-            logger.error(f"Tag '{tag}' not found in VARIABLES map")
-
-    def _update_label_display(self, label, value, precision=1):
-        if isinstance(label, LabeledParameterWidget):
-            label.set_value(value)
-        elif hasattr(label, 'setText'):
-            label.setText(f"{value:.{precision}f}")
 
     def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
         if not tag_hours and not tag_minutes:
@@ -414,7 +341,7 @@ class DialysisScreen(QWidget):
         # Opcional: detener tratamiento automáticamente al llegar a 0
         if remaining_seconds <= 0 and self.is_treatment_running:
             self.stop_treatment()
-            QMessageBox.information(self, "Finalizado", "Tiempo de terapia completado.")
+            # QMessageBox.information(self, "Finalizado", "Tiempo de terapia completado.")
     
     def _format_ms_to_hh_mm(self, ms: int) -> str:
         total_seconds = max(0, ms // 1000)
@@ -447,6 +374,8 @@ class DialysisScreen(QWidget):
         if btn_stop_priming:
             btn_stop_priming.setEnabled(enable_stop_priming)
             btn_stop_priming.setStyleSheet(style_priming_enabled if enable_stop_priming else style_priming_disabled)
+    
+    
 
 
 
