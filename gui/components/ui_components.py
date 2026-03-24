@@ -1,8 +1,43 @@
 # gui/components/ui_components.py
-# Reusable UI helper components for Hemodialysis HMI
-# - Clickable read-only inputs for virtual keypad
-# - Labeled parameter displays (editable + units)
-# - Labeled time (HH:MM) inputs with numpad trigger
+"""
+Módulo que contiene componentes de interfaz de usuario (UI) reutilizables
+diseñados para la Interfaz Hombre-Máquina (HMI) de la máquina de hemodiálisis.
+
+Estos componentes están optimizados para la interacción táctil y la presentación
+clara de información, siguiendo un diseño cohesivo y las necesidades de seguridad
+y usabilidad de un dispositivo médico.
+
+Componentes principales:
+-------------------------
+- `ToggleBox`: Un widget compacto que combina una etiqueta y un `ToggleSwitch`
+  para activar/desactivar funciones con un solo toque.
+- `DoubleToggleBox`: Un widget que agrupa dos `ToggleBox`s para controlar
+  pares de funcionalidades relacionadas (ej. habilitar y modo de un lazo de control).
+- `ClickableLineEdit`: Una `QLineEdit` de solo lectura que emite una señal
+  `clicked` al ser tocada, ideal para disparar teclados virtuales (numpads, QWERTY).
+- `LabeledParameterWidget`: Un widget compuesto que muestra un parámetro
+  con su etiqueta, valor y unidades. Puede ser editable (dispara numpad)
+  o de solo lectura.
+- `LabeledTimeInput`: Un widget compuesto similar al anterior, pero especializado
+  para la entrada y visualización de tiempos en formato HH:MM, también con
+  capacidad de disparar un teclado numérico de tiempo.
+- `show_dark_message`: Una función auxiliar para mostrar mensajes modales
+  (`QMessageBox`) con un estilo oscuro consistente, útil para alertas y
+  confirmaciones.
+
+Funcionalidades clave:
+----------------------
+- **Optimización Táctil**: Todos los componentes de entrada están diseñados
+  para ser usados con teclados virtuales, mejorando la seguridad (no se usa
+  teclado físico) y la usabilidad en pantallas táctiles.
+- **Coherencia Visual**: Mantienen un estilo visual uniforme con la estética
+  general de la HMI.
+- **Reusabilidad**: Diseñados para ser fácilmente reutilizables en diferentes
+  pantallas de la aplicación, promoviendo la consistencia del código y la UI.
+- **Manejo de Señales**: Utilizan el sistema de señales/slots de PySide6 para
+  comunicarse con otros componentes y la lógica de la aplicación.
+"""
+
 
 from PySide6.QtWidgets import (
     QLineEdit, QWidget, QVBoxLayout, QLabel, QFrame, QHBoxLayout
@@ -13,6 +48,23 @@ from PySide6.QtWidgets import QMessageBox
 from gui.components.ToggleSwitch import ToggleSwitch
 
 class ToggleBox(QFrame):
+    """
+    Componente reutilizable que combina una etiqueta y un `ToggleSwitch`.
+
+    Ideal para presentar una opción de activación/desactivación de forma compacta
+    y visualmente atractiva. Muestra una etiqueta descriptiva y permite al usuario
+    cambiar el estado de un interruptor con un toque.
+
+    Args:
+        label (str): Texto descriptivo que se mostrará junto al interruptor.
+        parent (QWidget, optional): El widget padre de este componente.
+
+    Atributos:
+        toggle (ToggleSwitch): La instancia del interruptor `ToggleSwitch` que
+                               gestiona el estado ON/OFF. Se puede acceder a sus
+                               señales (`toggled`) para conectar la lógica de la aplicación.
+    """
+
     def __init__(self, label, parent=None):
         super().__init__(parent)
 
@@ -42,6 +94,21 @@ class ToggleBox(QFrame):
 
 
 class DoubleToggleBox(QFrame):
+    """
+    Componente reutilizable que agrupa dos `ToggleSwitch`s con sus respectivas etiquetas.
+
+    Útil para controlar dos funcionalidades relacionadas en un espacio compacto,
+    como la habilitación de un lazo de control y su modo de operación (manual/automático).
+
+    Args:
+        label1_text (str): Texto para la etiqueta del primer interruptor.
+        label2_text (str): Texto para la etiqueta del segundo interruptor.
+        parent (QWidget, optional): El widget padre de este componente.
+
+    Atributos:
+        toggle1 (ToggleSwitch): La instancia del primer interruptor `ToggleSwitch`.
+        toggle2 (ToggleSwitch): La instancia del segundo interruptor `ToggleSwitch`.
+    """
     def __init__(self, label1_text, label2_text, parent=None):
         super().__init__(parent)
 
@@ -89,8 +156,17 @@ class DoubleToggleBox(QFrame):
 
 class ClickableLineEdit(QLineEdit):
     """
-    Read-only QLineEdit that emits a 'clicked' signal on press.
-    Designed for touch interfaces to trigger virtual keypads.
+    Una subclase de QLineEdit que es de solo lectura y emite una señal `clicked`
+    cuando se pulsa con el ratón o se toca.
+
+    Esta implementación es fundamental para interfaces táctiles de grado médico,
+    donde la entrada manual directa de texto puede ser insegura o propensa a errores.
+    Al ser de solo lectura, la entrada de valores se delega a teclados virtuales
+    (como un `NumpadDialog`), que se disparan mediante la señal `clicked`.
+
+    Señales:
+        clicked: Emitida cuando el QLineEdit es pulsado (clic izquierdo del ratón
+                 o toque en pantalla táctil).
     """
 
     clicked = Signal()
@@ -109,12 +185,40 @@ class ClickableLineEdit(QLineEdit):
 
 class LabeledParameterWidget(QWidget):
     """
-    Labeled parameter display/input widget.
-    Combines description label, value (editable or read-only), and units.
-    Emits request_numpad signal when clicked (for virtual keypad).
+    Un widget compuesto y reutilizable para la visualización y/o entrada
+    de un parámetro numérico con una etiqueta descriptiva y unidades.
+
+    Este componente es versátil y puede configurarse como editable (para
+    configuración de setpoints) o como de solo lectura (para mostrar valores
+    de sensores), siempre con un formato claro y adaptado a interfaces táctiles.
+
+    Señales:
+        request_numpad (str, object, str): Emitida cuando el widget es editable
+            y se pulsa para solicitar la apertura de un teclado numérico virtual.
+            - `tag` (str): El tag asociado al parámetro.
+            - `self` (object): La instancia de `LabeledParameterWidget` que emitió la señal.
+            - `numpad_title` (str): Título sugerido para el diálogo del numpad.
+
+    Args:
+        label_text (str): Texto descriptivo del parámetro (ej. "Flujo de Sangre").
+        tag (str, optional): Identificador único (tag) del parámetro en el sistema.
+            Se usa para la comunicación de setpoints.
+        value (str, optional): Valor inicial a mostrar en el widget.
+        units (str, optional): Unidades de medida del parámetro (ej. "ml/min", "°C").
+        numpad_title (str, optional): Título a usar cuando se abre el numpad.
+            Si no se especifica, se usa `label_text`.
+        is_editable (bool, optional): Si es `True`, el valor se muestra en un
+            `ClickableLineEdit` y emitirá `request_numpad` al tocarlo.
+            Si es `False`, se muestra en un `QLabel` de solo lectura.
+        parent (QWidget, optional): El widget padre de este componente.
+
+    Métodos:
+        set_value(value): Actualiza el valor mostrado, aplicando un formato
+                          numérico consistente (1 o 2 decimales según el valor).
+        get_value() -> str: Retorna el texto actual del valor mostrado.
     """
 
-    # Signal: tag (str), widget_instance (self), numpad_title (str)
+    
     request_numpad = Signal(str, object, str)
 
     def __init__(self,
@@ -215,12 +319,42 @@ class LabeledParameterWidget(QWidget):
 
 class LabeledTimeInput(QWidget):
     """
-    Labeled time (HH:MM) input widget for Hemodialysis HMI.
-    Combines description label and clickable time display.
-    Emits request_time_numpad when clicked.
-    """
+    Un widget compuesto y reutilizable para la visualización y/o entrada
+    de valores de tiempo en formato HH:MM, con una etiqueta descriptiva.
 
-    # Signal: widget_instance (self), tag_hours, tag_minutes, local_timer_id, title
+    Diseñado para entornos táctiles, permite a los usuarios introducir o
+    visualizar duraciones de terapia, tiempos de operación, etc., utilizando
+    un teclado numérico virtual especializado para tiempo.
+
+    Señales:
+        request_time_numpad (object, str, str, str, str): Emitida cuando el widget
+            es editable y se pulsa para solicitar la apertura de un teclado
+            numérico virtual de tiempo.
+            - `self` (object): La instancia de `LabeledTimeInput` que emitió la señal.
+            - `tag_hours` (str): Tag asociado a la parte de las horas del tiempo.
+            - `tag_minutes` (str): Tag asociado a la parte de los minutos del tiempo.
+            - `local_timer_id` (str): Identificador para un timer local asociado.
+            - `numpad_title` (str): Título sugerido para el diálogo del numpad.
+
+    Args:
+        label_text (str): Texto descriptivo del tiempo (ej. "T. Terapia").
+        initial_hh_mm (str, optional): Valor inicial del tiempo en formato "HH:MM".
+        tag_hours (str, optional): Tag del sistema para el valor de las horas.
+        tag_minutes (str, optional): Tag del sistema para el valor de los minutos.
+        local_timer_id (str, optional): Identificador para un timer interno asociado
+            a este tiempo (ej. "blood_pump_timer").
+        numpad_title (str, optional): Título a usar cuando se abre el numpad de tiempo.
+            Si no se especifica, se usa `label_text`.
+        is_editable (bool, optional): Si es `True`, el tiempo se muestra en un
+            `ClickableLineEdit` y emitirá `request_time_numpad` al tocarlo.
+            Si es `False`, se muestra en un `QLabel` de solo lectura.
+        parent (QWidget, optional): El widget padre de este componente.
+
+    Métodos:
+        set_time_value(hours, minutes): Actualiza el tiempo mostrado a "HH:MM".
+        get_time_value() -> str: Retorna el texto actual del tiempo como "HH:MM".
+        get_hours_minutes() -> tuple[int, int]: Parsea el tiempo mostrado y lo retorna como `(horas, minutos)`.
+    """
     request_time_numpad = Signal(object, str, str, str, str)
 
     def __init__(self,
@@ -318,9 +452,27 @@ class LabeledTimeInput(QWidget):
 
 def show_dark_message(parent, title: str, text: str, icon=QMessageBox.Information, buttons=QMessageBox.Ok):
     """
-    Muestra un QMessageBox con estilo oscuro consistente.
-    - Usa el estilo manual para que funcione en Windows.
-    - Puedes personalizar icono y botones.
+    Muestra un diálogo de mensaje (`QMessageBox`) con un estilo oscuro consistente.
+
+    Esta función estiliza el `QMessageBox` para que coincida con la estética
+    general de la HMI, asegurando que los mensajes del sistema sean visualmente
+    coherentes. Es útil para mostrar alertas, advertencias, errores o
+    información al usuario.
+
+    Args:
+        parent (QWidget): El widget padre del `QMessageBox`.
+        title (str): El título del cuadro de mensaje.
+        text (str): El contenido principal del mensaje.
+        icon (QMessageBox.Icon, optional): El icono a mostrar en el mensaje
+            (ej. `QMessageBox.Information`, `QMessageBox.Warning`, `QMessageBox.Critical`).
+            Por defecto: `QMessageBox.Information`.
+        buttons (QMessageBox.StandardButtons, optional): Los botones a mostrar
+            en el mensaje (ej. `QMessageBox.Ok`, `QMessageBox.Yes | QMessageBox.No`).
+            Por defecto: `QMessageBox.Ok`.
+
+    Returns:
+        int: El valor del botón que el usuario ha pulsado
+             (ej. `QMessageBox.Ok`, `QMessageBox.Yes`).
     """
     msg = QMessageBox(parent)
     msg.setWindowTitle(title)
@@ -329,7 +481,6 @@ def show_dark_message(parent, title: str, text: str, icon=QMessageBox.Informatio
     msg.setStandardButtons(buttons)
     msg.setDefaultButton(QMessageBox.Ok if buttons & QMessageBox.Ok else QMessageBox.Yes)
 
-    # Estilo (puedes moverlo al global si prefieres, pero aquí lo dejamos por si acaso)
     msg.setStyleSheet("""
         QMessageBox {
             background-color: #2b2b2b;

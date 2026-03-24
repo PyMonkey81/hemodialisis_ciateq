@@ -2,12 +2,86 @@
 # Manual mode screen for direct control of pumps, valves, and critical actuators
 # Critical safety features: REQ-SW-005, REQ-SW-010, REQ-SW-012, REQ-SW-020
 
+"""
+Módulo para la pantalla de control manual de la máquina de hemodiálisis.
+
+Este módulo define la clase `ManualModeScreen`, que proporciona una interfaz
+avanzada para el control directo de bombas, válvulas y otros actuadores
+críticos del sistema. Es una herramienta esencial para el personal técnico
+durante la configuración, mantenimiento, diagnóstico y pruebas de la máquina,
+ofreciendo un control granular y funcionalidades de temporización.
+
+Características principales:
+-----------------------------
+- **Control Directo de Actuadores:**
+    - **Bombas:** Controles ON/OFF mediante `ToggleSwitch` para bombas de sangre,
+      heparina, UF, dializante, purga, bicarbonato (Na+) y ácido cítrico.
+      Incluye control de dirección (FWD/REV) y posición HOME para algunas bombas.
+    - **Válvulas:** Control ON/OFF de válvulas de circuito mediante `ValveCard`
+      reutilizables.
+- **Configuración de Setpoints:**
+    - Ajuste de flujos (ml/min, L/h), dosis de heparina (ml/h), bolo (ml),
+      tamaño de jeringa y salidas de bombas (%) mediante `NumpadDialog`s táctiles.
+- **Temporización y Automatización:**
+    - **Temporizadores Locales:** Cada bomba puede configurarse para operar
+      durante un tiempo determinado, con displays de tiempo transcurrido y restante.
+    - **Agrupación de Bombas:** Una característica avanzada que permite al usuario
+      seleccionar un grupo de bombas que se detendrán automáticamente cuando
+      expire un temporizador principal (ej. el de la bomba de heparina para
+      el "tiempo de terapia"). Esto responde a la REQ-SW-012.
+- **Monitorización de Estado:**
+    - **Indicadores LED:** Muestra el estado de actuadores y sensores clave
+      mediante LEDs virtuales.
+    - Sincronización constante con los valores recibidos del controlador.
+- **Manejo de Interacciones:**
+    - Utiliza `PushbuttonEvent` para una respuesta más rápida en botones táctiles.
+    - Implementa "hold-off" en las escrituras para evitar conflictos y asegurar
+      la consistencia de la UI con el controlador (REQ-SW-005).
+    - `ToggleSwitch` personalizado para control de estado ON/OFF con feedback visual.
+
+Requisitos de Seguridad (REQ-SW):
+----------------------------------
+Este módulo implementa o es crucial para cumplir con varios requisitos de seguridad
+del software, como:
+- **REQ-SW-005:** Control individual y seguro de componentes (bombas, válvulas).
+- **REQ-SW-010:** Monitorización y visualización del estado de los actuadores.
+- **REQ-SW-012:** Gestión de la interrupción automática de la terapia o componentes
+  (ej. agrupamiento de bombas por tiempo de terapia).
+- **REQ-SW-020:** Habilidad para activar/desactivar el modo manual solo por personal autorizado.
+
+Clases principales:
+-------------------
+- `ManualModeScreen`: El widget principal que orquesta todos los controles, displays,
+  temporizadores y la lógica de interacción para el modo manual.
+- `PushbuttonEvent`: Extiende `QPushButton` para manejar eventos táctiles con mayor
+  precisión, útil para botones de acción rápida como FWD/REV.
+- `ValveCard`: Un widget reutilizable para controlar una válvula individual,
+  mostrando su código, descripción y un `ToggleSwitch`.
+
+Dependencias:
+-------------
+- `PySide6`: Para la construcción de la interfaz gráfica y la gestión de eventos.
+- `gui.components.*`: Varios componentes UI personalizados (`LED`, `ToggleSwitch`,
+  `NumpadDialog`, `TimeNumpadDialog`, `ClickableLineEdit`, `LabeledParameterWidget`, `LabeledTimeInput`).
+- `core.variables_map.VARIABLES`: Mapeo de tags de variables para comunicación con el controlador.
+- `logic.calculos`: Funciones para conversiones entre unidades de flujo (ml/min, L/h, ciclos).
+
+Uso:
+----
+La clase `ManualModeScreen` se instancia en el `HemodialysisHMI` principal
+y se añade a su `QStackedWidget` como una pantalla de servicio. Se espera
+que el `HemodialysisHMI` conecte sus señales `request_setpoint_change` y
+`request_boolean_change` a métodos que envíen los comandos al controlador serial.
+"""
+
+
+
 import logging
 from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QSizePolicy, QCheckBox, QDialog
 from PySide6.QtCore import Qt, QTimer, QDateTime, QEvent, Signal
 from PySide6.QtGui import QColor
 
-# Asumo que estas importaciones existen en tu proyecto
+
 from gui.components.LED import LED
 from gui.components.ToggleSwitch import ToggleSwitch
 from gui.components.numpad_modal import NumpadDialog
@@ -25,6 +99,15 @@ from logic.calculos import (
 logger = logging.getLogger(__name__)
 
 class PushbuttonEvent(QPushButton):
+    """
+    QPushButton personalizado que optimiza la detección de eventos táctiles.
+
+    Este widget se usa para mejorar la capacidad de respuesta en entornos táctiles
+    al aceptar `Qt.WA_AcceptTouchEvents` y manejar directamente `QEvent.Type.TouchBegin`,
+    `QEvent.Type.TouchEnd` y `QEvent.Type.TouchCancel` para emitir señales `pressed` y `released`.
+    Esto puede proporcionar una retroalimentación más inmediata que el clic tradicional
+    para operaciones como FWD/REV en bombas.
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
@@ -43,7 +126,20 @@ class PushbuttonEvent(QPushButton):
         return super().event(event)
 
 class ValveCard(QFrame):
-    """Reusable card component for valve control (REQ-SW-005)."""
+    """
+    Componente reutilizable para el control individual de una válvula.
+
+    Representa visualmente una válvula con su código, una breve descripción
+    y un `ToggleSwitch` para cambiar su estado (abrir/cerrar). La tarjeta
+    se integra en la interfaz para ofrecer un control claro y táctil sobre
+    elementos discretos del sistema de fluidos. Responde a la REQ-SW-005.
+
+    Args:
+        code (str): Identificador de la válvula (ej. "SV_24").
+        description (str): Descripción funcional de la válvula (ej. "E. Filtro UF").
+        parent (QWidget, optional): Widget padre.
+    """
+
 
     def __init__(self, code: str, description: str, parent=None):
         super().__init__(parent)
@@ -60,7 +156,7 @@ class ValveCard(QFrame):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
 
-        # Aquí usamos HTML para el salto de línea y estilos
+        
         info_label = QLabel(f"<b>{code}</b><br><span style='font-size:18px; color:#cbd5e1;'>{description}</span>")
         info_label.setStyleSheet("color: #ffffff; font-size: 18px; border:none; background: transparent;")
         info_label.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
@@ -85,7 +181,7 @@ class ManualModeScreen(QWidget):
         self.toggle_hold_off = {}
         self.grouped_pumps = set()
 
-        # Mapeo de pump_ids a sus configs (para apagado grupal)
+        
         self.pump_configs = {
             "balance_chamber": {
                 "stop_tag": "dialiserBalChambStpButt",
@@ -193,8 +289,7 @@ class ManualModeScreen(QWidget):
         grid.setSpacing(10)
         grid.setContentsMargins(5, 5, 5, 5)
 
-        # Configuración del Grid (Espacio en el medio)
-        # Izquierda: cols 0-3 | Espacio: col 4 | Derecha: cols 5-13
+       
         grid.setColumnStretch(4, 1) 
 
         # ==============================================================================
@@ -234,7 +329,7 @@ class ManualModeScreen(QWidget):
 
         # 4. Btn REV sangre (Der)
         self.btn_rev = PushbuttonEvent("REV", self.control_area)
-        self.btn_rev.setFixedSize(80, 70) # Mantengo tu tamaño original
+        self.btn_rev.setFixedSize(80, 70) 
         self.btn_rev.setStyleSheet(button_style)        
         self.btn_rev.pressed.connect(lambda: self.on_user_boolean_command("bloodPumpREVButton", True))
         self.btn_rev.released.connect(lambda: self.on_user_boolean_command("bloodPumpREVButton", False))
@@ -334,7 +429,6 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.remaining_heparin_pump, 2, 2, 1, 2)       
 
         self.local_timer_states["heparin_pump"]["remaining_lbl"] = self.remaining_heparin_pump.time_display
-        # self.local_timer_states["heparin_pump"]["elapsed_lbl"]  = self.heparin_time_input.time_display
 
         # 13. Toggle b. heparina (Der)
         lbl_heparin_pump = QLabel("B. Hep.", self.control_area)
@@ -388,13 +482,6 @@ class ManualModeScreen(QWidget):
 
 
         # ==============================================================================
-        # SEPARADOR CENTRAL (Usamos Frame HLine)
-        # ==============================================================================
-        # linea = QFrame(); linea.setFrameShape(QFrame.HLine); linea.setStyleSheet("color: #ccc;")
-        # grid.addWidget(linea, 3, 0, 1, 13)
-
-
-        # ==============================================================================
         # --- FILA 4: Camara Balance(19,20) | B. Dializante (21-24) ---
         # ==============================================================================
 
@@ -412,7 +499,7 @@ class ManualModeScreen(QWidget):
         # 20. Flujo CB (Izq)
         self.input_flow_cb = LabeledParameterWidget(
             label_text="Flujo", 
-            tag="balanceChamberSetTiming", # Opcional, referencia
+            tag="balanceChamberSetTiming", 
             value="0.0", 
             units="ml/min", # mostrar unidades 
             is_editable=True, 
@@ -462,7 +549,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.lbl_remaining_pd, 4, 11, 1, 2)
 
         self.local_timer_states["dialysate_pump"]["remaining_lbl"] = self.lbl_remaining_pd.time_display
-        # self.local_timer_states["dialysate_pump"]["elapsed_lbl"] = self.dialysate_time_display.time_display
+        
 
 
         # ==============================================================================
@@ -528,7 +615,7 @@ class ManualModeScreen(QWidget):
         )
         grid.addWidget(self.lbl_remaining_cb, 6, 2, 1, 2)
         self.local_timer_states["balance_chamber"]["remaining_lbl"] = self.lbl_remaining_cb.time_display
-        # self.local_timer_states["balance_chamber"]["elapsed_lbl"]   = self.balance_chamber_time_input.time_display
+        
 
         # 31. Bomba UF (Der)
         lbl_ultrafiltado = QLabel("B. UF", self.control_area)
@@ -548,7 +635,6 @@ class ManualModeScreen(QWidget):
             numpad_title="Flujo UF",is_editable=True,
             parent=self.control_area
         )
-        # self.lbl_input_indUF.request_numpad.connect(self._handle_uf_flow_input) 
         self.lbl_input_indUF.request_numpad.connect(lambda tag, wid, tit: self._handle_uf_flow_input())
         grid.addWidget(self.lbl_input_indUF, 6, 7, 1, 2)
 
@@ -572,7 +658,7 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.lbl_remaining_puf, 6, 11, 1, 2)
 
         self.local_timer_states["uf_pump"]["remaining_lbl"] = self.lbl_remaining_puf.time_display
-        # self.local_timer_states["uf_pump"]["elapsed_lbl"] = self.uf_time_display.time_display
+        
 
 
         # ==============================================================================
@@ -616,7 +702,7 @@ class ManualModeScreen(QWidget):
         )
         grid.addWidget(self.citric_acid_pump_toggle, 8, 6, 1, 1)
 
-        # 40. Salida Acido Citrico (Der) citricAcidPumpSpeed
+        # 40. Salida Acido Citrico (Der)
         self.citric_acid_output_display = LabeledParameterWidget(
             label_text=" B.A.C. Salida", tag="dialyCondControlOutput",
             value="", units="%", is_editable=True, parent=self.control_area
@@ -643,7 +729,6 @@ class ManualModeScreen(QWidget):
 
         # --- VALVULAS ---
         valves_container = QWidget()
-        # valves_container.setFixedSize(1300, 180)
         valves_layout = QHBoxLayout(valves_container)
         valves_layout.setContentsMargins(0, 0, 0, 0)
         valves_layout.setSpacing(5)
@@ -698,7 +783,6 @@ class ManualModeScreen(QWidget):
         #                           --- LEDS ---
         #======================================================================================
         indicators_area = QWidget()
-        # indicators_area.setFixedSize(180, 780)
         indicators_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         indicators_area.setStyleSheet("background: #fcfcfc;")
         led_grid = QGridLayout(indicators_area)
@@ -736,7 +820,7 @@ class ManualModeScreen(QWidget):
         layout.addWidget(indicators_area, 1, 2, 1, 1)
 
     # ────────────────────────────────────────────────
-    # Métodos Lógicos (Sin cambios, solo corrección en llamadas auxiliares)
+    # Métodos Lógicos
     # ────────────────────────────────────────────────
 
 
@@ -745,9 +829,9 @@ class ManualModeScreen(QWidget):
         """Abre el popup estilizado para seleccionar bombas a agrupar."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Sincronización de Bombas")
-        dialog.setFixedSize(650, 500) # Un poco más ancho para 2 columnas cómodas
+        dialog.setFixedSize(650, 500) 
         
-        # Estilo general del Dialog (Fondo limpio, gris muy claro)
+        # Estilo general del Dialog
         dialog.setStyleSheet("""
             QDialog { background-color: #f1f5f9; }
             QLabel { color: #334155; }
@@ -796,7 +880,6 @@ class ManualModeScreen(QWidget):
         ]
 
         # Estilo CSS avanzado para los checkboxes
-        # Transforma el checkbox aburrido en un panel clicable
         checkbox_style = """
             QCheckBox {
                 spacing: 10px;
@@ -847,7 +930,7 @@ class ManualModeScreen(QWidget):
             self.checkboxes[pump_id] = checkbox
 
         main_layout.addLayout(grid_layout)
-        main_layout.addStretch() # Empujar botones al fondo
+        main_layout.addStretch() 
 
         # ─── 3. Botones de Acción ───
         buttons_layout = QHBoxLayout()
@@ -917,11 +1000,11 @@ class ManualModeScreen(QWidget):
 
         # Apagar todas las bombas agrupadas
         for pump_id in self.grouped_pumps:
-            if pump_id != "heparin_pump":  # Evitar duplicado
+            if pump_id != "heparin_pump":  
                 config = self.pump_configs.get(pump_id)
                 if config:
                     self._stop_pump_generic(
-                        config["timer_key"] or pump_id,  # Usa timer_key si existe
+                        config["timer_key"] or pump_id, 
                         config["stop_tag"],
                         config["start_tag"],
                         config["toggle"]()
@@ -1053,7 +1136,7 @@ class ManualModeScreen(QWidget):
         if time_widget.hasFocus() or time_widget.underMouse():
             return
 
-        # Hold-off después de escritura (más estricto)
+        # Hold-off después de escritura
         hold_hours   = self.write_hold_off.get(tag_hours,   0) if tag_hours   else 0
         hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
 
@@ -1249,7 +1332,7 @@ class ManualModeScreen(QWidget):
                 elapsed_ms = current_ms - state["start_ms"]
                 remaining_ms = max(0, state["duration_ms"] - elapsed_ms)
 
-                # Actualizar labels si existen
+                
                 if state["elapsed_lbl"]:
                     state["elapsed_lbl"].setText(self._format_ms_to_hh_mm(elapsed_ms))
                     
@@ -1265,7 +1348,7 @@ class ManualModeScreen(QWidget):
                     # Forzar parada (por si el timer falló por algún motivo)
                     self._stop_pump_generic(
                         timer_id,
-                        f"{timer_id.replace('_', '')}StopButton",  # ajustar nombres 
+                        f"{timer_id.replace('_', '')}StopButton",  
                         f"{timer_id.replace('_', '')}StartButton",
                         getattr(self, f"{timer_id}_toggle", None)
                     )   

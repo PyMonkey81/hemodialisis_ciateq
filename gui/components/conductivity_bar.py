@@ -1,23 +1,81 @@
 # # gui/components/ConductivityBar.py
 
+"""
+Módulo para el widget de barra indicadora de conductividad.
+
+Este módulo define la clase `ConductivityBar`, un componente gráfico
+personalizado que representa el valor de conductividad de forma visual
+y analógica mediante una serie de barras de colores que se encienden
+progresivamente. Está diseñado para proporcionar una lectura rápida
+y perceptible del nivel de conductividad dentro de un rango operativo
+específico, con énfasis en la codificación por colores para indicar
+diferentes zonas de valor.
+
+Características principales:
+-----------------------------
+- **Visualización Gradual**: El nivel de conductividad se representa
+  mediante el encendido secuencial de hasta 21 barras individuales,
+  cada una con un color ligeramente diferente para crear un gradiente
+  dentro de cada "zona" (ej. zonas verde, amarilla, roja).
+- **Codificación por Colores**: Utiliza un conjunto predefinido de colores
+  base (rojo, naranja, amarillo, verde, azul) para dividir el rango
+  total de conductividad en zonas, facilitando la identificación de
+  rangos críticos, operativos o seguros.
+- **Renderizado Personalizado**: El dibujo de las barras, el fondo,
+  el valor numérico y las unidades se realiza mediante `QPainter`,
+  asegurando gráficos vectoriales nítidos.
+- **Rango Configurable**: Aunque los colores están predefinidos, la
+  barra opera sobre un `min_value` y `max_value` configurables para
+  mapear el valor de conductividad real a la escala visual.
+- **Robustez en el Dibujo**: Incluye protección para manejar casos donde
+  el widget pueda ser demasiado pequeño, evitando errores de dibujo.
+- **Actualización Dinámica**: El método `setValue()` actualiza el estado
+  visual del componente eficientemente solo cuando el valor cambia
+  significativamente.
+
+Clase principal:
+----------------
+- `ConductivityBar`: Widget que encapsula la lógica de dibujo y la
+  representación visual de la conductividad.
+
+Dependencias:
+-------------
+- `PySide6.QtWidgets.QWidget`: Clase base para widgets.
+- `PySide6.QtCore`: Tipos de datos básicos (`Qt`, `QSize`).
+- `PySide6.QtGui`: Clases de pintura (`QPainter`, `QColor`, `QFont`, `QPen`).
+
+Uso:
+----
+1.  **Instanciación**:
+    `conductivity_display = ConductivityBar(parent_widget)`
+    (Los rangos `min_value`, `max_value` y los colores están predefinidos
+    en el constructor o pueden ser modificados directamente en la clase).
+2.  **Actualización**:
+    `conductivity_display.setValue(14.25)`  // El valor se dibujará y se actualizará la barra.
+"""
+
+
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QPainter, QColor, QFont, QPen
 
 class ConductivityBar(QWidget):
     """
-    Barra vertical de conductividad con muchas barras por zona
-    → Cada zona dividida en 3 barras
-    → Total: 21 barras
+    Widget de barra indicadora vertical para mostrar la conductividad.
+
+    Visualiza el valor de conductividad mediante una serie de barras de colores
+    que se iluminan progresivamente, divididas en zonas con distintos colores
+    para indicar rangos específicos (ej. seguridad, advertencia, peligro).
+    Cada "zona" principal se subdivide en tres barras con tonalidades ligeras
+    y oscuras para crear un gradiente más suave.
+
+    Args:
+        parent (QWidget, optional): Widget padre.
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        # Eliminamos restricciones fijas para permitir adaptabilidad
-        # self.setFixedWidth(150) <-- Quitar esto permite que el padre decida el ancho
-        
-        # IMPORTANTE: Definir un tamaño mínimo razonable para evitar crash por geometría negativa
         self.setMinimumSize(100, 200) 
 
         self.min_value = 8.5
@@ -71,12 +129,12 @@ class ConductivityBar(QWidget):
         painter.drawRoundedRect(0, 0, w, h, 10, 10)
 
         # Área de la barra
-        # Usamos porcentajes o márgenes fijos seguros
+
         bar_x = self._padding + 10 
         bar_y = 60
         bar_width = w - 3 * self._padding
         
-        # Aquí estaba el problema: si h < 170, esto daba negativo
+
         bar_height = h - 170 
         
         if bar_height <= 0: return # Doble seguridad
@@ -116,7 +174,6 @@ class ConductivityBar(QWidget):
 
         # === Valor grande ===
         painter.setPen(QPen(QColor("#0f0f0f")))
-        # Ajustar fuente según tamaño si es necesario, pero 38 está bien para >200px
         painter.setFont(QFont("Segoe UI", 38, QFont.Bold))
         painter.drawText(0, h - 100, w, 50, Qt.AlignCenter, f"{self.value:.2f}")
 
@@ -130,8 +187,8 @@ class ConductivityBar(QWidget):
         painter.setFont(QFont("Segoe UI", 16, QFont.Bold))
         painter.drawText(0, 30, w, 30, Qt.AlignCenter, "Conductividad")
         
-        painter.end() # Buena práctica cerrar el painter explícitamente
+        painter.end()
 
     def sizeHint(self):
-        # Sugerimos un tamaño ideal pero no forzamos
+        
         return QSize(120, 452)

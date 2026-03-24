@@ -1,6 +1,41 @@
-
-
 # gui/therapy/dialysis_screen.py
+
+"""
+Pantalla principal de monitorización y control de la terapia de diálisis.
+
+Este módulo define la clase `DialysisScreen`, que sirve como el panel de control central
+durante una sesión de tratamiento. Proporciona una interfaz rica en datos para que el
+personal clínico supervise el progreso de la terapia y tome acciones inmediatas.
+
+Componentes Principales:
+------------------------
+1. **Visualización Gráfica (PyQtGraph):**
+   - Muestra gráficas en tiempo real de la Presión Venosa y Arterial.
+   - Mantiene un historial de datos (`deque`) para visualizar tendencias.
+
+2. **Panel de Control (Botones):**
+   - Gestión del ciclo de vida del tratamiento: Iniciar, Pausar, Detener.
+   - Gestión del ciclo de cebado (Priming): Iniciar/Detener.
+   - Acceso rápido a submenús: Configuración de Terapia, Paciente.
+   - Acciones directas: Aplicación de bolo de heparina.
+
+3. **Monitores de Parámetros (SimpleValueDisplay):**
+   - Visualización numérica de variables críticas (Presiones, Conductividad, Flujos, Temperatura).
+   - Cálculo y visualización de métricas derivadas como PTM (Presión Transmembrana) y Kt/V.
+   - Temporizadores de tiempo transcurrido y restante de la terapia.
+
+4. **Lógica de Estado:**
+   - Métodos para habilitar/deshabilitar controles según el estado de la máquina (recibido desde `Main`).
+   - Actualización periódica de valores (`update_values`) provenientes del controlador central.
+
+Dependencias:
+-------------
+- `PySide6`: Elementos de UI.
+- `pyqtgraph`: Graficación de alto rendimiento.
+- `gui.components.ui_components`: Widgets personalizados reutilizables.
+- `logic.calculos`: Fórmulas médicas (PTM).
+"""
+
 import logging
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QDateTime, QTimer, Signal
@@ -11,7 +46,7 @@ from collections import deque
 from gui.components.ui_components import LabeledParameterWidget, LabeledTimeInput
 
 
-# Imports opcionales con fallback para evitar crasheos si faltan archivos
+
 try:
     from logic.calculos import calculo_ptm
 except ImportError:
@@ -26,7 +61,17 @@ logger = logging.getLogger(__name__)
 
 class SimpleValueDisplay(QWidget):
     """
-    Widget reutilizable para mostrar un parámetro con etiqueta, valor y unidades.
+    Widget compuesto para mostrar un parámetro clínico de forma estandarizada.
+    
+    Combina una etiqueta (nombre del parámetro y unidad) y un valor numérico grande.
+    Permite cambiar el color de fondo para resaltar parámetros críticos.
+    
+    Args:
+        label_text (str): Nombre del parámetro (ej. "Presión Art.").
+        initial_value (str): Valor inicial a mostrar.
+        units (str): Unidades de medida (ej. "mmHg").
+        is_critical (bool): Si es True, el fondo será amarillo claro para destacar; 
+                            si es False, será blanco.
     """
     def __init__(self, label_text: str, initial_value: str = "0.0", units: str = "", is_critical: bool = False):
         super().__init__()
@@ -59,10 +104,6 @@ class SimpleValueDisplay(QWidget):
 
         self.label_value = QLabel(initial_value)
         self.label_value.setAlignment(Qt.AlignCenter)
-        # self.label_value.setStyleSheet("border: none; color ")
-        # font_value = QFont("Arial", 36, QFont.Bold)
-        # self.label_value.setFont(font_value)
-
         self.label_value.setStyleSheet("border: none; color: #0078d7; font-weight: bold; font-size: 36px;") 
 
         frame_layout.addWidget(self.label_tag_units)
@@ -272,7 +313,7 @@ class DialysisScreen(QWidget):
         btn_iniciar = self.action_buttons.get("INICIAR")
         btn_detener = self.action_buttons.get("DETENER")
 
-        # Estilos (puedes mantenerlos aquí o pasarlos como constantes)
+
         style_enabled = """
             QPushButton { background: #39ec21; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
             QPushButton:pressed { background: #334155; }
@@ -351,10 +392,9 @@ class DialysisScreen(QWidget):
         remaining_str = f"{rem_hours:02d}:{rem_min:02d}"
         self.remaining_time_display.set_value(remaining_str)
 
-        # Opcional: detener tratamiento automáticamente al llegar a 0
         if remaining_seconds <= 0 and self.is_treatment_running:
             self.stop_treatment()
-            # QMessageBox.information(self, "Finalizado", "Tiempo de terapia completado.")
+
     
     def _format_ms_to_hh_mm(self, ms: int) -> str:
         total_seconds = max(0, ms // 1000)

@@ -2,6 +2,58 @@
 # Cleaning / Disinfection screen (stacked index 3)
 # Controls chemical disinfection cycle with progress tracking and safety checks
 
+"""
+Módulo para la pantalla de control del ciclo de limpieza y desinfección.
+
+Este módulo define la clase `CleaningScreen`, que proporciona la interfaz
+de usuario para gestionar los procesos automatizados de limpieza y
+desinfección química de la máquina de hemodiálisis. Es una pantalla crucial
+para asegurar la higiene y esterilidad del equipo entre pacientes o al final
+de la jornada.
+
+Características principales:
+-----------------------------
+- **Control del Ciclo:** Gestiona el inicio, el progreso y la finalización
+  de un ciclo predefinido de limpieza química.
+- **Barra de Progreso Visual:** Muestra una `QProgressBar` para indicar el
+  avance del ciclo de forma clara, incluyendo el porcentaje y el tiempo
+  transcurrido/total.
+- **Temporizador de Cuenta Regresiva:** Muestra el tiempo restante del ciclo
+  de limpieza, proporcionando al operador una estimación del tiempo de espera.
+- **Estados del Ciclo:** Actualiza dinámicamente la fase actual del proceso
+  (ej. "Esperando condiciones...", "Desinfección en curso...", "Limpieza completada").
+- **Habilitación Condicional:** El botón de "Iniciar limpieza" se habilita
+  únicamente cuando la máquina reporta un estado que permite el inicio seguro
+  del ciclo de limpieza (ej. "INFUSION").
+- **Comunicación con el Controlador:** Emite señales (`request_setpoint_change`
+  y `request_boolean_change`) para instruir al controlador principal de la HMI
+  a iniciar o detener el proceso de limpieza y para establecer el modo de
+  operación adecuado.
+- **Reinicio del Proceso:** Al finalizar un ciclo, el botón "Iniciar" se
+  transforma en "Reiniciar", permitiendo volver al estado inicial o repetir
+  el ciclo.
+
+Clase principal:
+----------------
+- `CleaningScreen`: Widget que encapsula toda la lógica y la interfaz
+  para la gestión del ciclo de limpieza.
+
+Dependencias:
+-------------
+- `PySide6`: Para la construcción de la interfaz gráfica de usuario y señales/slots.
+- `logging`: Para registrar eventos y posibles errores.
+
+
+Uso:
+----
+La clase `CleaningScreen` se instancia en el `HemodialysisHMI` principal
+y se añade a su `QStackedWidget` como una pantalla de servicio. Se espera
+que el `HemodialysisHMI` conecte sus señales a métodos que envíen los comandos
+al controlador serial y que se encargue de actualizar los `current_values`
+para que esta pantalla pueda sincronizar su estado.
+"""
+
+
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QPushButton,
     QProgressBar, QVBoxLayout, QHBoxLayout, QSizePolicy
@@ -113,7 +165,7 @@ class CleaningScreen(QWidget):
         self.time_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.time_label)
 
-        # Spacer
+    
         main_layout.addStretch()
 
         # ── Start / Restart Button ───────────────────────────────────────────────
@@ -124,7 +176,7 @@ class CleaningScreen(QWidget):
 
         self.start_button = QPushButton("Iniciar limpieza")
         self.start_button.setFixedSize(300, 100)
-        self.start_button.setEnabled(False)  # Disabled until ready state
+        self.start_button.setEnabled(False)  
         self.start_button.setProperty("base_color", "#047857")         
         self.start_button.setStyleSheet("""
             QPushButton {
@@ -162,7 +214,7 @@ class CleaningScreen(QWidget):
         self.start_button.setEnabled(False)
         self.start_button.setText("Iniciar limpieza")
 
-        # Reconnect original signal (in case it was changed to reset)
+        
         try:
             self.start_button.clicked.disconnect()
         except TypeError:
@@ -175,7 +227,7 @@ class CleaningScreen(QWidget):
         """Initiate the disinfection cycle."""
         self.cleaning_in_progress = True
 
-        # Send command to controller
+        
         try:
             self.on_user_input_setpoint("treatmentModeSelection", 3.0)
             self.on_user_boolean_command("dialyModeOperationStart",True)
@@ -227,7 +279,7 @@ class CleaningScreen(QWidget):
         self.start_button.setText("Reiniciar")
         self.start_button.setEnabled(True)
 
-        # Change button action to reset
+        
         try:
             self.start_button.clicked.disconnect()
         except TypeError:
@@ -248,7 +300,7 @@ class CleaningScreen(QWidget):
         if self.cleaning_in_progress:
             return
 
-        # Estilo deshabilitado (Gris)
+        
         style_disabled = """
             QPushButton {
                 background: #334155; color: #64748b;

@@ -1,4 +1,52 @@
 # gui/therapy/alarms_screen.py
+"""
+Pantalla de visualización y configuración del sistema de alarmas.
+
+Este módulo proporciona la interfaz de usuario para monitorear alarmas activas,
+consultar un historial de eventos del sistema y configurar los límites de
+advertencia y peligro para variables críticas.
+
+Componentes principales:
+------------------------
+- `AlarmLimitsConfigDialog`: Un diálogo modal que permite al usuario ajustar
+  los umbrales mínimos y máximos de las alarmas para varios parámetros
+  fisiológicos y de máquina. Incluye funcionalidad para restaurar valores
+  por defecto y un teclado numérico táctil.
+- `AlarmsScreen`: La pantalla principal que muestra de forma dinámica las
+  alarmas que se encuentran activas, su estado (reconocida o no) y un registro
+  cronológico de todos los eventos del sistema, como la activación o normalización
+  de alarmas, acciones del operador y mensajes informativos.
+
+Funcionalidades clave:
+----------------------
+- **Visualización de Alarmas Activas:** Presenta una lista clara y con codificación
+  de color de todas las alarmas que se encuentran en un estado activo, incluyendo
+  su nivel de severidad y si han sido reconocidas por el operador.
+- **Historial de Eventos:** Mantiene un registro persistente de todos los eventos
+  importantes, incluyendo activaciones, normalizaciones y acciones del sistema.
+- **Reconocimiento de Alarmas (Acknowledge):** Permite al operador silenciar el
+  zumbador y marcar las alarmas activas como "reconocidas" sin desactivarlas,
+  asegurando que se ha tomado conocimiento de la situación.
+- **Configuración de Límites:** Proporciona una interfaz para ajustar los límites
+  inferiores y superiores de las variables que disparan alarmas, garantizando
+  la seguridad y adaptabilidad del sistema.
+- **Sincronización:** Se integra con el `AlarmSystem` principal para recibir
+  actualizaciones en tiempo real sobre el estado de las alarmas y eventos.
+
+Dependencias:
+-------------
+- `PySide6`: Para la construcción de la interfaz gráfica.
+- `gui.components.ui_components`: Componentes UI reutilizables como `ClickableLineEdit`.
+- `gui.components.numpad_modal`: Diálogo para entrada numérica táctil.
+- `gui.configuration.alarm_limits.AlarmLimitsManager`: Para la gestión persistente de los límites de alarma.
+
+Uso:
+----
+La clase `AlarmsScreen` se instancia en el `HemodialysisHMI` principal y se
+añade al `QStackedWidget`. Recibe instancias de `AlarmSystem` y `AlarmLimitsManager`
+para su correcto funcionamiento.
+"""
+
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTextEdit, QFrame, QLineEdit, QSizePolicy,
@@ -23,7 +71,7 @@ class AlarmLimitsConfigDialog(QDialog):
     def __init__(self, parent=None, current_values=None, limits_manager=None):
         super().__init__(parent)
         self.setWindowTitle("Configuración de Límites de Alarma")
-        self.setMinimumSize(680, 720)  # un poco más ancho por el botón extra
+        self.setMinimumSize(680, 720)  
 
         self.current_values = current_values or {}
         self.limits_manager = limits_manager
@@ -31,7 +79,7 @@ class AlarmLimitsConfigDialog(QDialog):
         if not self.limits_manager:
             raise ValueError("Se requiere pasar un AlarmLimitsManager válido")
 
-        self.inputs = {}          # tag → (min_edit, max_edit)
+        self.inputs = {}        
         self.variables = []
 
         self.setup_variables()
@@ -137,7 +185,6 @@ class AlarmLimitsConfigDialog(QDialog):
                     padding: 8px;
                 }
             """)
-            # min_edit.clicked.connect(lambda checked=False, e=min_edit, d=decimals, t=tag, f="min": self.open_numpad(e, d, t, f))
             min_edit.clicked.connect(self.create_numpad_opener(min_edit, decimals, tag, "min"))
 
             sep = QLabel(" – ")
@@ -156,7 +203,6 @@ class AlarmLimitsConfigDialog(QDialog):
                     padding: 8px;
                 }
             """)
-            # max_edit.clicked.connect(lambda checked=False, e=max_edit, d=decimals, t=tag, f="max": self.open_numpad(e, d, t, f))
             max_edit.clicked.connect(self.create_numpad_opener(max_edit, decimals, tag, "max")
 )
 
@@ -174,7 +220,6 @@ class AlarmLimitsConfigDialog(QDialog):
                 QPushButton:hover { background: #d97706; }
                 QPushButton:pressed { background: #b45309; }
             """)
-            # restore_btn.clicked.connect(self.create_numpad_opener())
             restore_btn.clicked.connect(lambda _, t=tag, m=min_edit, M=max_edit, d=decimals: self.restore_defaults(t, m, M, d))
 
             row_layout.addWidget(lbl_current)
@@ -508,13 +553,8 @@ class AlarmsScreen(QWidget):
             # Asegurarse de que el índice sea válido para previous_states y severity_levels
             if i < len(self.alarm_system.previous_states) and self.alarm_system.previous_states[i]:
                 level = (self.alarm_system.severity_levels[i] 
-                         if i < len(self.alarm_system.severity_levels) else "info")
-                
-                # Asignar un valor dummy, o buscar el valor real si tienes el tag mapeado
-           
+                         if i < len(self.alarm_system.severity_levels) else "info")                 
                 value = None 
-                
-                # Si la alarma ya existía en nuestro diccionario, no la reseteamos a "no reconocida"
                 if name not in self.active_alarms:
                     self.active_alarms[name] = {
                         'value': value,
@@ -523,8 +563,7 @@ class AlarmsScreen(QWidget):
                         'acked': False
                     }
                     loaded_count += 1
-                else:
-                    # Si ya está, actualizamos el valor y la hora, pero mantenemos acked
+                else:                    
                     self.active_alarms[name]['value'] = value
                     self.active_alarms[name]['time'] = current_time
 
@@ -553,8 +592,7 @@ class AlarmsScreen(QWidget):
                 }
             self._append_to_history(f"ACTIVADA: {name}", value, level, current_time)
 
-        else:
-            # La condición física desapareció -> Borramos la alarma de la lista
+        else:            
             if name in self.active_alarms:
                 del self.active_alarms[name]
                 self._append_to_history(f"NORMALIZADA: {name}", value, "info", current_time)
@@ -565,7 +603,7 @@ class AlarmsScreen(QWidget):
     def on_new_event(self, event_msg, value, timestamp):
         """Maneja los eventos generales del AlarmSystem para el historial."""
         
-        self._append_to_history(event_msg, value, "info", timestamp) # Usamos "info" para eventos generales
+        self._append_to_history(event_msg, value, "info", timestamp) 
 
     def acknowledge_all_alarms(self):
         """
@@ -693,7 +731,6 @@ class AlarmsScreen(QWidget):
                 border_color = base_color # Borde con color de la alarma
 
             # Construcción de la tarjeta HTML para la alarma
-            # Aseguramos el tamaño de fuente dentro del HTML
             html += f"""
             <div style="border: 2px solid {border_color}; border-radius: 8px; margin-bottom: 8px; padding: 10px; {bg_style}">
                 <table width="100%" style="border-collapse: collapse;">

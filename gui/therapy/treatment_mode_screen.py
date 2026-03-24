@@ -1,12 +1,53 @@
 # gui/therapy/treatment_mode_screen.py
 
+"""
+Módulo para la selección del modo de tratamiento de la máquina de hemodiálisis.
+
+Este módulo define la clase `TreatmentModeScreen`, una interfaz de usuario
+dedicada a permitir al operador elegir entre diferentes tipos de terapia o
+modos operativos, como Hemodiálisis, Hemodiafiltración, Ultrafiltración o Limpieza.
+
+Características principales:
+-----------------------------
+- **Selección de Modo:** Presenta un conjunto de botones radio exclusivos (`QButtonGroup`)
+  que representan cada modo de tratamiento disponible.
+- **Feedback Visual:** Los botones cambian su estilo para indicar claramente cuál
+  es el modo de tratamiento seleccionado actualmente por el usuario o por el sistema.
+- **Comunicación con el Controlador:** Cuando el usuario selecciona un modo,
+  la pantalla emite una señal (`request_setpoint_change`) al controlador principal
+  de la HMI, que a su vez envía el comando al hardware.
+- **Sincronización de Estado:** El método `update_values` es fundamental para
+  sincronizar el estado visual de los botones con el valor real del modo de
+  tratamiento que reporta la máquina. Esto incluye una lógica para manejar
+  posibles retardos o fallos en la confirmación del cambio de modo por parte
+  del hardware.
+- **Navegación:** Incluye un botón para regresar fácilmente a la pantalla de Diálisis.
+
+Clase principal:
+----------------
+- `TreatmentModeScreen`: Widget que contiene la lógica y la interfaz
+  para la selección del modo de tratamiento.
+
+Dependencias:
+-------------
+- `PySide6`: Para la construcción de la interfaz gráfica de usuario y señales/slots.
+- `core.variables_map.VARIABLES`: Utilizado para identificar el tag de la variable
+  que controla el modo de tratamiento y su mapeo de valores.
+
+Uso:
+----
+La clase `TreatmentModeScreen` se instancia en el `HemodialysisHMI` principal
+y se añade a su `QStackedWidget`. Se espera que el `HemodialysisHMI` conecte
+la señal `request_setpoint_change` de esta pantalla a un método que escriba
+el setpoint correspondiente al controlador serial.
+"""
+
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QButtonGroup, QFrame, QSizePolicy
 )
 from PySide6.QtCore import Qt, Signal
 import time
-
-from gui.components.ui_components import ClickableLineEdit  # si lo usas en otro lado, sino quítalo
 from core.variables_map import VARIABLES
 
 class TreatmentModeScreen(QWidget):
@@ -22,7 +63,6 @@ class TreatmentModeScreen(QWidget):
         self.current_values = values_dict if values_dict is not None else {}  
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        # self.setFixedSize(1536, 726)  # mismo tamaño que la otra para consistencia
         self.pending_mode_change_deadline = None
         self.commanded_mode_value = None
 
@@ -67,7 +107,7 @@ class TreatmentModeScreen(QWidget):
         self.btn_hemodialysis    = QPushButton("Hemodiálisis")
         self.btn_hemodiafiltration = QPushButton("Hemodiafiltración")
         self.btn_ultrafiltration = QPushButton("Ultrafiltración")
-        self.btn_cleaning       = QPushButton("Limpieza")          # ← nuevo
+        self.btn_cleaning       = QPushButton("Limpieza")        
 
         self.mode_button_group = QButtonGroup(self)
         self.mode_button_group.setExclusive(True)
@@ -76,7 +116,7 @@ class TreatmentModeScreen(QWidget):
             (self.btn_hemodialysis,     "treatmentModeSelection", 0.0),
             (self.btn_hemodiafiltration, "treatmentModeSelection", 1.0),
             (self.btn_ultrafiltration,   "treatmentModeSelection", 2.0),
-            (self.btn_cleaning,          "treatmentModeSelection", 3.0),   # ← valor 3 para limpieza
+            (self.btn_cleaning,          "treatmentModeSelection", 3.0),   
         ]
 
         self.style_mode_unchecked = """
@@ -160,7 +200,7 @@ class TreatmentModeScreen(QWidget):
                 self.pending_mode_change_deadline = None
                 self.commanded_mode_value = None
             else:
-                return  # aún esperando confirmación
+                return  
 
         mode_map = {
             0.0: self.btn_hemodialysis,

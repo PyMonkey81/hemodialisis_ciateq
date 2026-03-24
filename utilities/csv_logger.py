@@ -1,3 +1,44 @@
+#utilities/csv_logger.py
+"""
+Clase para registrar datos de monitorización en un archivo CSV.
+
+Esta clase facilita el registro de datos de monitorización en serie temporal,
+como lecturas de sensores o variables del sistema, en un formato CSV estructurado.
+Gestiona la creación del archivo, la escritura de la cabecera y la adición de
+filas de datos con marcas de tiempo. Su diseño flexible permite mapear claves
+internas a nombres de columnas legibles.
+
+Características principales:
+-------------------------
+- **Automatización de Archivos**: Crea automáticamente el directorio de logs
+  si no existe y genera nombres de archivo únicos basados en la fecha y hora
+  (`YYYYMMDD_HHMMSS`) para evitar sobrescrituras.
+- **Mapeo de Parámetros**: Utiliza un diccionario `parameter_key_map` para
+  definir qué variables del diccionario de valores actuales se deben registrar
+  y cómo se deben nombrar las columnas en el archivo CSV.
+- **Registro de Tiempo Real**: Añade una marca de tiempo precisa (con milisegundos)
+  a cada fila de datos, facilitando el análisis cronológico de los eventos.
+- **Persistencia Inmediata**: Fuerza la escritura de los datos al disco de forma
+  inmediata (`file.flush()`) después de cada registro, minimizando el riesgo
+  de pérdida de datos en caso de un fallo inesperado.
+- **Manejo Básico de Errores**: Incluye mensajes informativos y de error para
+  problemas de apertura o escritura del archivo.
+
+Uso:
+----
+1.  **Instanciación**: Crear una instancia de `CsvLogger` especificando el
+    directorio donde se guardarán los logs y un diccionario de mapeo de parámetros.
+2.  **Registro de Datos**: Llamar al método `log_data()` periódicamente,
+    pasándole un diccionario con los valores actuales a registrar.
+3.  **Cierre**: Llamar al método `close()` cuando ya no se necesite registrar
+    más datos (ej. al finalizar una sesión o al cerrar la aplicación) para
+    asegurar que el archivo se cierre correctamente.
+
+Ejemplo de `parameter_key_map`:
+    `{ "dialyLinePresProcessData": "Presion_Linea", "dialyTempIFProcessData": "Temperatura_EF" }`
+
+"""
+
 import csv
 import os
 from datetime import datetime
@@ -18,8 +59,7 @@ class CsvLogger:
         """
         self.log_directory = log_directory
         self.parameter_key_map = parameter_key_map
-        
-        # Asegurarse de que el directorio exista
+
         os.makedirs(self.log_directory, exist_ok=True)
 
         # Nombre de archivo único basado solo en fecha/hora

@@ -1,5 +1,38 @@
 # gui/components/time_numpad_modal.py
-# Modal time (HH:MM) keypad dialog for touch-friendly duration input
+"""
+Módulo que implementa un diálogo modal de teclado numérico para la entrada de tiempo.
+
+Este módulo proporciona una interfaz gráfica optimizada para pantallas táctiles
+que permite al usuario ingresar valores de tiempo en formato **HH:MM**.
+Se diferencia de un teclado numérico estándar en que gestiona la entrada
+de dígitos con una lógica de desplazamiento (push) de derecha a izquierda,
+manteniendo siempre el formato de tiempo visible, y valida que los valores
+ingresados sean lógicos (horas 0-23, minutos 0-59).
+
+Componentes principales:
+-------------------------
+- `TimeDisplayEdit`: Un widget de visualización personalizado (basado en `QLineEdit`)
+  que maneja la lógica de manipulación de cadenas para simular un display digital
+  de tiempo.
+- `TimeNumpadDialog`: El cuadro de diálogo modal que contiene el teclado visual,
+  el display y los botones de acción (Aceptar/Cancelar).
+
+Características:
+----------------
+- **Entrada "Push"**: Los dígitos entran por la derecha y empujan los existentes
+  hacia la izquierda (ej. escribir '1', '5' resulta en "00:15").
+- **Validación**: Impide aceptar tiempos inválidos (como 65 minutos o 25 horas).
+- **Estilo Oscuro**: Coherente con el resto de la interfaz HMI.
+- **Botones Grandes**: Diseñado para facilitar la pulsación en pantallas táctiles.
+
+Uso:
+----
+Generalmente se invoca desde widgets como `LabeledTimeInput`:
+    dialog = TimeNumpadDialog(parent, initial_hh_mm="04:30")
+    if dialog.exec():
+        hours, minutes = dialog.get_hours_minutes()
+"""
+
 
 from PySide6.QtWidgets import (
     QDialog, QGridLayout, QPushButton, QLineEdit,
@@ -11,8 +44,23 @@ from PySide6.QtGui import QFont
 
 class TimeDisplayEdit(QLineEdit):
     """
-    Custom read-only line edit that handles HH:MM input by pushing digits right-to-left.
-    Maintains internal raw 4-digit value and formats display as HH:MM.
+    Widget de edición de línea personalizado para visualizar y manipular tiempo.
+
+    Actúa como la "pantalla" del teclado numérico. No permite la edición directa
+    con el teclado físico (es de solo lectura), sino que recibe comandos para
+    agregar dígitos o borrar. Mantiene internamente una cadena cruda de 4 dígitos
+    y la formatea visualmente como "HH:MM".
+
+    Características:
+    - **Lógica de Desplazamiento**: Al agregar un dígito, se añade al final y
+      el primer dígito se descarta, simulando una entrada de calculadora.
+    - **Formato Visual**: Siempre muestra 5 caracteres (2 dígitos de hora,
+      dos puntos, 2 dígitos de minutos).
+
+    Métodos clave:
+    - `add_digit(digit)`: Inserta un nuevo número.
+    - `backspace()`: Elimina el último número ingresado.
+    - `get_hours_minutes()`: Retorna el valor actual como tupla de enteros.
     """
 
     def __init__(self, parent=None, initial_hh_mm="00:00"):
@@ -91,9 +139,31 @@ class TimeDisplayEdit(QLineEdit):
 
 class TimeNumpadDialog(QDialog):
     """
-    Modal dialog with touch-friendly keypad for entering time in HH:MM format.
-    Includes validation on accept (hours 0-23, minutes 0-59).
+    Diálogo modal que presenta un teclado numérico táctil para entrada de tiempo.
+
+    Proporciona una interfaz completa para que el usuario configure horas y minutos.
+    Incluye un `TimeDisplayEdit` en la parte superior y una cuadrícula de botones
+    en la parte inferior.
+
+    Características:
+    - **Modal y Sin Bordes**: Se superpone a la aplicación bloqueando la interacción
+      con otras ventanas y elimina los bordes del sistema operativo para un look integrado.
+    - **Validación de Rango**: Al pulsar "ACEPTAR", verifica que las horas estén
+      entre 00-23 y los minutos entre 00-59. Si no es válido, muestra una alerta
+      y no cierra el diálogo.
+    - **Estilizado**: Utiliza hojas de estilo (QSS) para definir colores oscuros,
+      bordes redondeados y estados de los botones (hover/pressed).
+
+    Args:
+        parent (QWidget, optional): Widget padre.
+        initial_hh_mm (str): Valor inicial a mostrar (por defecto "00:00").
+        title (str): Título de la ventana (útil para contexto, ej. "Tiempo de Heparina").
+
+    Métodos:
+        get_hours_minutes() -> tuple[int, int]: Retorna la hora ingresada validada.
+        get_total_minutes() -> int: Retorna la duración total en minutos.
     """
+
 
     def __init__(self, parent=None, initial_hh_mm="00:00", title="Ingrese Tiempo (HH:MM)"):
         super().__init__(parent)
@@ -164,7 +234,7 @@ class TimeNumpadDialog(QDialog):
 
             keypad_layout.addWidget(btn, row, col)
 
-        # Spacer for centering '0' button
+        
         spacer = QLabel("")
         spacer.setStyleSheet("background: transparent; border: none;")
         keypad_layout.addWidget(spacer, 3, 0)

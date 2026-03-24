@@ -1,5 +1,70 @@
 # connection/serial_communication.py
 
+"""
+Módulo para la comunicación serial con el controlador de la máquina de hemodiálisis.
+
+Este módulo implementa la clase `SerialCommunication`, encargada de establecer
+y mantener la conexión serial con el hardware de control de la máquina.
+Gestiona el envío y recepción de datos, el parseo de tramas específicas del
+protocolo y la emisión de señales de Qt para integrar los datos en tiempo
+real con la interfaz gráfica de usuario (GUI).
+
+Características clave:
+--------------------
+- **Conectividad Robusta**: Busca y se conecta automáticamente a dispositivos
+  USB-serial de tipo FTDI, y maneja la reconexión en caso de pérdida de enlace.
+- **Comunicación Asíncrona**: Opera en un hilo separado para realizar lecturas
+  continuas y enviar comandos sin bloquear la aplicación principal ni la GUI.
+- **Protocolo de Trama Personalizado**:
+    - Implementa CRC-16 Modbus para la validación de la integridad de los datos.
+    - Maneja comandos de lectura específicos para datos booleanos y analógicos (doble precisión).
+    - Soporta comandos de escritura para actualizar variables booleanas y de punto flotante.
+- **Parseo de Datos**: Interpreta los payloads recibidos basándose en los mapeos
+  definidos en `core.variables_map` para extraer valores significativos.
+- **Integración con GUI (Qt Signals)**: Emite la señal `data_received`
+  (`tag: str, value: float`) cada vez que se procesa un nuevo valor del controlador,
+  permitiendo que la GUI se actualice en tiempo real de forma segura.
+- **Cola de Comandos**: Utiliza una cola (`queue.Queue`) para gestionar de forma
+  eficiente los comandos de escritura enviados desde la GUI, dándoles prioridad
+  sobre las lecturas cíclicas.
+- **Monitoreo de Conexión**: Rastrea el estado de la conexión y el tiempo
+  de la última comunicación exitosa para detectar problemas de forma proactiva.
+
+Clase principal:
+---------------
+- `SerialCommunication`: Gestiona toda la lógica de bajo nivel para la
+  interacción con el puerto serial, el protocolo de comunicación y la
+  entrega de datos a la aplicación.
+
+Dependencias:
+-------------
+- `serial`: Para el control del puerto serial.
+- `serial.tools.list_ports`: Para la detección automática de puertos seriales.
+- `threading`: Para la ejecución de la comunicación en un hilo separado.
+- `time`: Para la gestión de tiempos y demoras.
+- `struct`: Para la conversión de bytes a tipos de datos (ej. double).
+- `crcmod`: Para la generación y verificación de sumas de control CRC-16.
+- `queue`: Para la gestión de la cola de comandos de escritura.
+- `PySide6.QtCore.QObject`, `PySide6.QtCore.Signal`: Para la integración con el sistema de señales/slots de Qt.
+- `core.variables_map.VARIABLES`, `core.variables_map.ANALOG_MAP`: Mapeos de variables para el parseo de datos.
+
+Uso:
+----
+1.  **Instanciación**: Crear una instancia de `SerialCommunication` en el
+    componente principal de la aplicación (ej. `HemodialysisHMI`).
+2.  **Conexión**: Llamar a `connect()` para intentar establecer la conexión
+    con el hardware.
+3.  **Inicio del Bucle de Lectura**: Llamar a `start_reading()` para que el
+    sistema comience a leer datos en segundo plano.
+4.  **Conexión de Señales**: Conectar la señal `data_received` a un slot
+    de la GUI para procesar los datos entrantes.
+5.  **Envío de Comandos**: Utilizar `write_boolean()` o `write_double()`
+    para enviar setpoints o comandos de control al hardware.
+6.  **Detención**: Al cerrar la aplicación, llamar a `stop()` para liberar
+    el puerto serial y finalizar el hilo de comunicación de forma segura.
+"""
+
+
 import serial
 import serial.tools.list_ports
 import threading

@@ -1,5 +1,45 @@
 # gui/components/tag_label.py
-# Reusable labeled tag widget with theme-aware styling
+"""
+Módulo para el widget `TagLabel`, un componente de etiqueta reutilizable.
+
+Este módulo define una clase simple pero flexible para crear etiquetas de texto
+estilizadas que pueden agruparse verticalmente. Es útil para mostrar valores,
+estados o categorías con colores de fondo y texto personalizables, permitiendo
+diferenciar visualmente la información crítica o agrupada en la interfaz HMI.
+
+Características principales:
+-----------------------------
+- **Estilos Predefinidos**: Soporta temas de fondo básicos ('light', 'dark', 'default')
+  para asegurar la legibilidad del texto en diferentes contextos de la interfaz.
+- **Personalización de Texto**: Permite especificar el color del texto para cada
+  etiqueta individualmente.
+- **Agrupación Vertical**: Diseñado para apilar múltiples etiquetas verticalmente
+  si se añaden secuencialmente, aunque comúnmente se usa para una sola etiqueta.
+- **Gestión de Limpieza**: Incluye un método `clear()` para eliminar todas las
+  etiquetas creadas, facilitando la actualización dinámica del contenido sin
+  fugas de memoria visuales.
+
+Clase principal:
+----------------
+- `TagLabel`: Widget contenedor que gestiona la creación y disposición
+  de las etiquetas estilizadas.
+
+Dependencias:
+-------------
+- `PySide6.QtWidgets`: `QWidget`, `QVBoxLayout`, `QLabel` para la estructura visual.
+- `PySide6.QtCore`: `Qt` para alineación y constantes básicas.
+
+Uso:
+----
+1.  **Instanciación**:
+    `tag_widget = TagLabel(parent_widget)`
+2.  **Añadir Etiqueta**:
+    `tag_widget.add_tag("ERROR", "red", theme="light")`
+    `tag_widget.add_tag("OK", "#00ff00", theme="dark")`
+3.  **Limpiar**:
+    `tag_widget.clear()` - Elimina todas las etiquetas para reutilizar el widget.
+"""
+
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PySide6.QtCore import Qt
@@ -7,10 +47,15 @@ from PySide6.QtCore import Qt
 
 class TagLabel(QWidget):
     """
-    Simple reusable widget to display a labeled tag/value with customizable text color
-    and background based on theme (light/dark/default).
-    """
+    Widget contenedor para etiquetas de texto estilizadas y apilables.
 
+    Proporciona métodos convenientes para crear `QLabel`s con estilos CSS
+    predefinidos (bordes redondeados, padding, fuentes negritas) y colores
+    basados en temas simples.
+
+    Args:
+        parent (QWidget, optional): Widget padre.
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)

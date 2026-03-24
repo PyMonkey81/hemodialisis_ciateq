@@ -1,5 +1,57 @@
 # gui/components/toggle_switch.py
-# Animated toggle switch widget for on/off controls (touch-friendly)
+
+"""
+Módulo para un widget de interruptor tipo "toggle" animado y táctil.
+
+Este módulo define la clase `ToggleSwitch`, un control de UI moderno y amigable
+al tacto para representar estados binarios (encendido/apagado, sí/no).
+Proporciona una retroalimentación visual clara mediante una animación suave
+al cambiar de estado, mejorando la experiencia del usuario en interfaces HMI.
+
+Características principales:
+-----------------------------
+- **Diseño Táctil**: Tamaño y estilo optimizados para ser fácilmente interactuable
+  en pantallas táctiles, con un cursor de mano para indicar su interactividad.
+- **Animación Suave**: Incorpora `QPropertyAnimation` y `QEasingCurve` para una
+  transición visualmente agradable cuando el interruptor cambia de estado.
+- **Feedback Visual Claro**: Cambia el color de fondo y la posición del círculo
+  para indicar claramente el estado "on" (activado) o "off" (desactivado).
+- **Altamente Configurable**: Permite personalizar el ancho, alto y los colores
+  de fondo para los estados "on" y "off".
+- **Control Programático**: El estado del interruptor puede ser modificado
+  programáticamente mediante `setChecked()` y consultado con `is_checked()`.
+- **Comunicación con Señales**: Emite una señal `toggled(bool)` cada vez que
+  su estado cambia, facilitando la integración con la lógica de la aplicación.
+  La señal envía un booleano (`True` para "on", `False` para "off").
+
+Clase principal:
+----------------
+- `ToggleSwitch`: Un widget personalizado que implementa el interruptor tipo toggle.
+
+Propiedades (para animación):
+-----------------------------
+- `circle_x` (float): Propiedad animable que controla la posición X del círculo
+  interno del interruptor, utilizada por `QPropertyAnimation`.
+
+Dependencias:
+-------------
+- `PySide6.QtWidgets.QWidget`: Clase base para widgets.
+- `PySide6.QtCore`: Para `Qt`, `Property`, `QEasingCurve`, `QPropertyAnimation`, `Signal`.
+- `PySide6.QtGui.QPainter`, `QColor`: Para el dibujo personalizado del widget.
+
+Uso:
+----
+1.  **Instanciación**: Crear una instancia de `ToggleSwitch` en cualquier layout.
+    Se pueden especificar `width`, `height`, `bg_color` y `active_color`.
+2.  **Conexión de Señales**: Conectar la señal `toggled` a un slot que maneje
+    el cambio de estado deseado en la aplicación.
+    `my_toggle = ToggleSwitch()`
+    `my_toggle.toggled.connect(self.handle_toggle_state)`
+3.  **Control de Estado**: Usar `my_toggle.setChecked(True)` o `my_toggle.setChecked(False)`
+    para cambiar el estado programáticamente. Usar `my_toggle.is_checked()` para
+    consultar el estado actual.
+"""
+
 
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, Property, QEasingCurve, QPropertyAnimation, Signal
@@ -47,7 +99,7 @@ class ToggleSwitch(QWidget):
     @circle_x.setter
     def circle_x(self, value: float):
         self._circle_x = value
-        self.update()  # Trigger repaint
+        self.update() 
 
     def mouseReleaseEvent(self, event):
         """Toggle state on left click/touch release."""

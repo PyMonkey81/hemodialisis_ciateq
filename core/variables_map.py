@@ -1,4 +1,76 @@
 #core/variables_map.py
+
+"""
+Módulo para el mapeo centralizado de todas las variables del sistema de hemodiálisis.
+
+Este módulo define la estructura y metadatos de todas las variables (sensores,
+actuadores, setpoints, flags de estado) utilizadas en la máquina de hemodiálisis.
+Sirve como una fuente única de verdad para la interfaz de usuario (GUI),
+el sistema de comunicación serial, el sistema de alarmas y cualquier
+otro componente que necesite interactuar con los datos del controlador.
+
+Proporciona definiciones detalladas, incluyendo:
+- Nombre descriptivo
+- Etiqueta corta para UI
+- Tipo de dato (booleano, double, int, string)
+- Acceso de lectura/escritura (read/write - rw)
+- Unidades de medida
+- Límites de operación o alarma
+- Tag único para identificación programática
+
+Estructuras de Datos Principales:
+----------------------------------
+1.  **`VARIABLES` (Dict[int, Dict[int, Dict[str, Any]]])**:
+    - Es el diccionario principal que organiza todas las variables.
+    - La primera clave `int` representa el **Código de Grupo Modbus** (ej. `0x01` para Booleanos de Operación, `0x02` para Parámetros Clínicos, etc.).
+    - La segunda clave `int` es la **Dirección/ID** de la variable dentro de ese grupo.
+    - El valor asociado es un diccionario con los metadatos de la variable:
+        - `name` (str): Nombre completo descriptivo de la variable.
+        - `label` (str): Etiqueta corta para mostrar en la UI.
+        - `type` (str): Tipo de dato (`"bool"`, `"double"`, `"int"`, `"string"`).
+        - `rw` (bool): `True` si es de lectura/escritura, `False` si es solo de lectura.
+        - `unit` (str): Unidades de medida (ej. "mmHg", "°C", "ml/min").
+        - `limites` (Tuple[float, float], optional): Tupla `(min_val, max_val)` para validación o alarmas. `None` si no aplica.
+        - `tag` (str): Identificador único de cadena para la variable, crucial para el intercambio de datos entre módulos.
+        - `nivel` (str): Nivel de severidad para alarmas (ej. "rojo", "amarillo", "cian"), usado por el sistema de alarmas.
+        - `id` (int, solo para booleanos): ID directo para booleanos dentro de su grupo.
+        - `value` (Any, opcional): Valor inicial (usado para `patternCondRaw`).
+        - `description` (str, opcional): Descripción adicional.
+
+2.  **`ANALOG_MAP` (List[Tuple[int, int]])**:
+    - Una lista ordenada de tuplas `(group_code, address_in_group)` que define
+      el orden y la ubicación de las variables analógicas en una trama de
+      lectura masiva Modbus. Esto es utilizado por `SerialCommunication` para
+      parsear eficientemente los datos recibidos.
+
+3.  **`TVAR_TO_GROUP` (Dict[int, str])**:
+    - Mapeo de códigos de grupo Modbus a nombres legibles de grupo.
+      Facilita la organización visual de las variables en la UI (ej. en el
+      monitor de variables en tiempo real).
+
+Rol en el Sistema:
+------------------
+- **Consistencia**: Garantiza que todos los módulos de la aplicación utilicen
+  la misma definición y semántica para cada variable.
+- **Mantenibilidad**: Simplifica la adición o modificación de variables sin
+  necesidad de cambiar código en múltiples lugares de la aplicación.
+- **Configuración de Alarmas**: Proporciona los límites (`limites`) y niveles
+  de severidad (`nivel`) para el sistema de alarmas.
+- **Comunicación Serial**: Define los tags y direcciones para el envío y
+  recepción de datos con el controlador.
+- **Interfaz de Usuario**: Suministra los nombres, etiquetas y unidades
+  para la representación de datos en la GUI.
+
+Uso:
+----
+Importar `VARIABLES`, `ANALOG_MAP` y `TVAR_TO_GROUP` en los módulos que
+necesiten acceder a la configuración de las variables del sistema.
+
+Ejemplo:
+`from core.variables_map import VARIABLES`
+`temperatura_label = VARIABLES[0x04][0x0D]["label"]`
+"""
+
 from typing import Dict, List, Tuple, Any
 
 # ================================================================
@@ -72,75 +144,11 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Disponible para Función Digital 11", "RESERVA 11", "cian", "availableBoolVariable7"),     # 52
                 ("Start Operation mode", "ESTADO START", "cian", "dialyModeOperationStart"),                      # 53
                 ("Stop Operation mode", "ESTADO STOP", "cian", "dialyModeOperationStop"),                         # 54
-                ("Disponible para Función Digital 14", "RESERVA 14", "cian", "availableBoolVariable10"),    # 55
+                ("Pause Operation mode", "ESTADO PAUSE", "cian", "dialyModeOperationPause"),    # 55
                 ("Disponible para Función Digital 15", "RESERVA 15", "cian", "availableBoolVariable11"),    # 56
                 ("Disponible para Función Digital 16", "RESERVA 16", "cian", "availableBoolVariable12"),    # 57
                 ("Disponible para Función Digital 17", "RESERVA 17", "cian", "availableBoolVariable13"),    # 58
                 ("Disponible para Función Digital 18", "RESERVA 18", "cian", "availableBoolVariable14"),    # 59
-
-
-                # ("Bomba peristáltica - Arranque", "INICIAR B.S.","cian", "bloodPumpStartButton"),       # 0
-                # ("Bomba peristáltica - Paro", "PARAR B.S.", "cian", "bloodPumpStopButton"),            # 1
-                # ("Bomba peristáltica - Avance", "FWD B.S.","cian", "bloodPumpFWDButton"),           # 2
-                # ("Bomba peristáltica - Reversa", "BCK B.S.", "cian", "bloodPumpREVButton"),          # 3
-                # ("Bomba de purga - Arranque",  "cian", "dialyserPumpStartButton"), # 4
-                # ("Bomba de purga - Paro", "cian", "dialyserPumpStopButton"),       # 5
-                # ("Bomba Heparina - Arranque", "cian", "heparinePumpsStartButton"),       # 6
-                # ("Bomba Heparina - Paro", "cian", "heparinePumpsStopButton"),            # 7
-                # ("Bomba Heparina - Avance", "cian", "heparinePumpFWDButton"),            # 8
-                # ("Bomba Heparina - Reversa", "cian", "heparinePumpREVButton"),           # 9
-                # ("Control Flujo Sangre - Habilitar", "cian", "bloodControlLoopEnable"),  # 10
-                # ("Control Flujo Sangre - Auto/Manual", "cian", "bloodControlLoopMode"),  # 11
-                # ("Control Conductividad - Habilitar", "cian", "dialyCondCtrlLoopEnable"),# 12
-                # ("Control Conductividad - Auto/Manual", "cian", "dialyCondCtrlLoopMode"),# 13
-                # ("Control Temp Dializante - Habilitar", "cian", "dialyTempCtrlLoopEnable"),# 14
-                # ("Control Temp Dializante - Auto/Manual", "cian", "dialyTempCtrlLoopMode"),# 15
-                # ("Bomba Heparina - Home", "cian", "heparinePumpHomePosition"),           # 16
-                # ("Cámara Balance - Start", "cian", "dialiserBalChambStrButt"),           # 17
-                # ("Cámara Balance - Stop", "cian", "dialiserBalChambStpButt"),            # 18
-                # ("Bolo Heparina", "cian", "heparinApplyBolusDose"),                      # 19
-                # ("Pausar/Continuar", "cian", "heparineOperPauseResume"),                 # 20
-                # ("Operar Elementos Dializante", "cian", "dialyCircuitElementsOpSel"),    # 21
-                # ("Bomba Purga Dializante - Start", "cian", "dialyPurgePumpStartButt"),   # 22 (Corregido: era 'Bomba Deaereación')
-                # ("Bomba Purga Dializante - Stop", "cian", "dialyPurgePumpStopButt"),     # 23 (Corregido: era 'Bomba Deaereación')
-                # ("Bomba UF - Start", "cian", "dialyUltraFPumpStartButt"),                # 24
-                # ("Bomba UF - Stop", "cian", "dialyUltraFPumpStoptButt"),                 # 25
-                # ("Bomba Bicarbonato - Start", "cian", "dialyBicarbonPumpStartButt"),     # 26
-                # ("Bomba Bicarbonato - Stop", "cian", "dialyBicarbonPumpStopButt"),       # 27
-                # ("Bomba Ácido Cítrico - Start", "cian", "dialyCitricAcPumpStartButt"),   # 28
-                # ("Bomba Ácido Cítrico - Stop", "cian", "dialyCitricAcPumpStopButt"),     # 29
-                # ("Válvula Agua Entrada", "cian", "dialyWaterInletValveButt"),            # 30
-                # ("Válvula Recirculación", "cian", "dialyRecirculatValveButt"),           # 31
-                # ("Válvula Cámara Caliente", "cian", "dialyHotChambValveButt"),           # 32
-                # ("Válvula Venteo Aire", "cian", "dialyAirVentSepChambButt"),             # 33
-                # ("Válvula Bypass Filtro", "cian", "dialyBypassFilterButt"),              # 34
-                # ("Válvula Corte Entrada Filtro", "cian", "dialyInputFilterCutButt"),     # 35
-                # ("Válvula Corte Salida Filtro", "cian", "dialyOutputFilterCutButt"),     # 36
-                # ("Válvula de Drenaje", "cian", "dialyWaterDrainValveButt"),              # 37
-                # ("Fin de Ciclo Cámara Balance", "amarillo", "dialyBalanceChambCycleEnd"),# 38 (Usualmente es solo lectura, pero por ser un indicador que puede ser reseteado o consultado se deja RW=True)
-                # ("Iniciar Diálisis", "cian", "dialyStartDialysisButt"),                  # 39
-                # ("Parar Diálisis", "cian", "dialyStopDialysisButt"),                     # 40
-
-                # # --- VARIABLES DE LECTURA/INDICADORES (RW=False) - ID 41 a 59 ---
-                # ("Protección Resistores Calefactor", "rojo", "watterTankHeaterProtect"),  # 41
-                # ("Disponible para Función Digital 3", "cian", "availableBoolVariable1"),  # 42
-                # ("Disponible para Función Digital 4", "cian", "availableBoolVariable2"),  # 43
-                # ("Disponible para Función Digital 5", "cian", "availableBoolVariable3"),  # 44
-                # ("Disponible para Función Digital 6", "cian", "availableBoolVariable4"),  # 45
-                # ("Disponible para Función Digital 7", "cian", "availableBoolVariable5"),  # 46
-                # ("Disponible para Función Digital 8", "cian", "availableBoolVariable6"),  # 47
-                # ("Detector Burbuja Aire en Sangre", "rojo", "airBubbleInBloodDetected"),  # 48
-                # ("Detector Sangre en Dializante", "rojo", "bloodInDialyCircDetected"),    # 49
-                # ("Nivel Alto Tanque Agua", "amarillo", "dialyTankHiLevelSwitch"),         # 50
-                # ("Nivel Cámara Deaereación", "amarillo", "dialyDeaerChamLevSwitch"),      # 51
-                # ("Disponible para Función Digital 11", "cian", "availableBoolVariable7"), # 52
-                # ("Start Dialysis", "cian", "dialyModeOperationStart"), # 53  dialyModeOperationStart  
-                # ("Stop Dialysis", "cian", "dialyModeOperationStop"), # 54  dialyModeOperationStop  
-                # ("Disponible para Función Digital 14", "cian", "availableBoolVariable10"),# 55
-                # ("Disponible para Función Digital 15", "cian", "availableBoolVariable11"),# 56
-                # ("Disponible para Función Digital 16", "cian", "availableBoolVariable12"),# 57
-                # ("Disponible para Función Digital 17", "cian", "availableBoolVariable13"),# 58
-                # ("Disponible para Función Digital 18", "cian", "availableBoolVariable14"),# 59
             ], start=0)}
     },
 

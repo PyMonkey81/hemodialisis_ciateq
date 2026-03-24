@@ -1,15 +1,42 @@
 # gui/therapy/main_screen.py
 # Home / Welcome screen displayed at startup (stacked index 0)
 
+"""
+Pantalla de inicio / bienvenida de la interfaz HMI.
+
+Este módulo define la clase `MainScreen`, que representa la vista inicial
+que se muestra al arrancar la aplicación o cuando el sistema está en estado
+de reposo/desconectado. Su función principal es informativa y de presentación
+de marca.
+"""
+
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSizePolicy
 from PySide6.QtCore import Qt
 
 
 class MainScreen(QWidget):
     """
-    Main welcome/home screen of the hemodialysis machine HMI.
-    Displays device name, version, developer information and branding.
+    Widget principal de bienvenida de la máquina de hemodiálisis.
+
+    Esta clase hereda de QWidget y se encarga de renderizar la pantalla "Home"
+    (índice 0 en el QStackedWidget principal).
+
+    Características:
+    ----------------
+    - **Identidad Visual:** Muestra el nombre del dispositivo ("MÁQUINA DE HEMODIÁLISIS")
+      y el nombre del modelo/marca ("Yeztli").
+    - **Información Técnica:** Presenta la versión del software actual y la entidad
+      desarrolladora (CIATEQ A.C.).
+    - **Diseño:** Utiliza un diseño limpio con fondo degradado suave y tipografía
+      grande para facilitar la lectura a distancia.
+    - **Layout:** Organiza los elementos verticalmente (QVBoxLayout) con espaciado
+      y alineación centrada.
+
+    Atributos Públicos:
+    -------------------
+    No expone métodos públicos complejos ni señales, ya que es una pantalla estática.
     """
+
 
     def __init__(self):
         super().__init__()

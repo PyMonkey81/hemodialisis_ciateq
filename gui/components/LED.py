@@ -1,5 +1,46 @@
 # gui/components/led.py
-# Simple LED indicator widget (on/off) with green/red circle
+"""
+Módulo para un widget de indicador LED simple.
+
+Este módulo define la clase `LED`, un componente de interfaz gráfica
+diseñado para simular un indicador luminoso simple (LED) en paneles de control.
+Su propósito es proporcionar una retroalimentación visual rápida y clara
+del estado binario (encendido/apagado) de un sensor, actuador o condición del sistema.
+
+Características principales:
+-----------------------------
+- **Visualización Clara**: Muestra un círculo verde cuando está "encendido"
+  y rojo cuando está "apagado", siguiendo convenciones comunes de señalización.
+- **Renderizado Personalizado**: Utiliza el sistema de pintura de Qt (`QPainter`)
+  para dibujar el círculo, asegurando una apariencia nítida en cualquier
+  resolución.
+- **Ligero y Reutilizable**: Componente minimalista y de bajo consumo de recursos,
+  fácil de integrar en diferentes partes de la interfaz de usuario.
+- **Control de Estado Simple**: Se gestiona mediante el método `set_state()`,
+  aceptando las cadenas 'on' o 'off'.
+
+Clase principal:
+----------------
+- `LED`: Widget que encapsula la lógica de dibujo y gestión del estado
+  del indicador LED.
+
+Dependencias:
+-------------
+- `PySide6.QtWidgets.QWidget`: Clase base para widgets.
+- `PySide6.QtCore.Qt`: Para constantes de Qt.
+- `PySide6.QtGui.QPainter`, `QColor`: Para el dibujo personalizado.
+
+Uso:
+----
+1.  **Instanciación**:
+    `my_led = LED(parent_widget)`
+2.  **Configuración de Estado**:
+    `my_led.set_state('on')`  # El LED se encenderá (verde)
+    `my_led.set_state('off')` # El LED se apagará (rojo)
+3.  **Consulta de Estado**:
+    `current_status = my_led.get_state()`  # Retorna 'on' o 'off'
+"""
+
 
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt
@@ -8,10 +49,15 @@ from PySide6.QtGui import QPainter, QColor
 
 class LED(QWidget):
     """
-    Simple circular LED indicator widget.
-    Displays green when 'on', red when 'off'.
-    Used for status visualization in control panels.
+    Widget de indicador LED circular simple.
+
+    Muestra un círculo verde cuando su estado es 'on' y rojo cuando es 'off'.
+    Utilizado para la visualización de estados en paneles de control y diagnóstico.
+
+    Args:
+        parent (QWidget, optional): Widget padre.
     """
+
 
     def __init__(self, parent=None):
         super().__init__(parent)

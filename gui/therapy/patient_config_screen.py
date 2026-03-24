@@ -1,5 +1,51 @@
 # gui/therapy/patient_config_screen.py
 
+"""
+Módulo para la configuración y gestión de perfiles de paciente.
+
+Este módulo define la clase `PatientConfigScreen`, una interfaz de usuario
+completa para ingresar, seleccionar y modificar los datos demográficos y clínicos
+de los pacientes que serán tratados con la máquina de hemodiálisis. Está diseñada
+específicamente para pantallas táctiles, integrando teclados numéricos y alfabéticos
+virtuales.
+
+Características clave:
+----------------------
+- **Base de Datos en Memoria:** Mantiene una pequeña base de datos de pacientes de prueba
+  en memoria (`self.patients_db`) para demostración y facilidad de uso.
+- **Interacción Táctil:** Todos los campos de entrada de datos se gestionan mediante
+  diálogos modales de teclado numérico (`NumpadDialog`) o teclado QWERTY (`KeyboardDialog`),
+  optimizados para interfaces táctiles.
+- **Selección y Creación de Pacientes:** Permite seleccionar un paciente existente
+  de una lista o crear un nuevo perfil de paciente.
+- **Validación de Datos:** Incluye validaciones en tiempo real y al guardar,
+  asegurando que los datos ingresados cumplan con los formatos y rangos esperados
+  (ej. rangos de edad, peso, etc., posiblemente usando `VARIABLES` del sistema).
+- **Cálculo de UF Objetivo:** Calcula automáticamente el objetivo de ultrafiltración
+  basado en la diferencia entre el peso pre-diálisis y el peso seco del paciente.
+- **Integración con el Sistema:** Actualiza el diccionario `current_values` del
+  `HemodialysisHMI` principal con los datos del paciente seleccionado/modificado,
+  haciéndolos disponibles para otras pantallas y la lógica de control.
+- **Diseño Responsive:** Utiliza un `QScrollArea` para asegurar que todo el
+  contenido sea accesible en diferentes resoluciones de pantalla, especialmente
+  útil si hay muchos campos o la pantalla es pequeña.
+
+Clase principal:
+----------------
+- `PatientConfigScreen`: Widget principal que contiene la lógica y la interfaz
+  para la gestión de pacientes.
+
+Dependencias:
+-------------
+- `PySide6`: Para la construcción de la interfaz gráfica de usuario.
+- `gui.components.numpad_modal.NumpadDialog`: Diálogo para la entrada de números.
+- `gui.components.keyboard_modal.KeyboardDialog`: Diálogo para la entrada de texto.
+- `gui.components.ui_components.show_dark_message`: Función para mostrar mensajes de alerta/información.
+- `core.variables_map.VARIABLES`: usado para definir rangos de validación
+  y mapeo de datos con el controlador.
+"""
+
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QMessageBox, QFormLayout,
@@ -97,8 +143,6 @@ class PatientConfigScreen(QWidget):
         content_layout.setContentsMargins(40, 30, 40, 30)
         content_layout.setSpacing(20)
         
-        # --- AHORA AÑADIMOS TODOS LOS COMPONENTES DE LA UI A 'content_layout' ---
-
         # Título
         title = QLabel("Configuración del Paciente")
         title.setStyleSheet("font-size: 38px; font-weight: bold; color: #1e40af;")
@@ -303,7 +347,7 @@ class PatientConfigScreen(QWidget):
             else: # No hay validador, aceptar el texto directamente
                 input_widget.setText(new_value_as_str) # Asegurarse de que sea string para QLineEdit
 
-            # --- Guardar en current_values (después de la validación exitosa y de actualizar el widget) ---
+        
             patient_key = f"patient_{field_key}"
             if mode == 'numeric':
                 try:
@@ -483,13 +527,8 @@ class PatientConfigScreen(QWidget):
         """Esta pantalla solo ingresa datos, no monitorea en tiempo real. Solo mergea si llegan datos del paciente."""
         if not new_values:
             return
-
-        # Merge simple a current_values (por si otras pantallas envían updates)
         self.current_values.update(new_values)
 
-        # Si quieres reflejar en el formulario (ej. si se actualiza desde máquina), puedes agregar:
-        # patient = {k: new_values.get(k, 0) for k in ["patient_id", "patient_name", ...]}
-        # self._populate_form(patient)
 
         print("[PatientConfig] current_values actualizado")    
 
@@ -511,7 +550,7 @@ class PatientConfigScreen(QWidget):
         writes = []
 
         if "patient_id" in self.values and self.values["patient_id"] != self.patient["id"]:
-            writes.append((0x08, 0x00, self.patient["id"]))          # string → manejar codificación
+            writes.append((0x08, 0x00, self.patient["id"]))         
 
         if "patient_name" in self.values and self.values["patient_name"] != self.patient["name"]:
             writes.append((0x08, 0x01, self.patient["name"]))
@@ -520,11 +559,9 @@ class PatientConfigScreen(QWidget):
         if self.patient["gender"] != 0:
             writes.append((0x08, 0x02, self.patient["gender"]))
 
-        # UF goal (double → probablemente 2 registros Modbus)
+        # UF goal 
         if abs(self.patient["uf_goal_liters"] - self.values.get("uf_goal_liters", 0.0)) > 0.01:
             writes.append((0x08, 0x07, self.patient["uf_goal_liters"]))
 
         if writes:
             print("[INFO] Pendientes de escritura a máquina:", writes)
-        # Aquí llamas tu función de Modbus write múltiple o secuencial
-        # ej: self.modbus_client.write_multiple_registers(...)

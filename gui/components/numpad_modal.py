@@ -1,5 +1,51 @@
 # gui/components/numpad_modal.py
-# Modal numeric keypad dialog for touch-friendly input of decimal values
+"""
+Módulo que implementa un diálogo de teclado numérico modal y táctil.
+
+Este módulo define la clase `NumpadDialog`, una ventana emergente diseñada
+específicamente para dispositivos con pantalla táctil donde el uso de un
+teclado físico no es posible o deseable. Permite al usuario ingresar valores
+numéricos (enteros o decimales) de forma segura y controlada.
+
+Características principales:
+-----------------------------
+- **Interfaz Táctil Optimizada**: Botones grandes, espaciados y de fácil
+  pulsación para evitar errores de entrada.
+- **Modalidad**: Se ejecuta como un diálogo modal (`QDialog.exec()`), bloqueando
+  el resto de la interfaz hasta que el usuario acepte o cancele, asegurando
+  el foco en la tarea de entrada de datos.
+- **Sin Bordes del SO**: Utiliza `FramelessWindowHint` para integrarse
+  visualmente con la estética de la aplicación HMI, eliminando barras de título
+  del sistema operativo.
+- **Soporte Decimal**: Permite la entrada de números decimales (punto flotante)
+  con validación básica para evitar múltiples puntos.
+- **Tipado Dinámico de Retorno**: El método `get_value()` devuelve inteligentemente
+  un `int` o un `float` según lo que el usuario haya escrito, facilitando
+  su uso con diferentes tipos de variables del sistema.
+- **Estilo Visual**: Implementa un tema oscuro ("Dark Mode") consistente con
+  el resto de la aplicación médica.
+
+Clase principal:
+----------------
+- `NumpadDialog`: El widget del diálogo que contiene la lógica de entrada
+  y la disposición visual.
+
+Dependencias:
+-------------
+- `PySide6.QtWidgets`: Componentes básicos de UI.
+- `PySide6.QtCore`: Flags de ventana y alineación.
+- `PySide6.QtGui`: Fuentes.
+
+Uso:
+----
+Generalmente se invoca desde un evento de clic en un campo editable:
+
+    dialog = NumpadDialog(parent, initial_value="12.5", title="Flujo de Sangre")
+    if dialog.exec():
+        valor = dialog.get_value()
+        # valor será int(12) o float(12.5) dependiendo de la entrada
+"""
+
 
 from PySide6.QtWidgets import (
     QDialog, QGridLayout, QPushButton, QLineEdit,
@@ -11,8 +57,24 @@ from PySide6.QtGui import QFont
 
 class NumpadDialog(QDialog):
     """
-    Touch-friendly numeric keypad dialog for entering decimal values.
-    Supports backspace, decimal point, and accept/cancel actions.
+    Diálogo modal con teclado numérico virtual.
+
+    Proporciona una interfaz limpia para la entrada de números. Incluye un
+    título descriptivo, una pantalla de visualización del valor actual,
+    una cuadrícula de botones numéricos (0-9, punto, retroceso) y botones
+    de acción (Aceptar/Cancelar).
+
+    Args:
+        parent (QWidget, optional): Widget padre del diálogo.
+        initial_value (str, optional): Valor inicial a mostrar en la pantalla
+                                       al abrir el diálogo. Por defecto "".
+        title (str, optional): Título descriptivo que aparece en la cabecera
+                               (ej. "Configurar Temperatura"). Por defecto "Ingrese Valor".
+
+    Métodos:
+        get_value() -> Union[int, float]: Retorna el valor ingresado convertido
+                                          al tipo numérico apropiado. Retorna 0
+                                          si la entrada está vacía o es inválida.
     """
 
     def __init__(self, parent=None, initial_value: str = "", title: str = "Ingrese Valor"):
@@ -171,17 +233,6 @@ class NumpadDialog(QDialog):
         """Remove last character from display."""
         current_text = self.display.text()
         self.display.setText(current_text[:-1] if current_text else "")
-
-    # def get_value(self) -> float:
-    #     """Return the entered value as float (0.0 if empty or invalid)."""
-    #     text = self.display.text().strip()
-    #     if not text or text == ".":
-    #         return 0.0
-    #     try:
-    #         return float(text)
-    #     except ValueError:
-    #         return 0.0
-
 
     def get_value(self): # Ya no necesita tipo hint float
         """

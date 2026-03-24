@@ -1,6 +1,38 @@
 # gui/service/options_screen.py
 # Service / Settings screen (stacked index 4)
 # Provides access to test panels, manual mode, calibration, network config, and variable monitor
+"""
+Módulo para la pantalla de Opciones y Configuración de Servicio.
+
+Este módulo define la clase `OptionsScreen`, que funciona como un menú principal
+para acceder a diversas herramientas y configuraciones relacionadas con el
+servicio, diagnóstico, calibración y monitorización del dispositivo de
+hemodiálisis. Es un punto de acceso clave para el personal técnico o de servicio.
+
+Características principales:
+-----------------------------
+- **Menú de Navegación:** Presenta una serie de botones que permiten al usuario
+  acceder directamente a sub-pantallas especializadas, como:
+    - Panel de pruebas
+    - Modo manual
+    - Calibración
+    - Configuración de red
+    - Monitor de variables en tiempo real
+- **Interfaz Intuitiva:** Diseño limpio y enfocado en la navegación, con botones
+  claros y de gran tamaño adecuados para interacción táctil.
+- **Integración:** Cada botón está conectado a un método de la ventana principal
+  (`HemodialysisHMI`) para cambiar la pantalla activa en el `QStackedWidget`.
+
+Clase principal:
+----------------
+- `OptionsScreen`: Widget que actúa como el centro de navegación para las funciones
+  de servicio y configuración.
+
+Dependencias:
+-------------
+- `PySide6`: Para la construcción de la interfaz gráfica de usuario.
+"""
+
 
 from PySide6.QtWidgets import QWidget, QGridLayout, QFrame, QLabel, QPushButton
 from PySide6.QtCore import Qt

@@ -1,6 +1,63 @@
 # gui/service/test_panel_screen.py
 # Test / Diagnostic panel screen for hemodialysis machine verification and manual control
 
+"""
+Módulo para la pantalla de diagnóstico y panel de pruebas de la máquina de hemodiálisis.
+
+Este módulo define la clase `TestPanelScreen`, una interfaz de usuario avanzada
+diseñada para el personal técnico, permitiendo la monitorización detallada, el
+diagnóstico y el control manual de diversos parámetros de la máquina en tiempo real.
+Es crucial para la verificación del funcionamiento, la resolución de problemas
+y el desarrollo del sistema.
+
+Características principales:
+-----------------------------
+- **Monitorización en Tiempo Real:** Muestra lecturas en vivo de múltiples sensores
+  (temperaturas, conductividades, presiones de dializante y sangre) y setpoints
+  de control.
+- **Control Manual:** Permite al usuario ajustar setpoints clave, como el flujo de
+  la cámara de balance, el flujo de sangre, el flujo de ultrafiltración, la conductividad
+  y la temperatura del dializante, directamente desde la interfaz.
+- **Visualización Gráfica de Tendencias (PyQtGraph):** Incluye gráficas dinámicas
+  para visualizar la evolución temporal de las temperaturas y conductividades
+  en diferentes puntos del circuito, lo cual es vital para el diagnóstico.
+- **Indicadores LED:** Muestra el estado de indicadores discretos (ej. niveles,
+  presencia de aire o sangre), simulando LEDs físicos para una interpretación rápida.
+- **Cálculos en Vivo:** Realiza cálculos en tiempo real de métricas importantes
+  como la Presión Transmembrana (PTM) y conversiones de flujo entre diferentes unidades.
+- **Entrada Táctil:** Utiliza `NumpadDialog` para una entrada numérica precisa
+  y adaptada a pantallas táctiles.
+- **Interacción con el Sistema Principal:** Emite señales (`request_setpoint_change`)
+  para enviar comandos y setpoints al controlador principal de la HMI, que a su vez
+  se comunica con el hardware.
+
+Clase principal:
+----------------
+- `TestPanelScreen`: Widget que encapsula toda la lógica y la interfaz
+  para el panel de diagnóstico y pruebas.
+
+Dependencias:
+-------------
+- `PySide6`: Para la construcción de la interfaz gráfica de usuario y señales/slots.
+- `pyqtgraph`: Librería para la creación de gráficas interactivas y eficientes.
+- `numpy`: Para la gestión de datos numéricos y el historial de las gráficas.
+- `collections.deque`: Para mantener eficientemente el historial de datos para las gráficas.
+- `core.variables_map.VARIABLES`: Para el mapeo de tags de variables y posibles límites.
+- `gui.components.LED`: Componente gráfico personalizado para simular LEDs.
+- `gui.components.numpad_modal.NumpadDialog`: Diálogo para la entrada numérica táctil.
+- `gui.components.ui_components.LabeledParameterWidget`, `ClickableLineEdit`, `DoubleToggleBox`:
+  Widgets UI personalizados.
+- `logic.calculos`: Funciones de cálculo para conversiones de flujo y PTM.
+
+Uso:
+----
+La clase `TestPanelScreen` se instancia en el `HemodialysisHMI` principal
+y se añade a su `QStackedWidget` como una pantalla de servicio. Se espera
+que el `HemodialysisHMI` conecte su señal `request_setpoint_change` a un
+método que envíe los comandos al controlador serial.
+"""
+
+
 import logging
 from PySide6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout,
@@ -41,7 +98,7 @@ class TestPanelScreen(QWidget):
         self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}  
 
-        # Hold-off timers to prevent rapid setpoint writes (tag → timestamp ms)
+        
         self.write_hold_off = {}
 
         self.setAutoFillBackground(True)
@@ -67,8 +124,6 @@ class TestPanelScreen(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(15)
 
-        # Labels will be on white backgrounds within their own widgets,
-        # but the general labels like these need adjustment if parent is dark.
         label_style = "color: #000000; font-size: 26px; font-weight: bold;"
         indicator_style = "color: #22d3ee; font-size: 26px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; background: #e0e0e0;" # Added background for visibility
         button_style = """
@@ -91,11 +146,11 @@ class TestPanelScreen(QWidget):
 
         self.input_cb_flow = LabeledParameterWidget(
             label_text="Flujo CB", 
-            tag="balanceChamberSetTiming", # Opcional, referencia
+            tag="balanceChamberSetTiming", 
             value="", 
             units="ml/min", # mostrar unidades 
             is_editable=True, 
-            # parent=self.control_area
+            
         )
         self.input_cb_flow.request_numpad.connect(lambda tag, wid, tit: self._handle_cb_flow_input())
         grid_top.addWidget(self.input_cb_flow, 0, 0, 1, 2)
@@ -189,7 +244,7 @@ class TestPanelScreen(QWidget):
 
         self.label_cond_ef = LabeledParameterWidget(
             label_text="Cond. EF", tag="dialyConductIFProcessData",
-            value="0.0", units="mS/cm", # Asumo mS/cm, puedes quitarlo si prefieres
+            value="0.0", units="mS/cm", 
             is_editable=False
         )
         grid_top.addWidget(self.label_cond_ef, 3, 6, 1, 2)
@@ -197,7 +252,7 @@ class TestPanelScreen(QWidget):
 
         self.label_cond_sf = LabeledParameterWidget(
             label_text="Cond. SF", tag="dialyConductOFProcessData",
-            value="", units="mS/cm", # Asumo mS/cm
+            value="", units="mS/cm", 
             is_editable=False
         )
         grid_top.addWidget(self.label_cond_sf, 4, 6, 1, 2)
@@ -209,12 +264,9 @@ class TestPanelScreen(QWidget):
         bottom_control.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         grid_bottom = QGridLayout(bottom_control)
         grid_bottom.setSpacing(15)
-        grid_bottom.setContentsMargins(5, 5, 5, 5) # Adjusted margins for consistency
+        grid_bottom.setContentsMargins(5, 5, 5, 5) #
 
-        # Styles for labels in this area
         
-       
-
         row = 0
         col = 0
         self.label_ptm = self._add_output_row(grid_bottom, row, col, "PTM", "mmHg", label_style=label_style, indicator_style=indicator_style)
@@ -258,8 +310,8 @@ class TestPanelScreen(QWidget):
         
 
         # ── Plots Area ───────────────────────────────────────────────────────────
-        graphics_area = QFrame() # Changed to QFrame for styling ease
-        graphics_area.setStyleSheet("background: #fcfcfc;") # White background
+        graphics_area = QFrame() 
+        graphics_area.setStyleSheet("background: #fcfcfc;") 
         graphics_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         grid_plots = QGridLayout(graphics_area)
         grid_plots.setSpacing(15)
@@ -352,7 +404,7 @@ class TestPanelScreen(QWidget):
 
         value_label = QLabel("0.0")
         value_label.setStyleSheet(indicator_style)
-        # value_label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        
         value_label.setFixedSize(70,35)
         value_label.setAlignment(Qt.AlignCenter)
         grid.addWidget(value_label, row, col + 1)
@@ -450,7 +502,7 @@ class TestPanelScreen(QWidget):
         # ── Temperature & Conductivity Plots ─────────────────────────────────────
         temp_ef = self.current_values.get("dialyTempIFProcessData", 0.0)
         temp_sf = self.current_values.get("dialyTempIOFProcessData", 0.0)
-        temp_tank = self.current_values.get("dialyTempVariableData", 0.0) # Check if this should be VariableData
+        temp_tank = self.current_values.get("dialyTempVariableData", 0.0) 
         cond_ef = self.current_values.get("dialyConductIFProcessData", 0.0)
         cond_sf = self.current_values.get("dialyConductOFProcessData", 0.0)
 

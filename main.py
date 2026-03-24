@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 
 def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
     """
+    Manejo de excepciones global de fallos inesperados de la aplicación 
+    Muestra mensaje de error  crítico  y cierra la aplicación por seguridad 
+
     Global exception handler for unexpected application failures.
     Displays a critical error message and exits the application for safety.
     """
@@ -49,6 +52,9 @@ def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
 
 class ScaledHemodialysisHMI(QMainWindow):
     """
+    Adapta el tamaño de su widgwt central (HMI) a la resolución de la pantalla 
+    mientras mantiene la relación de aspecto original del diseño
+
     QMainWindow that scales its central widget (the HMI) to fit the screen resolution
     while maintaining the original design aspect ratio.
     """
@@ -60,7 +66,7 @@ class ScaledHemodialysisHMI(QMainWindow):
         # Monitor resolution
         screen = QGuiApplication.primaryScreen()
         if screen is None:
-            screen_width, screen_height = 1920, 1080  # fallback
+            screen_width, screen_height = 1920, 1080  
         else:
             geometry = screen.availableGeometry()
             screen_width = geometry.width()

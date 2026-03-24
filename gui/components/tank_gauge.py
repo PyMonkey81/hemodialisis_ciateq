@@ -1,4 +1,46 @@
 # gui/components/tank_gauge.py
+"""
+Módulo para el widget de indicador visual tipo tanque.
+
+Este módulo define la clase `TankGauge`, un componente de interfaz gráfica
+personalizado que simula un medidor de nivel de líquido. Es utilizado
+principalmente en la pantalla principal de la HMI para visualizar de forma
+intuitiva y analógica variables críticas como las presiones arterial y venosa,
+o la temperatura del dializante.
+
+Características principales:
+-----------------------------
+- **Renderizado Personalizado**: Utiliza el sistema de pintura de Qt (`QPainter`)
+  para dibujar vectorialmente el fondo, el contenedor y el nivel del líquido,
+  asegurando una visualización nítida en cualquier resolución.
+- **Feedback Visual Analógico**: Representa el valor actual como una altura
+  de llenado proporcional dentro de un rango definido (mínimo y máximo).
+- **Personalización**: Permite configurar el color del líquido, el rango de
+  valores, el título y las unidades de medida.
+- **Protección de Geometría**: Incluye lógica para evitar errores de dibujo
+  si el widget se redimensiona a tamaños muy pequeños.
+- **Textos Integrados**: Dibuja el título en la parte superior, el valor
+  numérico actual sobre el líquido y las unidades en la base.
+
+Clase principal:
+----------------
+- `TankGauge`: Widget que encapsula la lógica de dibujo y actualización
+  del indicador de nivel.
+
+Dependencias:
+-------------
+- `PySide6.QtWidgets.QWidget`: Clase base para widgets.
+- `PySide6.QtGui`: Clases de pintura (`QPainter`, `QColor`, `QBrush`, etc.).
+- `PySide6.QtCore`: Tipos de datos básicos (`Qt`, `QRectF`).
+
+Uso:
+----
+1.  **Instanciación**:
+    `gauge = TankGauge("Presión Art.", -100, 400, "mmHg", "#dc2626")`
+2.  **Actualización**:
+    `gauge.setValue(120.5)` - Esto forzará un redibujado inmediato (`update()`)
+    con el nuevo nivel de líquido.
+"""
 
 
 
@@ -7,6 +49,21 @@ from PySide6.QtCore import Qt, QSize, QRectF
 from PySide6.QtGui import QPainter, QColor, QFont, QPen, QBrush
 
 class TankGauge(QWidget):
+    """
+    Widget que visualiza un valor numérico como el nivel de un tanque.
+
+    Sobrescribe el evento `paintEvent` para dibujar un contenedor con esquinas
+    redondeadas que se llena de abajo hacia arriba.
+
+    Args:
+        titulo (str): Texto a mostrar en la parte superior (ej. "Arterial").
+        min_val (float): Valor mínimo del rango (nivel 0% del tanque).
+        max_val (float): Valor máximo del rango (nivel 100% del tanque).
+        unidad (str): Texto de la unidad de medida (ej. "mmHg").
+        color_liquido (str, optional): Código de color Hex para el líquido.
+                                       Por defecto azul ("#1640f9").
+        parent (QWidget, optional): Widget padre.
+    """
     def __init__(self, titulo, min_val, max_val, unidad, color_liquido="#1640f9", parent=None):
         super().__init__(parent)
         self.titulo = titulo

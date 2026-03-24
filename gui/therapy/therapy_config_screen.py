@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QGridLayout, QFrame, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal, QDateTime
+from PySide6.QtCore import Qt, Signal, QDateTime, QEvent
 
 import logging
 from gui.components.numpad_modal import NumpadDialog
@@ -20,7 +20,24 @@ try:
 except ImportError:
     VARIABLES = {0x01: {}, 0x02: {}}
 
+class PushbuttonEvent(QPushButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setAttribute(Qt.WA_AcceptTouchEvents, True)
 
+    def event(self, event):
+        if event.type() == QEvent.Type.TouchBegin:
+            self.setDown(True)
+            self.pressed.emit()
+            return True
+
+        elif event.type() in (QEvent.Type.TouchEnd, QEvent.Type.TouchCancel):
+            self.setDown(False)
+            self.released.emit()
+            return True
+
+        return super().event(event)
+    
 class TherapyConfigScreen(QWidget):
     """
     Pantalla de configuración de parámetros numéricos para la terapia.
@@ -28,7 +45,7 @@ class TherapyConfigScreen(QWidget):
     """
     valueChanged = Signal(str, float)  # Emite el tag y el nuevo valor
     request_setpoint_change = Signal(str, float)
-    
+    request_boolean_change = Signal(str, bool)    
 
 
     def __init__(self, parent=None, values_dict=None):
@@ -46,6 +63,11 @@ class TherapyConfigScreen(QWidget):
                                        stop:0 #1a2a4a, stop:1 #0f172a);
             color: #f8fafc;
         """)
+
+        button_style = """
+            QPushButton { background: #3b82f6; color: #ffffff; border-radius: 20px; font-weight: bold; }
+            QPushButton:pressed { background: #1e40af; }
+        """
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(40, 30, 40, 30)
@@ -154,19 +176,7 @@ class TherapyConfigScreen(QWidget):
         params_layout.addWidget(lbl_conductivity, 1, 2, Qt.AlignRight)
         params_layout.addWidget(self.input_conductivity, 1, 3)
 
-        # Sodio (Na+)
-        # lbl_sodium = QLabel("Sodio (Na+, mmol/L):")
-        # lbl_sodium.setStyleSheet(label_style)
-        # self.input_sodium = ClickableLineEdit("0.0")
-        # self.input_sodium.setFixedSize(120, 50)
-        # self.input_sodium.setAlignment(Qt.AlignCenter)
-        # self.input_sodium.setStyleSheet(input_style)
-        # self.input_sodium.setReadOnly(True)
-        # self.input_sodium.clicked.connect(
-        #     lambda: self.open_numpad("sodiumConcentrationSetPoint", self.input_sodium, "Sodio (Na+)")
-        # )
-        # params_layout.addWidget(lbl_sodium, 2, 2, Qt.AlignRight)
-        # params_layout.addWidget(self.input_sodium, 2, 3)
+   
 
         # Duración de Terapia (hh:mm)
         lbl_duration = QLabel("T. Terapia (hh:mm)")
@@ -184,17 +194,79 @@ class TherapyConfigScreen(QWidget):
                 title="Tiempo de terapia"
             )
         )
-        params_layout.addWidget(lbl_duration, 3, 2, Qt.AlignRight)
-        params_layout.addWidget(self.input_duration, 3, 3)
+        params_layout.addWidget(lbl_duration, 2, 2, Qt.AlignRight)
+        params_layout.addWidget(self.input_duration, 2, 3)               
 
-        params_layout.setColumnStretch(0, 1)
-        params_layout.setColumnStretch(1, 0)
-        params_layout.setColumnStretch(2, 1)
-        params_layout.setColumnStretch(3, 0)
+        hep_config_frame = QFrame()    
+        hep_config_frame.setStyleSheet("""
+                QFrame {
+                    border: 2px solid #5c5c5c;
+                    border-radius: 8px;
+                    background-color: transparent;
+                }
+                QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
+        """)
+        
+        # Layout horizontal para el frame (Bolo a la izq, Botones a la derecha)
+        hep_frame_layout = QHBoxLayout(hep_config_frame)
+        hep_frame_layout.setContentsMargins(15, 15, 15, 15)
+        hep_frame_layout.setSpacing(15)
 
+        # -- Sección Bolo (Vertical: Label arriba, Input abajo) --
+        bolus_layout = QHBoxLayout()
+        bolus_layout.setSpacing(5)
+        
+        lbl_bolus = QLabel("Bolo (ml):")       
+        lbl_bolus.setStyleSheet(label_style) 
+        lbl_bolus.setAlignment(Qt.AlignCenter)
+        
+        self.input_bolus = ClickableLineEdit("0.0")
+        self.input_bolus.setFixedSize(120, 50)
+        self.input_bolus.setAlignment(Qt.AlignCenter)
+        self.input_bolus.setStyleSheet(input_style)
+        self.input_bolus.setReadOnly(True)
+        self.input_bolus.clicked.connect(
+            lambda: self.open_numpad("heparineBolusQuantity", self.input_bolus, "bolo (ml)")
+        )
+        
+        bolus_layout.addWidget(lbl_bolus)
+        bolus_layout.addWidget(self.input_bolus)
+        
+        # Agregamos el layout del bolo al frame principal
+        hep_frame_layout.addLayout(bolus_layout)
+        
+        # Espacio flexible para separar el bolo de los botones (opcional)
+        hep_frame_layout.addStretch() 
+
+        # -- Botones de Control --        
+        btn_heparin_home = PushbuttonEvent("HOME", self)
+        btn_heparin_home.setFixedSize(120, 80)
+        btn_heparin_home.setStyleSheet(button_style)
+        btn_heparin_home.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", True))
+        btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
+        hep_frame_layout.addWidget(btn_heparin_home)
+
+        #  Btn REV heparina
+        btn_rev_hep = PushbuttonEvent("REV", self)
+        btn_rev_hep.setFixedSize(120 ,80)
+        btn_rev_hep.setStyleSheet(button_style)
+        btn_rev_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", True))
+        btn_rev_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", False))
+        hep_frame_layout.addWidget(btn_rev_hep)
+        #  Btn FWD heparina
+        btn_fwd_hep = PushbuttonEvent("FWD", self)
+        btn_fwd_hep.setFixedSize(120, 80)
+        btn_fwd_hep.setStyleSheet(button_style)
+        btn_fwd_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", True))
+        btn_fwd_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", False))
+        hep_frame_layout.addWidget(btn_fwd_hep)
+
+        # ─── Agregando al layout principal ──────────────────────────────────
         main_layout.addWidget(params_frame)
+        main_layout.addWidget(hep_config_frame) 
         main_layout.addStretch(1)
 
+    
         # Botón Volver
         btn_back = QPushButton("Volver a Diálisis")
         btn_back.setFixedSize(250, 60)
@@ -223,6 +295,7 @@ class TherapyConfigScreen(QWidget):
                 input_widget.setText(str(new_value))   
                 self.current_values[tag] = float_val                         
                 self.on_user_input_setpoint(tag, float_val)  #solicitar cambio en comunicación serial
+                self.write_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 300 
                 if hasattr(input_widget, 'clearFocus'):
                     input_widget.clearFocus()
                 self.setFocus()
@@ -266,7 +339,7 @@ class TherapyConfigScreen(QWidget):
         self._update_input_display(self.input_blood_flow, "bloodFlowControlSetPoint")
         self._update_input_display(self.input_temperature, "dialyTempControlSetPoint")
         self._update_input_display(self.input_conductivity, "dialyCondControlSetPoint")
-        # self._update_input_display(self.input_sodium, "sodiumConcentrationSetPoint")
+        self._update_input_display(self.input_bolus, "heparineBolusQuantity")
 
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
         tag_cb = "balanceChamberSetTiming"
@@ -335,6 +408,9 @@ class TherapyConfigScreen(QWidget):
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)
 
+    def on_user_boolean_command(self, tag, state):
+        self.request_boolean_change.emit(tag, state)
+        print("confirmado")
 
 
     def showEvent(self, event):

@@ -1,4 +1,48 @@
 # core/alarm_limits.py
+
+"""
+Módulo para la gestión persistente de los límites de alarma.
+
+Este módulo define la clase `AlarmLimitsManager`, que se encarga de almacenar,
+cargar y gestionar los umbrales (límites inferior y superior) para las variables
+monitoreadas por el sistema de alarmas. Permite establecer límites por defecto
+basados en la configuración inicial del sistema y guardar/cargar límites
+personalizados por el usuario en un archivo JSON.
+
+Características:
+----------------
+- **Persistencia:** Guarda los límites de alarma modificados por el usuario
+  en un archivo JSON (`config/alarm_limits.json` por defecto) para que persistan
+  entre reinicios de la aplicación.
+- **Valores por Defecto:** Carga los límites predefinidos de las variables
+  críticas desde el módulo `core.variables_map` como valores de respaldo.
+- **Gestión de Límites:** Proporciona métodos para obtener los límites actuales
+  (personalizados o por defecto), establecer nuevos límites y restaurar a los
+  valores predefinidos.
+- **Validación Básica:** Asegura que el límite inferior no sea mayor o igual
+  que el límite superior al intentar establecer nuevos valores.
+
+Clase principal:
+----------------
+- `AlarmLimitsManager`: Maneja la lógica de carga, guardado, obtención y
+  establecimiento de los límites de alarma.
+
+Dependencias:
+-------------
+- `json`: Para serializar y deserializar los límites a/desde JSON.
+- `pathlib`: Para una gestión de rutas de archivo más robusta.
+- `typing`: Para anotaciones de tipo (Dict, Tuple, Optional).
+- `core.variables_map`: Fuente de los límites de alarma por defecto.
+
+Uso:
+----
+Una instancia de `AlarmLimitsManager` debe ser creada una sola vez en el
+componente principal de la aplicación (ej. `HemodialysisHMI`) y luego
+pasada a cualquier componente que necesite acceder o modificar los límites
+de alarma, como `AlarmSystem` o `AlarmsScreen`.
+"""
+
+
 import json
 from pathlib import Path
 from typing import Dict, Tuple, Optional
@@ -9,7 +53,7 @@ from core.variables_map import VARIABLES
 class AlarmLimitsManager:
     def __init__(self, config_path: str = "config/alarm_limits.json"):
         self.config_path = Path(config_path)
-        self.limits: Dict[str, Tuple[float, float]] = {}  # tag → (min, max)
+        self.limits: Dict[str, Tuple[float, float]] = {}  
         self.defaults: Dict[str, Tuple[float, float]] = {}
         
         self._load_defaults()

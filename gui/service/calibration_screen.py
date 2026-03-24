@@ -2,6 +2,70 @@
 # Low-level calibration and controller tuning screen
 # Allows enabling control loops, adjusting PID gains, feedforward, and monitoring setpoints/variables/outputs
 
+"""
+Módulo para la pantalla de calibración y ajuste de controladores de bajo nivel.
+
+Este módulo define la clase `CalibrationScreen`, una interfaz de usuario crítica
+diseñada para el personal técnico e ingenieros, que permite la inspección detallada,
+el ajuste fino y la calibración de los algoritmos de control de la máquina de
+hemodiálisis. Ofrece herramientas esenciales para optimizar el rendimiento de
+los bucles de control y asegurar la precisión de los parámetros operativos.
+
+Características principales:
+-----------------------------
+- **Visualización Gráfica de Tendencias (PyQtGraph):**
+    - Muestra gráficas en tiempo real de setpoints, variables medidas y salidas
+      de control para los bucles de flujo de sangre (CFS), conductividad (CC)
+      y temperatura (CTD). Esto permite observar el comportamiento dinámico de
+      los controladores y su respuesta a los cambios.
+- **Control de Bucles y Modos:**
+    - `DoubleToggleBox`s para habilitar/deshabilitar los bucles de control
+      (CFS, CC, CTD) y para alternar sus modos de operación (ej. manual/automático).
+- **Ajuste de Parámetros de Control:**
+    - **Setpoints y Salidas:** Permite al usuario configurar los setpoints deseados
+      y ajustar directamente las salidas de control (en modo manual) para CFS, CC y CTD.
+    - **Ganancias PID:** Proporciona campos de entrada para ajustar las ganancias
+      proporcionales (Kp), integrales (Ki) y derivativas (Kd) de los controladores
+      PID para cada bucle (CFS, CC, CTD).
+    - **Ganancias Feedforward:** Permite ajustar los parámetros de ganancia
+      (`bloodFlowFeedForwardGain`) y el avance (`bloodFlowFeedForwardLead`)
+      del control feedforward para el flujo de sangre.
+- **Monitorización de Variables Clave:**
+    - Muestra la velocidad de la bomba de sangre en RPM y otras variables
+      relevantes para el ajuste de los controladores.
+- **Interacción Táctil:** Utiliza `NumpadDialog`s para una entrada numérica
+  precisa y optimizada para pantallas táctiles.
+- **Comunicación con el Controlador:** Emite señales (`request_setpoint_change`
+  y `request_boolean_change`) al controlador principal de la HMI para aplicar
+  los cambios de configuración en el hardware.
+
+Clase principal:
+----------------
+- `CalibrationScreen`: Widget principal que orquesta la interfaz, la lógica
+  y la comunicación para la calibración y ajuste de los controladores.
+
+Dependencias:
+-------------
+- `PySide6`: Para la construcción de la interfaz gráfica y la gestión de eventos/señales.
+- `pyqtgraph`: Para la creación de gráficas interactivas y eficientes en tiempo real.
+- `numpy`: Para la gestión de datos numéricos y el historial de las gráficas.
+- `collections.deque`: Para mantener eficientemente el historial de datos para las gráficas.
+- `gui.components.numpad_modal.NumpadDialog`: Diálogo para la entrada numérica táctil.
+- `gui.components.ui_components.ClickableLineEdit`, `DoubleToggleBox`: Widgets UI personalizados.
+- `core.variables_map.VARIABLES`: Para el mapeo de tags de variables y la configuración
+  de los controladores en el sistema.
+
+Uso:
+----
+La clase `CalibrationScreen` se instancia en el `HemodialysisHMI` principal
+y se añade a su `QStackedWidget` como una pantalla de servicio. Es fundamental
+que el `HemodialysisHMI` conecte sus señales de solicitud de cambio a métodos
+que envíen los setpoints y comandos booleanos al controlador serial, y que
+proporcione actualizaciones constantes de `current_values` para que la
+pantalla pueda refrescar sus displays y gráficas.
+"""
+
+
 from PySide6.QtWidgets import QWidget, QGridLayout, QLabel, QSizePolicy
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QColor
@@ -132,7 +196,6 @@ class CalibrationScreen(QWidget):
             plot.getAxis('bottom').setStyle(tickTextOffset=5)
             plot.getAxis('left').setStyle(tickTextOffset=5)
 
-        # layout.addWidget(graphics_area, 0, 5)
 
         # ── Control Area ─────────────────────────────────────────────────────────
         control_area = QWidget()
@@ -288,7 +351,6 @@ class CalibrationScreen(QWidget):
         """Open numeric keypad for setpoint entry."""
         current_text = input_widget.text()
         dialog = NumpadDialog(self, initial_value="", title=title)
-        # dialog = NumpadDialog(self, initial_value=current_text, title=title)
         if dialog.exec():
             new_value = dialog.get_value()
             if new_value is not None:
@@ -311,7 +373,7 @@ class CalibrationScreen(QWidget):
         bf_setpoint = self.current_values.get("bloodFlowControlSetPoint", 0.0)
         bf_variable = self.current_values.get("bloodFlowVariableData", 0.0)
         bf_output_raw = self.current_values.get("bloodFlowControlOutput", 0.0)
-        bf_output_percent = bf_output_raw * 10  # Asumiendo escala 0-10 → %
+        bf_output_percent = bf_output_raw * 10  # escala 0-10 → %
 
         self.blood_flow_setpoint_history.append(bf_setpoint)
         self.blood_flow_variable_history.append(bf_variable)
@@ -325,7 +387,7 @@ class CalibrationScreen(QWidget):
         cond_setpoint = self.current_values.get("dialyCondControlSetPoint", 0.0)
         cond_variable = self.current_values.get("dialyCondVariableData", 0.0)
         cond_output_raw = self.current_values.get("dialyCondControlOutput", 0.0) # Salida de conductividad
-        cond_output_percent = cond_output_raw / 5  # Asumiendo escala
+        cond_output_percent = cond_output_raw / 5  #escala
 
         self.cond_setpoint_history.append(cond_setpoint)
         self.cond_variable_history.append(cond_variable)
@@ -339,7 +401,7 @@ class CalibrationScreen(QWidget):
         temp_setpoint = self.current_values.get("dialyTempControlSetPoint", 0.0)
         temp_variable = self.current_values.get("dialyTempVariableData", 0.0)
         temp_output_raw = self.current_values.get("dialyTempControlOutput", 0.0)
-        temp_output_percent = temp_output_raw / 2  # Asumiendo escala
+        temp_output_percent = temp_output_raw / 2  # escala
 
         self.temp_setpoint_history.append(temp_setpoint)
         self.temp_variable_history.append(temp_variable)

@@ -1,4 +1,77 @@
 # connection/bioz_urea_controller.py
+"""
+Módulo para el control y la lectura de datos de Bioimpedancia y Urea.
+
+Este módulo define la clase `BiozUreaController`, que se encarga de establecer
+y gestionar la comunicación serial con un microcontrolador ESP32-S3. Este ESP32
+está dedicado a la adquisición de mediciones de bioimpedancia y de los valores
+ADC de los sensores de urea. La clase está diseñada para operar de forma
+independiente y asíncrona, emitiendo señales con los datos procesados para su
+integración en la interfaz gráfica principal o en la lógica de control.
+
+Características principales:
+-----------------------------
+- **Comunicación con ESP32-S3**: Establece una conexión serial con un ESP32-S3,
+  esperando una velocidad de baudios específica (115200).
+- **Hilo de Comunicación Dedicado**: Opera en un hilo de ejecución separado
+  (`read_thread`) para asegurar que la lectura de datos y el envío de comandos
+  no bloqueen el hilo principal de la aplicación o la GUI.
+- **Autodetección y Reconexión de Puerto**: Busca automáticamente el puerto
+  serial del ESP32 utilizando una lista blanca de palabras clave (`port_whitelist`)
+  y excluye puertos como los FTDI (usados por el controlador principal).
+  Maneja la reconexión automática en caso de interrupción de la comunicación.
+- **Envío de Comandos al ESP32**: Permite enviar comandos específicos al
+  microcontrolador (ej. "SRTB" para iniciar lectura de bioimpedancia, "SRTU"
+  para urea) a través de una cola de comandos (`command_queue`).
+- **Parseo de Líneas de Datos**: Interpreta líneas de texto recibidas del ESP32,
+  identificando patrones específicos para mediciones de bioimpedancia
+  (resistencia y fase) y valores ADC de urea.
+- **Emisión de Datos (Qt Signals)**: Emite la señal `data_received(tag: str, value: float)`
+  cada vez que se parsea un nuevo valor, utilizando tags descriptivos como
+  "bioz_resistance", "bioz_phase", "urea_adc1" y "urea_adc2".
+- **Manejo de Errores Robustos**: Incluye mecanismos para capturar y reportar
+  errores seriales o de parseo, y para reintentar la conexión.
+
+Clase principal:
+----------------
+- `BiozUreaController`: Gestiona la conexión, el envío de comandos, la lectura
+  y el parseo de respuestas del microcontrolador ESP32-S3.
+
+Señales:
+--------
+- `data_received(tag: str, value: float)`: Emitida cuando se recibe y procesa
+  un nuevo dato de bioimpedancia o urea.
+
+Args:
+-----
+- `port_whitelist` (list, optional): Lista de palabras clave para identificar
+  el puerto serial del ESP32. Por defecto: `["ESP32", "CP210X", "UART Bridge"]`.
+- `baudrate` (int, optional): Velocidad de comunicación en baudios. Por defecto: `115200`.
+
+Dependencias:
+-------------
+- `serial`: Biblioteca PySerial para el control del puerto serial.
+- `serial.tools.list_ports`: Para la detección automática de puertos seriales.
+- `threading`: Para ejecutar la lógica de comunicación en un hilo separado.
+- `time`: Para gestionar pausas y timeouts.
+- `re`: Para expresiones regulares utilizadas en el parseo de líneas.
+- `queue`: Para la gestión de la cola de comandos de envío.
+- `PySide6.QtCore.QObject`, `PySide6.QtCore.Signal`: Para la integración con
+  el sistema de señales/slots de Qt.
+
+Uso:
+----
+1.  **Instanciación**: Crear una instancia de `BiozUreaController` en el
+    componente principal de la aplicación (ej. `HemodialysisHMI`).
+2.  **Inicio del Hilo**: Llamar a `start()` para iniciar el hilo de comunicación
+    y la búsqueda del dispositivo.
+3.  **Envío de Comandos**: Utilizar `send_command(command_str)` para solicitar
+    mediciones específicas al ESP32 (ej. "SRTB", "SRTU").
+4.  **Conexión de Señales**: Conectar la señal `data_received` a un slot
+    de la GUI o del sistema de control para procesar los valores recibidos.
+5.  **Detención**: Al cerrar la aplicación, llamar a `stop()` para finalizar
+    el hilo y liberar el puerto serial de forma segura.
+"""
 
 import serial
 import serial.tools.list_ports
