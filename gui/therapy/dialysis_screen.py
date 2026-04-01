@@ -279,7 +279,7 @@ class DialysisScreen(QWidget):
             "dialyCondVariableData":     self.conductivity_display,
             "bloodSpeedVariableData":    self.blood_flow_display,
             "dialyFlowControlOutput":    self.dialysate_flow_display,
-            "dialyTempVariableData":     self.temperature_display,
+            "dialyTempIFProcessData":    self.temperature_display,  #Temperatura a la entrada del filtro - Cambio comentado 
             "ultraFilterPumpSpeed":      self.uf_rate_display,
             "UF Total":                  self.uf_total_display,
             "uf_goal_liters":            self.uf_target_display,
@@ -306,12 +306,13 @@ class DialysisScreen(QWidget):
     def on_user_boolean_command(self, tag, state):
         self.request_boolean_change.emit(tag, state)
     
-    def set_start_stop_buttons_state(self, enable_start: bool, enable_stop: bool):
+    def set_start_stop_buttons_state(self, enable_start: bool, enable_stop: bool, enable_pause: bool):
         """
         Recibe instrucciones directas del Main para habilitar/deshabilitar.
         """
         btn_iniciar = self.action_buttons.get("INICIAR")
         btn_detener = self.action_buttons.get("DETENER")
+        btn_pausar = self.action_buttons.get("PAUSAR") # se agrego este boton a la logica de activación/desactivación
 
 
         style_enabled = """
@@ -325,6 +326,10 @@ class DialysisScreen(QWidget):
              QPushButton { background: #DD2911; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
              QPushButton:pressed { background: #334155; }
         """
+        style_pause_enabled = """
+             QPushButton { background: #FFC400; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
+             QPushButton:pressed { background: #334155; }
+        """
 
         if btn_iniciar:
             btn_iniciar.setEnabled(enable_start)
@@ -333,6 +338,10 @@ class DialysisScreen(QWidget):
         if btn_detener:
             btn_detener.setEnabled(enable_stop)            
             btn_detener.setStyleSheet(style_stop_enabled if enable_stop else style_disabled)
+        
+        if btn_pausar:
+            btn_pausar.setEnabled(enable_pause)
+            btn_pausar.setStyleSheet(style_pause_enabled if enable_pause else style_disabled)        
 
 
     def show_therapy_config(self):

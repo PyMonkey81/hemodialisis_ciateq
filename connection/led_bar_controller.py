@@ -85,7 +85,7 @@ class LedBarController(QObject):
 
     def __init__(self, port_whitelist=None, baudrate=9600):
         super().__init__()
-        self.port_whitelist = port_whitelist if port_whitelist else ["CH340", "USB-SERIAL", "ARDUINO", "USB SERIAL"]
+        self.port_whitelist = port_whitelist if port_whitelist else ["CH340", "ARDUINO"]
         self.baudrate = baudrate
         self.serial_port = None
         self.running = False

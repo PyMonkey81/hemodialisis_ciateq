@@ -64,12 +64,14 @@ from connection.serial_communication import SerialCommunication
 from connection.led_bar_controller import LedBarController
 from connection.bioz_urea_controller import BiozUreaController
 from connection.conductivity_sensor_comm import PatternConductivity
+
 from gui.therapy.main_screen import MainScreen
 from gui.therapy.alarms_screen import AlarmsScreen
 from gui.therapy.dialysis_screen import DialysisScreen
 from gui.therapy.treatment_mode_screen import TreatmentModeScreen
 from gui.service.options_screen import OptionsScreen
 from gui.service.cleaning_screen import CleaningScreen
+from gui.service.comm_port_screen import CommPortScreen
 from gui.components.real_time_variables import RealTimeVariablesMonitor
 from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
@@ -218,6 +220,7 @@ class HemodialysisHMI(QMainWindow):
         self.log_treatment_timer.setInterval(1000) # Registrar cada segundo
         self.log_treatment_timer.timeout.connect(self._log_treatment_current_data)
 
+
         # Serial communication
         self.current_values = {}
         self.serial_comm = SerialCommunication()
@@ -328,6 +331,10 @@ class HemodialysisHMI(QMainWindow):
 
         self.network_config_screen = NetworkConfigScreen(parent=self)
         
+        self.comm_port_screen = CommPortScreen(parent=self)
+        self.comm_port_screen.config_changed.connect(self.handle_comm_config_change)
+
+
 
         # # Therapy sub-screens
         self.patient_config_screen = PatientConfigScreen(parent=self)
@@ -352,6 +359,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.real_time_var)                # 10
         self.screen_stack.addWidget(self.patient_config_screen)        # 11
         self.screen_stack.addWidget(self.therapy_config_screen)        # 12
+        self.screen_stack.addWidget(self.comm_port_screen)             # 13 
 
 
         self.therapy_config_screen.valueChanged.connect(self.handleGlobalValueChange)
@@ -450,9 +458,7 @@ class HemodialysisHMI(QMainWindow):
                 QLabel { color: #ffffff; background: #1E4573;
                          font-weight: bold; font-size: 25px; }
             """)
-            header_layout.addWidget(lbl)
-
-        
+            header_layout.addWidget(lbl)        
         header_layout.addStretch()
 
         # Logo 2
@@ -855,6 +861,11 @@ class HemodialysisHMI(QMainWindow):
             self.therapy_config_screen.update_values(self.current_values)
         self.left_content.show()
         self.right_content.show()
+    
+    def show_config_comm_screen(self):
+        self.screen_stack.setCurrentWidget(self.comm_port_screen)
+        self.left_content.show()
+        self.right_content.show()
 
         
         
@@ -899,6 +910,7 @@ class HemodialysisHMI(QMainWindow):
                     btn.setStyleSheet(self.BTN_DISABLED_STYLE)
             
             # Actualizar etiquetas del encabezado para reflejar la desconexión
+            self.active_alarms.clear()
             self.active_alarms_label.setText("")             
             self.current_process_status.setText("Esperando conexión")
 
@@ -1042,30 +1054,37 @@ class HemodialysisHMI(QMainWindow):
         # 3. Determinar qué botones deben estar activos
         can_start = False
         can_stop = False
+        can_pause = False
 
         if status_code == 12:  # LISTO PARA INICIAR
             if temp_ok and cond_ok:
                 can_start = True
                 can_stop = False
+                can_pause = False
             else:
                 # Listo por estado, pero temperaturas/cond mal
                 can_start = False
                 can_stop = False
+                can_pause = False
 
         elif status_code == 13: # TRATAMIENTO CORRIENDO
             can_start = False
             can_stop = True
-        elif status_code == 14:
+            can_pause = True
+        elif status_code == 14:  # estado de pausa 
             if temp_ok and cond_ok:
                 can_start = True
                 can_stop = True  #False se puede detener si se esta en pausa 
+                can_pause = False
             else:                
                 can_start = False
                 can_stop = False
+                can_pause = True
 
         else: # CUALQUIER OTRO ESTADO (Cebado, Pausa, etc)
             can_start = False
             can_stop = False
+            can_pause = False
 
         # =========================================================
         # 4. APLICAR A LA BARRA DE NAVEGACIÓN (Botón Grande)
@@ -1082,7 +1101,7 @@ class HemodialysisHMI(QMainWindow):
         # Verificamos si la pantalla ya fue creada y tiene el método
         if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
             if hasattr(self.dialysis_screen, 'set_start_stop_buttons_state'):
-                self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop)
+                self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop, can_pause)
 
 
     def _update_priming_controls_state(self):
@@ -1171,21 +1190,40 @@ class HemodialysisHMI(QMainWindow):
         """)
 
 
+    # def handle_alarm(self, idx, active, value, name, level, limit):
+    #     was_active = name in [a[0] for a in self.active_alarms]
+    #     if active:
+    #         if name not in [a[0] for a in self.active_alarms]:
+    #             self.active_alarms.append((name, value, level))
+    #             self.buzzer_silenced_by_user = False
+    #     else:
+    #         self.active_alarms = [a for a in self.active_alarms if a[0] != name]
+    #         self.active_alarms = [a for a in self.active_alarms if a[0] != name]
+    #         if not self.active_alarms:
+    #             self.buzzer_silenced_by_user = False
+
+    #     self.refresh_alarms_label()
+    #     self.update_connection_status()
+    #     self.update_led_bar_state()
+
     def handle_alarm(self, idx, active, value, name, level, limit):
-        was_active = name in [a[0] for a in self.active_alarms]
         if active:
-            if name not in [a[0] for a in self.active_alarms]:
+            # Buscar si la alarma ya existe
+            existing_alarm_index = next((i for i, a in enumerate(self.active_alarms) if a[0] == name), -1)            
+            if existing_alarm_index == -1:
                 self.active_alarms.append((name, value, level))
                 self.buzzer_silenced_by_user = False
-        else:
-            self.active_alarms = [a for a in self.active_alarms if a[0] != name]
-            self.active_alarms = [a for a in self.active_alarms if a[0] != name]
+            else:                
+                self.active_alarms[existing_alarm_index] = (name, value, level)
+        else:            
+            self.active_alarms = [a for a in self.active_alarms if a[0] != name]            
             if not self.active_alarms:
                 self.buzzer_silenced_by_user = False
 
         self.refresh_alarms_label()
         self.update_connection_status()
         self.update_led_bar_state()
+
 
     # ────────────────────────────────────────────────
     #              LED Bar Logic
@@ -1502,10 +1540,16 @@ class HemodialysisHMI(QMainWindow):
             # específicos definidos en _set_ui_connected_state o directamente.
             # Los botones deshabilitados mantienen su BTN_DISABLED_STYLE.
 
-
-    def closeEvent(self, event):
-        self.end_dialysis_session() # Llama a la función que cierra el logger
+    def handle_comm_config_change(self, sensor_id, port, is_enabled):
+        if sensor_id == "CONDUCTIVITY":
+            self.pattern_sensor.update_config(port, is_enabled)
+            logger.info(f"Sensor Conductividad: Puerto={port}, Habilitado={is_enabled}")
+        elif sensor_id == "BIOZ":
+            self.bioz_urea_controller.update_config(port, is_enabled)
+            logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}")    
         
+    def closeEvent(self, event):
+        self.end_dialysis_session() # Llama a la función que cierra el logger        
         super().closeEvent(event)
         logger.error("[INFO] closeEvent → performing shutdown...")
         self.shutdown()

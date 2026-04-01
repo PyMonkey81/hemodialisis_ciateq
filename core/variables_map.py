@@ -128,9 +128,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Fin de Ciclo Cámara Balance", "FIN CICLO BAL", "amarillo", "dialyBalanceChambCycleEnd"),# 38
                 ("Iniciar Diálisis", "INICIO DIALISIS", "cian", "dialyStartDialysisButt"),              # 39
                 ("Parar Diálisis", "PARO DIALISIS", "cian", "dialyStopDialysisButt"),                   # 40
-
-                # --- VARIABLES DE LECTURA/INDICADORES (RW=False) - ID 41 a 59 ---
-                ("Protección Resistores Calefactor", "PROT CALEFACTOR", "rojo", "watterTankHeaterProtect"), # 41
+                ("Protección Resistores Calefactor", "PROT CALEFACTOR", "cian", "watterTankHeaterProtect"), # 41     alarma que se activa constantemente pero no importante para usuario
                 ("Disponible para Función Digital 3", "RESERVA 3", "cian", "availableBoolVariable1"),       # 42
                 ("Disponible para Función Digital 4", "RESERVA 4", "cian", "availableBoolVariable2"),       # 43
                 ("Disponible para Función Digital 5", "RESERVA 5", "cian", "availableBoolVariable3"),       # 44
@@ -315,95 +313,3 @@ TVAR_TO_GROUP = {
 
     
    
-    # 0x03: {
-    #     0x00: {"name": "Velocidad de UltraFiltrado","type": "double","rw": True,"unit": "L/h","limites": (0, 2),"tag": "ultraFilterPumpSpeed","nivel": "cian"},              # 7
-    #     0x01: {"name": "Ajuste de tiempo de ciclo de cámara de balance","type": "double","rw": True,"unit": "s","limites": (0, 100),"tag": "balanceChamberSetTiming","nivel": "cian"}, # 8
-    #     0x02: {"name": "Tiempo terapia: horas","type": "double","rw": True,"unit": "h","limites": (0, 10),"tag": "heparineTherapyHours","nivel": "cian"},                    # 9
-    #     0x03: {"name": "Tiempo terapia: minutos","type": "double","rw": True, "unit": "m","limites": (0, 59),"tag": "heparineTherapyMinutes","nivel": "cian"},               # 10
-    #     0x04: {"name": "Tamaño de escala de jeringa","type": "double","rw": True,"unit": "mm/ml","limites": (1, 10),"tag": "heparineSyrinjeScaleSize","nivel": "cian"},      # 11
-    #     0x05: {"name": "Dosis de heparina por terapia ml/h","type": "double","rw": True,"unit": "ml/h","limites": (0, 50),"tag": "heparineTherapyDosage","nivel": "cian"},   # 12
-    #     0x06: {"name": "Cantidad de bolo","type": "double","rw": True,"unit": "ml","limites": (0, 10),"tag": "heparineBolusQuantity","nivel": "cian"},                       # 13
-    #     0x07: {"name": "Ajuste de velocidad de bomba bicarbonato","type": "double","rw": True,"unit": "%","limites": (0, 100),"tag": "bicarbonatePumpSpeed","nivel": "cian"},# 14
-    #     0x08: {"name": "Ajuste de velocidad de ácido cítrico","type": "double","rw": True,"unit": "%","limites": (0, 100),"tag": "citricAcidPumpSpeed","nivel": "cian"},     # 15
-    # },
-
-    # # ================================================================
-    # # CONTROL PID (0x04)
-    # # ================================================================
-    # 0x04: {
-    #     0x00: {"name": "Setpoint flujo sanguíneo", "type": "double", "rw": True, "unit": "ml/min", "limites": (0, 600), "tag": "bloodFlowControlSetPoint", "nivel": "cian"},        # 16   0
-    #     0x01: {"name": "Cálculo flujo circuito sanguíneo", "type": "double", "rw": True, "unit": "ml/min", "limites": (0, 600), "tag": "bloodFlowVariableData", "nivel": "cian"},   # 17   1 
-    #     0x02: {"name": "Salida control flujo sanguíneo", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "bloodFlowControlOutput", "nivel": "cian"},         # 18   2
-    #     0x03: {"name": "Kp control de flujo sanguíneo", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlPropGain", "nivel": "cian"},          # 19   3 
-    #     0x04: {"name": "Ki control de flujo sanguíneo", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlInteGain", "nivel": "cian"},          # 20   4
-    #     0x05: {"name": "Kd control de flujo sanguíneo", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlDeriGain", "nivel": "cian"},          # 21   5
-    #     0x06: {"name": "Setpoint conductividad", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyCondControlSetPoint", "nivel": "cian"},       # 22   6
-    #     0x07: {"name": "Conductividad medida", "type": "double", "rw": False, "unit": "mS/cm", "limites": (12.5, 15.5), "tag": "dialyCondVariableData", "nivel": "amarillo"},       # 23   7
-    #     0x08: {"name": "Salida control de conductividad", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyCondControlOutput", "nivel": "cian"},       # 24   8
-    #     0x09: {"name": "Kp control de conductividad", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlPropGain", "nivel": "cian"},            # 25   9
-    #     0x0A: {"name": "Ki control de conductividad", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlInteGain", "nivel": "cian"},            # 26   10
-    #     0x0B: {"name": "Kd control de conductividad", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlDeriGain", "nivel": "cian"},            # 27   11  
-    #     0x0C: {"name": "Setpoint temperatura", "type": "double", "rw": True, "unit": "°C", "limites": (35.0, 39.0), "tag": "dialyTempControlSetPoint", "nivel": "cian"},            # 28   12 
-    #     0x0D: {"name": "Temperatura medida", "type": "double", "rw": False, "unit": "°C", "limites": (34.5, 39.5), "tag": "dialyTempVariableData", "nivel": "amarillo"},            # 29   13
-    #     0x0E: {"name": "Salida control temperatura", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyTempControlOutput", "nivel": "cian"},            # 30   14 
-    #     0x0F: {"name": "Kp control temperatura", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlPropGain", "nivel": "cian"},                 # 31   15
-    #     0x10: {"name": "Ki control temperatura", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlInteGain", "nivel": "cian"},                 # 32   16
-    #     0x11: {"name": "Kd control temperatura", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlDeriGain", "nivel": "cian"},                 # 33   17
-    #     0x12: {"name": "Ganancia Feedforward flujo", "type": "double", "rw": True, "unit": "", "limites": (0, 5), "tag": "bloodFlowFeedForwardGain", "nivel": "cian"},              # 34   18
-    #     0x13: {"name": "Tiempo adelanto Feedforward flujo", "type": "double", "rw": True, "unit": "s", "limites": (0, 10), "tag": "bloodFlowFeedForwardLead", "nivel": "cian"},     # 35   19
-    #     0x14: {"name": "Setpoint flujo dializante", "type": "double", "rw": True, "unit": "ml/min", "limites": (300, 800), "tag": "dialyFlowControlOutput", "nivel": "cian"},       # 36   20
-    #     0x15: {"name": "Salida bomba de purga", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyDeaerControlOutput", "nivel": "cian"},                # 37   21  
-    #     0x16: {"name": "Parámetro control variable 1", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData1", "nivel": "cian"},           # 38   22
-    #     0x17: {"name": "Parámetro control variable 2", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData2", "nivel": "cian"},           # 39   23
-    #     0x18: {"name": "Parámetro control variable 3", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData3", "nivel": "cian"},           # 40   24
-    #     0x19: {"name": "Parámetro control variable 4", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData4", "nivel": "cian"},           # 41   25
-    #     0x1A: {"name": "Parámetro control variable 5", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData5", "nivel": "cian"},           # 42   26 
-    # },
-
-    # # ================================================================
-    # # PROCESO - ANALÓGICAS (0x05)
-    # # ================================================================
-    # 0x05: {
-    #     0x00: {"name": "Velocidad bomba peristáltica de sangre", "type": "double", "rw": True, "unit": "RPM", "limites": (0, 600), "tag": "bloodSpeedVariableData", "nivel": "cian"}, # 43
-    #     0x01: {"name": "Flujo de heparina", "type": "double", "rw": True, "unit": "ml/h", "limites": (0, 50), "tag": "heparFlowProcessData", "nivel": "cian"},                        # 44
-    #     0x02: {"name": "Presión arterial en línea sanguínea", "type": "double", "rw": True, "unit": "mmHg", "limites": (-100, 400), "tag": "arterPresProcessData", "nivel": "rojo"},  # 45
-    #     0x03: {"name": "Presión venosa en línea sanguínea", "type": "double", "rw": True, "unit": "mmHg", "limites": (-50, 300), "tag": "venouPresProcessData", "nivel": "rojo"},     # 46
-    #     0x04: {"name": "Presión del dializante Entrada del filtro (EF)", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyPresIFProcessData", "nivel": "amarillo"}, # 47
-    #     0x05: {"name": "Presión del dializante Salida del filtro (SF)", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyPresOFProcessData", "nivel": "amarillo"},  # 48
-    #     0x06: {"name": "Presión entrada agua alimentación", "type": "double", "rw": True, "unit": "bar", "limites": (0, 5), "tag": "dialyLineWaterPresData", "nivel": "cian"},        # 49
-    #     0x07: {"name": "Temperatura del dializante EF", "type": "double", "rw": True, "unit": "°C", "limites": (35.0, 39.0), "tag": "dialyTempIFProcessData", "nivel": "amarillo"},   # 50
-    #     0x08: {"name": "Temperatura del dializante SF", "type": "double", "rw": True, "unit": "°C", "limites": (35.0, 39.0), "tag": "dialyTempOFProcessData", "nivel": "amarillo"},   # 51 
-    #     0x09: {"name": "Flujo de líquido de sustitución", "type": "double", "rw": True, "unit": "ml/h", "limites": (0, 5000), "tag": "subsLiqFlowProcessData", "nivel": "cian"},      # 52
-    #     0x0A: {"name": "Conductividad dializante antes del filtro", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyConductIFProcessData", "nivel": "amarillo"}, # 53
-    #     0x0B: {"name": "Conductividad dializante después del filtro", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyConductOFProcessData", "nivel": "amarillo"}, # 54
-    #     0x0C: {"name": "Parametro de control ", "type": "double", "rw": True, "unit": "lpm", "limites": (0,1000), "tag": "patHeartFreqProcessData", "nivel": "rojo"},     # 55
-    #     0x0D: {"name": "Presión en el tanque de calentamiento", "type": "double", "rw": True, "unit": "mmHg", "limites": (-100, 100), "tag": "dialyTankPresProcessData", "nivel": "cian"}, # 56
-    #     0x0E: {"name": "Presión en la línea del dializante", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyLinePresProcessData", "nivel": "amarillo"}, # 57
-    #     0x0F: {"name": "Presión Prefiltrado", "type": "double", "rw": True, "unit": "mmHg", "limites": (0, 500), "tag": "dialyPFilPmpPresProcessData", "nivel": "cian"},              #58  
-    # },
-    # # ================================================================
-    # # CALIBRACIÓN - ANALÓGICAS (0x06) 
-    # # ================================================================
-    # 0x06: {
-    #     0x00: {"name": "Factor calibración bomba heparina", "type": "double", "rw": True, "unit": "ml/rev", "limites": (0.01, 10.0), "tag": "heparCalibFactorData", "nivel": "cian"},          # 59
-    #     0x01: {"name": "Presión de ultrafiltrado", "type": "double", "rw": True, "unit": "mmHg", "limites": (-50, 500), "tag": "dialyUFilPresProcessData", "nivel": "amarillo"},               # 60 
-    #     0x02: {"name": "Presión en cámara de balance", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 600), "tag": "dialyBChamPresProcessData", "nivel": "amarillo"},        # 61
-    #     0x03: {"name": "Presión arterial del circuito de sangre", "type": "double", "rw": False, "unit": "mmHg", "limites": (-300, 600), "tag": "bloodArteryPressureData", "nivel": "rojo"},   # 62 
-    #     0x04: {"name": "Presión venosa del circuito de sangre", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 500), "tag": "bloodVenousPressureData", "nivel": "rojo"},     # 63
-    #     0x05: {"name": "Contador de ciclos de dialización", "type": "double", "rw": False, "unit": "ciclos", "limites": (0, 100000), "tag": "dialyCycleOperationCount", "nivel": "cian"},      # 64
-    #     0x06: {"name": "Factor calibración parámetro 7", "type": "double", "rw": True, "unit": "", "limites": (0.01, 100.0), "tag": "parameterCalFactData7", "nivel": "cian"},                 # 65
-    #     0x07: {"name": "Parámetro control 8", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData8", "nivel": "cian"},                                # 66
-    #     0x08: {"name": "Parámetro control 9", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData9", "nivel": "cian"},                                # 67
-    #     0x09: {"name": "Parámetro control 10", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData10", "nivel": "cian"},                              # 68
-    #     0x0A: {"name": "Parámetro control 11", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData11", "nivel": "cian"},                              # 69
-    #     0x0B: {"name": "Parámetro control 12", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData12", "nivel": "cian"},                              # 70
-    # },
-    # # ================================================================
-    # # BIOIMPEDANCIA Y UREA (0x07) - NUEVO GRUPO
-    # # ================================================================
-    # 0x07: {
-    #     0x00: {"name": "BioZ Resistencia", "type": "double", "rw": False, "unit": "Ohm", "limites": (0, 1000), "tag": "bioz_resistance", "nivel": "cian"}, # ID para Modbus si lo hubiera
-    #     0x01: {"name": "BioZ Fase", "type": "double", "rw": False, "unit": "Deg", "limites": (-180, 180), "tag": "bioz_phase", "nivel": "cian"},           # Estos tags son usados en la señal data_received
-    #     0x02: {"name": "Urea Sensor ADC1", "type": "double", "rw": False, "unit": "ADC", "limites": (0, 4095), "tag": "urea_adc1", "nivel": "cian"},       
-    #     0x03: {"name": "Urea Sensor ADC2", "type": "double", "rw": False, "unit": "ADC", "limites": (0, 4095), "tag": "urea_adc2", "nivel": "cian"},       
-    # },

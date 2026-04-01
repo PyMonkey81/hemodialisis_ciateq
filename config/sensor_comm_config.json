@@ -1,0 +1,10 @@
+{
+    "conductivity_sensor": {
+        "port": "Auto",
+        "enabled": true
+    },
+    "bioz_urea_sensor": {
+        "port": "COM4",
+        "enabled": true
+    }
+}
