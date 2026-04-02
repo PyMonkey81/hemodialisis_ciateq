@@ -234,8 +234,7 @@ class BiozUreaController(QObject):
             full_info = f"{desc} {manuf}"
 
             # Excluir el puerto del controlador principal (FTDI)
-            if "FTDI" in full_info:
-                continue
+            
 
             # Buscar palabras clave en la whitelist
             for keyword in self.port_whitelist:

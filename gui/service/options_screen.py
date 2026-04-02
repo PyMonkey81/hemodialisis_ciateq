@@ -83,7 +83,7 @@ class OptionsScreen(QWidget):
             ("Calibración",             "#3134df", self.parent_window.show_calibration_screen),
             ("Configuración red",       "#3134df", self.parent_window.show_network_config_screen),
             ("Monitor de variables",    "#3134df", self.parent_window.show_real_time_var_screen),
-            ("Configuración Puertos COM", "#3134df", self.parent_window.show_config_comm_screen),
+            ("Configuración\n Puertos COM", "#3134df", self.parent_window.show_config_comm_screen),
         ]
 
         for i, (text, color, callback) in enumerate(options):

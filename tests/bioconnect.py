@@ -37,7 +37,7 @@ class CommPortScreen(QWidget):
         for p in all_comports:
             # Convertir la descripción a mayúsculas para una comparación sin distinción de mayúsculas/minúsculas
             # y verificar si NO contiene "FTDI"
-            if "FTDI" not in p.description.upper():
+            if "FTDI" not in p.manufacturer.upper():
                 filtered_ports_devices.append(p.device)
             else:
                 logger.info(f"Puerto '{p.device}' ({p.description}) excluido porque contiene 'FTDI'.")

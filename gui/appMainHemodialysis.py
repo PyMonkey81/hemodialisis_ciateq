@@ -248,7 +248,7 @@ class HemodialysisHMI(QMainWindow):
                     if "tag" in info:
                         all_tags.append(info["tag"])
         
-        display_names = [self.parameter_mapping.get(tag, tag) for tag in all_tags]
+        # display_names = [self.parameter_mapping.get(tag, tag) for tag in all_tags]
         tags = all_tags # Ahora `tags` es una lista de todos los tags únicos
 
         # Regenerar las listas para AlarmSystem
@@ -361,6 +361,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.therapy_config_screen)        # 12
         self.screen_stack.addWidget(self.comm_port_screen)             # 13 
 
+        self.comm_port_screen.emit_current_configurations() # carga la configuracion de las puertos COM
 
         self.therapy_config_screen.valueChanged.connect(self.handleGlobalValueChange)
         self.calibration_screen.valueChanged.connect(self.handleGlobalValueChange)

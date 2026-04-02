@@ -4,7 +4,7 @@
         "enabled": true
     },
     "bioz_urea_sensor": {
-        "port": "COM4",
+        "port": "Auto",
         "enabled": true
     }
 }
