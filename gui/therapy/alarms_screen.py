@@ -373,9 +373,7 @@ class AlarmsScreen(QWidget):
 
     def __init__(self, parent=None, values_dict=None, alarm_system=None):
         super().__init__(parent)
-        # --- ESTILOS GENERALES DE LA PANTALLA ---
-        # Asegúrate de aplicar solo estilos que sean válidos para QWidget aquí.
-        # Los estilos de QScrollBar se moverán a la QScrollArea.
+      
         self.setStyleSheet("background: #F8F8FA; color: #333333; font-family: 'Segoe UI';")
         self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}
@@ -401,9 +399,7 @@ class AlarmsScreen(QWidget):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        # ── Estilo scrollbar más ancho y visible ────────────────
-        # *** ESTA SECCIÓN DE ESTILO QSCROLLBAR HA SIDO MOVIDA A LA QScrollArea ***
-        # El styleSheet principal de la AlarmsScreen ahora solo contiene el fondo y la fuente general.
+   
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(5) # Reducido un poco el espaciado
 
@@ -434,6 +430,28 @@ class AlarmsScreen(QWidget):
                 border: 2px solid #D9534F; /* Borde rojo suave */
                 border-radius: 8px;
                 padding: 10px;
+            }
+            /* --- ESTILOS DE QSCROLLBAR PARA active_alarms_display --- */
+            QTextEdit QScrollBar:vertical { /* Se aplica a la barra de scroll DENTRO de este QTextEdit */
+                border: none;
+                background: #e0e0e5;
+                width: 34px;               /* <--- aquí cambias el ancho */
+                margin: 0px 0px 0px 0px;
+                border-radius: 14px;
+            }
+            QTextEdit QScrollBar::handle:vertical {
+                background: #8a8a9c;
+                min-height: 60px;
+                border-radius: 14px;
+            }
+            QTextEdit QScrollBar::handle:vertical:hover {
+                background: #6b6b7a;
+            }
+            QTextEdit QScrollBar::add-line:vertical, QTextEdit QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QTextEdit QScrollBar::add-page:vertical, QTextEdit QScrollBar::sub-page:vertical {
+                background: none;
             }
         """)
         self.active_alarms_display.setMinimumHeight(220)
