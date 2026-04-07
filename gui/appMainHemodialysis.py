@@ -1034,14 +1034,10 @@ class HemodialysisHMI(QMainWindow):
         now = QDateTime.currentDateTime()
 
         # Actualizaciones rápidas (cada 500ms)
-        self.update_connection_status()
-        
-        # if self.is_treatment_running:
-        #     self._update_therapy_time_displays()
+        self.update_connection_status()    
 
         if self.is_treatment_running and self.screen_stack.currentWidget() == self.dialysis_screen:
             self._update_therapy_time_displays()
-
 
         # Actualizaciones cada 1 segundo exacto
         delta_seconds = self.last_second_update.secsTo(now)
@@ -1105,12 +1101,12 @@ class HemodialysisHMI(QMainWindow):
             if temp_ok and cond_ok:
                 can_start = True
                 can_stop = False
-                can_pause = False
+                can_pause = True   # Es False, pero se pondra TRUE para nueva funcionalidad en cebado 
             else:
                 # Listo por estado, pero temperaturas/cond mal
                 can_start = False
                 can_stop = False
-                can_pause = False
+                can_pause = True  # Permitir pausa para forzar corrección de parámetros antes de iniciar
 
         elif status_code == 13: # TRATAMIENTO CORRIENDO
             can_start = False
@@ -1504,19 +1500,13 @@ class HemodialysisHMI(QMainWindow):
         except Exception as e:
             logger.error(f"Error al escribir setpoint '{tag} = {value}': {e}")
 
-    def on_pattern_data(self, tag: str, value: float):
-        
+    def on_pattern_data(self, tag: str, value: float):        
         if tag == "patternCondSensor":
             VARIABLES[0x09][0x00]["value"] = value
-            
-
         elif tag == "patternCondRaw":
             VARIABLES[0x09][0x02]["value"] = value
-            
-
         elif tag == "patternTempSensor":
-            VARIABLES[0x09][0x01]["value"] = value
-            
+            VARIABLES[0x09][0x01]["value"] = value            
 
         self.current_values[tag] = value  
         current_widget = self.screen_stack.currentWidget()

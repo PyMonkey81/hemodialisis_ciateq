@@ -12,8 +12,20 @@ from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit
 from logic.calculos import convertir_flujo_a_ciclos, convertir_ciclos_a_flujo
+from logging.handlers import RotatingFileHandler
+
+log_file = "app.log"
+max_log_size = 5 * 1024 * 1024  # 5 MB
+backup_count = 2
+
+handler = RotatingFileHandler(log_file, maxBytes=max_log_size, backupCount=backup_count)
+formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+handler.setFormatter(formatter)
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+
 
 try:
     from core.variables_map import VARIABLES
@@ -55,6 +67,7 @@ class TherapyConfigScreen(QWidget):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet("background: #0f172a;")
         self.write_hold_off = {}
+        self.toggle_hold_off = {}
         self.setup_ui()
 
     def setup_ui(self):
@@ -65,8 +78,20 @@ class TherapyConfigScreen(QWidget):
         """)
 
         button_style = """
-            QPushButton { background: #3b82f6; color: #ffffff; border-radius: 20px; font-weight: bold; }
+            QPushButton { background: #0f172a; color: #ffffff; border-radius: 20px; font-weight: bold; }
             QPushButton:pressed { background: #1e40af; }
+        """
+
+        self.style_enabled = """
+            QPushButton { background: #39ec21; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton:pressed { background: #334155; }
+        """
+        self.style_disabled = """
+            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
+        """
+        self.style_stop_enabled = """
+             QPushButton { background: #DD2911; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
+             QPushButton:pressed { background: #334155; }
         """
 
         main_layout = QVBoxLayout(self)
@@ -197,6 +222,7 @@ class TherapyConfigScreen(QWidget):
         params_layout.addWidget(lbl_duration, 2, 2, Qt.AlignRight)
         params_layout.addWidget(self.input_duration, 2, 3)               
 
+        # ── Configuración Bomba de Heparina ───────────────────────────────────────
         hep_config_frame = QFrame()    
         hep_config_frame.setStyleSheet("""
                 QFrame {
@@ -213,23 +239,26 @@ class TherapyConfigScreen(QWidget):
         hep_frame_layout.setSpacing(15)
 
         # -- Sección Bolo (Vertical: Label arriba, Input abajo) --
+        
         bolus_layout = QHBoxLayout()
+        bolus_layout.setContentsMargins(0, 0, 0, 0)
         bolus_layout.setSpacing(5)
         
         lbl_bolus = QLabel("Bolo (ml):")       
         lbl_bolus.setStyleSheet(label_style) 
-        lbl_bolus.setAlignment(Qt.AlignCenter)
+        lbl_bolus.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        bolus_layout.addWidget(lbl_bolus)
+
         
         self.input_bolus = ClickableLineEdit("0.0")
         self.input_bolus.setFixedSize(120, 50)
-        self.input_bolus.setAlignment(Qt.AlignCenter)
+        self.input_bolus.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.input_bolus.setStyleSheet(input_style)
         self.input_bolus.setReadOnly(True)
         self.input_bolus.clicked.connect(
             lambda: self.open_numpad("heparineBolusQuantity", self.input_bolus, "bolo (ml)")
         )
-        
-        bolus_layout.addWidget(lbl_bolus)
+                
         bolus_layout.addWidget(self.input_bolus)
         
         # Agregamos el layout del bolo al frame principal
@@ -261,30 +290,155 @@ class TherapyConfigScreen(QWidget):
         btn_fwd_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", False))
         hep_frame_layout.addWidget(btn_fwd_hep)
 
-        # ─── Agregando al layout principal ──────────────────────────────────
+  
+
+    # ====================layout bomba de sangre =========================
+        blood_operation_frame = QFrame()
+        blood_operation_frame.setStyleSheet("""
+                QFrame {
+                    border: 2px solid #5c5c5c;
+                    border-radius: 8px;                
+                    background-color: transparent;
+                }
+                QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
+        """)
+        blood_layout = QHBoxLayout(blood_operation_frame)
+        blood_layout.setContentsMargins(15, 15, 15, 15)
+        blood_layout.setSpacing(15)
+
+        lbl_bloob_pump = QLabel("Bomba de Sangre")
+        lbl_bloob_pump.setStyleSheet(label_style)
+        lbl_bloob_pump.setAlignment(Qt.AlignCenter)
+        blood_layout.addWidget(lbl_bloob_pump)
+        blood_layout.addStretch()  # Espacio flexible entre el label y los botones
+
+        self.btn_start_blood_pump = PushbuttonEvent("START", self)
+        self.btn_start_blood_pump.setFixedSize(120, 80)
+        self.btn_start_blood_pump.setStyleSheet(self.style_enabled)
+        self.btn_start_blood_pump.pressed.connect(self._start_blood_pump)
+        blood_layout.addWidget(self.btn_start_blood_pump)
+
+        self.btn_stop_blood_pump = PushbuttonEvent("STOP", self)
+        self.btn_stop_blood_pump.setFixedSize(120, 80)
+        self.btn_stop_blood_pump.setStyleSheet(self.style_stop_enabled)
+        self.btn_stop_blood_pump.pressed.connect(self._stop_blood_pump)
+        blood_layout.addWidget(self.btn_stop_blood_pump)
+
+      # ─── Agregando al layout principal ──────────────────────────────────
         main_layout.addWidget(params_frame)
         main_layout.addWidget(hep_config_frame) 
+        main_layout.addWidget(blood_operation_frame)
         main_layout.addStretch(1)
 
-    
-        # Botón Volver
-        btn_back = QPushButton("Volver a Diálisis")
-        btn_back.setFixedSize(250, 60)
-        btn_back.setStyleSheet("""
-            QPushButton {
-                background: #dc2626;
-                color: white;
-                font-size: 20px;
-                font-weight: bold;
-                border-radius: 10px;
-                padding: 10px;
-            }
-            QPushButton:hover { background: #b91c1c; }
-            QPushButton:pressed { background: #991b1b; }
-        """)
-        btn_back.clicked.connect(self.parent_window.show_dialysis_screen)
-        main_layout.addWidget(btn_back, alignment=Qt.AlignRight)
+    def _start_blood_pump(self):
+        """Maneja el encendido seguro de la bomba de sangre"""
+        try:
+            logger.info("Comando START bomba de sangre solicitado")
+            # 1. Habilitar loop de control (requisito)
+            self.on_user_boolean_command("bloodControlLoopEnable", True)
 
+            # 2. Activar secuencia de arranque de la bomba
+            self._handle_dual_pump_toggle("bloodPumpStartButton", "bloodPumpStopButton", True)
+
+            # 3. Activar movimiento hacia adelante
+            self.on_user_boolean_command("bloodPumpFWDButton", True)
+
+        except Exception as e:
+            logger.error(f"Error en _start_blood_pump: {e}", exc_info=True)
+
+
+    def _stop_blood_pump(self):
+        """Maneja el apagado seguro de la bomba de sangre"""
+        try:
+            logger.info("Comando STOP bomba de sangre solicitado")
+
+            # 1. Deshabilitar loop de control
+            self.on_user_boolean_command("bloodControlLoopEnable", False)
+
+            # 2. Activar secuencia de parada de la bomba
+            self._handle_dual_pump_toggle("bloodPumpStartButton", "bloodPumpStopButton", False)
+
+            # 3. Detener movimiento hacia adelante
+            self.on_user_boolean_command("bloodPumpFWDButton", False)
+
+        except Exception as e:
+            logger.error(f"Error en _stop_blood_pump: {e}", exc_info=True)
+    def _update_bloop_pump_controls_state(self):   
+        ctrl_loop_state = self.current_values.get("bloodControlLoopEnable", 0)
+        pump_start_state = self.current_values.get("bloodPumpStartButton", 0)         
+        pump_stop_state = self.current_values.get("bloodPumpStopButton", 0)
+        fwd_state = self.current_values.get("bloodPumpFWDButton", 0)
+        
+        logger.info(f"Estados actuales - Loop: {ctrl_loop_state}, Start: {pump_start_state}, Stop: {pump_stop_state}, FWD: {fwd_state} ") 
+        can_start = True  
+        can_stop = False  
+        # Estado: Bomba funcionando (START debería estar deshabilitado, STOP habilitado)
+        # Esto ocurre cuando el lazo de control está activo, el botón de inicio fue presionado,
+        # el botón de parada NO fue presionado y la dirección es hacia adelante.
+        if (ctrl_loop_state == 1 and pump_start_state == 1 and 
+            pump_stop_state == 0 and fwd_state == 1):
+            can_start = False
+            can_stop = True
+            logger.info("Estado de la bomba: FUNCIONANDO")
+
+        # Estado: Bomba explícitamente detenida (START habilitado, STOP deshabilitado)
+        # Esto ocurre cuando el lazo de control está inactivo, el botón de inicio no fue presionado,
+        # el botón de parada SI fue presionado y la dirección no es hacia adelante.
+        elif (ctrl_loop_state == 0 and pump_start_state == 0 and 
+              pump_stop_state == 1 and fwd_state == 0):
+            can_start = True
+            can_stop = False
+            logger.info("Estado de la bomba: DETENIDA")
+        
+        # Si no encaja en ninguno de los estados anteriores, el comportamiento por defecto ya está definido.
+        # (can_start = True, can_stop = False), lo que significa que la app asume un estado detenido/listo para arrancar.
+        else:
+            logger.info("Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)")
+            # Podrías querer ser más conservador aquí y deshabilitar ambos si el estado es realmente ambiguo:
+            # can_start = False
+            # can_stop = False
+            # Pero normalmente es mejor que el usuario pueda intentar arrancar si no hay una señal clara de que está corriendo.
+
+        # Referencias a los botones (asumiendo que están definidos como self.btn_start_blood_pump, etc.)
+        btn_startbp = self.btn_start_blood_pump
+        btn_stop_bp = self.btn_stop_blood_pump
+
+        # Actualizar el estado 'enabled' y el estilo del botón START
+        # Solo actualizamos si el estado ha cambiado para evitar repintados innecesarios
+        if btn_startbp.isEnabled() != can_start:
+            btn_startbp.setEnabled(can_start)
+            btn_startbp.setStyleSheet(self.style_enabled if can_start else self.style_disabled)
+            logger.info(f"Botón START: {'HABILITADO' if can_start else 'DESHABILITADO'}")
+
+        # Actualizar el estado 'enabled' y el estilo del botón STOP
+        if btn_stop_bp.isEnabled() != can_stop:
+            btn_stop_bp.setEnabled(can_stop)
+            # Usa el estilo apropiado para el botón STOP cuando está habilitado/deshabilitado
+            btn_stop_bp.setStyleSheet(self.style_stop_enabled if can_stop else self.style_disabled)
+            logger.info(f"Botón STOP: {'HABILITADO' if can_stop else 'DESHABILITADO'}")
+
+    def _handle_single_pump_toggle(self, tag: str, enabled: bool):
+        if enabled:
+            logger.info(f"Enviando comando START para {tag}")
+            self.on_user_boolean_command(tag, True)
+            # self.toggle_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 1000
+        else:
+            logger.info(f"Enviando comando STOP para {tag}")
+            self.on_user_boolean_command(tag, False)
+            # self.toggle_hold_off[tag] = QDateTime.currentMSecsSinceEpoch() + 1000
+
+    def _handle_dual_pump_toggle(self, start_tag: str, stop_tag:str, enabled: bool):
+        if enabled:
+            logger.info(f"Enviando comando START para {start_tag}")
+            self.on_user_boolean_command(start_tag, True)
+            self.on_user_boolean_command(stop_tag, False)
+            # self.toggle_hold_off[start_tag] = QDateTime.currentMSecsSinceEpoch() + 1000
+        else:
+            logger.info(f"Enviando comando STOP para {stop_tag}")
+            self.on_user_boolean_command(stop_tag, True)
+            self.on_user_boolean_command(start_tag, False)
+            # self.toggle_hold_off[stop_tag] = QDateTime.currentMSecsSinceEpoch() + 1000
+            
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
         current_text = input_widget.text()
         dialog = NumpadDialog(self, initial_value="", title=title)
@@ -358,6 +512,8 @@ class TherapyConfigScreen(QWidget):
                         self.input_dialysate_flow.setText(f"{flow_to_show:.1f}")
             except Exception as e:
                 self.input_dialysate_flow.setText("0.0")
+
+        self._update_bloop_pump_controls_state()
 
 
 

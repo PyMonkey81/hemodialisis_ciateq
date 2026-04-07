@@ -596,5 +596,3 @@ class CommPortScreen(QWidget):
             self.cmb_bioz_port.currentText(),
             self.chk_bioz.isChecked()
         )
-
-
