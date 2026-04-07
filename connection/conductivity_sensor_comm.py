@@ -58,7 +58,8 @@ Uso:
     el hilo y liberar el puerto serial de forma segura.
 """
 #connection/conductivity_sensor_comm.py
-#connection/conductivity_sensor_comm.py
+
+
 
 import serial
 import serial.tools.list_ports
@@ -86,7 +87,7 @@ class PatternConductivity(QObject):
 
     def __init__(self, port_whitelist=None, baudrate=115200):
         super().__init__()
-        self.port_whitelist = port_whitelist if port_whitelist else ["USB Serial", "CH340", "CP210X"] # Palabras clave para auto-detección
+        self.port_whitelist = port_whitelist if port_whitelist else ["USB Serial"] # Palabras clave para auto-detección
         self.baudrate = baudrate
         self.serial_port: Optional[serial.Serial] = None
         self._running = False # Usamos _running para controlar el hilo
@@ -310,11 +311,10 @@ class PatternConductivity(QObject):
                         self.data_received.emit("patternCondSensor", cond_comp)
                         logger.debug(f"[Emit] patternCondSensor → {cond_comp:.4f} mS/cm")
 
-                    if cond_raw is not None:
-                        # Asumo que la conversión a milisiemens es aquí si no lo hace el sensor
-                        # conductivity_raw = cond_raw * 1000 # Solo si el sensor da en S/cm y necesitas mS/cm
-                        self.data_received.emit("patternCondRaw", cond_raw) 
-                        logger.debug(f"[Emit] patternCondRaw → {cond_raw:.8f} mS/cm")
+                    if cond_raw is not None:                        
+                        conductivity_raw = cond_raw * 1000 # Convertir de S/cm a mS/cm
+                        self.data_received.emit("patternCondRaw", conductivity_raw) 
+                        logger.debug(f"[Emit] patternCondRaw → {conductivity_raw:.8f} mS/cm")
 
                     if temp is not None:
                         self.data_received.emit("patternTempSensor", temp)

@@ -84,6 +84,7 @@ class OptionsScreen(QWidget):
             ("Configuración red",       "#3134df", self.parent_window.show_network_config_screen),
             ("Monitor de variables",    "#3134df", self.parent_window.show_real_time_var_screen),
             ("Configuración\n Puertos COM", "#3134df", self.parent_window.show_config_comm_screen),
+            ("Mantenimiento\n Preventivo", "#3134df", self.parent_window.show_maintenance_screen),
         ]
 
         for i, (text, color, callback) in enumerate(options):
@@ -95,8 +96,8 @@ class OptionsScreen(QWidget):
                 QPushButton:pressed {{ background: #334155; }}
             """)    
             btn.clicked.connect(callback)   
-            row = i // 2
-            col = i % 2
+            row = i // 3
+            col = i % 3
             buttons_layout.addWidget(btn, row, col)
 
         layout.addWidget(buttons_frame, 1, 0, 4, 4)

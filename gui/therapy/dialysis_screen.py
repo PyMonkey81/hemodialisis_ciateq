@@ -159,10 +159,10 @@ class DialysisScreen(QWidget):
         tick_font.setPixelSize(12)
 
         self.pressure_plot = pg.PlotWidget()
-        self.pressure_plot.setBackground("#e0e0e0")
-        self.pressure_plot.setTitle('<span style="font-size: 11pt; color: black;">Presión Ven vs. Art</span>')
-        self.pressure_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">Presión (mmHg)</span>')
-        self.pressure_plot.setLabel('bottom', '<span style="font-size: 9pt; color: #000000;">Tiempo (s)</span>')
+        self.pressure_plot.setBackground("#E0E0E0")
+        self.pressure_plot.setTitle('<span style="font-size: 20pt; color: #020C4B;">Presión Ven vs. Art</span>')
+        self.pressure_plot.setLabel('left', '<span style="font-size: 16pt; color: #020c4b;">Presión (mmHg)</span>')
+        self.pressure_plot.setLabel('bottom', '<span style="font-size: 12pt; color: #000000;">Tiempo (s)</span>')
         self.pressure_plot.addLegend()
 
         self.curve_venous = self.pressure_plot.plot(pen=pg.mkPen(color=(0, 0, 255), width=2), name="Presión Venosa")

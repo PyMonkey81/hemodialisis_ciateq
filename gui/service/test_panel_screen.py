@@ -197,7 +197,7 @@ class TestPanelScreen(QWidget):
         grid_top.addWidget(self.label_cycles, 0, 3, 1, 2)
 
         self.label_pattern_cond = LabeledParameterWidget(
-            label_text="Cond. Patrón", tag="patternCondRaw",
+            label_text="Cond. Patrón", tag="patternCondRaw",# este es el tag correcto para la conductividad del patrón
             value="0.0", units="mS/cm", numpad_title="",
             is_editable=False,
         )
