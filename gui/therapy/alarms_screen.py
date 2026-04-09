@@ -61,305 +61,12 @@ from gui.components.ui_components import LabeledParameterWidget, ClickableLineEd
 from gui.components.numpad_modal import NumpadDialog
 from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.components.ui_components import show_dark_message
+from typing import Dict
 
 # Importante: Asegúrate de que logger esté configurado globalmente si se usa aquí.
 import logging
 logger = logging.getLogger(__name__)
-
-
-class AlarmLimitsConfigDialog(QDialog):
-    """
-    Diálogo para configurar los límites de alarma (inferior y superior)
-    de las variables críticas de la máquina de hemodiálisis.
-    Usa teclado numérico táctil y botón de restaurar por defecto.
-    """
-    def __init__(self, parent=None, current_values=None, limits_manager=None):
-        super().__init__(parent)
-        self.setWindowTitle("Configuración de Límites de Alarma")
-        self.setMinimumSize(680, 720)  
-
-        self.current_values = current_values or {}
-        self.limits_manager = limits_manager
-
-        if not self.limits_manager:
-            raise ValueError("Se requiere pasar un AlarmLimitsManager válido")
-
-        self.inputs = {}        
-        self.variables = []
-
-        self.setup_variables()
-        self.setup_ui()
-
-    def setup_variables(self):
-        self.variables = [
-            {
-                "tag": "dialyCondVariableData",
-                "name": "Conductividad medida",
-                "unit": "mS/cm",
-                "decimals": 2,
-                "hint": "Rango típico: 13.0 – 15.0 mS/cm"
-            },
-            {
-                "tag": "dialyTempVariableData",
-                "name": "Temperatura medida",
-                "unit": "°C",
-                "decimals": 1,
-                "hint": "Rango típico: 35.5 – 38.0 °C"
-            },
-            {
-                "tag": "bloodFlowVariableData",
-                "name": "Flujo de sangre calculado",
-                "unit": "ml/min",
-                "decimals": 0,
-                "hint": "Rango típico: 200 – 450 ml/min"
-            },
-            {
-                "tag": "arterPresProcessData",
-                "name": "Presión arterial (línea sangre)",
-                "unit": "mmHg",
-                "decimals": 0,
-                "hint": "Rango típico: -100 a +300 mmHg"
-            },
-            {
-                "tag": "venouPresProcessData",
-                "name": "Presión venosa (línea sangre)",
-                "unit": "mmHg",
-                "decimals": 0,
-                "hint": "Rango típico: 0 – 350 mmHg"
-            },
-        ]
-        
-    def create_numpad_opener(self, edit_widget: ClickableLineEdit, decimals: int, tag: str, field: str):
-        """Crea una función que abre el numpad sin problemas con argumentos de señal"""
-        def opener(checked=False):  # ignora el argumento 'checked' que envía Qt
-            self.open_numpad(edit_widget, decimals, tag, field)
-        return opener
-        
-    def setup_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 15, 20, 15)
-        main_layout.setSpacing(12)
-
-        # Título
-        title = QLabel("Límites de alarma - Seguridad del paciente")
-        title.setStyleSheet("font-size: 22px; font-weight: bold; color: #c0392b; text-align: center;")
-        title.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title)
-
-        desc = QLabel("Toque los campos para ingresar valores. Use 'Restaurar' para volver a valores por defecto.")
-        desc.setStyleSheet("font-size: 14px; color: #555; text-align: center;")
-        desc.setWordWrap(True)
-        main_layout.addWidget(desc)
-
-        main_layout.addSpacing(15)
-
-        # Grupo de parámetros
-        group = QGroupBox("Parámetros configurables")
-        group_layout = QFormLayout()
-        group_layout.setLabelAlignment(Qt.AlignRight)
-        group_layout.setFormAlignment(Qt.AlignLeft)
-        group_layout.setSpacing(14)
-
-        for var in self.variables:
-            tag = var["tag"]
-            decimals = var["decimals"]
-
-            # Valor actual
-            current_val = self.current_values.get(tag)
-            current_str = f"{current_val:.{decimals}f}" if current_val is not None else "—"
-
-            # Límites actuales
-            min_val, max_val = self.limits_manager.get_limits(tag)
-
-            row_layout = QHBoxLayout()
-            row_layout.setSpacing(12)
-
-            lbl_current = QLabel(f"Actual: {current_str}")
-            lbl_current.setStyleSheet("color: #444; min-width: 130px; font-size: 14px;")
-
-            # Campo Inferior
-            min_edit = ClickableLineEdit(f"{min_val:.{decimals}f}")
-            min_edit.setAlignment(Qt.AlignCenter)
-            min_edit.setFixedWidth(120)
-            min_edit.setStyleSheet("""
-                QLineEdit {
-                    background: #f8fafc;
-                    border: 2px solid #cbd5e1;
-                    border-radius: 8px;
-                    font-size: 18px;
-                    padding: 8px;
-                }
-            """)
-            min_edit.clicked.connect(self.create_numpad_opener(min_edit, decimals, tag, "min"))
-
-            sep = QLabel(" – ")
-            sep.setStyleSheet("color: #64748b; font-size: 16px;")
-
-            # Campo Superior
-            max_edit = ClickableLineEdit(f"{max_val:.{decimals}f}")
-            max_edit.setAlignment(Qt.AlignCenter)
-            max_edit.setFixedWidth(120)
-            max_edit.setStyleSheet("""
-                QLineEdit {
-                    background: #f8fafc;
-                    border: 2px solid #cbd5e1;
-                    border-radius: 8px;
-                    font-size: 18px;
-                    padding: 8px;
-                }
-            """)
-            max_edit.clicked.connect(self.create_numpad_opener(max_edit, decimals, tag, "max"))
-
-            # Botón Restaurar por defecto
-            restore_btn = QPushButton("Restaurar")
-            restore_btn.setFixedSize(100, 45)
-            restore_btn.setStyleSheet("""
-                QPushButton {
-                    background: #f59e0b;
-                    color: #ffffff;
-                    font-size: 14px;
-                    border-radius: 8px;
-                    border: none;
-                }
-                QPushButton:hover { background: #d97706; }
-                QPushButton:pressed { background: #b45309; }
-            """)
-            restore_btn.clicked.connect(lambda _, t=tag, m=min_edit, M=max_edit, d=decimals: self.restore_defaults(t, m, M, d))
-
-            row_layout.addWidget(lbl_current)
-            row_layout.addWidget(min_edit)
-            row_layout.addWidget(sep)
-            row_layout.addWidget(max_edit)
-            row_layout.addWidget(restore_btn)
-            row_layout.addStretch()
-
-            lbl_name = QLabel(f"{var['name']} ({var['unit']})")
-            lbl_name.setStyleSheet("font-weight: bold; font-size: 16px; min-width: 280px;")
-
-            hint_lbl = QLabel(var["hint"])
-            hint_lbl.setStyleSheet("color: #64748b; font-size: 13px;")
-
-            group_layout.addRow(lbl_name, row_layout)
-            group_layout.addRow("", hint_lbl)
-
-            self.inputs[tag] = (min_edit, max_edit)
-
-        group.setLayout(group_layout)
-        main_layout.addWidget(group)
-
-        main_layout.addStretch()
-
-        # Botones principales
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.Save | QDialogButtonBox.Cancel,
-            Qt.Horizontal
-        )
-        button_box.accepted.connect(self.validate_and_save)
-        button_box.rejected.connect(self.reject)
-
-        save_btn = button_box.button(QDialogButtonBox.Save)
-        save_btn.setText("Guardar cambios")
-        save_btn.setStyleSheet("""
-            QPushButton {
-                background: #22c55e; color: #ffffff; font-size: 18px; padding: 12px;
-                min-width: 180px; border-radius: 8px;
-            }
-            QPushButton:hover { background: #16a34a; }
-        """)
-
-        cancel_btn = button_box.button(QDialogButtonBox.Cancel)
-        cancel_btn.setStyleSheet("""
-            QPushButton {
-                background: #ef4444; color: #ffffff; font-size: 18px; padding: 12px;
-                min-width: 140px; border-radius: 8px;
-            }
-            QPushButton:hover { background: #dc2626; }
-        """)
-
-        main_layout.addWidget(button_box, alignment=Qt.AlignRight)
-
-    def open_numpad(self, line_edit: ClickableLineEdit, decimals: int, tag: str, field: str):
-        current_text = line_edit.text().strip()
-        dialog = NumpadDialog(
-            parent=self,
-            initial_value=current_text,
-            title=f"Ingrese límite {field.upper()} para {tag}"
-        )
-        if dialog.exec() == QDialog.Accepted:
-            value = dialog.get_value()
-            if isinstance(value, float):
-                formatted = f"{value:.{decimals}f}"
-            else:
-                formatted = str(value)
-            line_edit.setText(formatted)
-    
-    def restore_defaults(self, tag: str, min_edit: ClickableLineEdit, max_edit: ClickableLineEdit, decimals: int):
-        """
-        Restaura los límites por defecto para esta variable específica.
-        """
-        if hasattr(self.limits_manager, 'defaults') and tag in self.limits_manager.defaults:
-            def_min, def_max = self.limits_manager.defaults[tag]
-            min_edit.setText(f"{def_min:.{decimals}f}")
-            max_edit.setText(f"{def_max:.{decimals}f}")
-            QMessageBox.information(self, "Restaurado",f"Límites de {tag} restaurados a valores por defecto:\n"f"Min: {def_min}   Max: {def_max}")
-
-        else:
-            QMessageBox.warning(
-                self,
-                "Sin valores por defecto",
-                f"No se encontraron valores por defecto para {tag}.\n"
-                "Los límites actuales se mantienen."
-            )
-
-    def validate_and_save(self):
-        errors = []
-
-        for var in self.variables:
-            tag = var["tag"]
-            min_edit, max_edit = self.inputs[tag]
-
-            try:
-                min_v = float(min_edit.text())
-                max_v = float(max_edit.text())
-            except ValueError:
-                errors.append(f"{var['name']}: ingrese valores numéricos válidos")
-                continue
-
-            if min_v >= max_v:
-                errors.append(f"{var['name']}: límite inferior debe ser menor que el superior")
-
-            if min_v < -1000 or max_v > 1000:
-                errors.append(f"{var['name']}: valores fuera de rango razonable (±1000)")
-
-        if errors:
-            QMessageBox.warning(
-                self,
-                "Errores detectados",
-                "No se pueden guardar los cambios:\n\n• " + "\n• ".join(errors) +
-                "\n\nCorrija los valores indicados."
-            )
-            return
-
-        # Guardar
-        for var in self.variables:
-            tag = var["tag"]
-            min_edit, max_edit = self.inputs[tag]
-            min_v = float(min_edit.text())
-            max_v = float(max_edit.text())
-
-            try:
-                self.limits_manager.set_limits(tag, min_v, max_v)
-            except ValueError as e:
-                QMessageBox.critical(self, "Error al guardar", str(e))
-                return
-
-        QMessageBox.information(
-            self,
-            "Guardado exitoso",
-            "Límites de alarma actualizados.\nLos cambios se aplican inmediatamente."
-        )
-        self.accept()
-        
+  
 
 class AlarmsScreen(QWidget):
     """
@@ -379,8 +86,7 @@ class AlarmsScreen(QWidget):
         
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        self.active_alarms = {}
-
+        self.active_alarms: dict = {}
         self.setup_ui()
 
         if self.alarm_system:
@@ -388,6 +94,8 @@ class AlarmsScreen(QWidget):
                         len(getattr(self.alarm_system, 'display_names', [])))
             self.alarm_system.alarm_changed.connect(self.on_alarm_changed)
             self.alarm_system.new_event.connect(self.on_new_event) # Conectar on_new_event
+            # _sync_initial_state() se llamará al inicio, pero no en cada reconexión
+            # Su lógica de 'acked' ahora se maneja en on_alarm_changed.
             self._sync_initial_state()
         else:
             logger.warning("Warning: alarm_system not available in AlarmsScreen")
@@ -484,7 +192,7 @@ class AlarmsScreen(QWidget):
             QPushButton:hover { background: #2980B9; }
             QPushButton:pressed { background: #1F6C8C; }
         """)
-        self.btn_config_limits.clicked.connect(self.open_variable_configuration)
+        self.btn_config_limits.clicked.connect(self.parent_window.show_alarm_config_limits_screen)
 
 
         
@@ -561,51 +269,36 @@ class AlarmsScreen(QWidget):
         )
 
     def _sync_initial_state(self):
-        """Sincroniza el estado inicial al abrir la pantalla."""
+        """
+        Sincroniza el estado inicial de la pantalla de alarmas al cargarse por primera vez.
+        No se usa para reconexiones, ahí se depende de on_alarm_changed.
+        """
         if not self.alarm_system:
             return
 
         current_time = QTime.currentTime().toString("hh:mm:ss")
         loaded_count = 0
-
-        # Iterar sobre las alarmas conocidas del AlarmSystem
-        for i, name in enumerate(self.alarm_system.display_names):
-            # Asegurarse de que el índice sea válido para previous_states y severity_levels
-            if i < len(self.alarm_system.previous_states) and self.alarm_system.previous_states[i]:
-                level = (self.alarm_system.severity_levels[i] 
-                         if i < len(self.alarm_system.severity_levels) else "info")                 
-                value = None 
-                # Necesitamos obtener el valor actual de la alarma si está activa,
-                # pero el alarm_system no parece exponerlo directamente en previous_states.
-                # Si el previous_states solo indica "activo/inactivo" sin el valor,
-                # podríamos emitir 0.0 o buscar en current_values si es una alarma numérica.
-                # Para simplificar, asumiremos que si previous_states[i] es True, hay una alarma.
-                # Puedes ajustar cómo se obtiene 'value' si tu AlarmSystem lo permite.
-                
-                # Una forma más robusta sería que AlarmSystem tenga un método get_active_alarm_details(name)
-                # que devuelva el value y level actual.
-                
-                # Por ahora, para evitar errores, usaremos un valor "N/D" si no podemos obtenerlo fácilmente.
-                # Esto es una suposición basada en el código que me proporcionaste.
-                # Si 'value' es importante para la sincronización inicial, tu AlarmSystem.py
-                # necesitaría ser modificado para exponer el último valor que causó la alarma.
-                
-                # Si tienes un 'current_values' que refleje el último valor que generó la alarma, úsalo aquí.
-                # Por ejemplo: value = self.current_values.get(self.alarm_system.tags[i], None)
+        for i in range(self.alarm_system.alarm_count):
+            if self.alarm_system.previous_states[i]: # Si AlarmSystem dice que está activa
+                name = self.alarm_system.display_names[i]
+                level = self.alarm_system.severity_levels[i]
+                value = self.alarm_system.current_values[i] # Obtener el valor actual del AlarmSystem
 
                 if name not in self.active_alarms:
                     self.active_alarms[name] = {
-                        'value': value, # Considera obtener el valor real si es posible
+                        'value': value,
                         'level': level,
-                        'time': current_time, # La hora de cuando se cargó en la GUI
-                        'acked': False
+                        'time': current_time,
+                        'acked': False # Siempre se inicia como NO reconocida
                     }
                     loaded_count += 1
-                else:                    
-                    self.active_alarms[name]['value'] = value # Actualiza el valor
+                else:
+                    # Actualizar valor y tiempo si ya estaba en la lista (pero sigue siendo 'acked: False')
+                    self.active_alarms[name]['value'] = value
                     self.active_alarms[name]['time'] = current_time
 
-        logger.info("AlarmsScreen: initial sync -> %s newly active alarms loaded", loaded_count)
+        if loaded_count > 0:
+            logger.info("AlarmsScreen: initial sync -> %s newly active alarms loaded", loaded_count)
         self._update_active_alarms_display()
         self.update_ack_button_state()
 
@@ -616,27 +309,29 @@ class AlarmsScreen(QWidget):
         if is_active:
             # Si la alarma se activa
             if name in self.active_alarms:
-                # Si ya estaba activa, solo actualizamos el valor y la hora.
-                # Mantenemos 'acked' en su estado actual (si ya fue reconocida, sigue reconocida).
+                
                 self.active_alarms[name]['value'] = value
-                self.active_alarms[name]['time'] = current_time # Actualiza el tiempo de la última detección
+                self.active_alarms[name]['time'] = current_time
+                self.active_alarms[name]['acked'] = False # IMPORTANTE: Resetea a NO reconocida
             else:
-                # Es una alarma nueva, o se fue y volvió -> la agregamos como NO reconocida
+                # Es una alarma nueva o se había normalizado y ahora se activa de nuevo
                 self.active_alarms[name] = {
                     'value': value,
                     'level': level,
                     'time': current_time,
-                    'acked': False
+                    'acked': False # Siempre se agrega como NO reconocida
                 }
             self._append_to_history(f"ACTIVADA: {name}", value, level, current_time)
 
         else:            
+            # La alarma se normalizó
             if name in self.active_alarms:
-                del self.active_alarms[name]
+                del self.active_alarms[name] # Eliminar de la lista de activas
                 self._append_to_history(f"NORMALIZADA: {name}", value, "info", current_time)
 
         self._update_active_alarms_display()
         self.update_ack_button_state()
+
 
     def on_new_event(self, event_msg, value, timestamp):
         """Maneja los eventos generales del AlarmSystem para el historial."""
@@ -659,42 +354,6 @@ class AlarmsScreen(QWidget):
             show_dark_message(self, "Informacióm", "Todas las alarmas activas ya están reconocidas.", icon=QMessageBox.Information)
             return
 
-   
-        # msg_box = QMessageBox(self)
-        # msg_box.setWindowTitle("Confirmar Reconocimiento")
-        # msg_box.setText(f"¿Reconocer {unacked_count} alarma(s) activa(s) y silenciar?")
-        # msg_box.setIcon(QMessageBox.Question)
-        # msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        # msg_box.setDefaultButton(QMessageBox.No)
-
-        # # 2. APLICAMOS EL ESTILO (CSS)
-        # msg_box.setStyleSheet("""
-        #     QMessageBox {
-        #         background-color: #2b2b2b; /* Fondo de la ventana oscuro */
-        #         color: #ffffff;            /* Texto del QMessageBox (principal) */
-        #     }
-        #     QLabel {
-        #         color: #ffffff;            /* Asegura que el texto del mensaje sea blanco */
-        #         background-color: #2b2b2b; /* Fondo del QLabel explícitamente oscuro */
-        #         padding: 5px;              /* Opcional: un pequeño padding para que el texto no se pegue al borde */
-        #     }
-        #     QPushButton {
-        #         background-color: #4CAF50; /* Color de fondo del botón (Verde ejemplo) */
-        #         color: #ffffff;              /* Color del texto del botón */
-        #         border-radius: 5px;        /* Bordes redondeados */
-        #         padding: 5px 15px;         /* Relleno para hacerlo más grande */
-        #         font-weight: bold;
-        #     }
-        #     QPushButton:hover {
-        #         background-color: #45a049; /* Color al pasar el mouse por encima */
-        #     }
-        #     QPushButton:pressed {
-        #         background-color: #3e8e41; /* Color al presionar */
-        #     }
-        # """)
-        
-
-        # reply = msg_box.exec()
         reply = show_dark_message(self, "Confirmar Reconocimiento", f"¿Reconocer {unacked_count} alarma(s) activa(s) y silenciar?", icon=QMessageBox.Question, buttons=QMessageBox.Yes | QMessageBox.No)
         
         if reply == QMessageBox.Yes:
@@ -831,11 +490,13 @@ class AlarmsScreen(QWidget):
         #     self.command_queue.put(self.CMD_SILENCE)
         #     self._last_buzzer_silence_state_sent = True
 
-    def open_variable_configuration(self):
-        dialog = AlarmLimitsConfigDialog(
-            self,
-            current_values=self.current_values,
-            limits_manager=self.limits_manager   
-            )
-        dialog.exec_()
 
+    def reset_ui_state(self):
+        """
+        Limpia todas las alarmas activas mostradas y resetea el botón de reconocimiento.
+        Útil cuando se pierde o restaura la conexión para tener un estado limpio.
+        """
+        self.active_alarms.clear() # Limpiar el diccionario de alarmas activas
+        self._update_active_alarms_display() # Actualizar la pantalla (mostrar "SISTEMA NORMAL")
+        self.update_ack_button_state() # Deshabilitar botón ACK
+        logger.info("AlarmsScreen UI state reset.")

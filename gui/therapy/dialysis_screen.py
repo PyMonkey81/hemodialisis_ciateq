@@ -126,8 +126,7 @@ class DialysisScreen(QWidget):
         self.parent_window = parent  # Referencia a HemodialysisHMI
         self.current_values = values_dict if values_dict is not None else {}
 
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setMinimumSize(1024, 600)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)        
 
         self.setAutoFillBackground(True)
         palette = self.palette()

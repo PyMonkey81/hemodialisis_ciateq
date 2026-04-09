@@ -335,13 +335,13 @@ class TherapyConfigScreen(QWidget):
         try:
             logger.info("Comando START bomba de sangre solicitado")
             # 1. Habilitar loop de control (requisito)
-            self.on_user_boolean_command("bloodControlLoopEnable", True)
+            # self.on_user_boolean_command("bloodControlLoopEnable", True)
 
             # 2. Activar secuencia de arranque de la bomba
             self._handle_dual_pump_toggle("bloodPumpStartButton", "bloodPumpStopButton", True)
 
             # 3. Activar movimiento hacia adelante
-            self.on_user_boolean_command("bloodPumpFWDButton", True)
+            # self.on_user_boolean_command("bloodPumpFWDButton", True)
 
         except Exception as e:
             logger.error(f"Error en _start_blood_pump: {e}", exc_info=True)
@@ -353,13 +353,13 @@ class TherapyConfigScreen(QWidget):
             logger.info("Comando STOP bomba de sangre solicitado")
 
             # 1. Deshabilitar loop de control
-            self.on_user_boolean_command("bloodControlLoopEnable", False)
+            # self.on_user_boolean_command("bloodControlLoopEnable", False)
 
             # 2. Activar secuencia de parada de la bomba
             self._handle_dual_pump_toggle("bloodPumpStartButton", "bloodPumpStopButton", False)
 
             # 3. Detener movimiento hacia adelante
-            self.on_user_boolean_command("bloodPumpFWDButton", False)
+            # self.on_user_boolean_command("bloodPumpFWDButton", False)
 
         except Exception as e:
             logger.error(f"Error en _stop_blood_pump: {e}", exc_info=True)

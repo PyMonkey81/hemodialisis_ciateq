@@ -107,15 +107,14 @@ class MaintenanceScreen(QWidget):
         # Si no lo tienes, deberías crearlo.
         self.op_value.setText(f"{hours:02d}:{minutes:02d} hh:mm") # CAMBIO: :02d para formato HH:MM
 
-    # def update_operation_hours(self, hours: float):
-    #     self.op_value.setText(f"{hours:.2f} h")
+
 
     def reset_power_on_hours(self):
         if self._confirm_reset("Power On Hours"):
             if self.parent_window:
                 self.parent_window.power_on_hours = 0.0
                 self.parent_window._save_power_on_hours()
-                self.pon_value.setText("0.00 h")
+                self.pon_value.setText("0.00 hh:mm")
                 logger.warning("Power On Hours fue reseteado por técnico")
 
     def reset_operation_hours(self):
@@ -123,7 +122,7 @@ class MaintenanceScreen(QWidget):
             if self.parent_window:
                 self.parent_window.total_operation_hours = 0.0
                 self.parent_window._save_operation_hours()
-                self.op_value.setText("0.00 h")
+                self.op_value.setText("0.00 hh:mm")
                 logger.warning("Horas de Operación en Tratamiento fueron reseteadas por técnico")
 
     def _confirm_reset(self, counter_name: str) -> bool:

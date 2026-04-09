@@ -58,6 +58,7 @@ from utilities.csv_logger import CsvLogger
 
 # === MODULES ===
 from core.alarms import AlarmSystem
+from core.alarm_config_manager import AlarmConfigManager
 from core.variables_map import VARIABLES
 
 from connection.serial_communication import SerialCommunication
@@ -77,6 +78,9 @@ from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
 from gui.components.ui_components import show_dark_message
 from gui.configuration.alarm_limits import AlarmLimitsManager
+from gui.configuration.alarm_screen_config import AlarmScreenConfig 
+from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
+
 from gui.service.manual_mode_screen import ManualModeScreen
 from gui.service.test_panel_screen import TestPanelScreen
 from gui.service.calibration_screen import CalibrationScreen
@@ -85,7 +89,7 @@ from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screen import TherapyConfigScreen
-
+from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +230,12 @@ class HemodialysisHMI(QMainWindow):
 
         # Serial communication
         self.current_values = {}
+        for group_key, vars_group in VARIABLES.items():
+            if isinstance(vars_group, dict):
+                for var_id, info in vars_group.items():
+                    if "tag" in info:
+                        self.current_values[info["tag"]] = 0.0 # Inicializar todos a 0.0
+
         self.serial_comm = SerialCommunication()
         self.serial_comm.data_received.connect(self.update_value)
         self._is_connected_prev_state = False # Rastrea estado de conexción
@@ -240,65 +250,31 @@ class HemodialysisHMI(QMainWindow):
         self.pattern_sensor.data_received.connect(self.on_pattern_data)
         self.pattern_sensor.start()
      
-        self.active_alarms = []
-        display_names = [info["label"] for g in VARIABLES.values() for info in g.values()]
-        tags = [info["tag"] for g in VARIABLES.values() for info in g.values()]
+        # ====================== CONFIGURACIÓN DE ALARMAS (Nueva Arquitectura) ======================
         
-        all_tags = []
-        for group_key, vars_group in VARIABLES.items():
-             if isinstance(vars_group, dict):
-                for var_id, info in vars_group.items():
-                    if "tag" in info:
-                        all_tags.append(info["tag"])        
+        self.config_manager = AlarmConfigManager()          # Gestor central con QSettings
         
-        tags = all_tags # Ahora `tags` es una lista de todos los tags únicos
-
-        # Regenerar las listas para AlarmSystem
-        alarm_limits_from_vars = []
-        alarm_severity_from_vars = []
-        alarm_types_from_vars = []
-        boolean_triggers_from_vars = []
-
-        for group_key, vars_group in VARIABLES.items():
-            if isinstance(vars_group, dict):
-                for var_id, info in vars_group.items():
-                    if "tag" in info and info["tag"] in all_tags: # Asegurarse de que el tag esté en la lista
-                        alarm_limits_from_vars.append(info.get("limites", (0.0, 100.0)))
-                        alarm_severity_from_vars.append(info.get("nivel", "cian"))
-                        alarm_types_from_vars.append("numeric" if info["type"] == "double" else "boolean")
-                        boolean_triggers_from_vars.append(True if info["type"] == "boolean" else False) # Ajuste para boolean_triggers
-        
-        self.alarm_limits = AlarmLimitsManager() 
+        # Sistema de alarmas (solo monitorea lo que el técnico habilite)
         self.alarm_system = AlarmSystem(
-            display_names=display_names,                 
-            tags=tags,
-            limits=alarm_limits_from_vars,
-            severity_levels=alarm_severity_from_vars,
-            types=alarm_types_from_vars,
-            boolean_triggers=boolean_triggers_from_vars,
-            limits_manager=self.alarm_limits
-        )
-        self.buzzer_silenced_by_user = False     
+            config_manager=self.config_manager
+        )      
 
-        # handle for alarms and start monitoring
+
         self.alarm_system.alarm_changed.connect(self.handle_alarm)
         self.alarm_system.new_event.connect(self.log_event)
         self.alarm_system.start_monitoring()
+        self.active_alarms: List[Tuple[str, float, str]] = [] # La lista activa que usa el header label
+        self.buzzer_silenced_by_user = False   
 
-        self.current_values = {tag: 0.0 for tag in tags}
-
-        # led bar 
-        self.led_bar = LedBarController()
+        self.led_bar = LedBarController()     
         self.led_bar.start()
-
-        # Screens initialization        
+        # ====================== PANTALLAS ======================
+        
         self.alarms_screen = AlarmsScreen(
             parent=self,
             values_dict=self.current_values,
             alarm_system=self.alarm_system
         )
-        
-        self.alarms_screen.limits_manager = self. alarm_limits
 
         self.real_time_var = RealTimeVariablesMonitor(
             parent=self,
@@ -306,6 +282,17 @@ class HemodialysisHMI(QMainWindow):
             alarm_system=self.alarm_system
         )
 
+        # Pantalla de configuración para Operador
+        self.alarm_config_limits_screen = AlarmScreenConfig(
+            config_manager=self.config_manager,
+            parent=self
+        )
+
+        # Pantalla de configuración para Servicio Técnico
+        self.alarm_service_screen_config = AlarmScreenServiceConfig(
+            config_manager=self.config_manager,
+            parent=self
+        )
         # # Therapy & service screens        
         self.dialysis_screen = DialysisScreen(parent=self, values_dict=self.current_values)
         self.dialysis_screen.request_boolean_change.connect(self._write_boolean_command)
@@ -340,7 +327,6 @@ class HemodialysisHMI(QMainWindow):
 
 
 
-
         # # Therapy sub-screens
         self.patient_config_screen = PatientConfigScreen(parent=self)
         
@@ -366,6 +352,8 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.therapy_config_screen)        # 12
         self.screen_stack.addWidget(self.comm_port_screen)             # 13 
         self.screen_stack.addWidget(self.maintenance_screen)            # 14
+        self.screen_stack.addWidget(self.alarm_config_limits_screen)          # 15  se accede desde el menu de alarmas para configurar los limites de cada variable y su severidad. Esta pantalla reemplaza a la antigua AlarmLimitsConfigDialog, integrando la configuración de alarmas dentro del flujo principal de la aplicación.
+        self.screen_stack.addWidget(self.alarm_service_screen_config)          # 16  se accede desde el menu de servicio técnico para configurar los limites de cada variable y su severidad. Esta pantalla es similar a la de configuración de alarmas pero con un enfoque específico para el servicio técnico, permitiendo ajustes avanzados que no están disponibles para el operador.
 
         self.comm_port_screen.emit_current_configurations() # carga la configuracion de las puertos COM
 
@@ -866,6 +854,19 @@ class HemodialysisHMI(QMainWindow):
         
         self._highlight_active_nav_button("Servicio")
 
+    def show_alarm_config_limits_screen(self):
+        self.screen_stack.setCurrentWidget(self.alarm_config_limits_screen)
+        self.alarm_config_limits_screen.refresh_ui() 
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Alarmas")
+
+    def show_alarm_service_screen_config(self):
+        self.screen_stack.setCurrentWidget(self.alarm_service_screen_config)
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Servicio")
+
     # ────────────────────────────────────────────────
     #              Utility Methods
     # ────────────────────────────────────────────────
@@ -883,13 +884,17 @@ class HemodialysisHMI(QMainWindow):
                     btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
                 else:
                     btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
-            
-            # Restaurar etiquetas del encabezado a su estado por defecto
-            self.refresh_alarms_label() # Mostrará alarmas reales o vacío
-            self.refresh_treatment_selected() # Mostrar tratamiento seleccionado actualmente - default Hemodiálisis
-            self.current_process_status.setText("Máquina conectada") 
 
-            # Asegurar que se muestre la pantalla de inicio y se oculten los paneles laterales
+            
+            if hasattr(self, 'alarm_system') and self.alarm_system:
+                self.alarm_system.reset() # Resetea previous_states y current_values internos
+            self.active_alarms.clear() # Limpia la lista del HMI
+            if hasattr(self, 'alarms_screen') and self.alarms_screen:
+                self.alarms_screen.reset_ui_state() 
+            
+            self.current_process_status.setText("Máquina conectada") 
+            self.refresh_treatment_selected() # Mostrar tratamiento seleccionado actualmente - default Hemodiálisis
+
             self.show_home_screen() 
             self._update_treatment_controls_state()
             self._update_priming_controls_state()
@@ -898,20 +903,21 @@ class HemodialysisHMI(QMainWindow):
             logger.warning("Disabling UI elements for disconnected state.")
             for btn_text, btn in self.navigation_buttons.items():
                 btn.setEnabled(False)
-                if btn_text == "Salir": # 'Salir' siempre habilitado, incluso desconectado
+                if btn_text == "Salir": 
                     btn.setEnabled(True) 
                     btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
                 else:
                     btn.setStyleSheet(self.BTN_DISABLED_STYLE)
             
-            # Actualizar etiquetas del encabezado para reflejar la desconexión
-            self.active_alarms.clear()
-            self.active_alarms_label.setText("")             
+            if hasattr(self, 'alarm_system') and self.alarm_system:
+                self.alarm_system.reset() # Resetea previous_states y current_values internos
+            self.active_alarms.clear() # Limpia la lista del HMI
+            if hasattr(self, 'alarms_screen') and self.alarms_screen:
+                self.alarms_screen.reset_ui_state() # Limpia la UI de la pantalla de alarmas
+
             self.current_process_status.setText("Esperando conexión")
 
-            # Siempre volver a la pantalla de inicio y ocultar paneles laterales cuando se desconecta
-            self.show_home_screen() # Esto ocultará el contenido lateral y establecerá el índice de pantalla a inicio.
-
+            self.show_home_screen()
     
     def handleGlobalValueChange(self, tag: str, value: float):
         # Actualiza el diccionario compartido y propaga a todas las pantallas si es necesario
@@ -930,19 +936,17 @@ class HemodialysisHMI(QMainWindow):
     def update_value(self, tag: str, value: float):
         # Actualizar valor centralizado
         self.current_values[tag] = value
-
         # Actualizar sistema de alarmas si existe
         if self.alarm_system:
             self.alarm_system.update_value_by_tag(tag, value)
-
         # Lógica específica de KTV/urea
         if tag == "urea_adc2":
             self.measurement_ktv()
 
         # Actualizar gauges
         gauge_mapping = {
-            "arterPresProcessData":   self.arterial_pressure_gauge,
-            "venouPresProcessData":   self.venous_pressure_gauge,
+            "bloodArteryPressureData":   self.arterial_pressure_gauge,
+            "bloodVenousPressureData":   self.venous_pressure_gauge,
             "dialyTempIFProcessData":  self.dialysate_temp_gauge,
             "dialyCondVariableData":  self.conductivity_bar,
         }
@@ -965,20 +969,26 @@ class HemodialysisHMI(QMainWindow):
                 status_map = {
                     1: "INICIO CEBADO", 2: "LLENADO DE TANQUE", 3: "LLENADO DE LINEA",
                     4: "LLENADO CÁMARA", 5: "CALENTAMIENTO", 6: "INFUSIÓN",
-                    7: "DIÁLISIS", 8: "BYPASS", 9: "CERRADO",
-                    11: "ULTRAFILTRACIÓN OFF", 12: "LISTO PARA INICIAR\nTRATAMIENTO",
-                    13: "TRATAMIENTO INICIADO", 14: "PAUSA", 15: "TRATAMIENTO DETENIDO"
+                    7: "COLOCACIÓN DE\nFILTRO", 8: "DIÁLISIS", 9: "BYPASS", 10: "CERRADO",
+                    12: "ULTRAFILTRACIÓN OFF", 13: "LISTO PARA INICIAR\nTRATAMIENTO",
+                    14: "TRATAMIENTO INICIADO", 15: "PAUSA", 16: "TRATAMIENTO DETENIDO"
                 }
                 status_text = status_map.get(status_code, f"Espera.. ({status_code})")
                 self.current_process_status.setText(status_text)
 
+                if status_code == 7: # indica al usuario que debe colocar el filtro antes de iniciar el tratamiento
+                    show_dark_message(self, "Colocación de filtro", 
+                                        "Coloque el filtro correctamente y asegúrese de que las líneas estén bien conectadas.",
+                                        icon=QMessageBox.Information)
+                    
+
                 # ====================== LÓGICA DE HORAS ======================
-                if status_code == 13:  # TRATAMIENTO INICIADO
+                if status_code == 14:  # TRATAMIENTO INICIADO
                     if self.operation_start_time is None:
                         self.operation_start_time = QDateTime.currentDateTime()
                         logger.info("Iniciando conteo de horas de operación")
 
-                elif status_code in [14, 15]:  # PAUSA o DETENIDO
+                elif status_code in [15, 16]:  # PAUSA o DETENIDO
                     if self.operation_start_time is not None:
                         logger.info(f"Tratamiento pausado/detenido. Total horas op: {self.total_operation_hours:.2f}h")
                         self.operation_start_time = None # Esto hace que el Timer Maestro deje de sumar
@@ -987,20 +997,20 @@ class HemodialysisHMI(QMainWindow):
                     
 
                 # Lógica de pausa de tiempo de terapia
-                if status_code == 14 and self.last_resume_time is not None:
+                if status_code == 15 and self.last_resume_time is not None:
                     seconds_since_resume = self.last_resume_time.secsTo(QDateTime.currentDateTime())
                     self.accumulated_therapy_seconds += seconds_since_resume
                     self.last_resume_time = None
 
-                elif status_code == 13 and self.last_resume_time is None:
+                elif status_code == 14 and self.last_resume_time is None:
                     self.last_resume_time = QDateTime.currentDateTime()
 
                 # Colores según estado
-                if status_code in [6, 7, 12, 13]:
+                if status_code in [6, 7, 13, 14]:
                     color = "#25AD37"
                 elif status_code in [1, 2, 3, 4, 5, 8]:
                     color = "#eab308"
-                elif status_code in [14, 15]:
+                elif status_code in [15, 16]:
                     color = "#ef4444"
                 else:
                     color = "#C6E3E6"
@@ -1033,8 +1043,8 @@ class HemodialysisHMI(QMainWindow):
         """Timer Maestro - Se ejecuta cada 500ms. Centraliza toda la actualización."""
         now = QDateTime.currentDateTime()
 
-        # Actualizaciones rápidas (cada 500ms)
-        self.update_connection_status()    
+
+        self.update_connection_status() # Esta función llama a refresh_alarms_label y update_led_bar_state
 
         if self.is_treatment_running and self.screen_stack.currentWidget() == self.dialysis_screen:
             self._update_therapy_time_displays()
@@ -1097,22 +1107,22 @@ class HemodialysisHMI(QMainWindow):
         can_stop = False
         can_pause = False
 
-        if status_code == 12:  # LISTO PARA INICIAR
+        if status_code == 13:  # LISTO PARA INICIAR
             if temp_ok and cond_ok:
                 can_start = True
                 can_stop = False
-                can_pause = True   # Es False, pero se pondra TRUE para nueva funcionalidad en cebado 
+                can_pause = False   # Es False, pero se pondra TRUE para nueva funcionalidad en cebado 
             else:
                 # Listo por estado, pero temperaturas/cond mal
                 can_start = False
                 can_stop = False
                 can_pause = True  # Permitir pausa para forzar corrección de parámetros antes de iniciar
 
-        elif status_code == 13: # TRATAMIENTO CORRIENDO
+        elif status_code == 14: # TRATAMIENTO CORRIENDO
             can_start = False
             can_stop = True
             can_pause = True
-        elif status_code == 14:  # estado de pausa 
+        elif status_code == 15:  # estado de pausa 
             if temp_ok and cond_ok:
                 can_start = True
                 can_stop = True  #False se puede detener si se esta en pausa 
@@ -1164,22 +1174,22 @@ class HemodialysisHMI(QMainWindow):
         # Este botón actua como un "Detener/Finalizar Proceso General".
         
         # Habilitar si el cebado está activo (estados 2 a 8)
-        if status_code >= 2 and status_code <= 8:
+        if status_code >= 2 and status_code <= 9:
             enable_stop_priming = True
-        elif status_code == 12:
+        elif status_code == 13:
             enable_stop_priming = True    
         # Habilitar si el tratamiento está activo (estado 13)
-        elif status_code == 13: # "TRATAMIENTO INICIADO"
+        elif status_code == 14: # "TRATAMIENTO INICIADO"
             enable_stop_priming = False
         # Habilitar si el tratamiento está en pausa (estado 14)
-        elif status_code == 14: # "PAUSA"
+        elif status_code == 15: # "PAUSA"
             enable_stop_priming = True
         # Habilitar si el tratamiento acaba de ser detenido (estado 15)
-        elif status_code == 15: # "TRATAMIENTO DETENIDO" - ESTO RESPONDE A TU FEEDBACK
+        elif status_code == 16: # "TRATAMIENTO DETENIDO" - ESTO RESPONDE A TU FEEDBACK
             enable_stop_priming = True
 
         # Deshabilitar en estados donde no hay nada que detener o ya está en un estado inactivo/listo
-        if status_code in [1, 9]: # 1: INICIO CEBADO, 9: CERRADO, 12: LISTO PARA INICIAR TRATAMIENTO
+        if status_code in [1, 10]: # 1: INICIO CEBADO, 10: CERRADO, 13: LISTO PARA INICIAR TRATAMIENTO
              enable_stop_priming = False
 
         # Actualizar los botones en la pantalla de diálisis
@@ -1189,8 +1199,25 @@ class HemodialysisHMI(QMainWindow):
 
 
     def refresh_alarms_label(self):
+        """
+        Actualiza el QLabel del encabezado con la alarma de mayor prioridad.
+        Si no hay conexión, muestra un estado adecuado.
+        """      
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            self.active_alarms_label.setText("SIN CONEXIÓN\n DE CONTROL")
+            self.active_alarms_label.setStyleSheet("""
+                QLabel {
+                    color: #ffffff;
+                    background: #f39c12; /* Naranja para advertir de falta de conexión */
+                    font-weight: bold;
+                    font-size: 20px;
+                    border-radius: 8px;
+                }
+                """)
+            return
+
         if not self.active_alarms:
-            self.active_alarms_label.setText("SISTEMA\n NORMAL")
+            self.active_alarms_label.setText("ESTADO: OK")
             self.active_alarms_label.setStyleSheet("""
                 QLabel {
                     color: #ffffff; 
@@ -1203,14 +1230,25 @@ class HemodialysisHMI(QMainWindow):
             return
         # Orden de prioridad (rojo > naranja > amarillo > cian)
         priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1, "info": 0}
-    
-        # Obtener la alarma de mayor prioridad
         top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2], 0))
         name, value, level = top_alarm
 
-        display_text = name.upper()
-        if value is not None and isinstance(value, (int, float)):
+        short_label = name 
+        is_boolean = False
+
+        for group in VARIABLES.values():
+            if isinstance(group, dict):
+                for info in group.values():
+                    if info.get("name") == name:
+                        short_label = info.get("label", name) 
+                        if info.get("type") == "bool":
+                            is_boolean = True
+                        break
+
+        display_text = short_label.upper()
+        if not is_boolean and value is not None and isinstance(value, (int, float)):
             display_text += f" {value:.1f}"
+
 
         color_map = {
             "rojo": "#dc2626",
@@ -1245,39 +1283,92 @@ class HemodialysisHMI(QMainWindow):
                      font-weight: bold; font-size: 25px; }}
         """)
 
-
-
-    def handle_alarm(self, idx, active, value, name, level, limit):
-        if active:
-            # Buscar si la alarma ya existe
-            existing_alarm_index = next((i for i, a in enumerate(self.active_alarms) if a[0] == name), -1)            
-            if existing_alarm_index == -1:
-                self.active_alarms.append((name, value, level))
-                self.buzzer_silenced_by_user = False
-            else:                
-                self.active_alarms[existing_alarm_index] = (name, value, level)
-        else:            
-            self.active_alarms = [a for a in self.active_alarms if a[0] != name]            
-            if not self.active_alarms:
-                self.buzzer_silenced_by_user = False
-
+    def update_alarm_system_monitor_config(self):
+        """
+        Este método debe ser llamado cuando la configuración de monitoreo de alarmas
+        (habilitar/deshabilitar tags) cambia en la pantalla de servicio.
+        """
+        logger.info("Actualizando configuración del sistema de alarmas desde HMI.")
+        self.active_alarms.clear()
+        if hasattr(self, 'alarms_screen') and self.alarms_screen:
+            self.alarms_screen.reset_ui_state()
+            
+        # 2. Recargar el motor interno de alarmas con la nueva lista
+        self.alarm_system.reload_configuration()
+        
+        # 3. Refrescar los elementos visuales (Header y Barra LED)
         self.refresh_alarms_label()
-        self.update_connection_status()
         self.update_led_bar_state()
 
+
+
+    def update_alarm_system_monitor_config(self):
+        """
+        Este método debe ser llamado cuando la configuración de monitoreo de alarmas
+        (habilitar/deshabilitar tags) cambia en la pantalla de servicio.
+        """
+        print("[HMI] Solicitando recarga de configuración del AlarmSystem.")
+        
+        # 1. LIMPIEZA FORZADA DE LA INTERFAZ
+        # Borramos las alarmas activas actuales para eliminar las que fueron deshabilitadas
+        self.active_alarms.clear()
+        if hasattr(self, 'alarms_screen') and self.alarms_screen:
+            self.alarms_screen.reset_ui_state()
+            
+        # 2. Recargar el motor interno de alarmas con la nueva lista
+        self.alarm_system.reload_configuration()
+        
+        # 3. Refrescar los elementos visuales (Header y Barra LED)
+        self.refresh_alarms_label()
+        self.update_led_bar_state()
+        
+        # Nota: El AlarmSystem re-evaluará las variables habilitadas en el próximo medio segundo.
+        # Si alguna sigue en estado de falla, volverá a aparecer automáticamente.
+
+
+    
+    def handle_alarm(self, idx, active, value, name, level, limits):
+        found_idx = -1 # buscar si la alarma ya está en la lista de alarmas activas
+        for i, (alarm_name, _, _) in enumerate(self.active_alarms):
+            if alarm_name == name:
+                found_idx = i
+                break
+
+        if active:
+            if found_idx == -1:
+                # Es una alarma NUEVA que se acaba de activar -> añadir
+                self.active_alarms.append((name, value, level))
+                self.buzzer_silenced_by_user = False # Resetear silencio por NUEVA alarma
+            else:
+                # La alarma ya estaba activa, solo actualizar su estado (valor/nivel)
+                self.active_alarms[found_idx] = (name, value, level)
+        else:
+            if found_idx != -1:
+                # La alarma se normalizó -> eliminar de la lista de activas
+                self.active_alarms.pop(found_idx)
+        
+        # Si no quedan alarmas activas, resetear el silencio del buzzer
+        if not self.active_alarms:
+            self.buzzer_silenced_by_user = False
+
+        self.refresh_alarms_label()
+        self.update_led_bar_state()
 
     # ────────────────────────────────────────────────
     #              LED Bar Logic
     # ────────────────────────────────────────────────
 
     def update_led_bar_state(self):
-        """Determina LED + estado del buzzer según prioridad y si el usuario silenció."""
+        """Actualiza el estado de la barra LED según las alarmas activas"""
+        if not hasattr(self, 'led_bar') or self.led_bar is None:
+            return  # Evita error si aún no se ha creado o ya se cerró
+
         if not self.serial_comm or not self.serial_comm.is_connected:
             self.led_bar.send_state(self.led_bar.CMD_CYAN_SOLID, silence_buzzer=False)
             return
 
         if self.active_alarms:
-            priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1, "info": 0}
+            priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1}
             top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2], 0))
             level = top_alarm[2]
 
@@ -1287,12 +1378,9 @@ class HemodialysisHMI(QMainWindow):
                 cmd = self.led_bar.CMD_YELLOW_FLASH
             elif level == "amarillo":
                 cmd = self.led_bar.CMD_YELLOW_SOLID
-            elif level == "cian":
+            else:  # cian o default
                 cmd = self.led_bar.CMD_CYAN_SOLID
-            else:
-                cmd = self.led_bar.CMD_GREEN_SOLID
 
-            # ← flag del usuario
             silence = self.buzzer_silenced_by_user
             self.led_bar.send_state(cmd, silence_buzzer=silence)
         else:
@@ -1345,7 +1433,7 @@ class HemodialysisHMI(QMainWindow):
             text = "ALARMA ACTIVA"
             color = "#dc2626" if int(time.time()) % 2 == 0 else "#991b1b"
         else:
-            text, color = "CONECTADO", "#10b981"
+            text, color = "EN LINEA", "#10b981"
 
         self.status_label.setText(text)
         self.status_label.setStyleSheet(f"""
@@ -1371,8 +1459,6 @@ class HemodialysisHMI(QMainWindow):
 
     def shutdown(self):
         logger.error("[INFO] Initiating controlled shutdown.")
-
-
         if hasattr(self, 'master_timer') and self.master_timer.isActive():
             self.master_timer.stop()
             logger.info("Timer Maestro detenido correctamente")
@@ -1380,8 +1466,6 @@ class HemodialysisHMI(QMainWindow):
         # SOLO GUARDAR 
         self._save_power_on_hours()
         self._save_operation_hours()
-
-
         # Stop alarm system
         if hasattr(self, 'alarm_system') and self.alarm_system:
             try:
@@ -1522,8 +1606,7 @@ class HemodialysisHMI(QMainWindow):
             self.dialysis_screen.remaining_time_display.set_value("00:00:00")
             return
 
-        # Calcular segundos transcurridos
-        
+        # Calcular segundos transcurridos        
         current_elapsed_seconds = self.accumulated_therapy_seconds
         if self.last_resume_time is not None:
             current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
