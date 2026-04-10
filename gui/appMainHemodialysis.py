@@ -553,19 +553,22 @@ class HemodialysisHMI(QMainWindow):
         if self.total_therapy_seconds <= 0:
             show_dark_message(self, "Configuración incompleta", 
                                 "Configure la duración de la terapia primero.",
-                                icon=QMessageBox.warning)
+                                icon=QMessageBox.Warning)
             self.show_therapy_config_screen()
             return
+            
         current_status = int(self.current_values.get("primingProcessStatus", 0))
         
-        if current_status != 15:             
+        # si esta en pausa y se reanuda el tratamiento no se genera otro archivo csv
+        is_resuming = (current_status == 15)
+
+        if not is_resuming:             
             self.accumulated_therapy_seconds = 0
         else:
             logger.info("Reanudando tratamiento desde Pausa (manteniendo tiempo acumulado)")
                 
         self.last_resume_time = QDateTime.currentDateTime()   
         self.is_treatment_running = True
-
 
         try:        
             self._write_boolean_command("dialyModeOperationStart", True)            
@@ -577,37 +580,111 @@ class HemodialysisHMI(QMainWindow):
                                 "Terapia iniciada, pero hubo problema al enviar comandos al controlador.",
                                 icon=QMessageBox.Warning)
 
-
         # Iniciar bioimpedancia y Kt/V
         if self.bioz_urea_controller:
             self.bioz_urea_controller.send_command("SRTB")
     
-        
         self.perform_ktv_measurement()
-        
-        # if not self.ktv_timer.isActive():
-        #     self.ktv_timer.start()
 
         if self.screen_stack.currentWidget() == self.dialysis_screen:
             self.dialysis_screen.update_values(self.current_values)
-        if self.treatment_logger:
-            logger.info("Cerrando logger anterior antes de nuevo tratamiento")
-            self.treatment_logger.close()
-            self.treatment_logger = None
 
-        LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
+        # =====================================================================
+        # SOLUCIÓN AL BUG DEL LOGGER (MÚLTIPLES ARCHIVOS)
+        # =====================================================================
+        if is_resuming and self.treatment_logger is not None:
+            # Si estamos reanudando y el logger ya existe, no hacemos NADA.
+            # Seguirá escribiendo en el mismo archivo.
+            logger.info("Reanudando tratamiento: Continuando registro en el mismo archivo CSV.")
+        else:
+            # Si es un tratamiento nuevo (no venimos de pausa) o el logger no existe:
+            if self.treatment_logger:
+                logger.info("Cerrando logger anterior antes de nuevo tratamiento")
+                self.treatment_logger.close()
+                self.treatment_logger = None
 
-        try:
-            self.treatment_logger = CsvLogger(
-                log_directory=LOG_DIRECTORY,
-                parameter_key_map=self.parameter_mapping
-            )
-            logger.info("Logger CSV iniciado correctamente para tratamiento")
-        except Exception as e:
-            logger.error(f"Error al crear logger CSV para tratamiento: {e}")
-            show_dark_message(self, "Error crítico", f"No se pudo iniciar el registro de datos:\n{str(e)}", 
-                      icon=QMessageBox.Critical)
-            return
+            LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
+
+            try:
+                self.treatment_logger = CsvLogger(
+                    log_directory=LOG_DIRECTORY,
+                    parameter_key_map=self.parameter_mapping
+                )
+                logger.info("Logger CSV iniciado correctamente para nuevo tratamiento")
+            except Exception as e:
+                logger.error(f"Error al crear logger CSV para tratamiento: {e}")
+                show_dark_message(self, "Error crítico", f"No se pudo iniciar el registro de datos:\n{str(e)}", 
+                          icon=QMessageBox.Critical)
+                return
+
+
+    # def start_treatment(self):
+    #     logger.info("Iniciando tratamiento y mediciones externas: Bioimpedancia")
+
+    #     hours = int(self.current_values.get("heparineTherapyHours", 0))
+    #     minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
+    #     self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
+
+    #     if self.total_therapy_seconds <= 0:
+    #         show_dark_message(self, "Configuración incompleta", 
+    #                             "Configure la duración de la terapia primero.",
+    #                             icon=QMessageBox.warning)
+    #         self.show_therapy_config_screen()
+    #         return
+        
+    #     current_status = int(self.current_values.get("primingProcessStatus", 0))
+        
+    #     if current_status != 15:             
+    #         self.accumulated_therapy_seconds = 0
+    #     else:
+    #         logger.info("Reanudando tratamiento desde Pausa (manteniendo tiempo acumulado)")
+                
+    #     self.last_resume_time = QDateTime.currentDateTime()   
+    #     self.is_treatment_running = True
+
+
+    #     try:        
+    #         self._write_boolean_command("dialyModeOperationStart", True)            
+    #         self._write_boolean_command("dialyModeOperationStop", False)
+    #         logger.info("Comandos de terapia enviados: Start=True, Stop=False")
+    #     except Exception as e:
+    #         logger.error(f"Error enviando comandos de terapia: {e}")
+    #         show_dark_message(self, "Advertencia", 
+    #                             "Terapia iniciada, pero hubo problema al enviar comandos al controlador.",
+    #                             icon=QMessageBox.Warning)
+
+
+    #     # Iniciar bioimpedancia y Kt/V
+    #     if self.bioz_urea_controller:
+    #         self.bioz_urea_controller.send_command("SRTB")
+    
+        
+    #     self.perform_ktv_measurement()
+        
+    #     # if not self.ktv_timer.isActive():
+    #     #     self.ktv_timer.start()
+
+    #     if self.screen_stack.currentWidget() == self.dialysis_screen:
+    #         self.dialysis_screen.update_values(self.current_values)
+
+    #     if self.treatment_logger:
+    #         logger.info("Cerrando logger anterior antes de nuevo tratamiento")
+    #         self.treatment_logger.close()
+    #         self.treatment_logger = None
+
+    #     LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
+
+    #     try:
+    #         self.treatment_logger = CsvLogger(
+    #             log_directory=LOG_DIRECTORY,
+    #             parameter_key_map=self.parameter_mapping
+    #         )
+    #         logger.info("Logger CSV iniciado correctamente para tratamiento")
+    #     except Exception as e:
+    #         logger.error(f"Error al crear logger CSV para tratamiento: {e}")
+    #         show_dark_message(self, "Error crítico", f"No se pudo iniciar el registro de datos:\n{str(e)}", 
+    #                   icon=QMessageBox.Critical)
+    #         return
 
     
 
