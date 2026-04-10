@@ -42,6 +42,21 @@ Ejemplo de `parameter_key_map`:
 import csv
 import os
 from datetime import datetime
+import logging
+from logging.handlers import RotatingFileHandler
+
+log_file = "app.log"
+max_log_size = 5 * 1024 * 1024  # 5 MB
+backup_count = 2
+
+handler = RotatingFileHandler(log_file, maxBytes=max_log_size, backupCount=backup_count)
+formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+handler.setFormatter(formatter)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+
 
 class CsvLogger:
     """
@@ -84,9 +99,9 @@ class CsvLogger:
             # Cabeceras: solo Timestamp + las columnas del mapeo
             headers = ['Timestamp'] + list(self.parameter_key_map.values())
             self.csv_writer.writerow(headers)
-            print(f"CSV Logger: Archivo '{self.file_path}' creado. Cabecera escrita.")
-        except IOError as e:
-            print(f"CSV Logger Error: No se pudo abrir/escribir el archivo {self.file_path}: {e}")
+            logger.info(f"CSV Logger: Archivo '{self.file_path}' creado. Cabecera escrita.")            
+        except IOError as e:            
+            logger.error(f"CSV Logger Error: No se pudo abrir/escribir el archivo {self.file_path}: {e}")
             self.close()  # Intentar cerrar si falló
 
     def log_data(self, current_values: dict):
@@ -96,12 +111,14 @@ class CsvLogger:
         :param current_values: Diccionario con los valores actuales de monitorización.
         """
         if not self.csv_writer:
-            print("CSV Logger Error: Writer no inicializado. No se puede registrar.")
+            logger.error("CSV Logger Error: Writer no inicializado. No se puede registrar.")
             return
 
         try:
             row_data = [
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],  # Timestamp con milisegundos
+                # datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],  # Timestamp con milisegundos
+                # datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]   # sigue igual, pero importa con Power Query
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             ]
 
             # Agregar valores según el orden del mapeo
@@ -112,9 +129,9 @@ class CsvLogger:
             self.csv_writer.writerow(row_data)
             self.file.flush()  # Escribir inmediatamente al disco
         except IOError as e:
-            print(f"CSV Logger Error: Error al escribir en {self.file_path}: {e}")
+            logger.error(f"CSV Logger Error: No se pudo escribir en el archivo {self.file_path}: {e}")
         except Exception as e:
-            print(f"CSV Logger Error: Error inesperado al registrar: {e}")
+            logger.error(f"CSV Logger Error: Error inesperado al registrar: {e}")
 
     def close(self):
         """
@@ -122,5 +139,5 @@ class CsvLogger:
         """
         if self.file and not self.file.closed:
             self.file.close()
-            print(f"CSV Logger: Archivo '{self.file_path}' cerrado.")
+            logger.info(f"CSV Logger: Archivo '{self.file_path}' cerrado.")
 
