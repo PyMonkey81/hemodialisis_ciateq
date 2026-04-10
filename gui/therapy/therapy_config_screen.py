@@ -65,17 +65,17 @@ class TherapyConfigScreen(QWidget):
         self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}         
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setStyleSheet("background: #0f172a;")
+        # self.setStyleSheet("background: #0f172a;")
         self.write_hold_off = {}
         self.toggle_hold_off = {}
         self.setup_ui()
 
     def setup_ui(self):
-        self.setStyleSheet("""
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                       stop:0 #1a2a4a, stop:1 #0f172a);
-            color: #f8fafc;
-        """)
+        # self.setStyleSheet("""
+        #     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        #                                stop:0 #1a2a4a, stop:1 #0f172a);
+        #     color: #f8fafc;
+        # """)
 
         button_style = """
             QPushButton { background: #0f172a; color: #ffffff; border-radius: 20px; font-weight: bold; }
@@ -111,7 +111,7 @@ class TherapyConfigScreen(QWidget):
 
         # ── Parámetros ───────────────────────────────────────────────────────
         params_frame = QFrame()
-        params_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px; padding: 25px;")
+        params_frame.setStyleSheet("background: transparent; border-radius: 10px; padding: 25px;")
         params_layout = QGridLayout(params_frame)
         params_layout.setSpacing(20)
 
@@ -220,7 +220,7 @@ class TherapyConfigScreen(QWidget):
             )
         )
         params_layout.addWidget(lbl_duration, 2, 2, Qt.AlignRight)
-        params_layout.addWidget(self.input_duration, 2, 3)               
+        params_layout.addWidget(self.input_duration, 2, 3)                
 
         # ── Configuración Bomba de Heparina ───────────────────────────────────────
         hep_config_frame = QFrame()    
@@ -301,7 +301,7 @@ class TherapyConfigScreen(QWidget):
                     background-color: transparent;
                 }
                 QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
-        """)
+        """)      
         blood_layout = QHBoxLayout(blood_operation_frame)
         blood_layout.setContentsMargins(15, 15, 15, 15)
         blood_layout.setSpacing(15)
@@ -324,11 +324,68 @@ class TherapyConfigScreen(QWidget):
         self.btn_stop_blood_pump.pressed.connect(self._stop_blood_pump)
         blood_layout.addWidget(self.btn_stop_blood_pump)
 
+        #=============== LLenado de filtro=================
+        filter_fill_frame = QFrame()
+        filter_fill_frame.setStyleSheet("""
+                QFrame {
+                    border: 2px solid #5c5c5c;
+                    border-radius: 8px;                
+                    background-color: transparent;
+                }
+                QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
+        """)
+        filter_fill_layout = QHBoxLayout(filter_fill_frame)
+        filter_fill_layout.setContentsMargins(15, 15, 15, 15)
+        filter_fill_layout.setSpacing(15)
+
+        lbl_filter_fill_button = QLabel("Llenado de filtro")
+        lbl_filter_fill_button.setStyleSheet(label_style)
+        lbl_filter_fill_button.setAlignment(Qt.AlignCenter)
+        filter_fill_layout.addWidget(lbl_filter_fill_button)
+        filter_fill_layout.addStretch()
+
+        self.btn_filter_fill = PushbuttonEvent("START",self)
+        self.btn_filter_fill.setFixedSize(120, 80)
+        self.btn_filter_fill.setStyleSheet(self.style_enabled)
+        self.btn_filter_fill.pressed.connect(self._start_filter_fill)
+        filter_fill_layout.addWidget(self.btn_filter_fill)
+
+
+
+      # ─── Agregando al layout principal ──────────────────────────────────
+        # main_layout.addWidget(params_frame)
+        # main_layout.addWidget(hep_config_frame) 
+        # main_layout.addWidget(blood_operation_frame)
+        # main_layout.addWidget(filter_fill_frame)
+        # main_layout.addStretch(1)
+
       # ─── Agregando al layout principal ──────────────────────────────────
         main_layout.addWidget(params_frame)
-        main_layout.addWidget(hep_config_frame) 
-        main_layout.addWidget(blood_operation_frame)
-        main_layout.addStretch(1)
+
+        # === NUEVO: Contenedor horizontal para poner los frames uno al lado del otro ===
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(20)        # espacio entre los dos grupos
+
+        # Grupo izquierdo: Bomba de Heparina (con bolo + botones HOME/REV/FWD)
+        bottom_layout.addWidget(hep_config_frame, stretch=1)
+
+        # Grupo derecho: Bomba de Sangre + Llenado de filtro (uno debajo del otro)
+        right_column = QVBoxLayout()
+        right_column.setSpacing(15)
+        right_column.addWidget(blood_operation_frame)
+        right_column.addWidget(filter_fill_frame)
+        right_column.addStretch(1)   # empuja todo hacia arriba
+
+        # Convertimos el layout vertical en un widget para poder agregarlo al HBox
+        right_widget = QWidget()
+        right_widget.setLayout(right_column)
+        bottom_layout.addWidget(right_widget, stretch=1)
+
+        # Agregamos el layout horizontal completo al main_layout
+        main_layout.addLayout(bottom_layout)
+
+        main_layout.addStretch(1)   # espacio al final para que no quede pegado abajo
 
     def _start_blood_pump(self):
         """Maneja el encendido seguro de la bomba de sangre"""
@@ -346,6 +403,12 @@ class TherapyConfigScreen(QWidget):
         except Exception as e:
             logger.error(f"Error en _start_blood_pump: {e}", exc_info=True)
 
+    def _start_filter_fill(self):
+        try:
+            logger.info("Comando Start de llenado de filtro")
+            self.on_user_boolean_command("dialyFilterFillButton",True)
+        except Exception as e:
+            logger.error(f"Error en _start_filter_fill: {e}",exc_info=True)
 
     def _stop_blood_pump(self):
         """Maneja el apagado seguro de la bomba de sangre"""
@@ -364,19 +427,19 @@ class TherapyConfigScreen(QWidget):
         except Exception as e:
             logger.error(f"Error en _stop_blood_pump: {e}", exc_info=True)
     def _update_bloop_pump_controls_state(self):   
-        ctrl_loop_state = self.current_values.get("bloodControlLoopEnable", 0)
+        # ctrl_loop_state = self.current_values.get("bloodControlLoopEnable", 0)
         pump_start_state = self.current_values.get("bloodPumpStartButton", 0)         
         pump_stop_state = self.current_values.get("bloodPumpStopButton", 0)
-        fwd_state = self.current_values.get("bloodPumpFWDButton", 0)
+        # fwd_state = self.current_values.get("bloodPumpFWDButton", 0)
         
-        logger.info(f"Estados actuales - Loop: {ctrl_loop_state}, Start: {pump_start_state}, Stop: {pump_stop_state}, FWD: {fwd_state} ") 
+        logger.info(f" Start: {pump_start_state}, Stop: {pump_stop_state} ") 
         can_start = True  
         can_stop = False  
         # Estado: Bomba funcionando (START debería estar deshabilitado, STOP habilitado)
         # Esto ocurre cuando el lazo de control está activo, el botón de inicio fue presionado,
         # el botón de parada NO fue presionado y la dirección es hacia adelante.
-        if (ctrl_loop_state == 1 and pump_start_state == 1 and 
-            pump_stop_state == 0 and fwd_state == 1):
+        if (pump_start_state == 1 and 
+            pump_stop_state == 0):
             can_start = False
             can_stop = True
             logger.info("Estado de la bomba: FUNCIONANDO")
@@ -384,8 +447,8 @@ class TherapyConfigScreen(QWidget):
         # Estado: Bomba explícitamente detenida (START habilitado, STOP deshabilitado)
         # Esto ocurre cuando el lazo de control está inactivo, el botón de inicio no fue presionado,
         # el botón de parada SI fue presionado y la dirección no es hacia adelante.
-        elif (ctrl_loop_state == 0 and pump_start_state == 0 and 
-              pump_stop_state == 1 and fwd_state == 0):
+        elif (pump_start_state == 0 and 
+              pump_stop_state == 1):
             can_start = True
             can_stop = False
             logger.info("Estado de la bomba: DETENIDA")
@@ -489,6 +552,9 @@ class TherapyConfigScreen(QWidget):
         self.current_values = new_values
         current_ms = QDateTime.currentMSecsSinceEpoch()
 
+        self.current_values.get("dialyFilterFillButton", 0.0)
+        self.current_values.get("bloodPumpStartButton", 0.0)
+        self.current_values.get("bloodPumpStopButton", 0.0)
         self._update_input_display(self.input_heparin, "heparineTherapyDosage")
         self._update_input_display(self.input_blood_flow, "bloodFlowControlSetPoint")
         self._update_input_display(self.input_temperature, "dialyTempControlSetPoint")

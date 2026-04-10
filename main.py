@@ -33,6 +33,10 @@ def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
     Global exception handler for unexpected application failures.
     Displays a critical error message and exits the application for safety.
     """
+    if exc_type is KeyboardInterrupt:
+        logger.info("KeyboardInterrupt recibido - cerrando aplicación de forma controlada")
+        sys.exit(0)   # Salida limpia
+
     import traceback as tb
     error_message = "".join(tb.format_exception(exc_type, exc_value, exc_traceback))
     logger.critical(f"Unhandled exception:\n{error_message}")
@@ -231,7 +235,12 @@ if __name__ == "__main__":
         logger.info(f"   Applied scaling factor: {global_scale_factor:.2f}x")
         logger.info("=" * 70)
         
-        sys.exit(app.exec())
+        try:
+            sys.exit(app.exec())
+        except KeyboardInterrupt:
+            logger.info("Application interrupted by user (KeyboardInterrupt). Exiting gracefully.")
+            print("Application interrupted by user. Exiting gracefully.")
+            app.quit()
 
     except Exception as e:
         logger.critical(f"Unhandled exception: {e}")

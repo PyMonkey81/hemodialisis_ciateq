@@ -86,7 +86,7 @@ class MainScreen(QWidget):
             "<span style='font-size: 20px; color: #1e293b;'><b>Equipo desarrollado por</b></span><br>"
             "<span style='font-size: 32px; color: #1e293b; font-weight: bold;'>CIATEQ A.C.</span><br><br>"
             "<span style='font-size: 20px; color: #1e293b;'><b>Versión Software:</b> </span>"
-            "<span style='font-size: 24px; color: #1e293b; font-weight: bold;'>1.0.2</span><br><br>"
+            "<span style='font-size: 24px; color: #1e293b; font-weight: bold;'>2.15.0</span><br><br>"
             "<span style='font-size: 22px; color: #1e293b; font-weight: bold;'>"
             "Sistema de Hemodiálisis"
             "</span>"

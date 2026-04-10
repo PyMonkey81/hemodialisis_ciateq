@@ -558,7 +558,7 @@ class HemodialysisHMI(QMainWindow):
             return
         current_status = int(self.current_values.get("primingProcessStatus", 0))
         
-        if current_status != 14:             
+        if current_status != 15:             
             self.accumulated_therapy_seconds = 0
         else:
             logger.info("Reanudando tratamiento desde Pausa (manteniendo tiempo acumulado)")
@@ -1107,7 +1107,7 @@ class HemodialysisHMI(QMainWindow):
         can_stop = False
         can_pause = False
 
-        if status_code == 13:  # LISTO PARA INICIAR
+        if status_code == 13:  # antes esperaba el estado 13 LISTO PARA INICIAR
             if temp_ok and cond_ok:
                 can_start = True
                 can_stop = False
@@ -1178,13 +1178,13 @@ class HemodialysisHMI(QMainWindow):
             enable_stop_priming = True
         elif status_code == 13:
             enable_stop_priming = True    
-        # Habilitar si el tratamiento está activo (estado 13)
+        # Habilitar si el tratamiento está activo (estado 14)
         elif status_code == 14: # "TRATAMIENTO INICIADO"
             enable_stop_priming = False
-        # Habilitar si el tratamiento está en pausa (estado 14)
+        # Habilitar si el tratamiento está en pausa (estado 15)
         elif status_code == 15: # "PAUSA"
             enable_stop_priming = True
-        # Habilitar si el tratamiento acaba de ser detenido (estado 15)
+        # Habilitar si el tratamiento acaba de ser detenido (estado 16)
         elif status_code == 16: # "TRATAMIENTO DETENIDO" - ESTO RESPONDE A TU FEEDBACK
             enable_stop_priming = True
 

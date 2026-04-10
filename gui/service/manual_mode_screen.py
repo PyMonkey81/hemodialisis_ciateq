@@ -1126,40 +1126,81 @@ class ManualModeScreen(QWidget):
         }
         return toggle_map.get(toggle_widget)
 
+    # def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
+    #     if not tag_hours and not tag_minutes:
+    #         return
+    #     current_ms = QDateTime.currentMSecsSinceEpoch()
+    #     # Nunca sobrescribir si el usuario está interactuando con el widget
+    #     if time_widget.hasFocus() or time_widget.underMouse():
+    #         return
+    #     # Hold-off después de escritura
+    #     hold_hours   = self.write_hold_off.get(tag_hours,   0) if tag_hours   else 0
+    #     hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
+
+    #     if current_ms < max(hold_hours, hold_minutes):
+    #         return
+    #     # Obtener valor real del serial
+    #     hours   = int(self.current_values.get(tag_hours,   0)) if tag_hours   else 0
+    #     minutes = int(self.current_values.get(tag_minutes, 0)) if tag_minutes else 0
+    #     new_hh_mm = f"{hours:02d}:{minutes:02d}"
+   
+    #     current_display = time_widget.get_time_value() if hasattr(time_widget, 'get_time_value') else time_widget.text()
+    #     if current_display != new_hh_mm:
+    #         if isinstance(time_widget, LabeledTimeInput):
+    #             time_widget.set_time_value(hours, minutes)
+    #         else:
+    #             time_widget.setText(new_hh_mm)
+    #         logger.debug(f"Actualizado T. Terapia a {new_hh_mm} desde serial")
+    #     if timer_id and timer_id in self.local_timer_states:
+    #         state = self.local_timer_states[timer_id]
+    #         if not state["active"]:
+    #             total_ms = (hours * 3600 + minutes * 60) * 1000
+    #             if state["duration_ms"] != total_ms: 
+    #                 state["duration_ms"] = total_ms
+    #                 if state["remaining_lbl"]:
+    #                     state["remaining_lbl"].setText(new_hh_mm)
+    #                 logger.debug(f"Actualizada duración local de {timer_id} a {total_ms} ms")
+
+
     def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
         if not tag_hours and not tag_minutes:
             return
-
-        current_ms = QDateTime.currentMSecsSinceEpoch()
-
-        # Nunca sobrescribir si el usuario está interactuando con el widget
+        
+        # Verificacion de que sea correcto 
+        if not isinstance(time_widget, LabeledTimeInput) and not hasattr(time_widget, 'text'):
+            logger.error(f"Error: time_widget no es un widget válido en _update_time_display para {timer_id}. Tipo: {type(time_widget)}")
+            return 
+        
+        current_ms = QDateTime.currentMSecsSinceEpoch()       
+        
         if time_widget.hasFocus() or time_widget.underMouse():
             return
-
+        
         # Hold-off después de escritura
         hold_hours   = self.write_hold_off.get(tag_hours,   0) if tag_hours   else 0
         hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
-
+        
         if current_ms < max(hold_hours, hold_minutes):
             return
-
+        
         # Obtener valor real del serial
         hours   = int(self.current_values.get(tag_hours,   0)) if tag_hours   else 0
         minutes = int(self.current_values.get(tag_minutes, 0)) if tag_minutes else 0
         new_hh_mm = f"{hours:02d}:{minutes:02d}"
-
-   
-        current_display = time_widget.get_time_value() if hasattr(time_widget, 'get_time_value') else time_widget.text()
-
+        
+        current_display = ""
+        if hasattr(time_widget, 'get_time_value'):
+            current_display = time_widget.get_time_value()
+        elif hasattr(time_widget, 'text'):
+            current_display = time_widget.text()
+        
         if current_display != new_hh_mm:
             if isinstance(time_widget, LabeledTimeInput):
                 time_widget.set_time_value(hours, minutes)
-            else:
+            elif hasattr(time_widget, 'setText'):
                 time_widget.setText(new_hh_mm)
-
             logger.debug(f"Actualizado T. Terapia a {new_hh_mm} desde serial")
-
-
+        
         if timer_id and timer_id in self.local_timer_states:
             state = self.local_timer_states[timer_id]
             if not state["active"]:
@@ -1169,6 +1210,7 @@ class ManualModeScreen(QWidget):
                     if state["remaining_lbl"]:
                         state["remaining_lbl"].setText(new_hh_mm)
                     logger.debug(f"Actualizada duración local de {timer_id} a {total_ms} ms")
+
 
 
     def _update_input_display(self, widget, value, precision=1):
@@ -1322,6 +1364,7 @@ class ManualModeScreen(QWidget):
         self._stop_pump_generic("balance_chamber", "dialiserBalChambStpButt", "dialiserBalChambStrButt", self.balance_chamber_toggle)
 
     def _update_local_time_displays(self):
+        logger.debug("Actualizando displays de tiempo locales...")
         current_ms = QDateTime.currentMSecsSinceEpoch()
         expired = [k for k, v in self.toggle_hold_off.items() if current_ms >= v]
         for k in expired:
@@ -1420,6 +1463,17 @@ class ManualModeScreen(QWidget):
 
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)
+    
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        if self.local_timer_states:
+            for timer_id, state in self.local_timer_states.items():
+                if state["active"]:
+                    timer = getattr(self, f"{timer_id}_timer", None)
+                    if timer and timer.isActive():
+                        timer.stop()
+                    state["active"] = False
+                    logger.info(f"Timer '{timer_id}' stopped due to screen hide")
 
     def showEvent(self, event):
         super().showEvent(event)

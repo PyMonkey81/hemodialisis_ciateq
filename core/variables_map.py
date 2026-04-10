@@ -143,7 +143,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Start Operation mode", "ESTADO START", "cian", "dialyModeOperationStart"),                      # 53
                 ("Stop Operation mode", "ESTADO STOP", "cian", "dialyModeOperationStop"),                         # 54
                 ("Pause Operation mode", "ESTADO PAUSE", "cian", "dialyModeOperationPause"),    # 55
-                ("Disponible para Función Digital 15", "RESERVA 15", "cian", "availableBoolVariable11"),    # 56
+                ("Llenado de filtro", "LLENADO DE FILTRO", "cian", "dialyFilterFillButton"),    # 56
                 ("Disponible para Función Digital 16", "RESERVA 16", "cian", "availableBoolVariable12"),    # 57
                 ("Disponible para Función Digital 17", "RESERVA 17", "cian", "availableBoolVariable13"),    # 58
                 ("Disponible para Función Digital 18", "RESERVA 18", "cian", "availableBoolVariable14"),    # 59
