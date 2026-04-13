@@ -55,6 +55,8 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
 from PySide6.QtCore import Qt, QTimer, QDateTime
 from PySide6.QtGui import QColor, QPixmap
 from utilities.csv_logger import CsvLogger
+import csv
+
 
 # === MODULES ===
 from core.alarms import AlarmSystem
@@ -223,6 +225,7 @@ class HemodialysisHMI(QMainWindow):
         self.last_resume_time = None
 
 
+        self.current_treatment_start_date_time = None # Variable para reporte de inicio/tratamiento
 
         self.setup_ui()                
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -564,6 +567,8 @@ class HemodialysisHMI(QMainWindow):
 
         if not is_resuming:             
             self.accumulated_therapy_seconds = 0
+
+            self.current_treatment_start_date_time = QDateTime.currentDateTime() # Guardar fecha/hora de inicio del tratamiento para reportes
         else:
             logger.info("Reanudando tratamiento desde Pausa (manteniendo tiempo acumulado)")
                 
@@ -813,6 +818,38 @@ class HemodialysisHMI(QMainWindow):
             self._write_boolean_command("dialyModeOperationPause", False)
         except Exception as e:
             logger.error(f"[Error] Error al pausar terapia {e}")
+        
+    def _save_treatment_summary_csv(self):
+        """Guarda un registro simple con Fecha, Hora de Inicio y Hora de Fin del tratamiento."""
+        if not self.current_treatment_start_date_time:
+            return  # No hay tratamiento registrado
+ 
+
+        end_time = QDateTime.currentDateTime()
+        date_str = self.current_treatment_start_date_time.toString("yyyy-MM-dd")
+        start_str = self.current_treatment_start_date_time.toString("HH:mm:ss")
+        end_str = end_time.toString("HH:mm:ss")
+
+        os.makedirs("logs", exist_ok=True)
+        filepath = "logs/historial_tratamientos.csv"
+        file_exists = os.path.isfile(filepath)
+
+        try:
+            with open(filepath, mode='a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                # Si el archivo es nuevo, escribir encabezados
+                if not file_exists:
+                    writer.writerow(["Fecha", "Hora_Inicio", "Hora_Fin"])
+                
+                # Escribir los datos del tratamiento
+                writer.writerow([date_str, start_str, end_str])
+            logger.info(f"Resumen de tratamiento guardado: {date_str} de {start_str} a {end_str}")
+        except Exception as e:
+            logger.error(f"Error al guardar el historial de tratamientos CSV: {e}")
+
+        # Limpiar la variable para el próximo tratamiento
+        self.current_treatment_start_date_time = None
+
         
 
     def end_dialysis_session(self):
@@ -1116,29 +1153,73 @@ class HemodialysisHMI(QMainWindow):
             self._update_treatment_controls_state()
        
 
+    # def _master_timer_tick(self):
+    #     """Timer Maestro - Se ejecuta cada 500ms. Centraliza toda la actualización."""
+    #     now = QDateTime.currentDateTime()
+
+
+    #     self.update_connection_status() # Esta función llama a refresh_alarms_label y update_led_bar_state
+
+    #     if self.is_treatment_running and self.screen_stack.currentWidget() == self.dialysis_screen:
+    #         self._update_therapy_time_displays()
+
+    #     # Actualizaciones cada 1 segundo exacto
+    #     delta_seconds = self.last_second_update.secsTo(now)
+    #     if delta_seconds >= 1:
+    #         self.last_second_update = now
+    #         self.update_date_time()
+            
+    #         # Sumar la fracción exacta de hora que acaba de pasar (Delta)
+    #         hours_passed = delta_seconds / 3600.0
+            
+    #         # 1. Horas de máquina encendida (siempre corre)
+    #         self.power_on_hours += hours_passed
+            
+    #         # 2. Horas de operación (solo si el tratamiento está activo, estado 13)
+    #         if self.operation_start_time is not None:
+    #             self.total_operation_hours += hours_passed
+
+    #         # 3. Logging de tratamiento
+    #         if self.treatment_logger:
+    #             self._log_treatment_current_data()
+                
+    #         # 4. Logging de cebado (si el logger de cebado existe)
+    #         if self.csv_logger:
+    #             self._log_current_data()
+
+    #     # Actualizaciones cada 1 minuto
+    #     if self.last_minute_update.secsTo(now) >= 60:
+    #         self.last_minute_update = now
+            
+    #         # Guardado automático de seguridad cada minuto (opcional pero recomendado)
+    #         self._save_power_on_hours()
+    #         self._save_operation_hours()
+
+    #         # Actualizar pantalla de mantenimiento si está visible
+    #         if self.screen_stack.currentWidget() == self.maintenance_screen:
+    #             self._update_maintenance_screen_immediately()
+
     def _master_timer_tick(self):
         """Timer Maestro - Se ejecuta cada 500ms. Centraliza toda la actualización."""
         now = QDateTime.currentDateTime()
-
-
         self.update_connection_status() # Esta función llama a refresh_alarms_label y update_led_bar_state
 
-        if self.is_treatment_running and self.screen_stack.currentWidget() == self.dialysis_screen:
+        if self.is_treatment_running:
             self._update_therapy_time_displays()
 
         # Actualizaciones cada 1 segundo exacto
-        delta_seconds = self.last_second_update.secsTo(now)
-        if delta_seconds >= 1:
+        delta_msecs = self.last_second_update.msecsTo(now)
+        if delta_msecs >= 1000:  # 1000 ms = 1 s
             self.last_second_update = now
             self.update_date_time()
             
             # Sumar la fracción exacta de hora que acaba de pasar (Delta)
-            hours_passed = delta_seconds / 3600.0
+            hours_passed = delta_msecs / 3600000.0
             
             # 1. Horas de máquina encendida (siempre corre)
             self.power_on_hours += hours_passed
             
-            # 2. Horas de operación (solo si el tratamiento está activo, estado 13)
+            # 2. Horas de operación (solo si el tratamiento está activo, estado 14)
             if self.operation_start_time is not None:
                 self.total_operation_hours += hours_passed
 
@@ -1674,44 +1755,141 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
     
+    # def _update_therapy_time_displays(self):
+    #     if not self.is_treatment_running:
+    #         # Solo actualizar UI si la pantalla de diálisis está activa
+    #         if hasattr(self, 'dialysis_screen') and self.screen_stack.currentWidget() == self.dialysis_screen:
+    #             self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
+    #             self.dialysis_screen.remaining_time_display.set_value("00:00:00")
+    #         return
+
+    #     if not self.is_treatment_running:
+    #         self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
+    #         self.dialysis_screen.remaining_time_display.set_value("00:00:00")
+    #         return
+
+    #     # Calcular segundos transcurridos        
+    #     current_elapsed_seconds = self.accumulated_therapy_seconds
+    #     if self.last_resume_time is not None:
+    #         current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
+    #         current_elapsed_seconds += current_segment_seconds
+
+
+    #     # Transcurrido
+    #     elapsed_h = current_elapsed_seconds // 3600
+    #     elapsed_m = (current_elapsed_seconds % 3600) // 60
+    #     elapsed_s = current_elapsed_seconds % 60
+    #     elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"
+
+    #     self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
+
+    #     # Restante
+    #     remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
+    #     rem_h = remaining_sec // 3600
+    #     rem_m = (remaining_sec % 3600) // 60
+    #     rem_s = remaining_sec % 60
+    #     remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
+
+    #     self.dialysis_screen.remaining_time_display.set_value(remaining_str)
+
+    #     # Detener al llegar a cero
+    #     if remaining_sec <= 0:
+    #         self.stop_treatment()
+    #         self.stop_priming()
+
     def _update_therapy_time_displays(self):
-        if not hasattr(self, 'dialysis_screen') or self.screen_stack.currentWidget() != self.dialysis_screen:
-            return
-        
+        # 1. Si no hay tratamiento, limpiar los displays y salir.
+   
         if not self.is_treatment_running:
-            self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
-            self.dialysis_screen.remaining_time_display.set_value("00:00:00")
+    
+            if hasattr(self, 'dialysis_screen') and \
+               hasattr(self.dialysis_screen, 'elapsed_time_display') and \
+               hasattr(self.dialysis_screen, 'remaining_time_display'):
+                self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
+                self.dialysis_screen.remaining_time_display.set_value("00:00:00")
             return
 
-        # Calcular segundos transcurridos        
+        # --- 2. CÁLCULO INTERNO DE TIEMPO (Siempre se ejecuta) ---
         current_elapsed_seconds = self.accumulated_therapy_seconds
         if self.last_resume_time is not None:
             current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
             current_elapsed_seconds += current_segment_seconds
 
-
-        # Transcurrido
-        elapsed_h = current_elapsed_seconds // 3600
-        elapsed_m = (current_elapsed_seconds % 3600) // 60
-        elapsed_s = current_elapsed_seconds % 60
-        elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"
-
-        self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
-
-        # Restante
+        # Calcular tiempo restante
         remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
-        rem_h = remaining_sec // 3600
-        rem_m = (remaining_sec % 3600) // 60
-        rem_s = remaining_sec % 60
-        remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
 
-        self.dialysis_screen.remaining_time_display.set_value(remaining_str)
-
-        # Detener al llegar a cero
+        # Evaluar paro automático (INCLUSO SI ESTÁ EN OTRA PANTALLA)
         if remaining_sec <= 0:
             self.stop_treatment()
             self.stop_priming()
+            # Ajustar para que los displays queden en cero exacto inmediatamente después del paro
+            current_elapsed_seconds = self.total_therapy_seconds 
+            remaining_sec = 0 # Asegurar que remaining_sec sea 0 para la actualización visual final
+
+        # --- 3. ACTUALIZACIÓN VISUAL 
+        if hasattr(self, 'dialysis_screen') and hasattr(self.dialysis_screen, 'elapsed_time_display') and \
+           hasattr(self.dialysis_screen, 'remaining_time_display'):
+            
+            # Formato Transcurrido
+            elapsed_h = current_elapsed_seconds // 3600
+            elapsed_m = (current_elapsed_seconds % 3600) // 60
+            elapsed_s = current_elapsed_seconds % 60
+            elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"
+
+            self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
+
+            # Formato Restante
+            rem_h = remaining_sec // 3600
+            rem_m = (remaining_sec % 3600) // 60
+            rem_s = remaining_sec % 60
+            remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
+
+            self.dialysis_screen.remaining_time_display.set_value(remaining_str)
+
+
           
+    # def _update_therapy_time_displays(self):
+    #     # 1. Si no hay tratamiento, solo limpiar los displays si la pantalla está visible
+    #     if not self.is_treatment_running:
+    #         if hasattr(self, 'dialysis_screen') and self.screen_stack.currentWidget() == self.dialysis_screen:
+    #             self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
+    #             self.dialysis_screen.remaining_time_display.set_value("00:00:00")
+    #         return
+
+    #     # --- 2. CÁLCULO INTERNO DE TIEMPO (Siempre se ejecuta) ---
+    #     current_elapsed_seconds = self.accumulated_therapy_seconds
+    #     if self.last_resume_time is not None:
+    #         current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
+    #         current_elapsed_seconds += current_segment_seconds
+
+    #     # Calcular tiempo restante
+    #     remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
+
+    #     # Evaluar paro automático (INCLUSO SI ESTÁ EN OTRA PANTALLA)
+    #     if remaining_sec <= 0:
+    #         self.stop_treatment()
+    #         self.stop_priming()
+    #         current_elapsed_seconds = self.total_therapy_seconds # Ajustar para que los displays queden en cero exacto
+
+    #     # --- 3. ACTUALIZACIÓN VISUAL (Solo si la pantalla de diálisis está activa) ---
+    #     if hasattr(self, 'dialysis_screen') and self.screen_stack.currentWidget() == self.dialysis_screen:
+            
+    #         # Formato Transcurrido
+    #         elapsed_h = current_elapsed_seconds // 3600
+    #         elapsed_m = (current_elapsed_seconds % 3600) // 60
+    #         elapsed_s = current_elapsed_seconds % 60
+    #         elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"
+
+    #         self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
+
+    #         # Formato Restante
+    #         rem_h = remaining_sec // 3600
+    #         rem_m = (remaining_sec % 3600) // 60
+    #         rem_s = remaining_sec % 60
+    #         remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
+
+    #         self.dialysis_screen.remaining_time_display.set_value(remaining_str)
+
 
 
     def _highlight_active_nav_button(self, active_button_text: str):
