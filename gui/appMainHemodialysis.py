@@ -1048,6 +1048,9 @@ class HemodialysisHMI(QMainWindow):
         self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))    
 
     def update_value(self, tag: str, value: float):
+        
+        if tag == "dialyCondControlOutput":
+            value = value/5.0
         # Actualizar valor centralizado
         self.current_values[tag] = value
         # Actualizar sistema de alarmas si existe
@@ -1106,9 +1109,7 @@ class HemodialysisHMI(QMainWindow):
                     if self.operation_start_time is not None:
                         logger.info(f"Tratamiento pausado/detenido. Total horas op: {self.total_operation_hours:.2f}h")
                         self.operation_start_time = None # Esto hace que el Timer Maestro deje de sumar
-                        self._save_operation_hours()
-
-                    
+                        self._save_operation_hours()                    
 
                 # Lógica de pausa de tiempo de terapia
                 if status_code == 15 and self.last_resume_time is not None:
