@@ -352,12 +352,7 @@ class TherapyConfigScreen(QWidget):
 
 
 
-      # ─── Agregando al layout principal ──────────────────────────────────
-        # main_layout.addWidget(params_frame)
-        # main_layout.addWidget(hep_config_frame) 
-        # main_layout.addWidget(blood_operation_frame)
-        # main_layout.addWidget(filter_fill_frame)
-        # main_layout.addStretch(1)
+
 
       # ─── Agregando al layout principal ──────────────────────────────────
         main_layout.addWidget(params_frame)
@@ -426,8 +421,36 @@ class TherapyConfigScreen(QWidget):
 
         except Exception as e:
             logger.error(f"Error en _stop_blood_pump: {e}", exc_info=True)
+
+    def _update_filter_fill_button_state(self):
+        status_code = int(self.current_values.get("primingProcessStatus", 0))
+        btn_ff = self.btn_filter_fill # Correcto: usa la variable local 'btn_ff' de aquí en adelante
+        
+        # Evalúa si el estado actual NO es 7. Esto incluye el estado 14 y cualquier otro.
+        if status_code != 7:
+            logger.info(f"Estado {status_code} (no 7). Botón 'Llenado de Filtro' DESHABILITADO.")
+            btn_ff.setEnabled(False)
+            btn_ff.setStyleSheet(self.style_disabled)
+            return # Termina la función aquí, el botón se queda deshabilitado
+            
+        logger.info(f"Estado {status_code} (COLOCACIÓN DE FILTRO). Botón 'Llenado de Filtro' HABILITADO.")
+        btn_ff.setEnabled(True)
+        btn_ff.setStyleSheet(self.style_enabled)
+
+        
+
+
     def _update_bloop_pump_controls_state(self):   
         # ctrl_loop_state = self.current_values.get("bloodControlLoopEnable", 0)
+        status_code = int(self.current_values.get("primingProcessStatus", 0))
+        if status_code == 14: #tratamiento corriendo
+            logger.info("El paciente está en tratamiento. Controles de la bomba deshabilitados.")
+            self.btn_start_blood_pump.setEnabled(False)
+            self.btn_stop_blood_pump.setEnabled(False)
+            self.btn_start_blood_pump.setStyleSheet(self.style_disabled)
+            self.btn_stop_blood_pump.setStyleSheet(self.style_disabled)
+            return
+        
         pump_start_state = self.current_values.get("bloodPumpStartButton", 0)         
         pump_stop_state = self.current_values.get("bloodPumpStopButton", 0)
         # fwd_state = self.current_values.get("bloodPumpFWDButton", 0)
@@ -457,12 +480,12 @@ class TherapyConfigScreen(QWidget):
         # (can_start = True, can_stop = False), lo que significa que la app asume un estado detenido/listo para arrancar.
         else:
             logger.info("Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)")
-            # Podrías querer ser más conservador aquí y deshabilitar ambos si el estado es realmente ambiguo:
+            #
             # can_start = False
             # can_stop = False
             # Pero normalmente es mejor que el usuario pueda intentar arrancar si no hay una señal clara de que está corriendo.
 
-        # Referencias a los botones (asumiendo que están definidos como self.btn_start_blood_pump, etc.)
+        # Referencias a los botones
         btn_startbp = self.btn_start_blood_pump
         btn_stop_bp = self.btn_stop_blood_pump
 
@@ -580,6 +603,7 @@ class TherapyConfigScreen(QWidget):
                 self.input_dialysate_flow.setText("0.0")
 
         self._update_bloop_pump_controls_state()
+        self._update_filter_fill_button_state()
 
 
 

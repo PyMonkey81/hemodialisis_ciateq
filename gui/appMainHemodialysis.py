@@ -1147,8 +1147,8 @@ class HemodialysisHMI(QMainWindow):
 
         # ────────────────────────────────────────────────────────────────
         # Reevaluar botón "Iniciar Tratamiento" cuando cambien status o temp
-        # ────────────────────────────────────────────────────────────────
-        if tag in ["primingProcessStatus", "dialyTempVariableData", 
+        # ──────────────────────────────────────────────────────────────── dialyTempIFProcessData  dialyTempVariableData
+        if tag in ["primingProcessStatus", "dialyTempIFProcessData",
                    "dialyTempControlSetPoint", "dialyCondVariableData", 
                    "dialyCondControlSetPoint"]:            
             self._update_treatment_controls_state()
@@ -1250,12 +1250,12 @@ class HemodialysisHMI(QMainWindow):
         Calcula si se puede iniciar o detener tratamiento y actualiza
         TANTO la barra de navegación COMO la pantalla de diálisis.
         """
-        # 1. Obtener valores necesarios
+        # 1. Obtener valores necesarios  
         status_code = int(self.current_values.get("primingProcessStatus", 0))
-        temp_actual = self.current_values.get("dialyTempVariableData", 0.0)
-        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
-        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
-        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)     # dialyTempVariableData anterior
+        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)   # Setpoint de temperatura
+        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)      # conductividad actual   
+        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)   # Setpoint de conductividad
 
         # 2. Lógica de validación (Tolerancias)
         temp_ok = abs(temp_actual - temp_set) <= 2.0
@@ -1266,7 +1266,7 @@ class HemodialysisHMI(QMainWindow):
         can_stop = False
         can_pause = False
 
-        if status_code == 13:  # antes esperaba el estado 13 LISTO PARA INICIAR
+        if status_code == 13:  #13 LISTO PARA INICIAR
             if temp_ok and cond_ok:
                 can_start = True
                 can_stop = False
@@ -1313,6 +1313,25 @@ class HemodialysisHMI(QMainWindow):
             if hasattr(self.dialysis_screen, 'set_start_stop_buttons_state'):
                 self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop, can_pause)
 
+    # def update_therapy_controls_state(self):
+    #     """
+    #     Método público para actualizar el estado de los controles de terapia.
+    #     Llama al método privado que contiene la lógica de habilitación/deshabilitación.
+    #     """
+    #     status_code = int(self.current_values.get("primingProcessStatus", 0))
+
+    #     enable_start_therapy = False
+    #     enable_stop_therapy = False
+
+    #     if status_code == 7:
+    #         enable_start_therapy = True
+    #         enable_stop_therapy = False
+    #     elif status_code == 14:
+    #         enable_start_therapy = False
+    #         enable_stop_therapy = True
+
+
+        
 
     def _update_priming_controls_state(self):
         """
