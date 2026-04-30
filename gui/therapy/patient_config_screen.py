@@ -133,7 +133,32 @@ class PatientConfigScreen(QWidget):
         # 2. Creamos el QScrollArea
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)  # IMPORTANTE: Permite que el widget interno se redimensione
-        scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        # scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        scroll_area.setStyleSheet("""
+            QScrollArea { border: none; background: transparent; }
+            QScrollBar:vertical {
+                border: none;
+                background: #e0e0e5;
+                width: 34px;
+                margin: 0px 0px 0px 0px;
+                border-radius: 14px;
+            }
+            QScrollBar::handle:vertical {
+                background: #8a8a9c;
+                min-height: 60px;
+                border-radius: 14px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #6b6b7a;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
         
         # 3. Creamos un QWidget contenedor para todo el contenido desplazable
         content_widget = QWidget()
@@ -523,14 +548,14 @@ class PatientConfigScreen(QWidget):
         if hasattr(self.parent_window, 'dialysis_screen'):
             self.parent_window.dialysis_screen.update_values(self.current_values)
 
-    def update_values(self, new_values: dict):
-        """Esta pantalla solo ingresa datos, no monitorea en tiempo real. Solo mergea si llegan datos del paciente."""
-        if not new_values:
-            return
-        self.current_values.update(new_values)
+    # def update_values(self, new_values: dict):
+    #     """Esta pantalla solo ingresa datos, no monitorea en tiempo real. Solo mergea si llegan datos del paciente."""
+    #     if not new_values:
+    #         return
+    #     self.current_values.update(new_values)
 
 
-        print("[PatientConfig] current_values actualizado")    
+    #     print("[PatientConfig] current_values actualizado")    
 
     def _map_gender_to_int(self, value):
         """Convierte strings comunes de género a 1/2"""

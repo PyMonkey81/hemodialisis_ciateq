@@ -431,28 +431,29 @@ class TestPanelScreen(QWidget):
 
 
         # ── Balance Chamber Flow (cycles ↔ ml/min) ──────────────────────────────
-        if "balanceChamberSetTiming" not in self.write_hold_off or \
-           current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
-            cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
-            try:
-                flow_ml_min = convertir_ciclos_a_flujo(cycles)                                
-                self._update_input_display(self.input_cb_flow, flow_ml_min, precision=1) 
-            except Exception as e:
-                logger.error(f"Error converting CB flow: {e}")
-                self._update_input_display(self.input_cb_flow, 0.0, precision=1)
+        # if "balanceChamberSetTiming" not in self.write_hold_off or \
+        #    current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
+        #     cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
+        #     try:
+        #         flow_ml_min = convertir_ciclos_a_flujo(cycles)                                
+        #         self._update_input_display(self.input_cb_flow, flow_ml_min, precision=1) 
+        #     except Exception as e:
+        #         logger.error(f"Error converting CB flow: {e}")
+        #         self._update_input_display(self.input_cb_flow, 0.0, precision=1)
 
 
         # ── UF Flow (ml/min → L/h) ──────────────────────────────────────────────
-        if "ultraFilterPumpSpeed" not in self.write_hold_off or \
-           current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
-            uf_ml_min = self.current_values.get("ultraFilterPumpSpeed", 0.0)
-            try:
-                uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)   
-                self._update_input_display(self.input_uf_flow, uf_lh, precision=1) 
-            except Exception as e:
-                logger.error(f"Error converting UF flow: {e}")
-                self._update_input_display(self.input_uf_flow, 0.0, precision=1)
-
+        # if "ultraFilterPumpSpeed" not in self.write_hold_off or \
+        #    current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
+        #     uf_ml_min = self.current_values.get("ultraFilterPumpSpeed", 0.0)
+        #     try:
+        #         uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)   
+        #         self._update_input_display(self.input_uf_flow, uf_lh, precision=1) 
+        #     except Exception as e:
+        #         logger.error(f"Error converting UF flow: {e}")
+        #         self._update_input_display(self.input_uf_flow, 0.0, precision=1)
+        self._update_input_display(self.input_cb_flow, self.current_values.get("balanceChamberSetTiming", 0.0)) 
+        self._update_input_display(self.input_uf_flow, self.current_values.get("ultraFilterPumpSpeed", 0.0))
         # ── Other Inputs & Labels ───────────────────────────────────────────────
         self._update_input_display(self.input_blood_flow, self.current_values.get("bloodFlowControlSetPoint", 0.0))
         self._update_input_display(self.input_temp_setpoint, self.current_values.get("dialyTempControlSetPoint", 0.0))
@@ -460,11 +461,11 @@ class TestPanelScreen(QWidget):
 
         self._update_label_display(self.label_cycles, self.current_values.get("balanceChamberCycleCount", 0))
 
-        self._update_label_display(self.label_cond_ef, self.current_values.get("dialyConductIFProcessData", 0.0))
-        self._update_label_display(self.label_cond_sf, self.current_values.get("dialyConductOFProcessData", 0.0))
+        self._update_label_display(self.label_cond_ef, self.current_values.get("dialyConductIFProcessData", 0.0),1)
+        self._update_label_display(self.label_cond_sf, self.current_values.get("dialyConductOFProcessData", 0.0),1)
 
-        self._update_label_display(self.label_temp_ef, self.current_values.get("dialyTempIFProcessData",0.0)) # temperatura a la entrada del filtro 
-        self._update_label_display(self.label_temp_sf, self.current_values.get("dialyTempIOFProcessData",0.0)) # temperatura a la salida del filtro
+        self._update_label_display(self.label_temp_ef, self.current_values.get("dialyTempIFProcessData",0.0),1) # temperatura a la entrada del filtro 
+        self._update_label_display(self.label_temp_sf, self.current_values.get("dialyTempIOFProcessData",0.0),1) # temperatura a la salida del filtro
         self._update_input_display(self.label_temp_tank,self.current_values.get("dialyTempVariableData",0.0))  #Calculo de control de temperatura de dializante 
         
 

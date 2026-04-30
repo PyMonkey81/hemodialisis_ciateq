@@ -32,7 +32,7 @@ def calcular_ktv(
     return max(0.0, round(ktv, 2))
 
 # En dialysisScreen.py
-def actualizar_valores(self, valores_dict):
+def update_values(self, valores_dict):
     self.valores = valores_dict
 
     # Ejemplo de parámetros

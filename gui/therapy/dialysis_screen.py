@@ -192,7 +192,8 @@ class DialysisScreen(QWidget):
             ("MENÚ PACIENTE", "#0f172a", self.show_patient_config),
             ("APLICAR BOLO", "#0f172a", self.bolus_apply_dosage),
             ("INICIAR CEBADO", "#0f172a", self.parent_window.start_priming),
-            ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming),            
+            ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming), 
+            ("Kt/V", "#0f172a", self.parent_window.ktv_meassurement),           
         ]
 
         for i, (text, color, callback) in enumerate(button_config):
@@ -276,13 +277,14 @@ class DialysisScreen(QWidget):
             "bloodVenousPressureData":   self.venous_pressure_display,
             "CALC_PTM":                  self.ptm_display,
             "dialyCondVariableData":     self.conductivity_display,
-            "bloodSpeedVariableData":    self.blood_flow_display,
-            "dialyFlowControlOutput":    self.dialysate_flow_display,
+            "bloodFlowVariableData":     self.blood_flow_display,
+            "dialyFlowControlOutput":    self.dialysate_flow_display,  #verificar la salida 
             "dialyTempIFProcessData":    self.temperature_display,  #Temperatura a la entrada del filtro - Cambio comentado 
             "ultraFilterPumpSpeed":      self.uf_rate_display,
             "UF Total":                  self.uf_total_display,
             "uf_goal_liters":            self.uf_target_display,
-            "heparineBolusQuantity":     self.bolus_display,           
+            "heparineBolusQuantity":     self.bolus_display,   
+            "ktv_acumulado":             self.ktv_display,        
         }
 
 
@@ -290,9 +292,9 @@ class DialysisScreen(QWidget):
             value = self.current_values.get(tag, 0.0)
             widget.set_value(value)
         
-        # Kt/V placeholder (implement when CalculadoraKtV is ready)
-        ktv_value = 0.00 # Aquí iría tu cálculo real para Kt/V
-        self.ktv_display.set_value(ktv_value)
+        # # Kt/V placeholder (implement when CalculadoraKtV is ready)
+        # ktv_value = 0.00 # Aquí iría tu cálculo real para Kt/V
+        # self.ktv_display.set_value(ktv_value)
 
 
     def bolus_apply_dosage(self):

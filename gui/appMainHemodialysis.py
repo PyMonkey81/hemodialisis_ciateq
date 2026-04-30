@@ -54,6 +54,7 @@ from PySide6.QtWidgets import *
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
 from PySide6.QtCore import Qt, QTimer, QDateTime
 from PySide6.QtGui import QColor, QPixmap
+from logic.calculos import convertir_ciclos_a_flujo
 from utilities.csv_logger import CsvLogger
 import csv
 
@@ -91,7 +92,17 @@ from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screen import TherapyConfigScreen
+from logic.ktv_calculator import CalculadoraKtV
+from logic.heitmann import heitmann
 from typing import List, Tuple
+
+from logic.calculos import (
+    convertir_flujo_a_ciclos,
+    convertir_ciclos_a_flujo,
+    convertir_litros_h_a_ml_min,
+    convertir_ml_min_a_litros_h,
+    calculo_ptm
+)
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +208,7 @@ class HemodialysisHMI(QMainWindow):
             3: "Limpieza"
         }
 
-
+        self.calculadora_ktv = CalculadoraKtV(parent=self)
         # ====================== TIMER MAESTRO (ÚNICO) ======================
         self.master_timer = QTimer(self)
         self.master_timer.setInterval(500)          # 500ms = 2 actualizaciones por segundo
@@ -211,7 +222,9 @@ class HemodialysisHMI(QMainWindow):
         # Horas de Operación en Tratamiento
         self.total_operation_hours = 0.0
         self.operation_start_time = None
-
+        self._current_elapsed_therapy_min = 0.0 # Variable para cálculo de Kt/V acumulado en tiempo real
+        
+        self._original_conductivity_setpoint = None # Para almacenar el setpoint original de conductividad antes de cualquier ajuste por terapia o limpieza
         # Power On Hours (Horas de Máquina Encendida)
         self.power_on_hours = 0.0
         # self.power_on_start_time = QDateTime.currentDateTime() 
@@ -589,7 +602,7 @@ class HemodialysisHMI(QMainWindow):
         if self.bioz_urea_controller:
             self.bioz_urea_controller.send_command("SRTB")
     
-        self.perform_ktv_measurement()
+        # self.perform_ktv_measurement()
 
         if self.screen_stack.currentWidget() == self.dialysis_screen:
             self.dialysis_screen.update_values(self.current_values)
@@ -623,75 +636,6 @@ class HemodialysisHMI(QMainWindow):
                 return
 
 
-    # def start_treatment(self):
-    #     logger.info("Iniciando tratamiento y mediciones externas: Bioimpedancia")
-
-    #     hours = int(self.current_values.get("heparineTherapyHours", 0))
-    #     minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
-    #     self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
-
-    #     if self.total_therapy_seconds <= 0:
-    #         show_dark_message(self, "Configuración incompleta", 
-    #                             "Configure la duración de la terapia primero.",
-    #                             icon=QMessageBox.warning)
-    #         self.show_therapy_config_screen()
-    #         return
-        
-    #     current_status = int(self.current_values.get("primingProcessStatus", 0))
-        
-    #     if current_status != 15:             
-    #         self.accumulated_therapy_seconds = 0
-    #     else:
-    #         logger.info("Reanudando tratamiento desde Pausa (manteniendo tiempo acumulado)")
-                
-    #     self.last_resume_time = QDateTime.currentDateTime()   
-    #     self.is_treatment_running = True
-
-
-    #     try:        
-    #         self._write_boolean_command("dialyModeOperationStart", True)            
-    #         self._write_boolean_command("dialyModeOperationStop", False)
-    #         logger.info("Comandos de terapia enviados: Start=True, Stop=False")
-    #     except Exception as e:
-    #         logger.error(f"Error enviando comandos de terapia: {e}")
-    #         show_dark_message(self, "Advertencia", 
-    #                             "Terapia iniciada, pero hubo problema al enviar comandos al controlador.",
-    #                             icon=QMessageBox.Warning)
-
-
-    #     # Iniciar bioimpedancia y Kt/V
-    #     if self.bioz_urea_controller:
-    #         self.bioz_urea_controller.send_command("SRTB")
-    
-        
-    #     self.perform_ktv_measurement()
-        
-    #     # if not self.ktv_timer.isActive():
-    #     #     self.ktv_timer.start()
-
-    #     if self.screen_stack.currentWidget() == self.dialysis_screen:
-    #         self.dialysis_screen.update_values(self.current_values)
-
-    #     if self.treatment_logger:
-    #         logger.info("Cerrando logger anterior antes de nuevo tratamiento")
-    #         self.treatment_logger.close()
-    #         self.treatment_logger = None
-
-    #     LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
-
-    #     try:
-    #         self.treatment_logger = CsvLogger(
-    #             log_directory=LOG_DIRECTORY,
-    #             parameter_key_map=self.parameter_mapping
-    #         )
-    #         logger.info("Logger CSV iniciado correctamente para tratamiento")
-    #     except Exception as e:
-    #         logger.error(f"Error al crear logger CSV para tratamiento: {e}")
-    #         show_dark_message(self, "Error crítico", f"No se pudo iniciar el registro de datos:\n{str(e)}", 
-    #                   icon=QMessageBox.Critical)
-    #         return
-
-    
 
     def start_priming(self):
         """
@@ -1053,12 +997,28 @@ class HemodialysisHMI(QMainWindow):
             value = value/5.0
         # Actualizar valor centralizado
         self.current_values[tag] = value
+
+        if tag == "ultraFilterPumpSpeed":
+            uf_ml_min = self.current_values.get("ultraFilterPumpSpeed", 0.0)
+            try:
+                uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)   
+                self.current_values[tag]= uf_lh  # Actualiza el valor global centralizado con litros/hora 
+            except Exception as e:
+                logger.error(f"Error converting UF flow: {e}")   
+
+        if tag == "balanceChamberSetTiming":            
+            cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
+            try:
+                flow_ml_min = convertir_ciclos_a_flujo(cycles)                                
+                self.current_values[tag] = flow_ml_min  # Actualiza el valor global centralizado con ml/min
+            except Exception as e:
+                logger.error(f"Error converting CB flow: {e}")
+                
         # Actualizar sistema de alarmas si existe
         if self.alarm_system:
             self.alarm_system.update_value_by_tag(tag, value)
-        # Lógica específica de KTV/urea
-        if tag == "urea_adc2":
-            self.measurement_ktv()
+       
+     
 
         # Actualizar gauges
         gauge_mapping = {
@@ -1154,51 +1114,6 @@ class HemodialysisHMI(QMainWindow):
             self._update_treatment_controls_state()
        
 
-    # def _master_timer_tick(self):
-    #     """Timer Maestro - Se ejecuta cada 500ms. Centraliza toda la actualización."""
-    #     now = QDateTime.currentDateTime()
-
-
-    #     self.update_connection_status() # Esta función llama a refresh_alarms_label y update_led_bar_state
-
-    #     if self.is_treatment_running and self.screen_stack.currentWidget() == self.dialysis_screen:
-    #         self._update_therapy_time_displays()
-
-    #     # Actualizaciones cada 1 segundo exacto
-    #     delta_seconds = self.last_second_update.secsTo(now)
-    #     if delta_seconds >= 1:
-    #         self.last_second_update = now
-    #         self.update_date_time()
-            
-    #         # Sumar la fracción exacta de hora que acaba de pasar (Delta)
-    #         hours_passed = delta_seconds / 3600.0
-            
-    #         # 1. Horas de máquina encendida (siempre corre)
-    #         self.power_on_hours += hours_passed
-            
-    #         # 2. Horas de operación (solo si el tratamiento está activo, estado 13)
-    #         if self.operation_start_time is not None:
-    #             self.total_operation_hours += hours_passed
-
-    #         # 3. Logging de tratamiento
-    #         if self.treatment_logger:
-    #             self._log_treatment_current_data()
-                
-    #         # 4. Logging de cebado (si el logger de cebado existe)
-    #         if self.csv_logger:
-    #             self._log_current_data()
-
-    #     # Actualizaciones cada 1 minuto
-    #     if self.last_minute_update.secsTo(now) >= 60:
-    #         self.last_minute_update = now
-            
-    #         # Guardado automático de seguridad cada minuto (opcional pero recomendado)
-    #         self._save_power_on_hours()
-    #         self._save_operation_hours()
-
-    #         # Actualizar pantalla de mantenimiento si está visible
-    #         if self.screen_stack.currentWidget() == self.maintenance_screen:
-    #             self._update_maintenance_screen_immediately()
 
     def _master_timer_tick(self):
         """Timer Maestro - Se ejecuta cada 500ms. Centraliza toda la actualización."""
@@ -1312,25 +1227,6 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
             if hasattr(self.dialysis_screen, 'set_start_stop_buttons_state'):
                 self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop, can_pause)
-
-    # def update_therapy_controls_state(self):
-    #     """
-    #     Método público para actualizar el estado de los controles de terapia.
-    #     Llama al método privado que contiene la lógica de habilitación/deshabilitación.
-    #     """
-    #     status_code = int(self.current_values.get("primingProcessStatus", 0))
-
-    #     enable_start_therapy = False
-    #     enable_stop_therapy = False
-
-    #     if status_code == 7:
-    #         enable_start_therapy = True
-    #         enable_stop_therapy = False
-    #     elif status_code == 14:
-    #         enable_start_therapy = False
-    #         enable_stop_therapy = True
-
-
         
 
     def _update_priming_controls_state(self):
@@ -1565,36 +1461,162 @@ class HemodialysisHMI(QMainWindow):
             self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID, silence_buzzer=False)
 
     
-    def perform_ktv_measurement(self):
+    def ktv_meassurement(self):
         """
-        Ejecuta la secuencia de lectura para Bioimpedancia y Urea.
-        Se llama al inicio del tratamiento y luego cada 30 minutos.
+        Secuencia completa para medir Kt/V:
+        1. Leer Bioimpedancia (SRTB)
+        2. Capturar conductividades t1
+        3. Cambiar conductividad de la máquina
+        4. Capturar conductividades t2
+        5. Calcular Kt/V con fórmula de Heitmann
         """
         if not hasattr(self, 'bioz_urea_controller') or not self.bioz_urea_controller:
             logger.warning("Controlador BioZ/Urea no disponible, omitiendo medición Kt/V")
             return
+        if not self.bioz_urea_controller._is_enabled: # Usar la variable interna _is_enabled
+            logger.warning("Controlador BioZ/Urea deshabilitado, omitiendo medición Kt/V")
+            return
 
-        logger.info("[Kt/V] Iniciando ciclo de medición automático...")
+        logger.info("[Kt/V] Iniciando ciclo completo de medición...")
+        self.calculadora_ktv.reset() # Limpiar cualquier dato de medición anterior
+
+        # 0. Guardar la conductividad inicial actual de la máquina
+        self._original_conductivity_setpoint = self.current_values.get("dialyCondControlSetPoint", 13.5)
+        logger.info(f"[Kt/V] Conductividad inicial de la máquina guardada: {self._original_conductivity_setpoint:.2f} mS/cm")
+
+        # 1. Enviar comando de Bioimpedancia
+        self.bioz_urea_controller.send_command("SRTB")
+        logger.info("[Kt/V] Comando 'SRTB' enviado. Esperando datos de Bioimpedancia...")
         
-        self.bioz_urea_controller.send_command("SRTB")# 1. Enviar comando de Bioimpedancia
+        # Programar el siguiente paso después de un tiempo para que BIA se complete
+        QTimer.singleShot(5000, self._urea_measurement)
+
+    def _urea_measurement(self):
+        """Paso 1: Medición de Urea después de BIA."""
+        logger.info("[Kt/V] Paso 1: Enviando comando 'SRTU' para Urea...")
+        self.bioz_urea_controller.send_command("SRTU")
         
-        # 2. Programar la lectura de Urea unos segundos después
-        # Damos 5 segundos para que la BioZ termine o se estabilice antes de pedir Urea
-        
-        QTimer.singleShot(5000, lambda: self.bioz_urea_controller.send_command("SRTU"))
+        # Programar la primera medición de conductividad (t1) después de un tiempo para Urea
+        QTimer.singleShot(2000, self._measure_conductivity_t1) # Dar 2 segundos para Urea
+
+    def _measure_conductivity_t1(self):
+        """Paso 2: Capturar conductividades en tiempo 1 (Cd_inicial)."""
+        logger.info("[Kt/V] Paso 2: Capturando conductividades T1 (iniciales)...")
+        cd_in_t1 = self.current_values.get("dialyConductIFProcessData", 0.0) # Conductividad EF
+        cd_out_t1 = self.current_values.get("dialyConductOFProcessData", 0.0) # Conductividad SF
+        temp_t1 = self.current_values.get("dialyTempIFProcessData", 25.0) # Tempetura EF
+        self.calculadora_ktv.store_conductivity_t1(cd_in_t1, cd_out_t1, temp_t1)
+
+        # 3. Cambiar la conductividad del dializado
+        self._original_conductivity_setpoint = self.current_values.get("dialyCondControlSetPoint", 13.5) # Guardar el valor original para restaurar después
+        self._step_conductivity_value = 1.0
+        new_conductivity_target =  self._original_conductivity_setpoint + self._step_conductivity_value
+        self._write_setpoint("dialyCondControlSetPoint", new_conductivity_target)
+        logger.info(f"[Kt/V] Conductividad de la máquina cambiada a {new_conductivity_target:.2f} mS/cm. Esperando estabilización...")
+        self._conductivity_stabilization_time = 60000
+        # Programar la segunda medición (t2) después de un tiempo de estabilización
+        QTimer.singleShot(self._conductivity_stabilization_time, self._measure_conductivity_t2)
 
 
-    def measurement_ktv(self):
-        urea = self.current_values.get("urea_adc1", 0) # O el algoritmo que usen para convertir ADC a concentración
-        # bioz = self.current_values.get("bioz_resistance", 0)
-        
-        # ... Fórmula del Kt/V (Daugirdas u otra) ...
-        # ktv = ...
-        
-        # Guardar/Mostrar resultado
-        # self.current_values["ktv_calculado"] = ktv
-        # logger.info(f"Nuevo cálculo Kt/V: {ktv}")
+    def _measure_conductivity_t2(self):
+        """Paso 3: Capturar conductividades en tiempo 2 (Cd_paso)."""
+        logger.info("[Kt/V] Paso 3: Capturando conductividades T2 (con paso)...")
+        cd_in_t2 = self.current_values.get("dialyConductIFProcessData", 0.0)
+        cd_out_t2 = self.current_values.get("dialyConductOFProcessData", 0.0)
+        temp_t2 = self.current_values.get("dialyTempIFProcessData", 25.0)
+        self.calculadora_ktv.store_conductivity_t2(cd_in_t2, cd_out_t2, temp_t2)
 
+        # CRUCIAL: 4. Restaurar la conductividad del dializado a su valor original
+        self._write_setpoint("dialyCondControlSetPoint", self._original_conductivity_setpoint)
+        logger.info(f"[Kt/V] Restaurando conductividad de la máquina a {self._original_conductivity_setpoint:.2f} mS/cm. Esperando estabilización...")
+        self._conductivity_stabilization_time = 60000
+        # Programar el cálculo final de Kt/V después de que el sistema se haya restaurado
+        # El cálculo no necesita esperar, pero es buena práctica darle tiempo a la máquina.
+        QTimer.singleShot(self._conductivity_stabilization_time, self._calculate_ktv)
+
+
+    def _calculate_ktv(self):
+        """Paso 4: Realizar el cálculo final de Kt/V y procesar resultados."""
+        logger.info("[Kt/V] Paso 4: Realizando cálculo final de Kt/V...")
+
+   
+        # Obtener valores necesarios para la fórmula de Kt/V (Qd, Qf, Qb, t_min, etc.)
+        qd = self.current_values.get("balanceChamberSetTiming", 500) # revisar las varaibles 
+        qf = self.current_values.get("ultraFilterPumpSpeed", 10)
+        qb = self.current_values.get("bloodFlowVariableData", 300) # flujo de sangre
+        t_min = self.current_values.get("heparineTherapyHours", 4) * 60 + \
+                self.current_values.get("heparineTherapyMinutes", 0) # Tiempo transcurrido en minutos
+        print(f"minutos totales {t_min} ), qb={qb} ml/min, qd={qd} ml/min, qf={qf} L/h ")
+        # Obtener el volumen (V)
+        z_resistencia = self.current_values.get("bioz_resistance", 0.0)
+        
+        # Por ahora, un placeholder. Deberías calcular V con z_resistencia.
+        self.peso = self.current_values.get("patient_pre_weight_kg", 70)
+        self.altura = self.current_values.get("patient_height_cm", 170)
+        self.edad = self.current_values.get("patient_age", 40)
+        self.genero = self.current_values.get("patient_gender", 1) # "M" o "F"
+
+        v_bis_litros = self._calculate_heitmann_volume(z_resistencia, self.altura, self.peso, self.genero, self.edad) 
+        if v_bis_litros and v_bis_litros > 0:
+            self.calculadora_ktv.set_volumen_bioimpedancia(v_bis_litros)
+        else:
+            # Fallback a fórmula antropométrica (Watson) si la bioimpedancia falló o no dio un valor válido
+            self.calculadora_ktv.config_paciente(self.peso, self.altura, self.edad, self.genero)
+
+        print(f"peso={self.peso} kg, altura={self.altura} cm, edad={self.edad} años, genero={self.genero} → V = {self.calculadora_ktv.volumen_distribucion_v/1000:.2f} L")
+        
+
+        #tiempo total programado para calculo de kt/v proyectado
+        t_programmed_min =self.current_values.get("heparineTherapyHours", 0) * 60 + self.current_values.get("heparineTherapyMinutes", 0)
+
+        #Tiempo transcurrido real para kt/v acumulado
+        t_elapsed_min = self._current_elapsed_therapy_min
+
+
+        # ktv_calculado = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_min)
+        
+        # Cálculo de Kt/V Proyectado (usando el tiempo total programado)
+        ktv_projected = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_programmed_min)
+    
+        # Cálculo de Kt/V Acumulado (usando el tiempo transcurrido real)
+        ktv_accumulated = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_elapsed_min)
+
+        # Guarda y muestra ambos, o el que sea más relevante para tu UI/registro
+        self.current_values["ktv_projectado"] = ktv_projected
+        self.current_values["ktv_acumulado"] = ktv_accumulated
+        logger.info(f"[Kt/V] Proyectado: {ktv_projected:.2f}, Acumulado: {ktv_accumulated:.2f}")
+        print(f"✅ Kt/V Proyectado = {ktv_projected:.3f} | Kt/V Acumulado = {ktv_accumulated:.3f} | V = {self.calculadora_ktv.volumen_distribucion_v/1000:.1f} L | Z = {z_resistencia:.1f} Ω")
+
+        # self.current_values["ktv_calculado"] = ktv_calculado
+        # logger.info(f"[Kt/V] Cálculo final de Kt/V: {ktv_calculado:.2f}")
+        # print(f"✅ Kt/V Final = {ktv_accumulated:.3f} | V = {self.calculadora_ktv.volumen_distribucion_v/1000:.1f} L | Z = {z_resistencia:.1f} Ω")
+        # Aquí puedes emitir una señal para actualizar la interfaz gráfica con el nuevo Kt/V
+        # self.ktv_calculated_signal.emit(ktv_calculado)
+        logger.info("[Kt/V] Ciclo de medición completado.")
+
+    
+
+    def _calculate_heitmann_volume(self, Z: float, H: float, W: float, G: int, E: int) -> float:
+        """
+        Calcula el Agua Corporal Total (TBW) usando fórmula de Heitmann.
+        Retorna solo el volumen en LITROS (o None si Z es inválido).
+        """
+        a = 0.266
+        b = 0.186
+        c = 4.702
+        d = 0.081
+        k = 12.44
+
+        if Z <= 0 or W <= 0 or H <= 0:
+            logger.warning(f"[Heitmann] Datos inválidos para cálculo: Z={Z}")
+            return None
+
+        try:
+            TBW = (a * (H ** 2) / Z) + b * W + c * G - d * E - k
+            return round(TBW, 2)
+        except Exception as e:
+            logger.error(f"[Heitmann] Error en cálculo: {e}")
+            return None
 
     def update_connection_status(self):
         """
@@ -1775,53 +1797,10 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
     
-    # def _update_therapy_time_displays(self):
-    #     if not self.is_treatment_running:
-    #         # Solo actualizar UI si la pantalla de diálisis está activa
-    #         if hasattr(self, 'dialysis_screen') and self.screen_stack.currentWidget() == self.dialysis_screen:
-    #             self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
-    #             self.dialysis_screen.remaining_time_display.set_value("00:00:00")
-    #         return
-
-    #     if not self.is_treatment_running:
-    #         self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
-    #         self.dialysis_screen.remaining_time_display.set_value("00:00:00")
-    #         return
-
-    #     # Calcular segundos transcurridos        
-    #     current_elapsed_seconds = self.accumulated_therapy_seconds
-    #     if self.last_resume_time is not None:
-    #         current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
-    #         current_elapsed_seconds += current_segment_seconds
-
-
-    #     # Transcurrido
-    #     elapsed_h = current_elapsed_seconds // 3600
-    #     elapsed_m = (current_elapsed_seconds % 3600) // 60
-    #     elapsed_s = current_elapsed_seconds % 60
-    #     elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"
-
-    #     self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
-
-    #     # Restante
-    #     remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
-    #     rem_h = remaining_sec // 3600
-    #     rem_m = (remaining_sec % 3600) // 60
-    #     rem_s = remaining_sec % 60
-    #     remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
-
-    #     self.dialysis_screen.remaining_time_display.set_value(remaining_str)
-
-    #     # Detener al llegar a cero
-    #     if remaining_sec <= 0:
-    #         self.stop_treatment()
-    #         self.stop_priming()
 
     def _update_therapy_time_displays(self):
-        # 1. Si no hay tratamiento, limpiar los displays y salir.
-   
-        if not self.is_treatment_running:
-    
+        # 1. Si no hay tratamiento, limpiar los displays y salir.   
+        if not self.is_treatment_running:    
             if hasattr(self, 'dialysis_screen') and \
                hasattr(self.dialysis_screen, 'elapsed_time_display') and \
                hasattr(self.dialysis_screen, 'remaining_time_display'):
@@ -1834,6 +1813,9 @@ class HemodialysisHMI(QMainWindow):
         if self.last_resume_time is not None:
             current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
             current_elapsed_seconds += current_segment_seconds
+
+        # guardar el valor para calculo de Kt/V
+        self._current_elapsed_therapy_min = current_elapsed_seconds / 60 # Convertir a minutos para Kt/V
 
         # Calcular tiempo restante
         remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
@@ -1865,51 +1847,6 @@ class HemodialysisHMI(QMainWindow):
             remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
 
             self.dialysis_screen.remaining_time_display.set_value(remaining_str)
-
-
-          
-    # def _update_therapy_time_displays(self):
-    #     # 1. Si no hay tratamiento, solo limpiar los displays si la pantalla está visible
-    #     if not self.is_treatment_running:
-    #         if hasattr(self, 'dialysis_screen') and self.screen_stack.currentWidget() == self.dialysis_screen:
-    #             self.dialysis_screen.elapsed_time_display.set_value("00:00:00")
-    #             self.dialysis_screen.remaining_time_display.set_value("00:00:00")
-    #         return
-
-    #     # --- 2. CÁLCULO INTERNO DE TIEMPO (Siempre se ejecuta) ---
-    #     current_elapsed_seconds = self.accumulated_therapy_seconds
-    #     if self.last_resume_time is not None:
-    #         current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
-    #         current_elapsed_seconds += current_segment_seconds
-
-    #     # Calcular tiempo restante
-    #     remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
-
-    #     # Evaluar paro automático (INCLUSO SI ESTÁ EN OTRA PANTALLA)
-    #     if remaining_sec <= 0:
-    #         self.stop_treatment()
-    #         self.stop_priming()
-    #         current_elapsed_seconds = self.total_therapy_seconds # Ajustar para que los displays queden en cero exacto
-
-    #     # --- 3. ACTUALIZACIÓN VISUAL (Solo si la pantalla de diálisis está activa) ---
-    #     if hasattr(self, 'dialysis_screen') and self.screen_stack.currentWidget() == self.dialysis_screen:
-            
-    #         # Formato Transcurrido
-    #         elapsed_h = current_elapsed_seconds // 3600
-    #         elapsed_m = (current_elapsed_seconds % 3600) // 60
-    #         elapsed_s = current_elapsed_seconds % 60
-    #         elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"
-
-    #         self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
-
-    #         # Formato Restante
-    #         rem_h = remaining_sec // 3600
-    #         rem_m = (remaining_sec % 3600) // 60
-    #         rem_s = remaining_sec % 60
-    #         remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
-
-    #         self.dialysis_screen.remaining_time_display.set_value(remaining_str)
-
 
 
     def _highlight_active_nav_button(self, active_button_text: str):

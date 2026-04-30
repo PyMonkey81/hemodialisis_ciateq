@@ -274,10 +274,10 @@ def main():
         return
 
     print("\nComandos disponibles:")
-    print("  SRTB       → Inicia una medición de Bioimpedancia. El Z resultante se almacenará.")
-    print("  SRTU       → Otro comando para el dispositivo (si aplica).")
+    print("  SRTB       → Start BIA measurement (returns average)")
+    print("  SRTU       → Read both ADC channels (Urea Sensors)")
     print("  CALCULATE  → Aplica la fórmula de Heitmann con el ÚLTIMO Z recibido del dispositivo.")
-    print("  STOP       → Detener la medición (si el dispositivo soporta este comando).")
+    print("  STOP       → Stop current measurement")
     print("  STATUS     → Pide el estado actual del dispositivo.")
     print("  q / quit   → Salir del programa.")
     print("  Cualquier otro texto → Se envía como comando directamente al dispositivo.\n")

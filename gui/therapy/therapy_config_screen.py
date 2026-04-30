@@ -583,24 +583,26 @@ class TherapyConfigScreen(QWidget):
         self._update_input_display(self.input_temperature, "dialyTempControlSetPoint")
         self._update_input_display(self.input_conductivity, "dialyCondControlSetPoint")
         self._update_input_display(self.input_bolus, "heparineBolusQuantity")
+        self._update_input_display(self.input_dialysate_flow, self.current_values.get("balanceChamberSetTiming", 0.0)) 
+        
 
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
-        tag_cb = "balanceChamberSetTiming"
-        hold_time = self.write_hold_off.get(tag_cb, 0)
+        # tag_cb = "balanceChamberSetTiming"
+        # hold_time = self.write_hold_off.get(tag_cb, 0)
 
-        if current_ms < hold_time:
-            pass
-        else:
-            raw_cycles = self.current_values.get(tag_cb,0.0)
-            try:
-                if raw_cycles == 0:
-                    flow_to_show = 0.0
-                else:
-                    flow_to_show = convertir_ciclos_a_flujo(raw_cycles)
-                    if not self.input_dialysate_flow.hasFocus():
-                        self.input_dialysate_flow.setText(f"{flow_to_show:.1f}")
-            except Exception as e:
-                self.input_dialysate_flow.setText("0.0")
+        # if current_ms < hold_time:
+        #     pass
+        # else:
+        #     raw_cycles = self.current_values.get(tag_cb,0.0)
+        #     try:
+        #         if raw_cycles == 0:
+        #             flow_to_show = 0.0
+        #         else:
+        #             flow_to_show = convertir_ciclos_a_flujo(raw_cycles)
+        #             if not self.input_dialysate_flow.hasFocus():
+        #                 self.input_dialysate_flow.setText(f"{flow_to_show:.1f}")
+        #     except Exception as e:
+        #         self.input_dialysate_flow.setText("0.0")
 
         self._update_bloop_pump_controls_state()
         self._update_filter_fill_button_state()

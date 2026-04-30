@@ -1030,25 +1030,27 @@ class ManualModeScreen(QWidget):
                 card.toggle.setChecked(new_state)
                 card.toggle.blockSignals(False)
 
-        if "balanceChamberSetTiming" not in self.write_hold_off or \
-            current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
-            cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
-            try:
-                flow_ml_min = convertir_ciclos_a_flujo(cycles)
-                self._update_input_display(self.input_flow_cb, flow_ml_min, precision=1) 
-            except Exception as e:
-                logger.error(f"Error converting CB flow: {e}")
-                self._update_input_display(self.input_flow_cb, 0.0, precision=1)
+        # if "balanceChamberSetTiming" not in self.write_hold_off or \
+        #     current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
+        #     cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
+        #     try:
+        #         flow_ml_min = convertir_ciclos_a_flujo(cycles)
+        #         self._update_input_display(self.input_flow_cb, flow_ml_min, precision=1) 
+        #     except Exception as e:
+        #         logger.error(f"Error converting CB flow: {e}")
+        #         self._update_input_display(self.input_flow_cb, 0.0, precision=1)
+        self._update_input_display(self.input_flow_cb, self.current_values.get("balanceChamberSetTiming", 0.0)) 
+        self._update_input_display(self.lbl_input_indUF, self.current_values.get("ultraFilterPumpSpeed", 0.0))
 
-        if "ultraFilterPumpSpeed" not in self.write_hold_off or \
-           current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
-            uf_ml_min = self.current_values.get("ultraFilterPumpSpeed", 0.0)
-            try:
-                uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)
-                self._update_input_display(self.lbl_input_indUF, uf_lh, precision=1) 
-            except Exception as e:
-                logger.error(f"Error converting UF flow: {e}")
-                self._update_input_display(self.lbl_input_indUF, 0.0, precision=1)
+        # if "ultraFilterPumpSpeed" not in self.write_hold_off or \
+        #    current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
+        #     uf_ml_min = self.current_values.get("ultraFilterPumpSpeed", 0.0)
+        #     try:
+        #         uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)
+        #         self._update_input_display(self.lbl_input_indUF, uf_lh, precision=1) 
+        #     except Exception as e:
+        #         logger.error(f"Error converting UF flow: {e}")
+        #         self._update_input_display(self.lbl_input_indUF, 0.0, precision=1)
 
         self._update_input_display(self.blood_flow_input, self.current_values.get("bloodFlowControlSetPoint", 0.0))
         self._update_input_display(self.input_heparin, self.current_values.get("heparineTherapyDosage", 0.0))
