@@ -76,6 +76,9 @@ from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 from core.variables_map import VARIABLES, ANALOG_MAP
+import logging
+logger = logging.getLogger(__name__)
+
 
 # CRC-16 Modbus (polynomial 0x8005, reflected)
 crc16 = crcmod.mkCrcFun(0x18005, initCrc=0xFFFF, rev=True, xorOut=0x0000)
@@ -120,11 +123,12 @@ class SerialCommunication(QObject):
                     )
                     time.sleep(1.5)  # Allow time for device stabilization
                     self.is_connected = True
+                    logger.info(f"[CONNECTED] Port: {port_info.device}")
                     print(f"[CONNECTED] Port: {port_info.device}")
                     return True
                 except Exception as e:
-                    print(f"[ERROR] Failed to open port {port_info.device}: {e}")
-        print("[ERROR] No FTDI device found")
+                    logger.error(f"[ERROR] Failed to open port {port_info.device}: {e}")
+        logger.error("[ERROR] No FTDI device found")
         self.is_connected = False
         return False
 

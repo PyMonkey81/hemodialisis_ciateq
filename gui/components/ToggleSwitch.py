@@ -56,6 +56,8 @@ Uso:
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, Property, QEasingCurve, QPropertyAnimation, Signal
 from PySide6.QtGui import QPainter, QColor
+import logging
+logger = logging.getLogger(__name__)
 
 
 class ToggleSwitch(QWidget):

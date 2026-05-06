@@ -3,6 +3,9 @@ from PySide6.QtCore import QSettings
 from typing import List, Tuple, Dict, Set
 
 from core.variables_map import VARIABLES
+import logging
+logger = logging.getLogger(__name__)
+
 
 class AlarmConfigManager:
     """

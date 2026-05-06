@@ -4,6 +4,7 @@
 import sys
 import os
 import logging
+from logging.handlers import RotatingFileHandler  
 import datetime
 import ctypes
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
@@ -15,14 +16,24 @@ from gui.appMainHemodialysis import HemodialysisHMI
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'var', 'log')
 os.makedirs(LOG_DIR, exist_ok=True)  # Crea la carpeta si no existe
 
-LOG_FILE = os.path.join(LOG_DIR, 'hemodialisis_hmi.log')
+LOG_FILE = os.path.join(LOG_DIR, 'hemodialisis.log')
 
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,
-    format='%(asctime)s | %(levelname)s | %(message)s',
-    filemode='a'  # 'a' para append, no sobreescribe cada vez
-)
+# Configuracion del logger con rotación de archivos
+max_log_size = 5 * 1024 * 1024  # 5 MB
+backup_count = 2
+
+# handler rotativo
+
+handler = RotatingFileHandler(LOG_FILE, maxBytes=max_log_size, backupCount=backup_count, encoding='utf-8') # <-- ¡Añade esto!
+
+formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+handler.setFormatter(formatter)
+
+# logger central de toda la app
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(handler)
+
 logger = logging.getLogger(__name__)
 
 def unhandled_exception_handler(exc_type, exc_value, exc_traceback):

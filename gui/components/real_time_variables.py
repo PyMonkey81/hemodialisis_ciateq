@@ -62,6 +62,9 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor
 from core.variables_map import VARIABLES, TVAR_TO_GROUP
+import logging
+logger = logging.getLogger(__name__)
+
 
 class RealTimeVariablesMonitor(QWidget):
     """

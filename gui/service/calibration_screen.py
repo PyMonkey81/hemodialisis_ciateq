@@ -75,6 +75,8 @@ from collections import deque
 
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.ui_components import ClickableLineEdit, DoubleToggleBox
+import logging
+logger = logging.getLogger(__name__)
 
 try:
     from core.variables_map import VARIABLES
@@ -133,9 +135,7 @@ class CalibrationScreen(QWidget):
     def setup_ui(self):
         layout = QGridLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(15)
-
-        
+        layout.setSpacing(15) 
 
 
         # ── Plots Area ───────────────────────────────────────────────────────────
@@ -299,6 +299,7 @@ class CalibrationScreen(QWidget):
 
         layout.addWidget(control_area, 0, 0)
         layout.addWidget(graphics_area, 0, 5)
+        logger.debug("UI de calibración configurada con controles y gráficos.")
 
     def _add_control_row(self, grid, row, col, label_text, unit_text, tag=None, numpad_title="", is_input=True, initial_value="0.0"):
         """Helper to add a labeled control row (label + input/display + unit)."""

@@ -21,7 +21,7 @@ OFFSET_CALIBRACION = 0.05          # compensación mecánica
 
 # Límites clínicos reales (según Fresenius 5008, Baxter, etc.)
 PTM_LIMITE = (-100, 600)           # mmHg
-FLUJO_SANGRE_LIMITE = (0, 600)     # mL/min
+FLUJO_DIALIZANTE_LIMITE = (0, 800)     # mL/min
 CICLOS_LIMITE = (0, 1000)          # ciclos típicos
 
 def calculo_ptm(
@@ -67,8 +67,8 @@ def convertir_ciclos_a_flujo(n_ciclos: float) -> float:
 
     try:
         flujo = FACTOR_CONVERSION_CICLOS / (n_ciclos + OFFSET_CALIBRACION)
-        flujo = max(FLUJO_SANGRE_LIMITE[0], min(FLUJO_SANGRE_LIMITE[1], flujo))
-        return round(flujo, 1)  # ← 1 decimal como en equipos reales
+        flujo = max(FLUJO_DIALIZANTE_LIMITE[0], min(FLUJO_DIALIZANTE_LIMITE[1], flujo))
+        return round(flujo, 1)  # ← 1 decimal 
     except Exception:
         return 0.0
 

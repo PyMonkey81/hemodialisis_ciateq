@@ -47,6 +47,9 @@ Uso:
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QSize, QRectF
 from PySide6.QtGui import QPainter, QColor, QFont, QPen, QBrush
+import logging
+logger = logging.getLogger(__name__)
+
 
 class TankGauge(QWidget):
     """

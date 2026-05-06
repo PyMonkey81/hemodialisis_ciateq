@@ -53,6 +53,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+from pyqtgraph import colors
 
 
 class NumpadDialog(QDialog):
@@ -77,40 +78,88 @@ class NumpadDialog(QDialog):
                                           si la entrada está vacía o es inválida.
     """
 
-    def __init__(self, parent=None, initial_value: str = "", title: str = "Ingrese Valor"):
+    # ══════════════════════════════════════════════════════════════════════
+    # DEFINICIÓN DE TEMAS
+    # ══════════════════════════════════════════════════════════════════════
+    THEMES = {
+        "light": {
+            "dialog_bg": "#ebebeb",
+            "dialog_border": "#9ca3af",
+            "title_bg": "#ebebeb",
+            "title_color": "#1e293b",
+            "display_bg": "#ffffff",
+            "display_color": "#1e293b",
+            "display_border": "#9ca3af",
+            "button_bg": "#f3f4f6",
+            "button_color": "#1e293b",
+            "button_border": "#d1d5db",
+            "button_hover": "#e5e7eb",
+            "backspace_bg": "#fca5a5",
+            "backspace_color": "#7f1d1d",
+            "backspace_hover": "#f87171",
+            "backspace_pressed": "#ef4444",  # ← AGREGAR ESTA LÍNEA
+        },
+        "dark": {
+            "dialog_bg": "#1e293b",
+            "dialog_border": "#334155",
+            "title_bg": "#0f172a",
+            "title_color": "#ffffff",
+            "display_bg": "#0f172a",
+            "display_color": "#22d3ee",
+            "display_border": "#475569",
+            "button_bg": "#334155",
+            "button_color": "#ffffff",
+            "button_border": "#1e293b",
+            "button_hover": "#475569",
+            "backspace_bg": "#ef4444",
+            "backspace_color": "#ffffff",
+            "backspace_hover": "#dc2626",
+            "backspace_pressed": "#b91c1c",  # ← AGREGAR ESTA LÍNEA
+        }
+    }
+
+
+    def __init__(self, parent=None, initial_value: str = "", title: str = "Ingrese Valor", theme: str = "light"):
         super().__init__(parent)
         self.setWindowTitle(title)
+        self.theme = theme  # ← AGREGAR
+        colors = self.THEMES[theme]  # ← AGREGAR
+
 
         # Frameless + modal for full touch experience
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setModal(True)
 
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0f172a;
-                border: 2px solid #334155;
+    
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {colors['dialog_bg']};
+                border: 2px solid {colors['dialog_border']};
                 border-radius: 12px;
-            }
-            QLabel { color: white; }
+            }}
+                QLabel {{ color: {colors['title_color']}; }}
         """)
+
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
-# ── Título personalizado ──────────────────────────────────────────────────
+        # ── Título personalizado ──────────────────────────────────────────────────
         title_label = QLabel(title)  # Usa el parámetro title que pasas al __init__
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
+ 
+        title_label.setStyleSheet(f"""
+            QLabel {{
+                color: {colors['title_color']};
                 font-size: 24px;
                 font-weight: bold;
-                background-color: #1e293b;
+                background-color: {colors['title_bg']};
                 padding: 12px;
-                border-bottom: 2px solid #334155;
-            }
+                border-bottom: 2px solid {colors['dialog_border']};
+            }}
         """)
+
         main_layout.addWidget(title_label)
 
         # ── Display (read-only value preview) ────────────────────────────────────
@@ -119,15 +168,18 @@ class NumpadDialog(QDialog):
         self.display.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.display.setReadOnly(True)
         self.display.setFont(QFont("Arial", 36, QFont.Bold))
-        self.display.setStyleSheet("""
-            QLineEdit {
-                background-color: #1e293b;
-                color: #22d3ee;
-                border: 2px solid #475569;
+        self.display.setStyleSheet(f"""
+            QLineEdit {{
+                font-size: 36px;
+                font-family: "Arial";
+                font-weight: bold;                background-color: {colors['display_bg']};
+                color: {colors['display_color']};
+                border: 2px solid {colors['display_border']};
                 border-radius: 10px;
                 padding: 0 15px;
-            }
+            }}
         """)
+
         main_layout.addWidget(self.display)
 
         # ── Keypad Grid ──────────────────────────────────────────────────────────
@@ -141,7 +193,7 @@ class NumpadDialog(QDialog):
             ('.', 3, 0), ('0', 3, 1), ('⌫', 3, 2)
         ]
 
-        button_font = QFont("Arial", 36, QFont.Bold)
+        button_font = QFont("Arial", 32, QFont.Bold)
 
         for key, row, col in keys:
             btn = QPushButton(key)
@@ -149,29 +201,35 @@ class NumpadDialog(QDialog):
             btn.setFont(button_font)
 
             if key == '⌫':
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #ef4444;
-                        color: white;
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {colors['backspace_bg']};
+                        color: {colors['backspace_color']};
                         border-radius: 12px;
                         border: none;
-                    }
-                    QPushButton:hover { background-color: #dc2626; }
-                    QPushButton:pressed { background-color: #b91c1c; }
+                    }}
+                    QPushButton:hover {{ background-color: {colors['backspace_hover']}; }}
+                    QPushButton:pressed {{ background-color: {colors['backspace_pressed']}; }}
                 """)
-                btn.clicked.connect(self._backspace)
+                btn.clicked.connect(self._backspace)  # ← AGREGAR
+
             else:
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #334155;
-                        color: white;
+                
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        font-size: 32px;
+                        font-family: "Arial";
+                        font-weight: bold;                                  
+                        background-color: {colors['button_bg']};
+                        color: {colors['button_color']};
                         border-radius: 12px;
-                        border: 2px solid #1e293b;
-                    }
-                    QPushButton:hover { background-color: #475569; }
-                    QPushButton:pressed { background-color: #22d3ee; border-color: #22d3ee; }
+                        border: 2px solid {colors['button_border']};
+                    }}
+                    QPushButton:hover {{ background-color: {colors['button_hover']}; }}
+                    QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
                 """)
                 btn.clicked.connect(lambda _, k=key: self._add_digit(k))
+
 
             keypad_layout.addWidget(btn, row, col)
 
@@ -183,11 +241,14 @@ class NumpadDialog(QDialog):
 
         cancel_btn = QPushButton("Cancelar")
         cancel_btn.setFixedHeight(70)
-        cancel_btn.setFont(QFont("Arial", 18, QFont.Bold))
+        cancel_btn.setFont(QFont("Arial", 24, QFont.Bold))
         cancel_btn.setStyleSheet("""
             QPushButton {
+                font-size: 24px;
+                font-family: "Arial";
+                font-weight: bold;
                 background-color: #64748b;
-                color: white;
+                color: #ffffff;
                 border-radius: 12px;
                 border: none;
             }
@@ -199,11 +260,14 @@ class NumpadDialog(QDialog):
 
         accept_btn = QPushButton("ACEPTAR")
         accept_btn.setFixedHeight(70)
-        accept_btn.setFont(QFont("Arial", 18, QFont.Bold))
+        accept_btn.setFont(QFont("Arial", 24, QFont.Bold))
         accept_btn.setStyleSheet("""
             QPushButton {
+                font-size: 24px;
+                font-family: "Arial";
+                font-weight: bold;
                 background-color: #22c55e;
-                color: white;
+                color: #ffffff;
                 border-radius: 12px;
                 border: none;
             }
@@ -252,3 +316,4 @@ class NumpadDialog(QDialog):
                 return int(text)
         except ValueError:
             return 0 # Default to int 0 if conversion fails
+

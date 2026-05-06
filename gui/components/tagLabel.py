@@ -43,6 +43,8 @@ Uso:
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PySide6.QtCore import Qt
+import logging
+logger = logging.getLogger(__name__)
 
 
 class TagLabel(QWidget):

@@ -34,7 +34,7 @@ Dependencias Externas:
 
 Uso:
 ----
-Esta clase se instancia típicamente desde un archivo `main.py`:
+Esta clase se instancia desde archivo `main.py`:
 
     app = QApplication(sys.argv)
     window = HemodialysisHMI()
@@ -42,7 +42,7 @@ Esta clase se instancia típicamente desde un archivo `main.py`:
     sys.exit(app.exec())
 
 Author: Miguel de Jesus C. Espinoza Calderón
-Version: 2.11
+Version: 2.17.1
 """
 
 
@@ -52,7 +52,7 @@ import time
 import logging
 from PySide6.QtWidgets import *
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
-from PySide6.QtCore import Qt, QTimer, QDateTime
+from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
 from PySide6.QtGui import QColor, QPixmap
 from logic.calculos import convertir_ciclos_a_flujo
 from utilities.csv_logger import CsvLogger
@@ -79,7 +79,8 @@ from gui.service.comm_port_screen import CommPortScreen
 from gui.components.real_time_variables import RealTimeVariablesMonitor
 from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
-from gui.components.ui_components import show_dark_message
+# from gui.components.ui_components import show_dark_message
+from gui.components.floating_message import FloatingMessage
 from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.configuration.alarm_screen_config import AlarmScreenConfig 
 from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
@@ -291,6 +292,7 @@ class HemodialysisHMI(QMainWindow):
             values_dict=self.current_values,
             alarm_system=self.alarm_system
         )
+        self.alarms_screen.request_boolean_change.connect(self._write_boolean_command) # Conexión: conecta la señal de pantalla con el método de escritura serial en main
 
         self.real_time_var = RealTimeVariablesMonitor(
             parent=self,
@@ -567,9 +569,9 @@ class HemodialysisHMI(QMainWindow):
         self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
 
         if self.total_therapy_seconds <= 0:
-            show_dark_message(self, "Configuración incompleta", 
-                                "Configure la duración de la terapia primero.",
-                                icon=QMessageBox.Warning)
+            
+            self.show_warning_message("Configure duración de terapia", 3000)
+            
             self.show_therapy_config_screen()
             return
             
@@ -593,10 +595,9 @@ class HemodialysisHMI(QMainWindow):
             self._write_boolean_command("dialyModeOperationStop", False)
             logger.info("Comandos de terapia enviados: Start=True, Stop=False")
         except Exception as e:
-            logger.error(f"Error enviando comandos de terapia: {e}")
-            show_dark_message(self, "Advertencia", 
-                                "Terapia iniciada, pero hubo problema al enviar comandos al controlador.",
-                                icon=QMessageBox.Warning)
+            logger.error(f"Error enviando comandos de terapia: {e}")          
+            
+            self.show_error_message(f"Error al iniciar terapia: {e}", 4000)
 
         # Iniciar bioimpedancia y Kt/V
         if self.bioz_urea_controller:
@@ -630,9 +631,8 @@ class HemodialysisHMI(QMainWindow):
                 )
                 logger.info("Logger CSV iniciado correctamente para nuevo tratamiento")
             except Exception as e:
-                logger.error(f"Error al crear logger CSV para tratamiento: {e}")
-                show_dark_message(self, "Error crítico", f"No se pudo iniciar el registro de datos:\n{str(e)}", 
-                          icon=QMessageBox.Critical)
+                logger.error(f"Error al crear logger CSV para tratamiento: {e}")                
+                self.show_error_message(f"Error crítico:\nNo se pudo iniciar el registro de datos:\n{str(e)}", 4000)
                 return
 
 
@@ -647,11 +647,9 @@ class HemodialysisHMI(QMainWindow):
         - Muestra feedback al usuario
         """
         # 1. Verificar conexión serial
-        if not self.serial_comm or not self.serial_comm.is_connected:
-            show_dark_message(self, "Error de conexión", 
-                          "No hay conexión con el controlador.\n"
-                          "No se puede iniciar el cebado.",
-                          icon=QMessageBox.Warning)  
+        if not self.serial_comm or not self.serial_comm.is_connected: 
+            
+            self.show_warning_message("No hay conexión serial.\nCebado no iniciado.", 3000)
             logger.warning("Intento de iniciar cebado sin conexión serial")
             return
 
@@ -673,9 +671,9 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Logger CSV iniciado correctamente para cebado")
         except Exception as e:
             logger.error(f"Error al crear logger CSV para cebado: {e}")
-            show_dark_message(self, "Error crítico", 
-                                 f"No se pudo iniciar el registro de datos:\n{str(e)}",
-                                 icon=QMessageBox.Critical)
+            
+            
+            self.show_error_message(f"Error crítico:\nNo se pudo iniciar el registro de datos:\n{str(e)}", 4000)
             return
 
         # 5. Enviar comandos al controlador
@@ -685,20 +683,11 @@ class HemodialysisHMI(QMainWindow):
            
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
-            logger.error(f"Error enviando comandos de cebado: {e}")
-            
-            
-            show_dark_message(self, "Advertencia", 
-                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.",
-                                icon=QMessageBox.Warning)
+            logger.error(f"Error enviando comandos de cebado: {e}") 
+            self.show_error_message(f"Error al enviar comandos de cebado:\n{str(e)}", 4000)
 
 
-   
-    
-        show_dark_message(self, "Cebado Iniciado",
-                  "Proceso de cebado iniciado correctamente.\n\n"
-                  "Presione 'DETENER' cuando finalice o espere condición automática.",
-                  icon=QMessageBox.Information)
+        self.show_success_message("Cebado iniciado", 3000)
 
         self.show_dialysis_screen()
 
@@ -710,9 +699,8 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
-            show_dark_message(self, "Advertencia", 
-                                "Cebado iniciado, pero hubo problema al enviar comandos al controlador.",
-                                icon=QMessageBox.Warning)
+            self.show_warning_message("Cebado detenido, pero hubo problema al enviar comandos al controlador.", 4000)
+            
         if self.csv_logger:
             self.csv_logger.close()
             self.csv_logger = None
@@ -729,18 +717,14 @@ class HemodialysisHMI(QMainWindow):
             logger.error(f"Error enviando comandos de paro de terapia: {e}")
 
 
-        # if self.ktv_timer.isActive():
-        #     self.ktv_timer.stop()
-        #     logger.info("[kt/V] Medición detenida")
+ 
 
         if self.bioz_urea_controller:
             self.bioz_urea_controller.send_command("STOP")
 
         # Resetear estado de tiempo
 
-        # self.is_treatment_running = False
-        # self.therapy_start_time = None
-        # self.total_therapy_seconds = 0
+        
 
         self.is_treatment_running = False
         self.accumulated_therapy_seconds = 0  # Limpiar
@@ -1053,10 +1037,9 @@ class HemodialysisHMI(QMainWindow):
                 status_text = status_map.get(status_code, f"Espera.. ({status_code})")
                 self.current_process_status.setText(status_text)
 
-                if status_code == 7: # indica al usuario que debe colocar el filtro antes de iniciar el tratamiento
-                    show_dark_message(self, "Colocación de filtro", 
-                                        "Coloque el filtro correctamente y asegúrese de que las líneas estén bien conectadas.",
-                                        icon=QMessageBox.Information)
+                if status_code == 7: # indica al usuario que debe colocar el filtro antes de iniciar el tratamiento                   
+                    
+                    self.show_info_message("Coloque el filtro y conecte las líneas", 10000)
                     
 
                 # ====================== LÓGICA DE HORAS ======================
@@ -1459,7 +1442,41 @@ class HemodialysisHMI(QMainWindow):
             self.led_bar.send_state(cmd, silence_buzzer=silence)
         else:
             self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID, silence_buzzer=False)
+    
+    # def show_floating_message(self, text: str, timeout_ms: int = 3800, position: str = "center"):
+    #     """Método para mostrar mensaje flotante """
+    #     if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+    #         self._floating_msg = FloatingMessage(self)
+        
+    #     self._floating_msg.show_message(text, timeout_ms, position)
 
+    def show_floating_message(self, text: str, timeout_ms: int = 3800):
+        """Método genérico (recomendado)"""
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        
+        self._floating_msg.show_floating_message(text, timeout_ms)
+
+    # Métodos específicos (más semánticos)
+    def show_success_message(self, text: str, timeout_ms: int = 4000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_success_message(text, timeout_ms)
+
+    def show_info_message(self, text: str, timeout_ms: int = 3800):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_info_message(text, timeout_ms)
+
+    def show_warning_message(self, text: str, timeout_ms: int = 4500):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_warning_message(text, timeout_ms)
+    
+    def show_error_message(self, text: str, timeout_ms: int = 5000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_error_message(text, timeout_ms)
     
     def ktv_meassurement(self):
         """
@@ -1487,9 +1504,13 @@ class HemodialysisHMI(QMainWindow):
         # 1. Enviar comando de Bioimpedancia
         self.bioz_urea_controller.send_command("SRTB")
         logger.info("[Kt/V] Comando 'SRTB' enviado. Esperando datos de Bioimpedancia...")
+
+        
+        self.show_info_message("iniciando medición de Kt/V...", timeout_ms=2000 )
         
         # Programar el siguiente paso después de un tiempo para que BIA se complete
         QTimer.singleShot(5000, self._urea_measurement)
+
 
     def _urea_measurement(self):
         """Paso 1: Medición de Urea después de BIA."""
@@ -1513,7 +1534,8 @@ class HemodialysisHMI(QMainWindow):
         new_conductivity_target =  self._original_conductivity_setpoint + self._step_conductivity_value
         self._write_setpoint("dialyCondControlSetPoint", new_conductivity_target)
         logger.info(f"[Kt/V] Conductividad de la máquina cambiada a {new_conductivity_target:.2f} mS/cm. Esperando estabilización...")
-        self._conductivity_stabilization_time = 60000
+        self._conductivity_stabilization_time = 120000
+        
         # Programar la segunda medición (t2) después de un tiempo de estabilización
         QTimer.singleShot(self._conductivity_stabilization_time, self._measure_conductivity_t2)
 
@@ -1529,7 +1551,7 @@ class HemodialysisHMI(QMainWindow):
         # CRUCIAL: 4. Restaurar la conductividad del dializado a su valor original
         self._write_setpoint("dialyCondControlSetPoint", self._original_conductivity_setpoint)
         logger.info(f"[Kt/V] Restaurando conductividad de la máquina a {self._original_conductivity_setpoint:.2f} mS/cm. Esperando estabilización...")
-        self._conductivity_stabilization_time = 60000
+        self._conductivity_stabilization_time = 120000
         # Programar el cálculo final de Kt/V después de que el sistema se haya restaurado
         # El cálculo no necesita esperar, pero es buena práctica darle tiempo a la máquina.
         QTimer.singleShot(self._conductivity_stabilization_time, self._calculate_ktv)
@@ -1556,7 +1578,10 @@ class HemodialysisHMI(QMainWindow):
         self.edad = self.current_values.get("patient_age", 40)
         self.genero = self.current_values.get("patient_gender", 1) # "M" o "F"
 
-        v_bis_litros = self._calculate_heitmann_volume(z_resistencia, self.altura, self.peso, self.genero, self.edad) 
+         # Variable temporal exclusiva para Heitmann (1 = Hombre, 0 = Mujer)
+        genero_heitmann = 0 if self.genero == 2 else 1
+
+        v_bis_litros = self._calculate_heitmann_volume(z_resistencia, self.altura, self.peso, genero_heitmann, self.edad) 
         if v_bis_litros and v_bis_litros > 0:
             self.calculadora_ktv.set_volumen_bioimpedancia(v_bis_litros)
         else:
@@ -1572,8 +1597,6 @@ class HemodialysisHMI(QMainWindow):
         #Tiempo transcurrido real para kt/v acumulado
         t_elapsed_min = self._current_elapsed_therapy_min
 
-
-        # ktv_calculado = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_min)
         
         # Cálculo de Kt/V Proyectado (usando el tiempo total programado)
         ktv_projected = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_programmed_min)
@@ -1585,14 +1608,12 @@ class HemodialysisHMI(QMainWindow):
         self.current_values["ktv_projectado"] = ktv_projected
         self.current_values["ktv_acumulado"] = ktv_accumulated
         logger.info(f"[Kt/V] Proyectado: {ktv_projected:.2f}, Acumulado: {ktv_accumulated:.2f}")
-        print(f"✅ Kt/V Proyectado = {ktv_projected:.3f} | Kt/V Acumulado = {ktv_accumulated:.3f} | V = {self.calculadora_ktv.volumen_distribucion_v/1000:.1f} L | Z = {z_resistencia:.1f} Ω")
+        print(f"Kt/V Proyectado = {ktv_projected:.3f} | Kt/V Acumulado = {ktv_accumulated:.3f} | V = {self.calculadora_ktv.volumen_distribucion_v/1000:.1f} L | Z = {z_resistencia:.1f} Ω")
 
-        # self.current_values["ktv_calculado"] = ktv_calculado
-        # logger.info(f"[Kt/V] Cálculo final de Kt/V: {ktv_calculado:.2f}")
-        # print(f"✅ Kt/V Final = {ktv_accumulated:.3f} | V = {self.calculadora_ktv.volumen_distribucion_v/1000:.1f} L | Z = {z_resistencia:.1f} Ω")
-        # Aquí puedes emitir una señal para actualizar la interfaz gráfica con el nuevo Kt/V
         # self.ktv_calculated_signal.emit(ktv_calculado)
         logger.info("[Kt/V] Ciclo de medición completado.")
+        
+        self.show_success_message(f"Kt/V Acumulado: {ktv_accumulated:.3f}", 2000)
 
     
 
@@ -1600,6 +1621,12 @@ class HemodialysisHMI(QMainWindow):
         """
         Calcula el Agua Corporal Total (TBW) usando fórmula de Heitmann.
         Retorna solo el volumen en LITROS (o None si Z es inválido).
+          Parámetros:
+        Z (float): Impedancia o resistencia en Ohmios.
+        H (float): Altura del paciente en cm.
+        W (float): Peso del paciente en kg.
+        G (int): Género del paciente (1 = hombre, 0 = mujer).
+        E (int): Edad del paciente en años.
         """
         a = 0.266
         b = 0.186

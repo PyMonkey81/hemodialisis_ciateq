@@ -50,23 +50,26 @@ para su correcto funcionamiento.
 # gui/therapy/alarms_screen.py
 
 import sys
-import os # Asegúrate de que sys y os estén importados si son necesarios para resource_path en otros lados
+import os
+from xml.sax import handler 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTextEdit, QFrame, QLineEdit, QSizePolicy,
     QPushButton, QScrollArea, QMessageBox, QDialog, QDialogButtonBox, QGroupBox,QFormLayout, QHBoxLayout
 )
-from PySide6.QtCore import Qt, QTime
+from PySide6.QtCore import Qt, QTime, Signal
 from PySide6.QtGui import QFont, QDoubleValidator, QTextOption
 from gui.components.ui_components import LabeledParameterWidget, ClickableLineEdit
 from gui.components.numpad_modal import NumpadDialog
 from gui.configuration.alarm_limits import AlarmLimitsManager
-from gui.components.ui_components import show_dark_message
+from gui.components.floating_message import FloatingMessage
+from gui.components.floating_confirm import FloatingConfirmDialog
 from typing import Dict
 
-# Importante: Asegúrate de que logger esté configurado globalmente si se usa aquí.
+
 import logging
 logger = logging.getLogger(__name__)
-  
+
+
 
 class AlarmsScreen(QWidget):
     """
@@ -74,6 +77,7 @@ class AlarmsScreen(QWidget):
     Maneja el reconocimiento (ACK) sin borrar alarmas persistentes.
     Estilo de "Equipo Médico" con fondos claros.
     """
+    request_boolean_change = Signal(str, bool)    
 
     def __init__(self, parent=None, values_dict=None, alarm_system=None):
         super().__init__(parent)
@@ -116,7 +120,7 @@ class AlarmsScreen(QWidget):
 
         sep1 = QFrame()
         sep1.setFrameShape(QFrame.HLine)
-        sep1.setStyleSheet("background: #CCCCCC; max-height: 1px;") # Separador sutil
+        sep1.setStyleSheet("background: #CCCCCC; max-height: 1px;") # Separador 
         layout.addWidget(sep1)
 
         # Sección Alarmas Activas
@@ -179,6 +183,24 @@ class AlarmsScreen(QWidget):
         """)
         self.btn_ack_all.clicked.connect(self.acknowledge_all_alarms)
 
+
+        # Botón de Reset de Bombas
+        self.btn_reset_pumps = QPushButton("RESET")
+        self.btn_reset_pumps.setFixedSize(320, 60)
+        self.btn_reset_pumps.setStyleSheet("""
+            QPushButton {
+                background: #FFC107; /* Amarillo */
+                color: #333333; /* Texto oscuro para contraste */
+                font-size: 22px;
+                font-weight: bold;
+                border-radius: 8px;
+            }
+            QPushButton:hover { background: #E0A800; }
+            QPushButton:pressed { background: #C69500; }
+        """)
+        self.btn_reset_pumps.clicked.connect(self.reset_pump_overpress_alarms) 
+
+
         self.btn_config_limits = QPushButton("Configuración")
         self.btn_config_limits.setFixedSize(320, 60)
         self.btn_config_limits.setStyleSheet("""
@@ -197,7 +219,15 @@ class AlarmsScreen(QWidget):
 
         
         btn_layout = QVBoxLayout()
-        btn_layout.addWidget(self.btn_ack_all, alignment=Qt.AlignRight)
+
+        action_buttons_h_layout = QHBoxLayout()
+        action_buttons_h_layout.addStretch() # Empuja los botones a la derecha
+        action_buttons_h_layout.addWidget(self.btn_reset_pumps) # Añadir el nuevo botón
+        action_buttons_h_layout.addWidget(self.btn_ack_all)
+        
+        
+        # btn_layout.addWidget(self.btn_ack_all, alignment=Qt.AlignRight)
+        btn_layout.addLayout(action_buttons_h_layout)
         btn_layout.addWidget(self.btn_config_limits, alignment=Qt.AlignRight)
         layout.addLayout(btn_layout)
 
@@ -218,7 +248,6 @@ class AlarmsScreen(QWidget):
         self.history_display.setLineWrapMode(QTextEdit.WidgetWidth)          # wrap al ancho del widget
         self.history_display.setWordWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)  # corta en espacios cuando pueda, si no → en cualquier 
         self.history_display.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        # self.history_display.setWordWrap(True)
         self.history_display.setStyleSheet("""
             QTextEdit {
                 background: #F0F2F5; /* Fondo ligeramente gris para diferenciar del principal */
@@ -345,18 +374,21 @@ class AlarmsScreen(QWidget):
         """
         if not self.active_alarms:
             # QMessageBox.information(self, "Información", "No hay alarmas activas para reconocer.")
-            show_dark_message(self, "información", "No hay alarmas activas para reconocer.", icon=QMessageBox.Information)
+            
+            self.show_info_message("No hay alarmas activas para reconocer.", 3000)
             return
 
         unacked_count = sum(1 for data in self.active_alarms.values() if not data['acked'])
         if unacked_count == 0:
             # QMessageBox.information(self, "Información", "Todas las alarmas activas ya están reconocidas.")
-            show_dark_message(self, "Informacióm", "Todas las alarmas activas ya están reconocidas.", icon=QMessageBox.Information)
+            self.show_info_message("Todas las alarmas activas ya están reconocidas.", 3000)
             return
-
-        reply = show_dark_message(self, "Confirmar Reconocimiento", f"¿Reconocer {unacked_count} alarma(s) activa(s) y silenciar?", icon=QMessageBox.Question, buttons=QMessageBox.Yes | QMessageBox.No)
+        dialog = FloatingConfirmDialog(self)
+        message = f"¿Estás seguro de reconocer {unacked_count} alarma(s) activa(s) y silenciar?"
+        reply = dialog.show_confirm(message, accept_text="Sí, Reconocer", cancel_text="Cancelar")
         
-        if reply == QMessageBox.Yes:
+        
+        if reply == True:
             changed = False
             for name, data in self.active_alarms.items():
                 if not data['acked']:
@@ -376,9 +408,60 @@ class AlarmsScreen(QWidget):
                 self._append_to_history("Operador reconoció alarmas activas y silenció buzzer", 
                                       None, "info", QTime.currentTime().toString("hh:mm:ss"))
                 
-                show_dark_message(self, "Listo", f"{unacked_count} alarma(s) reconocida(s). Buzzer silenciado.", icon=QMessageBox.Information)
+               
+                self.show_info_message(f"{unacked_count} alarma(s) reconocida(s). Buzzer silenciado.", 4000)
         else:            
-            show_dark_message(self, "Cancelado", "Reconocimiento de alarmas cancelado.", icon=QMessageBox.Information)
+            self.show_info_message("Reconocimiento de alarmas cancelado.", 3000)
+
+    def show_floating_message(self, text: str, timeout_ms: int = 3800):
+        """Método genérico (recomendado)"""
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        
+        self._floating_msg.show_floating_message(text, timeout_ms)
+
+    # Métodos específicos (más semánticos)
+    def show_success_message(self, text: str, timeout_ms: int = 4000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_success_message(text, timeout_ms)
+
+    def show_info_message(self, text: str, timeout_ms: int = 3800):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_info_message(text, timeout_ms)
+
+    def show_warning_message(self, text: str, timeout_ms: int = 4500):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_warning_message(text, timeout_ms)
+    
+    def show_error_message(self, text: str, timeout_ms: int = 5000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_error_message(text, timeout_ms)
+
+    def reset_pump_overpress_alarms(self):
+        """
+        Envía una solicitud para resetear los estados de sobrepresión de las bombas
+        de dializado y desaireación a False, utilizando el método on_user_boolean_command.
+        """
+        dialog = FloatingConfirmDialog(self)
+
+        message = "¿Está seguro de querer resetear las alarmas de sobrepresión de bombas?"
+        reply = dialog.show_confirm(message, accept_text="Sí, Restaurar", cancel_text="Cancelar")        
+
+
+        if reply == True:
+            logger.info("Solicitando reset de alarmas de sobrepresión de bombas: dialyDialyPumpOverPress y dialyDeaerPumpOverPress.")
+            # Emitir la señal request_boolean_change para ambas variables
+            self.on_user_boolean_command('dialyDialyPumpOverPress', False)
+            self.on_user_boolean_command('dialyDeaerPumpOverPress', False)            
+            self.show_info_message("Alarmas de sobrepresión de bombas reseteadas.", 2000)
+            self._append_to_history("Operador solicitó reset de alarmas de sobrepresión de bombas",
+                                    None, "info", QTime.currentTime().toString("hh:mm:ss"))
+        else:
+            self.show_info_message("Reset de alarmas de bombas cancelado.", 1500)
 
     def _update_active_alarms_display(self):
         """Regenera el HTML de la lista de alarmas activas con la nueva estética."""
@@ -482,8 +565,7 @@ class AlarmsScreen(QWidget):
 
     def silence_buzzer_only(self):
         """
-        Este método parece estar incompleto o fuera de contexto con la nueva lógica
-        de silenciado del buzzer en HemodialysisHMI. Debería ser revisado o eliminado.
+        Silencia el buzzer en HemodialysisHMI. Debería ser revisado o eliminado.
         """
         logger.warning("AlarmsScreen.silence_buzzer_only() llamado. Revisar si es necesario.")
         # if not self._last_buzzer_silence_state_sent: # estas variables no están definidas aquí
@@ -500,3 +582,8 @@ class AlarmsScreen(QWidget):
         self._update_active_alarms_display() # Actualizar la pantalla (mostrar "SISTEMA NORMAL")
         self.update_ack_button_state() # Deshabilitar botón ACK
         logger.info("AlarmsScreen UI state reset.")
+
+    def on_user_boolean_command(self, tag, state):
+        self.request_boolean_change.emit(tag, state)
+        print("confirmado")
+

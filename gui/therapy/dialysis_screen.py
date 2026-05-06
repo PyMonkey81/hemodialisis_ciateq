@@ -36,7 +36,7 @@ Dependencias:
 - `logic.calculos`: Fórmulas médicas (PTM).
 """
 
-import logging
+
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QDateTime, QTimer, Signal
 from PySide6.QtGui import QColor, QFont
@@ -44,6 +44,8 @@ import pyqtgraph as pg
 import numpy as np
 from collections import deque
 from gui.components.ui_components import LabeledParameterWidget, LabeledTimeInput
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -57,7 +59,7 @@ try:
 except ImportError:
     VARIABLES = {0x01: {}, 0x02: {}}
 
-logger = logging.getLogger(__name__)
+
 
 class SimpleValueDisplay(QWidget):
     """
@@ -285,6 +287,7 @@ class DialysisScreen(QWidget):
             "uf_goal_liters":            self.uf_target_display,
             "heparineBolusQuantity":     self.bolus_display,   
             "ktv_acumulado":             self.ktv_display,        
+            # "ktv_projectado":            self.ktv_display,  
         }
 
 
@@ -314,6 +317,7 @@ class DialysisScreen(QWidget):
         btn_iniciar = self.action_buttons.get("INICIAR")
         btn_detener = self.action_buttons.get("DETENER")
         btn_pausar = self.action_buttons.get("PAUSAR") # se agrego este boton a la logica de activación/desactivación
+        btn_ktv = self.action_buttons.get("Kt/V") # se agrego este boton a la logica de activación/desactivación para que solo se pueda medir Kt/V durante la terapia activa
 
 
         style_enabled = """
@@ -331,6 +335,11 @@ class DialysisScreen(QWidget):
              QPushButton { background: #FFC400; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
              QPushButton:pressed { background: #334155; }
         """
+        style_ktv_enabled = """
+             QPushButton { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
+             QPushButton:pressed { background: #334155; }
+        """
+        
 
         if btn_iniciar:
             btn_iniciar.setEnabled(enable_start)
@@ -342,7 +351,11 @@ class DialysisScreen(QWidget):
         
         if btn_pausar:
             btn_pausar.setEnabled(enable_pause)
-            btn_pausar.setStyleSheet(style_pause_enabled if enable_pause else style_disabled)        
+            btn_pausar.setStyleSheet(style_pause_enabled if enable_pause else style_disabled)  
+
+        # if btn_ktv:
+        #     btn_ktv.setEnabled(enable_stop) # Solo habilitar Kt/V cuando la terapia esté activa
+        #     btn_ktv.setStyleSheet(style_ktv_enabled if enable_stop else style_disabled)      
 
 
     def show_therapy_config(self):

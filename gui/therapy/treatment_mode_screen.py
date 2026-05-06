@@ -50,6 +50,10 @@ from PySide6.QtCore import Qt, Signal
 import time
 from core.variables_map import VARIABLES
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class TreatmentModeScreen(QWidget):
     """
     Pantalla exclusiva para seleccionar el tipo de tratamiento:
@@ -219,6 +223,8 @@ class TreatmentModeScreen(QWidget):
 
     def on_user_boolean_command(self, tag, state):
         self.request_boolean_change.emit(tag, state)
+        logger.debug(f"Boolean command requested: {tag} -> {state}")
 
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)
+        logger.debug(f"Setpoint change requested: {tag} -> {value}")

@@ -4,11 +4,11 @@ import serial.tools.list_ports
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QCheckBox, QPushButton, QGroupBox, QMessageBox
 from PySide6.QtCore import Signal, Qt
 import json
-import os
+import os 
+from gui.components.floating_message import FloatingMessage
 import logging
-from gui.components.ui_components import show_dark_message
-
 logger = logging.getLogger(__name__)
+
 
 CONFIG_DIR = "config"
 CONFIG_FILE = os.path.join(CONFIG_DIR, "sensor_comm_config.json")
@@ -219,11 +219,12 @@ class CommPortScreen(QWidget):
             self._update_port_exclusion()
 
             logger.info(f"Puertos actualizados. Total: {len(self.all_ports)-1} puertos físicos.")
-            show_dark_message(self, "Actualizado", "Lista de puertos actualizada.", QMessageBox.Information)
+            
+            self.show_info_message("Lista de puertos actualizada correctamente.", 3000)
 
         except Exception as e:
-            logger.error(f"Error al refrescar puertos: {e}")
-            show_dark_message(self, "Error", f"No se pudieron actualizar los puertos:\n{str(e)}", QMessageBox.Warning)
+            logger.error(f"Error al refrescar puertos: {e}")            
+            self.show_warning_message(f"Error al actualizar puertos:\n{str(e)}", 5000)
 
    
 
@@ -255,7 +256,7 @@ class CommPortScreen(QWidget):
             logger.info(f"Configuración guardada en {CONFIG_FILE}")
         except Exception as e:
             logger.error(f"Error guardando configuración: {e}")
-            show_dark_message(self, "Error", "No se pudo guardar la configuración.", QMessageBox.Critical)
+            self.show_error_message("No se pudo guardar la configuración.", 5000)
 
     def _apply_loaded_settings_to_ui(self):
         cond = self._loaded_settings.get("conductivity_sensor", {})
@@ -269,13 +270,37 @@ class CommPortScreen(QWidget):
     def apply_configurations(self):
         self._save_settings()
         self.emit_current_configurations()
-        show_dark_message(
-            self,
-            "Éxito",
-            "Configuración de puertos guardada y aplicada correctamente.",
-            icon=QMessageBox.Information
-        )
+        self.show_success_message(
+            "Configuración de puertos guardada y aplicada correctamente.",3000)
 
     def emit_current_configurations(self):
         self.config_changed.emit("CONDUCTIVITY", self.cmb_cond_port.currentText(), self.chk_cond.isChecked())
         self.config_changed.emit("BIOZ", self.cmb_bioz_port.currentText(), self.chk_bioz.isChecked())
+
+    def show_floating_message(self, text: str, timeout_ms: int = 3800):
+        """Método genérico (recomendado)"""
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        
+        self._floating_msg.show_floating_message(text, timeout_ms)
+
+    # Métodos específicos (más semánticos)
+    def show_success_message(self, text: str, timeout_ms: int = 4000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_success_message(text, timeout_ms)
+
+    def show_info_message(self, text: str, timeout_ms: int = 3800):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_info_message(text, timeout_ms)
+
+    def show_warning_message(self, text: str, timeout_ms: int = 4500):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_warning_message(text, timeout_ms)
+    
+    def show_error_message(self, text: str, timeout_ms: int = 5000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_error_message(text, timeout_ms)

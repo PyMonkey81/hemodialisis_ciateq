@@ -7,25 +7,15 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QDateTime, QEvent
 
-import logging
+
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit
 from logic.calculos import convertir_flujo_a_ciclos, convertir_ciclos_a_flujo
-from logging.handlers import RotatingFileHandler
 
-log_file = "app.log"
-max_log_size = 5 * 1024 * 1024  # 5 MB
-backup_count = 2
 
-handler = RotatingFileHandler(log_file, maxBytes=max_log_size, backupCount=backup_count)
-formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-handler.setFormatter(formatter)
-
+import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(handler)
-
 
 try:
     from core.variables_map import VARIABLES
@@ -587,22 +577,6 @@ class TherapyConfigScreen(QWidget):
         
 
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
-        # tag_cb = "balanceChamberSetTiming"
-        # hold_time = self.write_hold_off.get(tag_cb, 0)
-
-        # if current_ms < hold_time:
-        #     pass
-        # else:
-        #     raw_cycles = self.current_values.get(tag_cb,0.0)
-        #     try:
-        #         if raw_cycles == 0:
-        #             flow_to_show = 0.0
-        #         else:
-        #             flow_to_show = convertir_ciclos_a_flujo(raw_cycles)
-        #             if not self.input_dialysate_flow.hasFocus():
-        #                 self.input_dialysate_flow.setText(f"{flow_to_show:.1f}")
-        #     except Exception as e:
-        #         self.input_dialysate_flow.setText("0.0")
 
         self._update_bloop_pump_controls_state()
         self._update_filter_fill_button_state()
@@ -617,7 +591,7 @@ class TherapyConfigScreen(QWidget):
         3. Escribe el valor en ciclos a la máquina.
         """
         # Obtenemos el texto actual del widget correcto
-        current_text = self.input_dialysate_flow.text()
+        # current_text = self.input_dialysate_flow.text()
 
         dialog = NumpadDialog(self, initial_value="", title="Flujo Dializante (mL/min)")
         
@@ -635,7 +609,8 @@ class TherapyConfigScreen(QWidget):
             try:
                 cycles_value = convertir_flujo_a_ciclos(flow_ml_min)                               
                 tag = "balanceChamberSetTiming"
-                self.on_user_input_setpoint(tag, cycles_value)                               
+                self.on_user_input_setpoint(tag, cycles_value)
+                print(f"Flujo {flow_ml_min} mL/min convertido a {cycles_value} ciclos/timing y enviado a la máquina.")                               
                 self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
                 
             except Exception as e:

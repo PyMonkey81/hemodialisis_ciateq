@@ -144,8 +144,8 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Stop Operation mode", "ESTADO STOP", "cian", "dialyModeOperationStop"),                         # 54
                 ("Pause Operation mode", "ESTADO PAUSE", "cian", "dialyModeOperationPause"),    # 55
                 ("Llenado de filtro", "LLENADO DE FILTRO", "cian", "dialyFilterFillButton"),    # 56
-                ("Disponible para Función Digital 16", "RESERVA 16", "cian", "availableBoolVariable12"),    # 57
-                ("Disponible para Función Digital 17", "RESERVA 17", "cian", "availableBoolVariable13"),    # 58
+                ("Sobrepresión Bomba Diálisis", "SOBREPRESIÓN DIALIZANTE", "rojo", "dialyDialyPumpOverPress"),    # 57
+                ("Sobrepresión Bomba Deaeración", "SOBREPRESIÓN DEAERACIÓN", "rojo", "dialyDeaerPumpOverPress"),    # 58
                 ("Disponible para Función Digital 18", "RESERVA 18", "cian", "availableBoolVariable14"),    # 59
             ], start=0)}
     },

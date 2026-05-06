@@ -36,6 +36,8 @@ Dependencias:
 
 from PySide6.QtWidgets import QWidget, QGridLayout, QFrame, QLabel, QPushButton
 from PySide6.QtCore import Qt
+import logging
+logger = logging.getLogger(__name__)
 
 
 class OptionsScreen(QWidget):
@@ -102,6 +104,7 @@ class OptionsScreen(QWidget):
             buttons_layout.addWidget(btn, row, col)
 
         layout.addWidget(buttons_frame, 1, 0, 4, 4)
+        logger.info("OptionsScreen UI setup complete with service options buttons.")
 
     def update_values(self, new_values: dict):
         """Method to receive updated values, for consistency."""

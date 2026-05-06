@@ -46,6 +46,9 @@ from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QMessageBox
 from gui.components.ToggleSwitch import ToggleSwitch
+import logging
+logger = logging.getLogger(__name__)
+
 
 class ToggleBox(QFrame):
     """
@@ -90,6 +93,7 @@ class ToggleBox(QFrame):
         layout.addWidget(lbl_info)
         layout.addStretch()
         layout.addWidget(self.toggle)
+        
 
 
 

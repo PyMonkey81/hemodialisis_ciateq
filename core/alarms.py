@@ -8,6 +8,9 @@ from typing import List, Tuple, Optional
 from PySide6.QtCore import QObject, Signal
 
 from core.alarm_config_manager import AlarmConfigManager
+import logging
+logger = logging.getLogger(__name__)
+
 
 try:
     from core.variables_map import VARIABLES
@@ -54,7 +57,7 @@ class AlarmSystem(QObject):
         # Cargar la configuración inicial
         self._rebuild_internal_config()
         if self.alarm_count == 0:
-            print("[WARNING] AlarmSystem: No hay variables de alarma habilitadas al inicio.")
+            logger.warning("AlarmSystem: No hay variables de alarma habilitadas al inicio.")
 
     def _find_variable_info(self, tag: str) -> dict:
         """Busca información de una variable en el mapa VARIABLES"""

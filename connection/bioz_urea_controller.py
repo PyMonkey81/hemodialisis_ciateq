@@ -77,14 +77,15 @@ import serial.tools.list_ports
 import threading
 import time
 import re
-import logging # Importar logging
+import logging
+logger = logging.getLogger(__name__)
 
 from queue import Queue, Empty
 from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 
-logger = logging.getLogger(__name__) # Inicializar el logger
+
 
 class BiozUreaController(QObject):
     """

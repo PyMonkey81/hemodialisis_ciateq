@@ -66,14 +66,16 @@ import serial.tools.list_ports
 import threading
 import time
 import re # Usaremos regex también aquí por si acaso, aunque el parseo es más simple
-import logging # Importar logging
+import logging
+logger = logging.getLogger(__name__)
+
 
 from queue import Queue, Empty
 from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 
-logger = logging.getLogger(__name__) # Inicializar el logger
+
 
 READ_COMMAND = bytes.fromhex("5641 4C41 520D")  # b'VALAR\r'
 # EXPECTED_MINIMUM_SIZE = 30 # No se usa directamente, se puede omitir si no tiene un propósito

@@ -48,6 +48,8 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 
 from core.variables_map import VARIABLES
+import logging
+logger = logging.getLogger(__name__)
 
 
 class AlarmLimitsManager:
@@ -75,6 +77,7 @@ class AlarmLimitsManager:
                     tag = info.get("tag")
                     if tag:
                         self.defaults[tag] = info["limites"]
+                        
 
     def _load_from_file(self):
         if not self.config_path.exists():
@@ -88,7 +91,7 @@ class AlarmLimitsManager:
                     if tag in self.defaults:  
                         self.limits[tag] = (float(minv), float(maxv))
         except Exception as e:
-            print(f"Error cargando límites: {e}. Usando defaults.")
+            logger.error(f"Error cargando límites: {e}. Usando defaults.")
 
     def save(self):
         """Guarda solo los límites que se han personalizado"""
@@ -96,6 +99,7 @@ class AlarmLimitsManager:
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
         with self.config_path.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+            logger.debug(f"Límites de alarma guardados en {self.config_path}")
 
     def get_limits(self, tag: str) -> Tuple[float, float]:
         """Devuelve límites personalizados o por defecto"""
@@ -112,7 +116,9 @@ class AlarmLimitsManager:
             self.limits.pop(tag, None)
         else:
             self.limits.clear()
+            logger.info("Todos los límites de alarma han sido restablecidos a los valores por defecto.")
         self.save()
+        logger.info(f"Límite(s) de alarma restablecido(s) a valores por defecto: {tag if tag else 'todos'}")    
     
     
     

@@ -7,9 +7,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
-from gui.components.ui_components import show_dark_message
+from gui.components.floating_message import FloatingMessage
+
 from core.alarm_config_manager import AlarmConfigManager
 from typing import Dict
+import logging
+logger = logging.getLogger(__name__)
 
 try:
     from core.variables_map import VARIABLES
@@ -147,21 +150,6 @@ class AlarmScreenServiceConfig(QWidget):
         btn_layout.addWidget(btn_save)
         main_layout.addLayout(btn_layout)
 
-    # def save_enabled(self):
-    #     count_enabled = 0
-    #     for tag, chk in self.checkboxes.items():
-    #         self.config_manager.set_enabled(tag, chk.isChecked())
-    #         if chk.isChecked():
-    #             count_enabled += 1
-
-    #     show_dark_message(
-    #         self, 
-    #         "Éxito", 
-    #         f"Configuración guardada correctamente.\n\n"
-    #         f"{count_enabled} variables habilitadas como alarmas.\n"
-    #         f"Las alarmas de usuario se actualizarán con estas variables.",
-    #         icon=QMessageBox.Information
-    #     )
 
     def save_enabled(self):
         enabled_count = 0
@@ -171,16 +159,10 @@ class AlarmScreenServiceConfig(QWidget):
                 enabled_count += 1
     
         self.config_manager.save_config()
+        logger.info(f"Configuración de alarmas guardada. {enabled_count} variables habilitadas como alarmas.")
 
-        show_dark_message(
-            self, 
-            "Éxito", 
-            f"Configuración guardada correctamente.\n\n"
-            f"{enabled_count} variables habilitadas como alarmas.\n"
-            "La pantalla del usuario se ha actualizado.",
-            icon=QMessageBox.Information
-        )
 
+        self.show_success_message(f"Configuración guardada. {enabled_count} alarmas habilitadas.", 3500)
         # 1. Recargar automáticamente la pantalla del Operador
         if self.parent_window is not None and hasattr(self.parent_window, 'alarm_config_limits_screen'):
             # Llamar al método refresh_ui en la instancia de la pantalla del operador
@@ -189,6 +171,34 @@ class AlarmScreenServiceConfig(QWidget):
         # 2. Informar al AlarmSystem en HemodialysisHMI para que recargue su configuración de monitoreo
         if self.parent_window is not None and hasattr(self.parent_window, 'update_alarm_system_monitor_config'):
             self.parent_window.update_alarm_system_monitor_config()
+
+    def show_floating_message(self, text: str, timeout_ms: int = 3800):
+        """Método genérico (recomendado)"""
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        
+        self._floating_msg.show_floating_message(text, timeout_ms)
+
+    # Métodos específicos (más semánticos)
+    def show_success_message(self, text: str, timeout_ms: int = 4000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_success_message(text, timeout_ms)
+
+    def show_info_message(self, text: str, timeout_ms: int = 3800):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_info_message(text, timeout_ms)
+
+    def show_warning_message(self, text: str, timeout_ms: int = 4500):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_warning_message(text, timeout_ms)
+    
+    def show_error_message(self, text: str, timeout_ms: int = 5000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_error_message(text, timeout_ms)
 
     def showEvent(self, event):
         super().showEvent(event)

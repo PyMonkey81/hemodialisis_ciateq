@@ -8,24 +8,13 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from gui.components.ui_components import ClickableLineEdit
 from gui.components.numpad_modal import NumpadDialog
-from gui.components.ui_components import show_dark_message
+from gui.components.floating_message import FloatingMessage
+from gui.components.floating_confirm import FloatingConfirmDialog
 from core.alarm_config_manager import AlarmConfigManager
 from typing import Dict
 import logging
-from logging.handlers import RotatingFileHandler
-
-
-log_file = "app.log"
-max_log_size = 5 * 1024 * 1024  # 5 MB
-backup_count = 2
-
-handler = RotatingFileHandler(log_file, maxBytes=max_log_size, backupCount=backup_count)
-formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-handler.setFormatter(formatter)
-
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(handler)
+
 
 try:
     from core.variables_map import VARIABLES
@@ -205,7 +194,34 @@ class AlarmScreenConfig(QWidget):
             line_edit.setText(f"{val:.1f}")
             # line_edit.setText(" ")
 
+    def show_floating_message(self, text: str, timeout_ms: int = 3800):
+        """Método genérico (recomendado)"""
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        
+        self._floating_msg.show_floating_message(text, timeout_ms)
 
+    # Métodos específicos (más semánticos)
+    def show_success_message(self, text: str, timeout_ms: int = 2000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_success_message(text, timeout_ms)
+
+    def show_info_message(self, text: str, timeout_ms: int = 2000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_info_message(text, timeout_ms)
+
+    def show_warning_message(self, text: str, timeout_ms: int = 2000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_warning_message(text, timeout_ms)
+
+    def show_error_message(self, text: str, timeout_ms: int = 3000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_error_message(text, timeout_ms)
+        
     def save_configuration(self):
         for tag, widgets in self.inputs.items():
             try:
@@ -218,33 +234,26 @@ class AlarmScreenConfig(QWidget):
                     max_v = float(widgets['max'].text())
 
                     if min_v >= max_v:
-                        show_dark_message(self, "Error", 
-                                        f"Límite inferior debe ser menor que el superior para {tag}.", 
-                                        icon=QMessageBox.Warning)
+                        
+                        self.show_warning_message("Límite inferior debe ser menor que el superior.", timeout_ms=2000)
                         return
 
                     self.config_manager.set_limits(tag, min_v, max_v)
 
             except ValueError:
-                show_dark_message(self, "Error", 
-                                f"Valor inválido en {tag}.", 
-                                icon=QMessageBox.Warning)
+                self.show_error_message(f"Valor inválido en {tag}.", timeout_ms=3000)
                 return
         self.config_manager.save_config()
-        show_dark_message(self, "Éxito", 
-                         "Configuración de alarmas guardada correctamente.", 
-                         icon=QMessageBox.Information)
+        self.show_success_message("Configuración de alarmas guardada correctamente.", timeout_ms=2000)
 
     def restore_all_defaults(self):
-        reply = show_dark_message(
-            self,
-            "Confirmar Restauración",
-            "¿Está seguro de que desea restaurar TODOS los límites y niveles de alarma a sus valores por defecto?\n"
-            "Esta acción no se puede deshacer.",
-            icon=QMessageBox.Question,
-            buttons=QMessageBox.Yes | QMessageBox.No
-        )
-        if reply == QMessageBox.No:
+        dialog = FloatingConfirmDialog(self)
+      
+        mensaje = "Confirmar Restauración\n\n¿Está seguro de que desea restaurar TODOS los límites y niveles de alarma a sus valores por defecto?\nEsta acción no se puede deshacer."
+        
+        reply = dialog.show_confirm(mensaje, accept_text="Sí, Restaurar", cancel_text="Cancelar")
+
+        if reply == False:
             return
 
         for tag, widgets in self.inputs.items():
@@ -263,10 +272,8 @@ class AlarmScreenConfig(QWidget):
         # Guardar todos los cambios al archivo JSON
         self.config_manager.save_config()
         
-        show_dark_message(self, "Restaurado", 
-                         "Todos los límites y niveles han sido restaurados a sus valores por defecto.", 
-                         icon=QMessageBox.Information)
-        
+        self.show_info_message("Todos los límites y niveles han sido restaurados a sus valores por defecto.", timeout_ms=2000)
+
     def clear_layout(self, layout):
         if layout is not None:
             while layout.count():

@@ -40,7 +40,7 @@ Dependencias:
 - `PySide6`: Para la construcción de la interfaz gráfica de usuario.
 - `gui.components.numpad_modal.NumpadDialog`: Diálogo para la entrada de números.
 - `gui.components.keyboard_modal.KeyboardDialog`: Diálogo para la entrada de texto.
-- `gui.components.ui_components.show_dark_message`: Función para mostrar mensajes de alerta/información.
+
 - `core.variables_map.VARIABLES`: usado para definir rangos de validación
   y mapeo de datos con el controlador.
 """
@@ -55,8 +55,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator, QIntValidator
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.keyboard_modal import KeyboardDialog
-from gui.components.ui_components import show_dark_message
+from gui.components.floating_confirm import FloatingConfirmDialog   
+from gui.components.floating_message import FloatingMessage
 from core.variables_map import VARIABLES
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PatientConfigScreen(QWidget):
@@ -288,7 +291,7 @@ class PatientConfigScreen(QWidget):
         add_field("Altura (cm):", "height_cm", validator=QDoubleValidator(100.0, 250.0, 1))
         add_field("Peso seco (kg):", "dry_weight_kg", validator=QDoubleValidator(30.0, 150.0, 1))
         add_field("Peso pre-diálisis (kg):", "pre_dialysis_weight_kg", validator=QDoubleValidator(30.0, 200.0, 1)) # Aumentado max weight
-
+        logger.debug("Campos del formulario creados: " + ", ".join(self.fields.keys()))
         self.form_group.setLayout(self.form_layout)
         self.form_group.hide() # Inicialmente oculto
         content_layout.addWidget(self.form_group) # Añadimos al layout de contenido
@@ -364,9 +367,8 @@ class PatientConfigScreen(QWidget):
                 if state == QDoubleValidator.Acceptable or state == QIntValidator.Acceptable:
                     input_widget.setText(new_value_as_str) # Actualiza el QLineEdit con la string válida
                 else:
-                    show_dark_message(self, "Valor Inválido", 
-                                        f"El valor '{new_value_as_str}' no es válido para este campo o está incompleto.",
-                                        icon=QMessageBox.warning)
+                    
+                    self.show_info_message(f"El valor '{new_value_as_str}' no es válido para este campo o está incompleto.", 2000)
                     
                     return # No actualizar si la validación falla
             else: # No hay validador, aceptar el texto directamente
@@ -404,11 +406,12 @@ class PatientConfigScreen(QWidget):
         dialog = KeyboardDialog(self, title="Ingrese ID del nuevo paciente")
         if dialog.exec():
             pid = dialog.get_value().strip().upper()
-            if not pid:
-                show_dark_message(self, "Error", "El ID no puede estar vacío.",icon=QMessageBox.warning)
+            if not pid:                
+                self.show_warning_message("Intento de crear paciente con ID vacío.")
                 return
             if pid in self.patients_db:
-                show_dark_message(self, "Error", f"El ID '{pid}' ya existe.",icon=QMessageBox.warning)
+                
+                self.show_warning_message(f"El ID '{pid}' ya existe.", 2000)
                 return
 
             new_patient = {
@@ -491,13 +494,14 @@ class PatientConfigScreen(QWidget):
 
         # Validaciones
         if not data.get("patient_id"):
-            show_dark_message(self, "Error", "ID del paciente es obligatorio.",icon=QMessageBox.warning)
+            
+            self.show_warning_message("ID del paciente es obligatorio.", 2000)
             return
         if not data.get("patient_name"):
-            show_dark_message(self, "Error", "El nombre es obligatorio.",icon=QMessageBox.warning)
+            self.show_warning_message("El nombre es obligatorio.", 2000)
             return
         if data.get("patient_gender") not in [1, 2]:
-            show_dark_message(self, "Error", "Seleccione el género.",icon=QMessageBox.warning)
+            self.show_warning_message("Seleccione el género.", 2000)
             return
 
         # Validaciones de rango usando el mapa
@@ -510,12 +514,7 @@ class PatientConfigScreen(QWidget):
                     min_val, max_val = limites
                     value = data[tag]
                     if isinstance(value, (int, float)) and not (min_val <= value <= max_val):
-                        show_dark_message(
-                            self,
-                            "Error",
-                            f"{var['label']} debe estar entre {min_val} y {max_val} {var['unit']}.",
-                            icon=QMessageBox.Warning
-                        )
+                        self.show_warning_message(f"{var['label']} debe estar entre {min_val} y {max_val} {var['unit']}.", 2000)
 
         # Calcular UF goal
         pre_weight = data.get("patient_pre_weight_kg", 0.0)  # nota: clave corregida
@@ -536,13 +535,7 @@ class PatientConfigScreen(QWidget):
 
         self._refresh_patient_list()
         
-        show_dark_message(
-            self,
-            "Guardado Exitoso",
-            f"Paciente '{data.get('patient_name', '—')}' guardado correctamente."
-            f"Objetivo de Ultrafiltración: {data['uf_goal_liters']:.2f} L",
-            icon=QMessageBox.Information
-            )
+        self.show_success_message(f"Paciente '{data.get('patient_name', '—')}' guardado. UF Goal: {data['uf_goal_liters']:.2f} L", 2000)
 
 
         if hasattr(self.parent_window, 'dialysis_screen'):
@@ -590,3 +583,31 @@ class PatientConfigScreen(QWidget):
 
         if writes:
             print("[INFO] Pendientes de escritura a máquina:", writes)
+
+    def show_floating_message(self, text: str, timeout_ms: int = 3800):
+        """Método genérico (recomendado)"""
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        
+        self._floating_msg.show_floating_message(text, timeout_ms)
+
+    # Métodos específicos (más semánticos)
+    def show_success_message(self, text: str, timeout_ms: int = 2000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_success_message(text, timeout_ms)
+
+    def show_info_message(self, text: str, timeout_ms: int = 2000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_info_message(text, timeout_ms)
+
+    def show_warning_message(self, text: str, timeout_ms: int = 2000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_warning_message(text, timeout_ms)
+
+    def show_error_message(self, text: str, timeout_ms: int = 3000):
+        if not hasattr(self, '_floating_msg') or self._floating_msg is None:
+            self._floating_msg = FloatingMessage(self)
+        self._floating_msg.show_error_message(text, timeout_ms)

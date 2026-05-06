@@ -76,7 +76,6 @@ que el `HemodialysisHMI` conecte sus señales `request_setpoint_change` y
 
 
 
-import logging
 from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QSizePolicy, QCheckBox, QDialog
 from PySide6.QtCore import Qt, QTimer, QDateTime, QEvent, Signal
 from PySide6.QtGui import QColor
@@ -87,6 +86,8 @@ from gui.components.ToggleSwitch import ToggleSwitch
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit, LabeledParameterWidget, LabeledTimeInput
+import logging
+logger = logging.getLogger(__name__)
 
 from core.variables_map import VARIABLES
 from logic.calculos import (
@@ -96,7 +97,7 @@ from logic.calculos import (
     convertir_ml_min_a_litros_h
 )
 
-logger = logging.getLogger(__name__)
+
 
 class PushbuttonEvent(QPushButton):
     """
@@ -1030,27 +1031,11 @@ class ManualModeScreen(QWidget):
                 card.toggle.setChecked(new_state)
                 card.toggle.blockSignals(False)
 
-        # if "balanceChamberSetTiming" not in self.write_hold_off or \
-        #     current_ms >= self.write_hold_off["balanceChamberSetTiming"]:
-        #     cycles = self.current_values.get("balanceChamberSetTiming", 0.0)
-        #     try:
-        #         flow_ml_min = convertir_ciclos_a_flujo(cycles)
-        #         self._update_input_display(self.input_flow_cb, flow_ml_min, precision=1) 
-        #     except Exception as e:
-        #         logger.error(f"Error converting CB flow: {e}")
-        #         self._update_input_display(self.input_flow_cb, 0.0, precision=1)
+     
         self._update_input_display(self.input_flow_cb, self.current_values.get("balanceChamberSetTiming", 0.0)) 
         self._update_input_display(self.lbl_input_indUF, self.current_values.get("ultraFilterPumpSpeed", 0.0))
 
-        # if "ultraFilterPumpSpeed" not in self.write_hold_off or \
-        #    current_ms >= self.write_hold_off["ultraFilterPumpSpeed"]:
-        #     uf_ml_min = self.current_values.get("ultraFilterPumpSpeed", 0.0)
-        #     try:
-        #         uf_lh = convertir_ml_min_a_litros_h(uf_ml_min)
-        #         self._update_input_display(self.lbl_input_indUF, uf_lh, precision=1) 
-        #     except Exception as e:
-        #         logger.error(f"Error converting UF flow: {e}")
-        #         self._update_input_display(self.lbl_input_indUF, 0.0, precision=1)
+    
 
         self._update_input_display(self.blood_flow_input, self.current_values.get("bloodFlowControlSetPoint", 0.0))
         self._update_input_display(self.input_heparin, self.current_values.get("heparineTherapyDosage", 0.0))

@@ -43,19 +43,8 @@ import csv
 import os
 from datetime import datetime
 import logging
-from logging.handlers import RotatingFileHandler
-
-log_file = "app.log"
-max_log_size = 5 * 1024 * 1024  # 5 MB
-backup_count = 2
-
-handler = RotatingFileHandler(log_file, maxBytes=max_log_size, backupCount=backup_count)
-formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-handler.setFormatter(formatter)
-
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(handler)
+
 
 
 class CsvLogger:

@@ -58,7 +58,6 @@ método que envíe los comandos al controlador serial.
 """
 
 
-import logging
 from PySide6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QGridLayout, QHBoxLayout,
     QLabel, QPushButton, QMessageBox, QSizePolicy
@@ -73,6 +72,9 @@ from core.variables_map import VARIABLES
 from gui.components.LED import LED
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.ui_components import ClickableLineEdit, DoubleToggleBox, LabeledParameterWidget
+import logging
+logger = logging.getLogger(__name__)
+
 
 from logic.calculos import (
     convertir_flujo_a_ciclos,
@@ -82,7 +84,7 @@ from logic.calculos import (
     calculo_ptm
 )
 
-logger = logging.getLogger(__name__)
+
 
 
 class TestPanelScreen(QWidget):

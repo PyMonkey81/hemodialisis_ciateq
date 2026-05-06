@@ -59,6 +59,9 @@ import threading
 import time
 from queue import Queue, Empty
 from PySide6.QtCore import QObject
+import logging
+logger = logging.getLogger(__name__)
+
 
 class LedBarController(QObject):
     """
@@ -105,6 +108,7 @@ class LedBarController(QObject):
         self.running = True
         self.write_thread = threading.Thread(target=self._process_loop, daemon=True)
         self.write_thread.start()
+        logger.info("LedBarController: Hilo de comunicación iniciado.")
 
     def send_state(self, led_command: bytes, silence_buzzer: bool = False):
         """
@@ -144,6 +148,7 @@ class LedBarController(QObject):
             self.write_thread.join(timeout=1.0)
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.close()
+            logger.info("LedBarController: Puerto serial cerrado.")
 
     def _connect(self):
         """Intenta conectar al puerto serial de la barra LED."""
@@ -167,11 +172,12 @@ class LedBarController(QObject):
         if target_port:
             try:
                 self.serial_port = serial.Serial(target_port, self.baudrate, timeout=1)
+                logger.info(f"[LED BAR] Conectado en {target_port}")
                 print(f"[LED BAR] Conectado en {target_port}")
                 time.sleep(2)
                 return True
             except Exception as e:
-                print(f"[LED BAR] Error al conectar {target_port}: {e}")
+                logger.error(f"[LED BAR] Error al conectar {target_port}: {e}")
         return False
 
     def _process_loop(self):
@@ -193,6 +199,6 @@ class LedBarController(QObject):
             except Empty:
                 pass
             except Exception as e:
-                print(f"[LED BAR] Error de escritura: {e}")
+                logger.error(f"[LED BAR] Error de escritura: {e}")
                 self.serial_port = None
 

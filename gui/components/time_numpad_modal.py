@@ -40,6 +40,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 class TimeDisplayEdit(QLineEdit):

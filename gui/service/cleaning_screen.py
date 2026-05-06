@@ -61,12 +61,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont
 import logging
+logger = logging.getLogger(__name__)
+
 try:
     from core.variables_map import VARIABLES
 except ImportError:
     VARIABLES = {0x01: {}, 0x02: {}}
 
-logger = logging.getLogger(__name__)
 
 class CleaningScreen(QWidget):
     """

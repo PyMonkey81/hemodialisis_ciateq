@@ -4,16 +4,17 @@ Pantalla de Mantenimiento Preventivo
 Incluye: Power On Hours y Horas de Operación en Tratamiento
 """
 
-import logging
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QFrame, 
     QMessageBox, QHBoxLayout
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from gui.components.ui_components import show_dark_message
 
+from gui.components.floating_confirm import FloatingConfirmDialog
+import logging
 logger = logging.getLogger(__name__)
+
 
 class MaintenanceScreen(QWidget):
     def __init__(self, parent=None):
@@ -107,7 +108,7 @@ class MaintenanceScreen(QWidget):
         # Si no lo tienes, deberías crearlo.
         self.op_value.setText(f"{hours:02d}:{minutes:02d} hh:mm") # CAMBIO: :02d para formato HH:MM
 
-
+    
 
     def reset_power_on_hours(self):
         if self._confirm_reset("Power On Hours"):
@@ -126,7 +127,11 @@ class MaintenanceScreen(QWidget):
                 logger.warning("Horas de Operación en Tratamiento fueron reseteadas por técnico")
 
     def _confirm_reset(self, counter_name: str) -> bool:
-  
-        reply = show_dark_message(self, "Confirmación Crítica", f"¿Resetear {counter_name}?" "Esta acción es irreversible.\n\nEscribe 'RESET' si estás seguro.", icon=QMessageBox.Question, buttons=QMessageBox.Yes | QMessageBox.No)
-       
-        return reply == QMessageBox.Yes
+        dialog = FloatingConfirmDialog(self)
+        
+        mensaje = f"""¿Estás seguro de resetear {counter_name}?
+                Esta acción es irreversible.
+                Presiona 'RESET' si estás completamente seguro."""
+
+        
+        return dialog.show_confirm(mensaje, accept_text="Sí, Resetear", cancel_text="Cancelar")
