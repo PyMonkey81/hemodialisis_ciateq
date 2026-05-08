@@ -42,9 +42,7 @@ class FloatingMessage(QLabel):
         self.setFixedWidth(1000)
         
 
-        # parent_rect = self.parent().rect()
-        # x = (parent_rect.width() - self.width()) // 2
-        # y = (parent_rect.height() - self.height()) // 2 - 80
+      
 
         # self.move(x, y)
         if self.parent():

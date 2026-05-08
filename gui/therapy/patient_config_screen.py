@@ -332,8 +332,6 @@ class PatientConfigScreen(QWidget):
         Actualiza widget y current_values al aceptar.
 
         """
-
-
         current_text = input_widget.text().strip() if hasattr(input_widget, 'text') else ""
 
         title_map = {
@@ -347,7 +345,7 @@ class PatientConfigScreen(QWidget):
         title = title_map.get(field_key, "Ingrese valor")
 
         if mode == 'numeric':
-            dialog = NumpadDialog(self, initial_value=current_text, title=title)
+            dialog = NumpadDialog(self,  title=title)
         else: # mode == 'text'
             dialog = KeyboardDialog(self, initial_text=current_text, title=title)
 

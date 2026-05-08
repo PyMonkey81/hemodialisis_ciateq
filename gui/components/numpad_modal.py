@@ -156,7 +156,7 @@ class NumpadDialog(QDialog):
                 font-weight: bold;
                 background-color: {colors['title_bg']};
                 padding: 12px;
-                border-bottom: 2px solid {colors['dialog_border']};
+                border: 2px solid {colors['dialog_border']};
             }}
         """)
 

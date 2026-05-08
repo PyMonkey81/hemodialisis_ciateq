@@ -1487,6 +1487,8 @@ class HemodialysisHMI(QMainWindow):
         4. Capturar conductividades t2
         5. Calcular Kt/V con fórmula de Heitmann
         """
+        self.current_values["ktv_projectado"] = 0.0
+        self.current_values["ktv_acumulado"] = 0.0
         if not hasattr(self, 'bioz_urea_controller') or not self.bioz_urea_controller:
             logger.warning("Controlador BioZ/Urea no disponible, omitiendo medición Kt/V")
             return

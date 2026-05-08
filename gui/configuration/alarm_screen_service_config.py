@@ -85,7 +85,7 @@ class AlarmScreenServiceConfig(QWidget):
         grid.setColumnStretch(1, 1)   # Hace que la columna de nombre ocupe el espacio restante
 
         # Encabezados
-        headers = ["Habilitar", "Variable"]
+        headers = ["Habilitar", "Señal de control (Variable)"]
         for col, text in enumerate(headers):
             lbl = QLabel(text)
             lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #7f8c8d; padding-bottom: 8px;")
@@ -105,7 +105,7 @@ class AlarmScreenServiceConfig(QWidget):
                     chk.setMinimumHeight(32)
                     chk.setStyleSheet("""
                         QCheckBox { color: #000000; font-size: 26px;  border: 2px solid #000000; border-radius: 6px; padding: 4px; }
-                        QCheckBox::indicator { width: 35px; height: 35px; }
+                        QCheckBox::indicator { width: 25px; height: 25px; }
                     """)
                     self.checkboxes[tag] = chk
 

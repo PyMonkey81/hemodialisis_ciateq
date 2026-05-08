@@ -324,7 +324,7 @@ class CleaningScreen(QWidget):
 
         # Lógica de Estados
         # 6 = INFUSION (Listo para limpieza)
-        if status_code == 6:
+        if status_code == 7:
             if not self.start_button.isEnabled():
                 self.start_button.setEnabled(True)
                 set_enabled_style(self.start_button)
