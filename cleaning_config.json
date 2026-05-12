@@ -1,0 +1,21 @@
+{
+    "modes": {
+        "0.0": {
+            "time_hours": 0,
+            "time_minutes": 15,
+            "mode_name": "Corta"
+        },
+        "1.0": {
+            "time_hours": 0,
+            "time_minutes": 20,
+            "mode_name": "Larga"
+        }
+    },
+    "last_active_mode_value": 1.0,
+    "last_active_mode_tag": "DesinftectionMode",
+    "mode_value": 1.0,
+    "mode_name": "Larga",
+    "mode_tag": "DesinftectionMode",
+    "time_hours": 0,
+    "time_minutes": 50
+}

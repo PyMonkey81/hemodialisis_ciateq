@@ -276,6 +276,13 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x01: {"name": "pattern temperature sensor", "label": "PATTERN_TEMPERATURE", "type": "double", "rw": True, "units": "°C","limites": (0, 100), "tag": "patternTempSensor", "nivel":"cian"},
         0x02: {"name": "pattern conductivity raw","label": "PATTERN_CONDUCTIVITY_RAW","type": "double","rw": True,"units": "mS/cm","limites": (0, 50), "tag": "patternCondRaw","nivel": "cian","value": 0.0,"description": "Conductividad sin compensación de temperatura (debug/calibración)" },
     },
+    0x0A: {
+        0x00: {"name": "Desinfection Mode", "label": "DESINFECTION_MODE", "type": "int", "rw": True, "units": "", "limites": None, "tag": "DesinftectionMode", "nivel": "cian"},
+        0x01: {"name": "Desinfection mode 1 time hours", "label": "DT_HOURS", "type": "int", "rw":True, "units": None, "tag": "desinfection1TimeHours", "nivel": "cian"},
+        0x02: {"name": "Desinfection mode 1 time minuts", "label": "DT_MIN", "type": "int", "rw": True, "units": None, "tag": "desinfection1TimeMin", "nivel": "cian"},
+        0x03: {"name": "Desinfection mode 2 time hours", "label": "DT_HOURS", "type": "int", "rw":True, "units": None, "tag": "desinfection2TimeHours", "nivel": "cian"},
+        0x04: {"name": "Desinfection mofr 2 time minuts", "label": "DT_MIN", "type": "int", "rw": True, "units": None, "tag": "desinfection2TimeMin", "nivel": "cian"},
+    }
 }
 
 # ================================================================
@@ -306,7 +313,8 @@ TVAR_TO_GROUP = {
     0x06: "Calibración",
     0x07: "Bioimpedancia y Urea",
     0x08: "Datos del paciente",
-    0x09: "Sensor patron de conductividad"
+    0x09: "Sensor patron de conductividad",
+    0x0A: "Modo de desinfección"
 }
 
 

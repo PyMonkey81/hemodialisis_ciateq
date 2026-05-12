@@ -126,7 +126,7 @@ class TreatmentModeScreen(QWidget):
         self.style_mode_unchecked = """
             QPushButton {
                 background: #3b82f6;
-                color: white;
+                color: #ffffff;
                 font-size: 26px;
                 font-weight: bold;
                 border-radius: 12px;

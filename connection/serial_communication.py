@@ -64,7 +64,8 @@ Uso:
     el puerto serial y finalizar el hilo de comunicación de forma segura.
 """
 
-
+import platform
+import sys
 import serial
 import serial.tools.list_ports
 import threading
@@ -111,20 +112,39 @@ class SerialCommunication(QObject):
         self.last_successful_communication = time.time()
 
     def connect(self) -> bool:
-        """Attempt to connect to an FTDI USB-serial device."""
+        """Attempt to connect to an FTDI USB-serial device, distinguishing between Windows and Linux."""
+        current_os = platform.system()
+        logger.info(f"Detecting OS: {current_os}")
+
         for port_info in serial.tools.list_ports.comports():
-            if port_info.manufacturer and "FTDI" in port_info.manufacturer.upper():
+            is_ftdi = port_info.manufacturer and "FTDI" in port_info.manufacturer.upper()
+            # if port_info.manufacturer and "FTDI" in port_info.manufacturer.upper():
+            if is_ftdi:
                 try:
+
+                    if current_os == "Windows":
+                        logger.info(f"Attempting to connect to FTDI device on Windows: {port_info.device}")
+                        port_name = port_info.device
+                    else:  # Linux
+                        logger.info(f"Attempting to connect to FTDI device on Linux: {port_info.device}")
+                        port_name = port_info.device
+
                     self.serial_port = serial.Serial(
-                        port=port_info.device,
+                        # port=port_info.device,
+                        port=port_name,
                         baudrate=115200,
                         timeout=1.0,
                         write_timeout=0.5
                     )
+                    #Ajustes para evitar resets automáticos en Linux con FTDI
+                    if current_os != "Windows":
+                        self.serial_port.dtr = False  # Ensure DTR is low to prevent auto-reset on some FTDI devices
+                        self.serial_port.rts = False  # Ensure RTS is low as well
+
                     time.sleep(1.5)  # Allow time for device stabilization
                     self.is_connected = True
-                    logger.info(f"[CONNECTED] Port: {port_info.device}")
-                    print(f"[CONNECTED] Port: {port_info.device}")
+                    logger.info(f"[CONNECTED] OS: {current_os} | Port: {port_info.device}")
+                    print(f"[CONNECTED] OS: {current_os} | Port: {port_info.device}") 
                     return True
                 except Exception as e:
                     logger.error(f"[ERROR] Failed to open port {port_info.device}: {e}")

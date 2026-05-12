@@ -84,6 +84,7 @@ from gui.components.floating_message import FloatingMessage
 from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.configuration.alarm_screen_config import AlarmScreenConfig 
 from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
+from gui.configuration.cleanning_config_screen import CleanningConfigScreen
 
 from gui.service.manual_mode_screen import ManualModeScreen
 from gui.service.test_panel_screen import TestPanelScreen
@@ -343,7 +344,7 @@ class HemodialysisHMI(QMainWindow):
 
         self.maintenance_screen = MaintenanceScreen(parent=self)  # PANTALLA NUEVA DE MANTENIMIENTO 
 
-
+        self._cleanning_config_screen = CleanningConfigScreen(parent=self)
 
         # # Therapy sub-screens
         self.patient_config_screen = PatientConfigScreen(parent=self)
@@ -372,6 +373,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.maintenance_screen)            # 14
         self.screen_stack.addWidget(self.alarm_config_limits_screen)          # 15  se accede desde el menu de alarmas para configurar los limites de cada variable y su severidad. Esta pantalla reemplaza a la antigua AlarmLimitsConfigDialog, integrando la configuración de alarmas dentro del flujo principal de la aplicación.
         self.screen_stack.addWidget(self.alarm_service_screen_config)          # 16  se accede desde el menu de servicio técnico para configurar los limites de cada variable y su severidad. Esta pantalla es similar a la de configuración de alarmas pero con un enfoque específico para el servicio técnico, permitiendo ajustes avanzados que no están disponibles para el operador.
+        self.screen_stack.addWidget(self._cleanning_config_screen)             # 17 configuración de modos de limpieza/desinfeccion      
 
         self.comm_port_screen.emit_current_configurations() # carga la configuracion de las puertos COM
 
@@ -819,6 +821,8 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.cleaning_screen)
         if hasattr(self.cleaning_screen, "update_values"):
             self.cleaning_screen.update_values(self.current_values)
+        if hasattr(self.cleaning_screen, '_load_initial_config_on_startup'):
+            self.cleaning_screen._load_initial_config_on_startup()        
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Limpieza")
@@ -907,6 +911,16 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.alarm_service_screen_config)
         self.left_content.show()
         self.right_content.show()
+        self._highlight_active_nav_button("Servicio")
+    
+    def show_cleanning_config_screen(self):
+        self.screen_stack.setCurrentWidget(self._cleanning_config_screen)
+        self.left_content.show()
+        self.right_content.show()
+        if hasattr(self._cleanning_config_screen, '_load_config_for_display'):
+            self._cleanning_config_screen._load_config_for_display()        
+        
+
         self._highlight_active_nav_button("Servicio")
 
     # ────────────────────────────────────────────────
@@ -1442,13 +1456,7 @@ class HemodialysisHMI(QMainWindow):
             self.led_bar.send_state(cmd, silence_buzzer=silence)
         else:
             self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID, silence_buzzer=False)
-    
-    # def show_floating_message(self, text: str, timeout_ms: int = 3800, position: str = "center"):
-    #     """Método para mostrar mensaje flotante """
-    #     if not hasattr(self, '_floating_msg') or self._floating_msg is None:
-    #         self._floating_msg = FloatingMessage(self)
-        
-    #     self._floating_msg.show_message(text, timeout_ms, position)
+
 
     def show_floating_message(self, text: str, timeout_ms: int = 3800):
         """Método genérico (recomendado)"""
@@ -1956,7 +1964,8 @@ class HemodialysisHMI(QMainWindow):
         except Exception as e:
             logger.error(f"Error cargando Power On Hours: {e}")
             self.power_on_hours = 0.0
-
+                
+            
     def _save_power_on_hours(self):
         """Guarda las horas de Power On de forma persistente"""
         try:

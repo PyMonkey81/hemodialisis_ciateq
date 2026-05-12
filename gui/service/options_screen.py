@@ -87,7 +87,8 @@ class OptionsScreen(QWidget):
             ("Monitor de variables",    "#3134df", self.parent_window.show_real_time_var_screen),
             ("Configuración\n Puertos COM", "#3134df", self.parent_window.show_config_comm_screen),
             ("Mantenimiento\n Preventivo", "#3134df", self.parent_window.show_maintenance_screen),
-            ("Configuración de Alarmas\n Servicio Técnico", "#3134df", self.parent_window.show_alarm_service_screen_config)
+            ("Configuración de Alarmas\n Servicio Técnico", "#3134df", self.parent_window.show_alarm_service_screen_config),
+            ("Configuración de modos \n de desinfección", "#3134df", self.parent_window.show_cleanning_config_screen)
         ]
 
         for i, (text, color, callback) in enumerate(options):
