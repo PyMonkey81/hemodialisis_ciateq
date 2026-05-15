@@ -53,7 +53,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from pyqtgraph import colors
+from gui.components.floating_message import FloatingMessage
+# from pyqtgraph import colors
 
 
 class NumpadDialog(QDialog):
@@ -97,7 +98,7 @@ class NumpadDialog(QDialog):
             "backspace_bg": "#fca5a5",
             "backspace_color": "#7f1d1d",
             "backspace_hover": "#f87171",
-            "backspace_pressed": "#ef4444",  # ← AGREGAR ESTA LÍNEA
+            "backspace_pressed": "#ef4444", 
         },
         "dark": {
             "dialog_bg": "#1e293b",
@@ -114,7 +115,7 @@ class NumpadDialog(QDialog):
             "backspace_bg": "#ef4444",
             "backspace_color": "#ffffff",
             "backspace_hover": "#dc2626",
-            "backspace_pressed": "#b91c1c",  # ← AGREGAR ESTA LÍNEA
+            "backspace_pressed": "#b91c1c",  
         }
     }
 

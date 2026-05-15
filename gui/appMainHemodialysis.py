@@ -241,7 +241,7 @@ class HemodialysisHMI(QMainWindow):
 
 
         self.current_treatment_start_date_time = None # Variable para reporte de inicio/tratamiento
-
+        self.navigation_buttons = {} # nuevo
         self.setup_ui()                
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet("background: #FCFCFC;")
@@ -322,6 +322,8 @@ class HemodialysisHMI(QMainWindow):
         self.cleaning_screen = CleaningScreen(parent=self, values_dict=self.current_values)
         self.cleaning_screen.request_setpoint_change.connect(self._write_setpoint)
         self.cleaning_screen.request_boolean_change.connect(self._write_boolean_command)
+        self.cleaning_screen.cleaning_active_changed.connect(self._handle_cleaning_status_change) 
+
 
         self.options_screen = OptionsScreen(parent=self)
         
@@ -530,11 +532,11 @@ class HemodialysisHMI(QMainWindow):
         self.main_layout.addWidget(self.right_container, 1, 5, 2, 1)
 
         # ── Bottom navigation bar ────────────────────────
-        nav_bar = QWidget()
-        nav_bar.setFixedSize(1560, 150)
-        nav_bar.setStyleSheet("background: #FCFCFC;")
+        self.nav_bar = QWidget()
+        self.nav_bar.setFixedSize(1560, 150)
+        self.nav_bar.setStyleSheet("background: #FCFCFC;")
 
-        nav_layout = QHBoxLayout(nav_bar)
+        nav_layout = QHBoxLayout(self.nav_bar)
         nav_layout.setContentsMargins(40, 20, 40, 20)
         nav_layout.setSpacing(10)
 
@@ -558,7 +560,7 @@ class HemodialysisHMI(QMainWindow):
             nav_layout.addWidget(btn)
             self.navigation_buttons[text] = btn
 
-        self.main_layout.addWidget(nav_bar, 2, 1, 1, 4)
+        self.main_layout.addWidget(self.nav_bar, 2, 1, 1, 4)
 
     # ────────────────────────────────────────────────
     #              Navigation Methods
@@ -724,9 +726,7 @@ class HemodialysisHMI(QMainWindow):
         if self.bioz_urea_controller:
             self.bioz_urea_controller.send_command("STOP")
 
-        # Resetear estado de tiempo
-
-        
+        # Resetear estado de tiempo       
 
         self.is_treatment_running = False
         self.accumulated_therapy_seconds = 0  # Limpiar
@@ -822,7 +822,7 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(self.cleaning_screen, "update_values"):
             self.cleaning_screen.update_values(self.current_values)
         if hasattr(self.cleaning_screen, '_load_initial_config_on_startup'):
-            self.cleaning_screen._load_initial_config_on_startup()        
+            self.cleaning_screen._load_initial_config_on_startup()   
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Limpieza")
@@ -926,22 +926,56 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
     #              Utility Methods
     # ────────────────────────────────────────────────
+    def _get_current_screen_nav_text(self) -> str:
+        """
+        Devuelve el texto del botón de navegación asociado a la pantalla actualmente visible.
+        Utilizado para mantener el resaltado correcto.
+        """
+        current_widget = self.screen_stack.currentWidget()
+        if current_widget == self._main_screen: return "Inicio"
+        elif current_widget == self.dialysis_screen: return "Diálisis"
+        elif current_widget == self.treatment_mode_screen: return "Tipo de\nTratamiento"
+        elif current_widget == self.cleaning_screen: return "Limpieza"
+        elif current_widget == self.options_screen: return "Servicio"
+        elif current_widget == self.alarms_screen: return "Alarmas"
+        # Para otras pantallas no navegables directamente desde la barra, o si no se quiere resaltar
+        return "" 
+
+    def _set_navigation_buttons_enabled(self, enable_all: bool):
+        """
+        Habilita/deshabilita la mayoría de los botones de navegación y
+        aplica sus estilos por defecto.
+        Los botones "Salir" e "Iniciar Tratamiento" tienen un manejo especial.
+        """
+        for text, btn in self.navigation_buttons.items():
+            if text == "Salir":
+                btn.setEnabled(True) # "Salir" siempre habilitado
+                btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
+            elif text == "Iniciar\nTratamiento":
+                # Este botón se gestiona por _update_treatment_controls_state,
+                # aquí solo lo habilitamos/deshabilitamos pero su estilo final lo pone el otro método.
+                btn.setEnabled(enable_all)
+                if not enable_all: # Si deshabilitamos todos, asegurar estilo deshabilitado
+                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
+                # Si enable_all es True, _update_treatment_controls_state lo estilizará.
+            else:
+                btn.setEnabled(enable_all)
+                if enable_all:
+                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
+                else:
+                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
+
+        # Después de habilitar/deshabilitar, re-resaltar el botón de la pantalla activa
+        # pa    ra que se vea con el estilo BTN_ACTIVE_STYLE si es la pantalla actual.
+        self._highlight_active_nav_button(self._get_current_screen_nav_text())
+
     def _set_ui_connected_state(self, is_connected: bool):
         """
         Manages the overall UI state (buttons, header labels) based on connection status.
         """
         if is_connected:
             logger.info("Enabling UI elements for connected state.")
-            for btn_text, btn in self.navigation_buttons.items():
-                btn.setEnabled(True)
-                if btn_text == "Salir":
-                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
-                elif btn_text == "Iniciar\nTratamiento":
-                    btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
-                else:
-                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
-
-            
+            self._set_navigation_buttons_enabled(True)              
             if hasattr(self, 'alarm_system') and self.alarm_system:
                 self.alarm_system.reset() # Resetea previous_states y current_values internos
             self.active_alarms.clear() # Limpia la lista del HMI
@@ -957,14 +991,8 @@ class HemodialysisHMI(QMainWindow):
 
         else: # Desconectado
             logger.warning("Disabling UI elements for disconnected state.")
-            for btn_text, btn in self.navigation_buttons.items():
-                btn.setEnabled(False)
-                if btn_text == "Salir": 
-                    btn.setEnabled(True) 
-                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
-                else:
-                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
             
+            self._set_navigation_buttons_enabled(False)            
             if hasattr(self, 'alarm_system') and self.alarm_system:
                 self.alarm_system.reset() # Resetea previous_states y current_values internos
             self.active_alarms.clear() # Limpia la lista del HMI
@@ -972,16 +1000,29 @@ class HemodialysisHMI(QMainWindow):
                 self.alarms_screen.reset_ui_state() # Limpia la UI de la pantalla de alarmas
 
             self.current_process_status.setText("Esperando conexión")
-
             self.show_home_screen()
+            
+    def _handle_cleaning_status_change(self, is_cleaning_active: bool):
+        """
+        Gestiona el estado de los botones de navegación cuando el ciclo de limpieza
+        se activa o desactiva.
+        """
+        logger.info(f"Estado de limpieza en CleaningScreen cambiado a: {is_cleaning_active}")
     
+        self._set_navigation_buttons_enabled(not is_cleaning_active)
+        # Si la limpieza acaba de terminar, re-evaluamos el estado del botón "Iniciar Tratamiento"
+        # ya que puede que ahora esté disponible para empezar una diálisis.
+        if not is_cleaning_active:
+             self._update_treatment_controls_state()
+
     def handleGlobalValueChange(self, tag: str, value: float):
-        # Actualiza el diccionario compartido y propaga a todas las pantallas si es necesario
+       
         self.current_values[tag] = value  # Actualiza el valor global
         print(f"[GLOBAL] Valor actualizado: {tag} = {value}")  # Log para depuración
         
-        # Opcional: Notifica a todas las pantallas para que se actualicen
-        for screen in [self.therapy_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var]:  # Agrega todas las pantallas
+        # Opcional: Notifica a las pantallas para que se actualicen
+        # for screen in [self.therapy_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var]:  # Agrega todas las pantallas
+        for screen in [self.therapy_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var, self.cleaning_screen, self._cleanning_config_screen]:
             if hasattr(screen, 'update_values'):
                 screen.update_values(self.current_values)  # Llama al update en cada pantalla
 
@@ -1015,18 +1056,6 @@ class HemodialysisHMI(QMainWindow):
         # Actualizar sistema de alarmas si existe
         if self.alarm_system:
             self.alarm_system.update_value_by_tag(tag, value)
-       
-     
-
-        # Actualizar gauges
-        gauge_mapping = {
-            "bloodArteryPressureData":   self.arterial_pressure_gauge,
-            "bloodVenousPressureData":   self.venous_pressure_gauge,
-            "dialyTempIFProcessData":  self.dialysate_temp_gauge,
-            "dialyCondVariableData":  self.conductivity_bar,
-        }
-        if tag in gauge_mapping:
-            gauge_mapping[tag].setValue(value)
 
         # Manejo del tratamiento seleccionado
         if tag == "treatmentModeSelection":
@@ -1053,8 +1082,7 @@ class HemodialysisHMI(QMainWindow):
 
                 if status_code == 7: # indica al usuario que debe colocar el filtro antes de iniciar el tratamiento                   
                     
-                    self.show_info_message("Coloque el filtro y conecte las líneas", 10000)
-                    
+                    self.show_info_message("Coloque el filtro y conecte las líneas", 10000)                  
 
                 # ====================== LÓGICA DE HORAS ======================
                 if status_code == 14:  # TRATAMIENTO INICIADO
@@ -1105,9 +1133,10 @@ class HemodialysisHMI(QMainWindow):
         # ────────────────────────────────────────────────────────────────
         # Reevaluar botón "Iniciar Tratamiento" cuando cambien status o temp
         # ──────────────────────────────────────────────────────────────── dialyTempIFProcessData  dialyTempVariableData
+
         if tag in ["primingProcessStatus", "dialyTempIFProcessData",
-                   "dialyTempControlSetPoint", "dialyCondVariableData", 
-                   "dialyCondControlSetPoint"]:            
+               "dialyTempControlSetPoint", "dialyCondVariableData", 
+               "dialyCondControlSetPoint", "treatmentModeSelection"]:        
             self._update_treatment_controls_state()
        
 
@@ -1155,7 +1184,28 @@ class HemodialysisHMI(QMainWindow):
             # Actualizar pantalla de mantenimiento si está visible
             if self.screen_stack.currentWidget() == self.maintenance_screen:
                 self._update_maintenance_screen_immediately()
+        
+        self._update_gauges()
+            
 
+    def _update_gauges(self):
+        
+        gauge_mapping = {
+            "bloodArteryPressureData":   self.arterial_pressure_gauge,
+            "bloodVenousPressureData":   self.venous_pressure_gauge,
+            "dialyTempIFProcessData":  self.dialysate_temp_gauge,
+            "dialyCondVariableData":  self.conductivity_bar,
+        }
+        for tag, gauge in gauge_mapping.items():
+            if gauge is not None:
+                value = self.current_values.get(tag, 0.0)
+                try:
+                    gauge.setValue(value)
+                except Exception as e:
+                    logger.error(f"Error actualizando gauge {tag}: {e}")
+
+       
+    
 
     def _update_treatment_controls_state(self):
         """
@@ -1168,7 +1218,7 @@ class HemodialysisHMI(QMainWindow):
         temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)   # Setpoint de temperatura
         cond_actual = self.current_values.get("dialyCondVariableData", 0.0)      # conductividad actual   
         cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)   # Setpoint de conductividad
-
+        treatment_mode_selection = self.current_values.get("treatmentModeSelection", 0.0)
         # 2. Lógica de validación (Tolerancias)
         temp_ok = abs(temp_actual - temp_set) <= 2.0
         cond_ok = abs(cond_actual - cond_set) <= 2.0
@@ -1178,7 +1228,11 @@ class HemodialysisHMI(QMainWindow):
         can_stop = False
         can_pause = False
 
-        if status_code == 13:  #13 LISTO PARA INICIAR
+        if treatment_mode_selection == 3.0: # Si el modo seleccionado es "Limpieza"
+            can_start = False # No se puede iniciar tratamiento de diálisis
+            can_stop = False  # No se puede detener tratamiento de diálisis
+            can_pause = False # No se puede pausar tratamiento de diálisis
+        elif status_code == 13:  #13 LISTO PARA INICIAR
             if temp_ok and cond_ok:
                 can_start = True
                 can_stop = False
@@ -1226,48 +1280,105 @@ class HemodialysisHMI(QMainWindow):
                 self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop, can_pause)
         
 
+    # def _update_priming_controls_state(self):
+    #     """
+    #     Calcula el estado de los botones de cebado ('INICIAR CEBADO', 'DETENER CEBADO')
+    #     basándose en 'primingProcessStatus' y los actualiza en la DialysisScreen.
+    #     """
+    #     status_code = int(self.current_values.get("primingProcessStatus", 0))
+    #     treatment_mode_selection = self.current_values.get("treatmentModeSelection", 0.0)
+
+    #     enable_start_priming = False
+    #     enable_stop_priming = False
+
+    #     if treatment_mode_selection == 3.0: # Si el modo seleccionado es "Limpieza", los botones de cebado deben estar deshabilitados.
+    #         enable_start_priming = False
+    #         enable_stop_priming = False
+    #     else: # Modo diferente de limpieza (donde sí aplica la lógica de cebado)
+    #         # --- Lógica para "INICIAR CEBADO" ---
+    #         # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
+    #         if status_code == 1: # "INICIO CEBADO"   
+    #             enable_start_priming = True
+
+    #     # # --- Lógica para "INICIAR CEBADO" ---
+    #     # # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
+    #     # if status_code == 1: # "INICIO CEBADO"   
+    #     #     enable_start_priming = True
+        
+    #     # --- Lógica para "DETENER CEBADO" ---
+    #     # Este botón actua como un "Detener/Finalizar Proceso General".
+        
+    #     # Habilitar si el cebado está activo (estados 2 a 8)
+    #     if status_code >= 2 and status_code <= 9:
+    #         enable_stop_priming = True
+    #     elif status_code == 13:
+    #         enable_stop_priming = True    
+    #     # Habilitar si el tratamiento está activo (estado 14)
+    #     elif status_code == 14: # "TRATAMIENTO INICIADO"
+    #         enable_stop_priming = False
+    #     # Habilitar si el tratamiento está en pausa (estado 15)
+    #     elif status_code == 15: # "PAUSA"
+    #         enable_stop_priming = True
+    #     # Habilitar si el tratamiento acaba de ser detenido (estado 16)
+    #     elif status_code == 16: # "TRATAMIENTO DETENIDO" - ESTO RESPONDE A TU FEEDBACK
+    #         enable_stop_priming = True
+
+    #     # Deshabilitar en estados donde no hay nada que detener o ya está en un estado inactivo/listo
+    #     if status_code in [1, 10]: # 1: INICIO CEBADO, 10: CERRADO, 13: LISTO PARA INICIAR TRATAMIENTO
+    #          enable_stop_priming = False
+
+    #     # Actualizar los botones en la pantalla de diálisis
+    #     if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
+    #         if hasattr(self.dialysis_screen, 'set_priming_buttons_state'):
+    #             self.dialysis_screen.set_priming_buttons_state(enable_start_priming, enable_stop_priming)
+
     def _update_priming_controls_state(self):
         """
         Calcula el estado de los botones de cebado ('INICIAR CEBADO', 'DETENER CEBADO')
         basándose en 'primingProcessStatus' y los actualiza en la DialysisScreen.
         """
         status_code = int(self.current_values.get("primingProcessStatus", 0))
+        treatment_mode_selection = self.current_values.get("treatmentModeSelection", 0.0)
 
-        enable_start_priming = False
-        enable_stop_priming = False
+        enable_start_priming = False # Inicializa a False por defecto
+        enable_stop_priming = False  # Inicializa a False por defecto
 
-        # --- Lógica para "INICIAR CEBADO" ---
-        # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
-        if status_code == 1: # "INICIO CEBADO"   
-            enable_start_priming = True
-        
-        # --- Lógica para "DETENER CEBADO" ---
-        # Este botón actua como un "Detener/Finalizar Proceso General".
-        
-        # Habilitar si el cebado está activo (estados 2 a 8)
-        if status_code >= 2 and status_code <= 9:
-            enable_stop_priming = True
-        elif status_code == 13:
-            enable_stop_priming = True    
-        # Habilitar si el tratamiento está activo (estado 14)
-        elif status_code == 14: # "TRATAMIENTO INICIADO"
-            enable_stop_priming = False
-        # Habilitar si el tratamiento está en pausa (estado 15)
-        elif status_code == 15: # "PAUSA"
-            enable_stop_priming = True
-        # Habilitar si el tratamiento acaba de ser detenido (estado 16)
-        elif status_code == 16: # "TRATAMIENTO DETENIDO" - ESTO RESPONDE A TU FEEDBACK
-            enable_stop_priming = True
+        if treatment_mode_selection == 3.0: # Si el modo seleccionado es "Limpieza"
+            # Los botones de cebado deben estar deshabilitados.
+            # Como ya están inicializados a False, no hay que hacer nada más aquí.
+            pass 
+        else: # Modo diferente de limpieza (donde SÍ aplica la lógica de cebado)
+            # --- Lógica para "INICIAR CEBADO" ---
+            # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
+            if status_code == 1: # "INICIO CEBADO"   
+                enable_start_priming = True
+            
+            # --- Lógica para "DETENER CEBADO" ---
+            # Este botón actúa como un "Detener/Finalizar Proceso General".
+            
+            # Habilitar si el cebado está activo (estados 2 a 8)
+            if status_code >= 2 and status_code <= 9:
+                enable_stop_priming = True
+            elif status_code == 13: # Listos para iniciar tratamiento
+                enable_stop_priming = True    
+            # Habilitar si el tratamiento está activo (estado 14)
+            elif status_code == 14: # "TRATAMIENTO INICIADO"
+                enable_stop_priming = False # Si ya es tratamiento, no puedes detener el cebado
+            # Habilitar si el tratamiento está en pausa (estado 15)
+            elif status_code == 15: # "PAUSA"
+                enable_stop_priming = True
+            # Habilitar si el tratamiento acaba de ser detenido (estado 16)
+            elif status_code == 16: # "TRATAMIENTO DETENIDO"
+                enable_stop_priming = True
 
-        # Deshabilitar en estados donde no hay nada que detener o ya está en un estado inactivo/listo
-        if status_code in [1, 10]: # 1: INICIO CEBADO, 10: CERRADO, 13: LISTO PARA INICIAR TRATAMIENTO
-             enable_stop_priming = False
+            # Deshabilitar en estados donde no hay nada que detener o ya está en un estado inactivo/listo
+            if status_code in [1, 10]: # 1: INICIO CEBADO, 10: CERRADO
+                 enable_stop_priming = False
 
         # Actualizar los botones en la pantalla de diálisis
         if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
             if hasattr(self.dialysis_screen, 'set_priming_buttons_state'):
                 self.dialysis_screen.set_priming_buttons_state(enable_start_priming, enable_stop_priming)
-
 
     def refresh_alarms_label(self):
         """

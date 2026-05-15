@@ -45,28 +45,26 @@ from datetime import datetime
 import logging
 logger = logging.getLogger(__name__)
 
+import os
+import csv
+import logging
+import threading
+import queue
+from datetime import datetime
 
+logger = logging.getLogger(__name__)
 
 class CsvLogger:
     """
     Clase para registrar datos de monitorización en un archivo CSV.
-    Versión sin patient_id: solo timestamp y valores mapeados.
+    Optimizada con un hilo en segundo plano (Thread) para evitar congelamientos en la GUI.
     """
     def __init__(self, log_directory: str, parameter_key_map: dict):
-        """
-        Inicializa el logger CSV.
-
-        :param log_directory: Directorio donde se guardarán los archivos CSV.
-        :param parameter_key_map: Diccionario de mapeo {cv_key: db_key}.
-                                  cv_key: clave interna en 'current_values'.
-                                  db_key: nombre de la columna en el CSV.
-        """
         self.log_directory = log_directory
         self.parameter_key_map = parameter_key_map
 
         os.makedirs(self.log_directory, exist_ok=True)
 
-        # Nombre de archivo único basado solo en fecha/hora
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.file_path = os.path.join(
             self.log_directory,
@@ -75,58 +73,163 @@ class CsvLogger:
 
         self.file = None
         self.csv_writer = None
+        
+        # 1. Creamos una cola para comunicación segura entre hilos
+        self.data_queue = queue.Queue()
+        self.is_running = True
+
         self._open_file_and_write_header()
 
+        # 2. Iniciamos el hilo que se encargará exclusivamente de escribir en el disco
+        self.writer_thread = threading.Thread(target=self._write_loop, daemon=True)
+        self.writer_thread.start()
+
     def _open_file_and_write_header(self):
-        """
-        Abre el archivo CSV y escribe la fila de cabecera.
-        """
         try:
             self.file = open(self.file_path, 'w', newline='', encoding='utf-8')
             self.csv_writer = csv.writer(self.file)
 
-            # Cabeceras: solo Timestamp + las columnas del mapeo
             headers = ['Timestamp'] + list(self.parameter_key_map.values())
             self.csv_writer.writerow(headers)
-            logger.info(f"CSV Logger: Archivo '{self.file_path}' creado. Cabecera escrita.")            
+            self.file.flush() # Escribimos la cabecera inmediatamente
+            logger.info(f"CSV Logger: Archivo '{self.file_path}' creado.")            
         except IOError as e:            
-            logger.error(f"CSV Logger Error: No se pudo abrir/escribir el archivo {self.file_path}: {e}")
-            self.close()  # Intentar cerrar si falló
+            logger.error(f"CSV Logger Error al crear archivo: {e}")
 
     def log_data(self, current_values: dict):
         """
-        Registra una fila de datos en el archivo CSV.
-
-        :param current_values: Diccionario con los valores actuales de monitorización.
+        Llamado por la interfaz gráfica. No escribe en disco, solo pone en la cola.
         """
-        if not self.csv_writer:
-            logger.error("CSV Logger Error: Writer no inicializado. No se puede registrar.")
+        if not self.is_running:
             return
 
         try:
-            row_data = [
-                # datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],  # Timestamp con milisegundos
-                # datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]   # sigue igual, pero importa con Power Query
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            ]
-
-            # Agregar valores según el orden del mapeo
+            row_data = [datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
             for cv_key in self.parameter_key_map.keys():
                 value = current_values.get(cv_key, 'N/A')
                 row_data.append(value)
             
-            self.csv_writer.writerow(row_data)
-            self.file.flush()  # Escribir inmediatamente al disco
-        except IOError as e:
-            logger.error(f"CSV Logger Error: No se pudo escribir en el archivo {self.file_path}: {e}")
+            # 3. Metemos los datos en la cola al instante (sin bloquear la interfaz)
+            self.data_queue.put(row_data)
         except Exception as e:
-            logger.error(f"CSV Logger Error: Error inesperado al registrar: {e}")
+            logger.error(f"CSV Logger Error al encolar datos: {e}")
+
+    def _write_loop(self):
+        """
+        Bucle que corre en un hilo secundario. Espera datos de la cola y los escribe.
+        """
+        while self.is_running or not self.data_queue.empty():
+            try:
+                # Espera hasta 1 segundo por nuevos datos
+                row_data = self.data_queue.get(timeout=1.0)
+                
+                if self.csv_writer and self.file:
+                    self.csv_writer.writerow(row_data)
+                    self.file.flush() # Seguro hacerlo aquí porque estamos en otro hilo
+                
+                self.data_queue.task_done()
+            except queue.Empty:
+                # Es normal que salte por timeout si no hay datos nuevos, continúa el bucle
+                continue
+            except Exception as e:
+                logger.error(f"CSV Logger Error en escritura en hilo: {e}")
 
     def close(self):
         """
-        Cierra el archivo CSV. Crucial al finalizar sesión o aplicación.
+        Detiene el hilo secundario y cierra el archivo limpiamente.
         """
+        logger.info(f"CSV Logger: Cerrando archivo '{self.file_path}'...")
+        self.is_running = False # Señal para detener el bucle
+        
+        # Esperamos a que el hilo termine de escribir los últimos datos
+        if self.writer_thread and self.writer_thread.is_alive():
+            self.writer_thread.join(timeout=3.0)
+
         if self.file and not self.file.closed:
             self.file.close()
-            logger.info(f"CSV Logger: Archivo '{self.file_path}' cerrado.")
+            logger.info("CSV Logger: Archivo cerrado correctamente.")
+
+
+# class CsvLogger:
+#     """
+#     Clase para registrar datos de monitorización en un archivo CSV.
+#     Versión sin patient_id: solo timestamp y valores mapeados.
+#     """
+#     def __init__(self, log_directory: str, parameter_key_map: dict):
+#         """
+#         Inicializa el logger CSV.
+
+#         :param log_directory: Directorio donde se guardarán los archivos CSV.
+#         :param parameter_key_map: Diccionario de mapeo {cv_key: db_key}.
+#                                   cv_key: clave interna en 'current_values'.
+#                                   db_key: nombre de la columna en el CSV.
+#         """
+#         self.log_directory = log_directory
+#         self.parameter_key_map = parameter_key_map
+
+#         os.makedirs(self.log_directory, exist_ok=True)
+
+#         # Nombre de archivo único basado solo en fecha/hora
+#         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+#         self.file_path = os.path.join(
+#             self.log_directory,
+#             f"hemodialysis_log_{timestamp_str}.csv"
+#         )
+
+#         self.file = None
+#         self.csv_writer = None
+#         self._open_file_and_write_header()
+
+#     def _open_file_and_write_header(self):
+#         """
+#         Abre el archivo CSV y escribe la fila de cabecera.
+#         """
+#         try:
+#             self.file = open(self.file_path, 'w', newline='', encoding='utf-8')
+#             self.csv_writer = csv.writer(self.file)
+
+#             # Cabeceras: solo Timestamp + las columnas del mapeo
+#             headers = ['Timestamp'] + list(self.parameter_key_map.values())
+#             self.csv_writer.writerow(headers)
+#             logger.info(f"CSV Logger: Archivo '{self.file_path}' creado. Cabecera escrita.")            
+#         except IOError as e:            
+#             logger.error(f"CSV Logger Error: No se pudo abrir/escribir el archivo {self.file_path}: {e}")
+#             self.close()  # Intentar cerrar si falló
+
+#     def log_data(self, current_values: dict):
+#         """
+#         Registra una fila de datos en el archivo CSV.
+
+#         :param current_values: Diccionario con los valores actuales de monitorización.
+#         """
+#         if not self.csv_writer:
+#             logger.error("CSV Logger Error: Writer no inicializado. No se puede registrar.")
+#             return
+
+#         try:
+#             row_data = [
+#                 # datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],  # Timestamp con milisegundos
+#                 # datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]   # sigue igual, pero importa con Power Query
+#                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+#             ]
+
+#             # Agregar valores según el orden del mapeo
+#             for cv_key in self.parameter_key_map.keys():
+#                 value = current_values.get(cv_key, 'N/A')
+#                 row_data.append(value)
+            
+#             self.csv_writer.writerow(row_data)
+#             self.file.flush()  # Escribir inmediatamente al disco
+#         except IOError as e:
+#             logger.error(f"CSV Logger Error: No se pudo escribir en el archivo {self.file_path}: {e}")
+#         except Exception as e:
+#             logger.error(f"CSV Logger Error: Error inesperado al registrar: {e}")
+
+#     def close(self):
+#         """
+#         Cierra el archivo CSV. Crucial al finalizar sesión o aplicación.
+#         """
+#         if self.file and not self.file.closed:
+#             self.file.close()
+#             logger.info(f"CSV Logger: Archivo '{self.file_path}' cerrado.")
 

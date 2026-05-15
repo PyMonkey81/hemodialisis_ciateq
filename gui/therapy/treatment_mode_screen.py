@@ -200,6 +200,7 @@ class TreatmentModeScreen(QWidget):
                 self.commanded_mode_value = None
                 return
             elif now > self.pending_mode_change_deadline:
+                # logger.warning("[WARNING] Timeout en confirmación de modo")
                 print("[WARNING] Timeout en confirmación de modo. Revirtiendo UI.")
                 self.pending_mode_change_deadline = None
                 self.commanded_mode_value = None
@@ -228,3 +229,4 @@ class TreatmentModeScreen(QWidget):
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)
         logger.debug(f"Setpoint change requested: {tag} -> {value}")
+        

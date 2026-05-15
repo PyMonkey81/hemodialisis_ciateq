@@ -3,14 +3,18 @@
         "1.0": {
             "time_hours": 0,
             "time_minutes": 20,
-            "mode_name": "Larga"
+            "mode_name": "Larga",
+            "mode_temp": 37.0,
+            "mode_flow": 50.0
         },
         "0.0": {
             "time_hours": 0,
-            "time_minutes": 10,
-            "mode_name": "Corta"
+            "time_minutes": 11,
+            "mode_name": "Corta",
+            "mode_temp": 35.0,
+            "mode_flow": 100.0
         }
     },
-    "last_active_mode_value": 1.0,
+    "last_active_mode_value": 0.0,
     "last_active_mode_tag": "DesinftectionMode"
 }

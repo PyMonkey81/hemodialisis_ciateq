@@ -246,6 +246,7 @@ if __name__ == "__main__":
         logger.info(f"   Applied scaling factor: {global_scale_factor:.2f}x")
         logger.info("=" * 70)
         
+        
         try:
             sys.exit(app.exec())
         except KeyboardInterrupt:
