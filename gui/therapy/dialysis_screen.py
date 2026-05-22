@@ -280,7 +280,7 @@ class DialysisScreen(QWidget):
             "CALC_PTM":                  self.ptm_display,
             "dialyCondVariableData":     self.conductivity_display,
             "bloodFlowVariableData":     self.blood_flow_display,
-            "dialyFlowControlOutput":    self.dialysate_flow_display,  #verificar la salida 
+            "balanceChamberSetTiming":   self.dialysate_flow_display,  #verificar la salida 
             "dialyTempIFProcessData":    self.temperature_display,  #Temperatura a la entrada del filtro - Cambio comentado 
             "ultraFilterPumpSpeed":      self.uf_rate_display,
             "UF Total":                  self.uf_total_display,

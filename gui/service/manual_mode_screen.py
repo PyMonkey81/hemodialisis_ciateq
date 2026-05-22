@@ -1113,41 +1113,7 @@ class ManualModeScreen(QWidget):
         }
         return toggle_map.get(toggle_widget)
 
-    # def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
-    #     if not tag_hours and not tag_minutes:
-    #         return
-    #     current_ms = QDateTime.currentMSecsSinceEpoch()
-    #     # Nunca sobrescribir si el usuario está interactuando con el widget
-    #     if time_widget.hasFocus() or time_widget.underMouse():
-    #         return
-    #     # Hold-off después de escritura
-    #     hold_hours   = self.write_hold_off.get(tag_hours,   0) if tag_hours   else 0
-    #     hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
-
-    #     if current_ms < max(hold_hours, hold_minutes):
-    #         return
-    #     # Obtener valor real del serial
-    #     hours   = int(self.current_values.get(tag_hours,   0)) if tag_hours   else 0
-    #     minutes = int(self.current_values.get(tag_minutes, 0)) if tag_minutes else 0
-    #     new_hh_mm = f"{hours:02d}:{minutes:02d}"
    
-    #     current_display = time_widget.get_time_value() if hasattr(time_widget, 'get_time_value') else time_widget.text()
-    #     if current_display != new_hh_mm:
-    #         if isinstance(time_widget, LabeledTimeInput):
-    #             time_widget.set_time_value(hours, minutes)
-    #         else:
-    #             time_widget.setText(new_hh_mm)
-    #         logger.debug(f"Actualizado T. Terapia a {new_hh_mm} desde serial")
-    #     if timer_id and timer_id in self.local_timer_states:
-    #         state = self.local_timer_states[timer_id]
-    #         if not state["active"]:
-    #             total_ms = (hours * 3600 + minutes * 60) * 1000
-    #             if state["duration_ms"] != total_ms: 
-    #                 state["duration_ms"] = total_ms
-    #                 if state["remaining_lbl"]:
-    #                     state["remaining_lbl"].setText(new_hh_mm)
-    #                 logger.debug(f"Actualizada duración local de {timer_id} a {total_ms} ms")
-
 
     def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
         if not tag_hours and not tag_minutes:

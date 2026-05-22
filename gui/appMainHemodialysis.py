@@ -586,10 +586,11 @@ class HemodialysisHMI(QMainWindow):
 
         if not is_resuming:             
             self.accumulated_therapy_seconds = 0
-
             self.current_treatment_start_date_time = QDateTime.currentDateTime() # Guardar fecha/hora de inicio del tratamiento para reportes
+            self.show_info_message("Iniciando tratamiento...", 1000)
         else:
             logger.info("Reanudando tratamiento desde Pausa (manteniendo tiempo acumulado)")
+            self.show_info_message("Reanudando tratamiento...", 2000)
                 
         self.last_resume_time = QDateTime.currentDateTime()   
         self.is_treatment_running = True
@@ -617,7 +618,6 @@ class HemodialysisHMI(QMainWindow):
         # =====================================================================
         if is_resuming and self.treatment_logger is not None:
             # Si estamos reanudando y el logger ya existe, no hacemos NADA.
-            # Seguirá escribiendo en el mismo archivo.
             logger.info("Reanudando tratamiento: Continuando registro en el mismo archivo CSV.")
         else:
             # Si es un tratamiento nuevo (no venimos de pausa) o el logger no existe:
@@ -701,6 +701,7 @@ class HemodialysisHMI(QMainWindow):
             self._write_boolean_command("dialyStartDialysisButt", False)              
            
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
+            self.show_info_message("Cebado detenido...", 1000)
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
             self.show_warning_message("Cebado detenido, pero hubo problema al enviar comandos al controlador.", 4000)
@@ -717,6 +718,7 @@ class HemodialysisHMI(QMainWindow):
             self._write_boolean_command("dialyModeOperationStop", True)
             self._write_boolean_command("dialyModeOperationStart", False)                   
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
+            self.show_info_message("Cerrando sesión de diálisis...", 1000)
         except Exception as e:
             logger.error(f"Error enviando comandos de paro de terapia: {e}")
 
@@ -1014,6 +1016,7 @@ class HemodialysisHMI(QMainWindow):
         # ya que puede que ahora esté disponible para empezar una diálisis.
         if not is_cleaning_active:
              self._update_treatment_controls_state()
+             self._update_priming_controls_state()
 
     def handleGlobalValueChange(self, tag: str, value: float):
        
@@ -1131,13 +1134,16 @@ class HemodialysisHMI(QMainWindow):
                     self._update_maintenance_screen_immediately()
 
         # ────────────────────────────────────────────────────────────────
-        # Reevaluar botón "Iniciar Tratamiento" cuando cambien status o temp
-        # ──────────────────────────────────────────────────────────────── dialyTempIFProcessData  dialyTempVariableData
-
+        # Reevaluar controles cuando cambien estados relevantes
+        # ────────────────────────────────────────────────────────────────
         if tag in ["primingProcessStatus", "dialyTempIFProcessData",
-               "dialyTempControlSetPoint", "dialyCondVariableData", 
-               "dialyCondControlSetPoint", "treatmentModeSelection"]:        
-            self._update_treatment_controls_state()
+                "dialyTempControlSetPoint", "dialyCondVariableData", 
+                "dialyCondControlSetPoint", "treatmentModeSelection"]:
+    
+            self._update_treatment_controls_state()    
+            # IMPORTANTE: También actualizar botones de cebado cuando cambie el modo
+            if tag in ["treatmentModeSelection", "primingProcessStatus"]:
+                self._update_priming_controls_state()
        
 
 
@@ -1280,57 +1286,6 @@ class HemodialysisHMI(QMainWindow):
                 self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop, can_pause)
         
 
-    # def _update_priming_controls_state(self):
-    #     """
-    #     Calcula el estado de los botones de cebado ('INICIAR CEBADO', 'DETENER CEBADO')
-    #     basándose en 'primingProcessStatus' y los actualiza en la DialysisScreen.
-    #     """
-    #     status_code = int(self.current_values.get("primingProcessStatus", 0))
-    #     treatment_mode_selection = self.current_values.get("treatmentModeSelection", 0.0)
-
-    #     enable_start_priming = False
-    #     enable_stop_priming = False
-
-    #     if treatment_mode_selection == 3.0: # Si el modo seleccionado es "Limpieza", los botones de cebado deben estar deshabilitados.
-    #         enable_start_priming = False
-    #         enable_stop_priming = False
-    #     else: # Modo diferente de limpieza (donde sí aplica la lógica de cebado)
-    #         # --- Lógica para "INICIAR CEBADO" ---
-    #         # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
-    #         if status_code == 1: # "INICIO CEBADO"   
-    #             enable_start_priming = True
-
-    #     # # --- Lógica para "INICIAR CEBADO" ---
-    #     # # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
-    #     # if status_code == 1: # "INICIO CEBADO"   
-    #     #     enable_start_priming = True
-        
-    #     # --- Lógica para "DETENER CEBADO" ---
-    #     # Este botón actua como un "Detener/Finalizar Proceso General".
-        
-    #     # Habilitar si el cebado está activo (estados 2 a 8)
-    #     if status_code >= 2 and status_code <= 9:
-    #         enable_stop_priming = True
-    #     elif status_code == 13:
-    #         enable_stop_priming = True    
-    #     # Habilitar si el tratamiento está activo (estado 14)
-    #     elif status_code == 14: # "TRATAMIENTO INICIADO"
-    #         enable_stop_priming = False
-    #     # Habilitar si el tratamiento está en pausa (estado 15)
-    #     elif status_code == 15: # "PAUSA"
-    #         enable_stop_priming = True
-    #     # Habilitar si el tratamiento acaba de ser detenido (estado 16)
-    #     elif status_code == 16: # "TRATAMIENTO DETENIDO" - ESTO RESPONDE A TU FEEDBACK
-    #         enable_stop_priming = True
-
-    #     # Deshabilitar en estados donde no hay nada que detener o ya está en un estado inactivo/listo
-    #     if status_code in [1, 10]: # 1: INICIO CEBADO, 10: CERRADO, 13: LISTO PARA INICIAR TRATAMIENTO
-    #          enable_stop_priming = False
-
-    #     # Actualizar los botones en la pantalla de diálisis
-    #     if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
-    #         if hasattr(self.dialysis_screen, 'set_priming_buttons_state'):
-    #             self.dialysis_screen.set_priming_buttons_state(enable_start_priming, enable_stop_priming)
 
     def _update_priming_controls_state(self):
         """
@@ -1338,24 +1293,18 @@ class HemodialysisHMI(QMainWindow):
         basándose en 'primingProcessStatus' y los actualiza en la DialysisScreen.
         """
         status_code = int(self.current_values.get("primingProcessStatus", 0))
-        treatment_mode_selection = self.current_values.get("treatmentModeSelection", 0.0)
+        treatment_mode_selection = int(self.current_values.get("treatmentModeSelection", 0))
 
         enable_start_priming = False # Inicializa a False por defecto
         enable_stop_priming = False  # Inicializa a False por defecto
 
-        if treatment_mode_selection == 3.0: # Si el modo seleccionado es "Limpieza"
-            # Los botones de cebado deben estar deshabilitados.
-            # Como ya están inicializados a False, no hay que hacer nada más aquí.
+        if treatment_mode_selection == 3.0: # Si el modo seleccionado es "Limpieza"            
             pass 
         else: # Modo diferente de limpieza (donde SÍ aplica la lógica de cebado)
-            # --- Lógica para "INICIAR CEBADO" ---
-            # Solo se puede iniciar cebado si la máquina está en el estado inicial de cebado (1).
             if status_code == 1: # "INICIO CEBADO"   
                 enable_start_priming = True
             
-            # --- Lógica para "DETENER CEBADO" ---
-            # Este botón actúa como un "Detener/Finalizar Proceso General".
-            
+            # --- Lógica para "DETENER CEBADO" ---            
             # Habilitar si el cebado está activo (estados 2 a 8)
             if status_code >= 2 and status_code <= 9:
                 enable_stop_priming = True
@@ -1606,8 +1555,9 @@ class HemodialysisHMI(QMainWindow):
         4. Capturar conductividades t2
         5. Calcular Kt/V con fórmula de Heitmann
         """
-        self.current_values["ktv_projectado"] = 0.0
-        self.current_values["ktv_acumulado"] = 0.0
+        
+
+
         if not hasattr(self, 'bioz_urea_controller') or not self.bioz_urea_controller:
             logger.warning("Controlador BioZ/Urea no disponible, omitiendo medición Kt/V")
             return
@@ -1616,7 +1566,13 @@ class HemodialysisHMI(QMainWindow):
             return
 
         logger.info("[Kt/V] Iniciando ciclo completo de medición...")
+        self.current_values["ktv_projectado"] = 0.0
+        # self.current_values["ktv_acumulado"] = 0.0
         self.calculadora_ktv.reset() # Limpiar cualquier dato de medición anterior
+
+        # NO resetear ktv_acumulado si ya existe un valor (tratamiento en curso)
+        if "ktv_acumulado" not in self.current_values or self.current_values["ktv_acumulado"] == 0.0:
+            self.current_values["ktv_acumulado"] = 0.0
 
         # 0. Guardar la conductividad inicial actual de la máquina
         self._original_conductivity_setpoint = self.current_values.get("dialyCondControlSetPoint", 13.5)
@@ -1729,14 +1685,27 @@ class HemodialysisHMI(QMainWindow):
         self.current_values["ktv_projectado"] = ktv_projected
         self.current_values["ktv_acumulado"] = ktv_accumulated
         logger.info(f"[Kt/V] Proyectado: {ktv_projected:.2f}, Acumulado: {ktv_accumulated:.2f}")
-        print(f"Kt/V Proyectado = {ktv_projected:.3f} | Kt/V Acumulado = {ktv_accumulated:.3f} | V = {self.calculadora_ktv.volumen_distribucion_v/1000:.1f} L | Z = {z_resistencia:.1f} Ω")
 
         # self.ktv_calculated_signal.emit(ktv_calculado)
         logger.info("[Kt/V] Ciclo de medición completado.")
         
-        self.show_success_message(f"Kt/V Acumulado: {ktv_accumulated:.3f}", 2000)
+        self.show_success_message(f"Kt/V Acumulado: {ktv_accumulated:.3f}", 2500)
 
+        # Cálculo de Kt/V Proyectado
+        ktv_projected = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_programmed_min)
     
+        # Cálculo de Kt/V Acumulado (usando tiempo real transcurrido)
+        ktv_accumulated = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_elapsed_min)
+
+        # === GUARDAR VALORES ===
+        self.current_values["ktv_projectado"] = ktv_projected
+        self.current_values["ktv_acumulado"] = ktv_accumulated   # ← Sobrescribe con nuevo valor acumulado
+
+        logger.info(f"[Kt/V] Proyectado: {ktv_projected:.2f} | Acumulado: {ktv_accumulated:.2f}")
+
+        self.show_success_message(f"Kt/V Acumulado: {ktv_accumulated:.3f}", 2500)
+
+
 
     def _calculate_heitmann_volume(self, Z: float, H: float, W: float, G: int, E: int) -> float:
         """
@@ -1802,10 +1771,12 @@ class HemodialysisHMI(QMainWindow):
 
     def __del__(self):
         logger.error("[INFO] Destructor called → stopping threads...")
+        
         self.shutdown()
 
 
     def shutdown(self):
+        
         logger.error("[INFO] Initiating controlled shutdown.")
         if hasattr(self, 'master_timer') and self.master_timer.isActive():
             self.master_timer.stop()
@@ -2135,9 +2106,14 @@ class HemodialysisHMI(QMainWindow):
                      f"Power On: {total_power_on_hours_float:.2f}h | Operación: {total_operation_hours_float:.2f}h")
 
     def closeEvent(self, event):
+        
+        # QApplication.processEvents()
+        # time.sleep(0.8)   # Pequeña pausa visible
+
         self.end_dialysis_session() # Cierra los loggers
         logger.error("[INFO] closeEvent → performing shutdown...")
         self.shutdown() # shutdown ya guarda las horas
+        # self.show_info_message("Cerrando aplicación...", 1000)
         time.sleep(1.0) 
         event.accept()
         QApplication.quit()

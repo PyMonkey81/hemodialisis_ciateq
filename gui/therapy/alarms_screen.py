@@ -58,18 +58,21 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTime, Signal
 from PySide6.QtGui import QFont, QDoubleValidator, QTextOption
+from pyqtgraph import colors
 from gui.components.ui_components import LabeledParameterWidget, ClickableLineEdit
 from gui.components.numpad_modal import NumpadDialog
 from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.components.floating_message import FloatingMessage
 from gui.components.floating_confirm import FloatingConfirmDialog
 from typing import Dict
+import json 
+
 
 
 import logging
 logger = logging.getLogger(__name__)
 
-
+PATH_ALAMRS_LOG = "logs/alarms_log.json"  # Archivo para guardar el historial de eventos de alarmas
 
 class AlarmsScreen(QWidget):
     """
@@ -87,11 +90,23 @@ class AlarmsScreen(QWidget):
         self.current_values = values_dict if values_dict is not None else {}
         self.alarm_system = alarm_system
 
+        # self.histroy_file = PATH_ALAMRS_LOG
+        # self.max_history_entries = 1000  # Máximo número de eventos a guardar en el historial (puede ajustarse)
+        # self.history_data = self._load_history_from_file()  # Cargar historial existente desde el archivo JSON
+        # self._refresh_history_display()  # Mostrar el historial cargado al iniciar la pantalla
+
+        self.history_file = "logs/alarm_history.json"
+        self.max_history_entries = 1000
+        self.history_data = self._load_history_from_file()
         
+
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+
 
         self.active_alarms: dict = {}
         self.setup_ui()
+        self._refresh_history_display() # Mostrar lo cargado al iniciar
 
         if self.alarm_system:
             logger.info("AlarmsScreen: alarm_system found. Known alarm count: %s",
@@ -104,7 +119,24 @@ class AlarmsScreen(QWidget):
         else:
             logger.warning("Warning: alarm_system not available in AlarmsScreen")
 
-       
+        
+    def _load_history_from_file(self):
+        if os.path.exists(self.history_file):
+            try:
+                with open(self.history_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"Error cargando historial: {e}")
+        return []
+
+    def _refresh_history_display(self):
+        """Puebla el QTextEdit con los datos cargados"""
+        self.history_display.clear()
+        for entry in self.history_data:
+            # Reutilizamos tu lógica de formato existente
+            self._append_to_history_visual(
+                entry['text'], entry['value'], entry['level'], entry['time']
+            )
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -293,9 +325,9 @@ class AlarmsScreen(QWidget):
 
         # Mensaje inicial (ahora más claro)
         self._update_active_alarms_display()
-        self.history_display.append(
-            f'<span style="color:#607D8B;">[Sistema iniciado — {QTime.currentTime().toString("hh:mm:ss")}]</span>'
-        )
+        # self.history_display.append(
+        #     f'<span style="color:#607D8B;">[Sistema iniciado — {QTime.currentTime().toString("hh:mm:ss")}]</span>'
+        # )
 
     def _sync_initial_state(self):
         """
@@ -531,30 +563,55 @@ class AlarmsScreen(QWidget):
 
         self.active_alarms_display.setHtml(html)
 
-    def _append_to_history(self, text, value, level, time_str):
-        """Agrega un evento al historial con el nuevo esquema de colores."""
-        colors = {
-            "rojo": "#E74C3C", "naranja": "#F39C12", "amarillo": "#FBC02D", 
-            "cian": "#3498DB", "info": "#607D8B"
-        }
-        color = colors.get(level, "#333333") # Default a gris oscuro
 
+
+    def _append_to_history(self, text, value, level, time_str):
+        # 1. Crear el objeto de la entrada
+        entry = {
+            "time": time_str,
+            "text": text,
+            "value": value,
+            "level": level
+        }
+    
+        # 2. Gestionar la lista en memoria (mantener los últimos 1000)
+        self.history_data.append(entry)
+        if len(self.history_data) > self.max_history_entries:
+            self.history_data.pop(0) # Eliminar el más antiguo
+
+        # 3. Guardar a archivo JSON
+        try:
+            os.makedirs(os.path.dirname(self.history_file), exist_ok=True)
+            with open(self.history_file, 'w', encoding='utf-8') as f:
+                json.dump(self.history_data, f, indent=4)
+        except Exception as e:
+            logger.error(f"Error guardando historial: {e}")
+
+        # 4. Mostrar en pantalla (Visual)
+        self._append_to_history_visual(text, value, level, time_str)
+
+    def _append_to_history_visual(self, text, value, level, time_str):
+        """Aquí mueves la lógica de 'self.history_display.append' que ya tenías"""
+        colors = {"rojo": "#E74C3C", "naranja": "#F39C12", "amarillo": "#FBC02D", "cian": "#3498DB", "info": "#607D8B"}
+        color = colors.get(level, "#333333")
         val_str = f" [{value:.1f}]" if value is not None else ""
-        
+    
         self.history_display.append(
-            f'<span style="color:#607D8B; font-size:17px;">[{time_str}]</span> '
-            f'<span style="color:{color}; font-weight:bold; font-size:17px;">{text}{val_str}</span>'
+            f'<span style="color:#607D8B;">[{time_str}]</span> '
+            f'<span style="color:{color}; font-weight:bold;">{text}{val_str}</span>'
         )
         self.history_display.verticalScrollBar().setValue(
             self.history_display.verticalScrollBar().maximum()
         )
-    
+
+
     def update_ack_button_state(self):
         """Habilita/Deshabilita el botón de reconocimiento si hay alarmas no reconocidas."""
         if any(not data['acked'] for data in self.active_alarms.values()):
             self.btn_ack_all.setEnabled(True)
         else:
             self.btn_ack_all.setEnabled(False)
+    
 
     def update_values(self, values_dict):
         """Método de compatibilidad. No usado directamente aquí."""

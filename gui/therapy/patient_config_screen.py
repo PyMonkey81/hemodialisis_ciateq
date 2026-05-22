@@ -3,46 +3,6 @@
 """
 Módulo para la configuración y gestión de perfiles de paciente.
 
-Este módulo define la clase `PatientConfigScreen`, una interfaz de usuario
-completa para ingresar, seleccionar y modificar los datos demográficos y clínicos
-de los pacientes que serán tratados con la máquina de hemodiálisis. Está diseñada
-específicamente para pantallas táctiles, integrando teclados numéricos y alfabéticos
-virtuales.
-
-Características clave:
-----------------------
-- **Base de Datos en Memoria:** Mantiene una pequeña base de datos de pacientes de prueba
-  en memoria (`self.patients_db`) para demostración y facilidad de uso.
-- **Interacción Táctil:** Todos los campos de entrada de datos se gestionan mediante
-  diálogos modales de teclado numérico (`NumpadDialog`) o teclado QWERTY (`KeyboardDialog`),
-  optimizados para interfaces táctiles.
-- **Selección y Creación de Pacientes:** Permite seleccionar un paciente existente
-  de una lista o crear un nuevo perfil de paciente.
-- **Validación de Datos:** Incluye validaciones en tiempo real y al guardar,
-  asegurando que los datos ingresados cumplan con los formatos y rangos esperados
-  (ej. rangos de edad, peso, etc., posiblemente usando `VARIABLES` del sistema).
-- **Cálculo de UF Objetivo:** Calcula automáticamente el objetivo de ultrafiltración
-  basado en la diferencia entre el peso pre-diálisis y el peso seco del paciente.
-- **Integración con el Sistema:** Actualiza el diccionario `current_values` del
-  `HemodialysisHMI` principal con los datos del paciente seleccionado/modificado,
-  haciéndolos disponibles para otras pantallas y la lógica de control.
-- **Diseño Responsive:** Utiliza un `QScrollArea` para asegurar que todo el
-  contenido sea accesible en diferentes resoluciones de pantalla, especialmente
-  útil si hay muchos campos o la pantalla es pequeña.
-
-Clase principal:
-----------------
-- `PatientConfigScreen`: Widget principal que contiene la lógica y la interfaz
-  para la gestión de pacientes.
-
-Dependencias:
--------------
-- `PySide6`: Para la construcción de la interfaz gráfica de usuario.
-- `gui.components.numpad_modal.NumpadDialog`: Diálogo para la entrada de números.
-- `gui.components.keyboard_modal.KeyboardDialog`: Diálogo para la entrada de texto.
-
-- `core.variables_map.VARIABLES`: usado para definir rangos de validación
-  y mapeo de datos con el controlador.
 """
 
 
@@ -58,9 +18,12 @@ from gui.components.keyboard_modal import KeyboardDialog
 from gui.components.floating_confirm import FloatingConfirmDialog   
 from gui.components.floating_message import FloatingMessage
 from core.variables_map import VARIABLES
+import json
+import os
 import logging
 logger = logging.getLogger(__name__)
 
+PATIENTS_CONFIG_FILE = "config/patients.json"
 
 class PatientConfigScreen(QWidget):
     """
@@ -77,10 +40,41 @@ class PatientConfigScreen(QWidget):
         self.current_values = parent.current_values if parent else {}
 
         self.patients_db = {}
-        self._load_test_patients()
+        
+        self._load_patients_from_file()      # ← Nueva función
+        if not self.patients_db:             # Si no hay pacientes guardados, cargar demo
+            self._load_test_patients()
+        
 
-        self.setFixedSize(1536, 726)
+        # self.setFixedSize(1536, 726)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setup_ui()
+
+    def _load_patients_from_file(self):
+        """Carga pacientes desde archivo JSON"""
+        if not os.path.exists(PATIENTS_CONFIG_FILE):
+            logger.info("No se encontró archivo de pacientes. Se usarán datos de prueba.")
+            print("No se encontró archivo de pacientes. Se usarán datos de prueba.")
+            return
+
+        try:
+            with open(PATIENTS_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                self.patients_db = data
+            logger.info(f"Se cargaron {len(self.patients_db)} pacientes desde {PATIENTS_CONFIG_FILE}")
+        except Exception as e:
+            logger.error(f"Error al cargar pacientes desde JSON: {e}")
+            self.patients_db = {}
+    
+    def _save_patients_to_file(self):
+        """Guarda todos los pacientes en JSON"""
+        try:
+            os.makedirs(os.path.dirname(PATIENTS_CONFIG_FILE), exist_ok=True)
+            with open(PATIENTS_CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(self.patients_db, f, indent=4, ensure_ascii=False)
+            logger.info(f"Pacientes guardados correctamente ({len(self.patients_db)})")
+        except Exception as e:
+            logger.error(f"Error al guardar pacientes en JSON: {e}")
 
     def _load_test_patients(self):
         """Pacientes de prueba para demo"""
@@ -209,6 +203,9 @@ class PatientConfigScreen(QWidget):
         self.patient_list.itemClicked.connect(self._load_selected_patient)
         selector_layout.addWidget(self.patient_list)
 
+        btn_layout_selector = QHBoxLayout()
+        btn_layout_selector.setSpacing(15)
+
         btn_new = QPushButton("Nuevo Paciente")
         btn_new.setFixedHeight(60)
         btn_new.setStyleSheet("""
@@ -223,8 +220,28 @@ class PatientConfigScreen(QWidget):
             QPushButton:pressed { background: #047857; }
         """)
         btn_new.clicked.connect(self._open_new_patient_dialog)
-        selector_layout.addWidget(btn_new)
+        btn_layout_selector.addWidget(btn_new)
+    
+        # === NUEVO BOTÓN ELIMINAR ===
+        self.btn_delete = QPushButton("Eliminar Paciente")
+        self.btn_delete.setFixedHeight(60)
+        self.btn_delete.setStyleSheet("""
+            QPushButton {
+                font-size: 26px;
+                background: #dc2626;
+                color: white;
+                border-radius: 10px;
+                padding: 5px;
+            }
+            QPushButton:hover { background: #b91c1c; }
+            QPushButton:pressed { background: #991b1b; }
+            QPushButton:disabled { background: #64748b; color: #94a3b8; }
+        """)
+        self.btn_delete.clicked.connect(self._delete_selected_patient)
+        self.btn_delete.setEnabled(False)  # Solo se habilita cuando hay selección
+        btn_layout_selector.addWidget(self.btn_delete)
 
+        selector_layout.addLayout(btn_layout_selector)
         selector_group.setLayout(selector_layout)
         content_layout.addWidget(selector_group) # Añadimos al layout de contenido
 
@@ -386,6 +403,45 @@ class PatientConfigScreen(QWidget):
 
             print(f"[PatientConfig] {patient_key} → {self.current_values.get(patient_key)}")
 
+
+    def _delete_selected_patient(self):
+        """Elimina el paciente seleccionado con confirmación"""
+        current_item = self.patient_list.currentItem()
+        if not current_item:
+            self.show_warning_message("Seleccione un paciente para eliminar.", 2000)
+            return
+
+        pid = current_item.text().split(" - ")[0]
+        patient_name = self.patients_db.get(pid, {}).get("patient_name", pid)
+
+        # Confirmación de seguridad
+        confirm = FloatingConfirmDialog(
+            self,
+            title="¿Eliminar paciente?",
+            message=f"¿Estás seguro de eliminar al paciente?\n\n"
+                    f"ID: {pid}\n"
+                    f"Nombre: {patient_name}\n\n"
+                    f"Esta acción no se puede deshacer.",
+            confirm_text="Sí, Eliminar",
+            cancel_text="Cancelar"
+        )
+
+        if confirm.exec() == QMessageBox.Accepted:
+            if pid in self.patients_db:
+                del self.patients_db[pid]
+                self._save_patients_to_file()   # Guardar cambios en JSON
+                self._refresh_patient_list()
+
+                # Limpiar formulario
+                self.form_group.hide()
+                self.btn_save.setEnabled(False)
+                self.btn_delete.setEnabled(False)
+
+                self.show_success_message(f"Paciente {pid} eliminado correctamente.", 2000)
+                logger.info(f"Paciente eliminado: {pid} - {patient_name}")
+            else:
+                self.show_error_message("Error: Paciente no encontrado.", 2000)            
+
     def _refresh_patient_list(self):
         self.patient_list.clear()
         for pid, data in self.patients_db.items():
@@ -398,6 +454,7 @@ class PatientConfigScreen(QWidget):
             self._populate_form(patient)
             self.form_group.show()
             self.btn_save.setEnabled(True)
+            self.btn_delete.setEnabled(True)   # ← Nueva línea
 
     def _open_new_patient_dialog(self):
 
@@ -522,6 +579,8 @@ class PatientConfigScreen(QWidget):
 
         # Guardar en DB
         self.patients_db[data["patient_id"]] = data
+        
+        self._save_patients_to_file()
 
         # Guardar en current_values (claves exactas del mapa)
         for tag in ["patient_id", "patient_name", "patient_gender", "patient_age", 
