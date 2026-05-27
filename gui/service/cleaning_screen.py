@@ -8,7 +8,7 @@ Módulo para la pantalla de control del ciclo de limpieza y desinfección.
 """
 
 from PySide6.QtWidgets import (
-    QMessageBox, QWidget, QLabel, QPushButton,
+     QMessageBox, QWidget, QLabel, QPushButton,
     QProgressBar, QVBoxLayout, QHBoxLayout, QSizePolicy, QFrame, QButtonGroup
 )
 from PySide6.QtCore import Qt, QTimer, Signal
@@ -37,6 +37,8 @@ class CleaningScreen(QWidget):
 
         self.cleaning_in_progress = False
         self.mid_pause_done = False # NUEVO: Para controlar la pausa intermedia en limpieza larga
+        # self.timer_started = False
+        
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet("background: #0f172a;")
 
@@ -302,6 +304,7 @@ class CleaningScreen(QWidget):
         if self.selected_mode is None:
             self.parent_window.show_warning_message("Seleccione un modo de desinfección", 2000)
             return
+        
         self._load_mode_specific_configuration(self.selected_mode) # Asegura que la configuración esté cargada
         self.cleaning_in_progress = True
         self.mid_pause_done = False # Reiniciar el estado de la pausa intermedia
@@ -325,7 +328,9 @@ class CleaningScreen(QWidget):
         except Exception as e:
             logger.error(f"Error al iniciar limpieza: {e}")
             self.parent_window.show_error_message(f"Error: {e}", 2000)
-    
+
+
+
     def _stop_cleaning(self):
         """Detiene el ciclo de limpieza de forma manual."""
         logger.info("Deteniendo ciclo de limpieza manualmente.")
@@ -358,6 +363,8 @@ class CleaningScreen(QWidget):
         """Reinicia la UI a estado inicial (esperando configuración)."""
         self.cleaning_in_progress = False
         self.progress_timer.stop()
+        # self.timer_started = False
+        self.mid_pause_done = False
 
         self.current_phase = "Esperando modo de limpieza..."
         self.phase_label.setText(self.current_phase)
@@ -387,25 +394,46 @@ class CleaningScreen(QWidget):
         logger.info("UI de limpieza reiniciada a estado inicial.")
 
 
+    # def _update_progress(self):
+    #     """Actualiza el progreso cada segundo"""
+    #     if self.remaining_time_seconds > 0:
+    #         self.remaining_time_seconds -= 1
+    #         self.progress_bar.setValue(self.total_time_seconds - self.remaining_time_seconds)
+    #         self._update_time_display()
+
+    #         # === PAUSA EN LA MITAD DEL CICLO ===
+    #         half_time = self.total_time_seconds // 2
+
+    #         if (not self.mid_pause_done and 
+    #             self.remaining_time_seconds <= half_time):
+                
+    #             self._pause_for_line_change()
+    #             return  # Salimos para no seguir descontando hasta que continúe
+
+    #     else:
+    #         self.progress_timer.stop()
+    #         self._finish_cleaning()
+
     def _update_progress(self):
         """Actualiza el progreso cada segundo"""
+        if not self.cleaning_in_progress:
+            return
+
         if self.remaining_time_seconds > 0:
             self.remaining_time_seconds -= 1
             self.progress_bar.setValue(self.total_time_seconds - self.remaining_time_seconds)
             self._update_time_display()
 
-            # === PAUSA EN LA MITAD DEL CICLO ===
+            # Pausa intermedia
             half_time = self.total_time_seconds // 2
-
             if (not self.mid_pause_done and 
-                self.remaining_time_seconds <= half_time):
-                
+                self.remaining_time_seconds <= half_time):            
                 self._pause_for_line_change()
-                return  # Salimos para no seguir descontando hasta que continúe
-
+                return  #no seguir descontando
         else:
             self.progress_timer.stop()
             self._finish_cleaning()
+
 
     def _pause_for_line_change(self):
         """Pausa el proceso en la mitad para cambiar la línea"""
@@ -452,7 +480,9 @@ class CleaningScreen(QWidget):
         self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
 
         self.progress_timer.start(1000)  # Reanudar timer
-        logger.info("Limpieza reanudada después de cambio de línea")
+        logger.info(f"Limpieza reanudada - Tiempo restante: {self.remaining_time_seconds} seg")
+
+        
 
     def _finish_cleaning(self):
         """Handle cycle completion."""
@@ -498,19 +528,77 @@ class CleaningScreen(QWidget):
             self._start_progress_timer()
     
     def _start_progress_timer(self):
-        """Inicia el temporizador y barra de progreso cuando el sistema está listo (estado 7)"""
-        self.remaining_time_seconds = self.total_time_seconds
+        """Inicia o reanuda el temporizador de progreso.
+    
+        IMPORTANTE: No reinicia el tiempo restante si ya se hizo la pausa intermedia.
+        """
+        # Solo resetear el tiempo la PRIMERA vez (inicio del ciclo)
+        if not self.mid_pause_done:
+            self.remaining_time_seconds = self.total_time_seconds
+            self.progress_bar.setValue(0)
+            logger.info(f"Iniciando temporizador desde cero: {self.total_time_seconds} segundos")
+        else:
+            logger.info(f"Reanudando temporizador - Tiempo restante: {self.remaining_time_seconds} segundos")
+
+        # Configurar barra de progreso
         self.progress_bar.setMaximum(self.total_time_seconds)
-        self.progress_bar.setValue(0)
+    
+        # Actualizar fase
+        self.current_phase = "Desinfección química en curso..."
+        self.phase_label.setText(self.current_phase)
+        self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
+
+        # Iniciar timer
+        if not self.progress_timer.isActive():
+            self.progress_timer.start(1000)
+    
+        self._update_time_display()
+    
+        logger.info(f"Temporizador iniciado (mid_pause_done={self.mid_pause_done})")
+    def _start_progress_timer(self):
+        """Inicia o reanuda el temporizador de progreso."""
+        if not self.mid_pause_done:
+            # Primera vez: iniciar desde el tiempo total
+            self.remaining_time_seconds = self.total_time_seconds
+            self.progress_bar.setValue(0)
+            logger.info(f"Iniciando temporizador desde cero: {self.total_time_seconds} segundos")
+        else:
+            # Reanudando después de pausa
+            logger.info(f"Reanudando temporizador - Tiempo restante: {self.remaining_time_seconds} seg")
+
+        self.progress_bar.setMaximum(self.total_time_seconds)
     
         self.current_phase = "Desinfección química en curso..."
         self.phase_label.setText(self.current_phase)
-        self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")  # Verde
+        self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
 
-        self.progress_timer.start(1000)  
+        if not self.progress_timer.isActive():
+            self.progress_timer.start(1000)
+    
         self._update_time_display()
     
-    logger.info("Temporizador de limpieza iniciado (estado 7 alcanzado)")
+        logger.info(f"Temporizador {'iniciado' if not self.mid_pause_done else 'reanudado'} (mid_pause_done={self.mid_pause_done})")
+
+    # def _start_progress_timer(self):
+    #     """Inicia el temporizador y barra de progreso cuando el sistema está listo (estado 7)"""
+
+    #     if not self.timer_started:
+    #         self.remaining_time_seconds = self.total_time_seconds
+    #         self.progress_bar.setValue(0)
+    #         self.timer_started = True
+
+    #     self.remaining_time_seconds = self.total_time_seconds
+    #     self.progress_bar.setMaximum(self.total_time_seconds)
+    #     self.progress_bar.setValue(0)
+    
+    #     self.current_phase = "Desinfección química en curso..."
+    #     self.phase_label.setText(self.current_phase)
+    #     self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")  # Verde
+
+    #     self.progress_timer.start(1000)  
+    #     self._update_time_display()
+    
+    #     logger.info("Temporizador de limpieza iniciado (estado 6 alcanzado)")
 
     def update_buttons_state(self, treatment_mode_selection: float):
         """
