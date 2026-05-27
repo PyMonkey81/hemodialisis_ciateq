@@ -1,6 +1,8 @@
 # gui/therapy/therapy_config_screen.py
 # Pantalla de configuración de parámetros de terapia (sin selección de modo)
 
+from tkinter import dialog
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QGridLayout, QFrame, QSizePolicy
@@ -60,332 +62,7 @@ class TherapyConfigScreen(QWidget):
         self.toggle_hold_off = {}
         self.setup_ui()
 
-    # def setup_ui(self):
-    #     # self.setStyleSheet("""
-    #     #     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-    #     #                                stop:0 #1a2a4a, stop:1 #0f172a);
-    #     #     color: #f8fafc;
-    #     # """)
 
-    #     button_style = """
-    #         QPushButton { background: #0f172a; color: #ffffff; border-radius: 20px; font-weight: bold; }
-    #         QPushButton:pressed { background: #1e40af; }
-    #     """
-
-    #     self.style_enabled = """
-    #         QPushButton { background: #39ec21; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
-    #         QPushButton:pressed { background: #334155; }
-    #     """
-    #     self.style_disabled = """
-    #         QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
-    #     """
-    #     self.style_stop_enabled = """
-    #          QPushButton { background: #DD2911; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
-    #          QPushButton:pressed { background: #334155; }
-    #     """
-
-    #     main_layout = QVBoxLayout(self)
-    #     main_layout.setContentsMargins(40, 30, 40, 30)
-    #     main_layout.setSpacing(25)
-    #     logger.info("Configuracion de terapia (V1.0.0)")
-    #     # Título
-    #     title = QLabel("Configuración de Terapia")
-    #     title.setStyleSheet("font-size: 42px; font-weight: bold; color: #60a5fa;")
-    #     title.setAlignment(Qt.AlignCenter)
-    #     main_layout.addWidget(title)
-
-    #     sep1 = QFrame()
-    #     sep1.setFrameShape(QFrame.HLine)
-    #     sep1.setStyleSheet("background: #fcfcfc; max-height: 2px;")
-    #     main_layout.addWidget(sep1)
-
-    #     # ── Parámetros ───────────────────────────────────────────────────────
-    #     #==================================COLUMNA 2=======================================
-    #     params_frame = QFrame()
-    #     params_frame.setStyleSheet("background: transparent; border-radius: 10px; padding: 25px;")
-    #     params_layout = QGridLayout(params_frame)
-    #     params_layout.setSpacing(20)
-
-    #     label_style = "color: #000000; font-size: 22px; font-weight: bold;"
-    #     input_style = """
-    #         ClickableLineEdit {
-    #             font-family: Consolas, "Courier New", monospace;
-    #             font-size: 24px;
-    #             color: #000000;
-    #             background: #e2e8f0;
-    #             border: 2px solid #64748b;
-    #             border-radius: 8px;
-    #             padding: 5px;
-    #             min-width: 110px;
-    #         }
-    #         ClickableLineEdit:focus {
-    #             border: 2px solid #3b82f6;
-    #             background: #ffffff;
-    #         }
-    #     """
-
-    #     # Heparina
-    #     lbl_heparin = QLabel("Dosis Heparina (UI):")
-    #     lbl_heparin.setStyleSheet(label_style)
-    #     self.input_heparin = ClickableLineEdit("0.0")
-    #     self.input_heparin.setFixedSize(120, 50)
-    #     self.input_heparin.setAlignment(Qt.AlignCenter)
-    #     self.input_heparin.setStyleSheet(input_style)
-    #     self.input_heparin.setReadOnly(True)
-    #     self.input_heparin.clicked.connect(
-    #         lambda: self.open_numpad("heparineTherapyDosage", self.input_heparin, "Dosis Heparina")
-    #     )
-    #     params_layout.addWidget(lbl_heparin, 0, 0, Qt.AlignRight)
-    #     params_layout.addWidget(self.input_heparin, 0, 1)
-
-    #     # Flujo de Sangre (Qb)
-    #     lbl_blood_flow = QLabel("Flujo de Sangre (Qb, mL/min):")
-    #     lbl_blood_flow.setStyleSheet(label_style)
-    #     self.input_blood_flow = ClickableLineEdit("0.0")
-    #     self.input_blood_flow.setFixedSize(120, 50)
-    #     self.input_blood_flow.setAlignment(Qt.AlignCenter)
-    #     self.input_blood_flow.setStyleSheet(input_style)
-    #     self.input_blood_flow.setReadOnly(True)
-    #     self.input_blood_flow.clicked.connect(
-    #         lambda: self.open_numpad("bloodFlowControlSetPoint", self.input_blood_flow, "Flujo de Sangre (Qb)")
-    #     )
-    #     params_layout.addWidget(lbl_blood_flow, 1, 0, Qt.AlignRight)
-    #     params_layout.addWidget(self.input_blood_flow, 1, 1)
-
-    #     # Flujo Dializante (Qd)
-    #     lbl_dialysate_flow = QLabel("Flujo Dializante (Qd, mL/min):")   # FLUJO DE CÁMARA DE BALANCE
-    #     lbl_dialysate_flow.setStyleSheet(label_style)
-    #     self.input_dialysate_flow = ClickableLineEdit("0.0")
-    #     self.input_dialysate_flow.setFixedSize(120, 50)
-    #     self.input_dialysate_flow.setAlignment(Qt.AlignCenter)
-    #     self.input_dialysate_flow.setStyleSheet(input_style)
-    #     self.input_dialysate_flow.setReadOnly(True)
-    #     self.input_dialysate_flow.clicked.connect(self._handle_cb_flow_input)
-    #     params_layout.addWidget(lbl_dialysate_flow, 2, 0, Qt.AlignRight)
-    #     params_layout.addWidget(self.input_dialysate_flow, 2, 1)
-
-    #     # Flujo de ultrafiltración
-    #     lbl_uf_flow = QLabel("Flujo UF (L/h):")
-    #     lbl_uf_flow.setStyleSheet(label_style)
-    #     self.lbl_input_UF = ClickableLineEdit("0.0")
-    #     self.lbl_input_UF.setFixedSize(120, 50)
-    #     self.lbl_input_UF.setAlignment(Qt.AlignCenter)
-    #     self.lbl_input_UF.setStyleSheet(input_style)
-    #     self.lbl_input_UF.setReadOnly(True)
-    #     self.lbl_input_UF.clicked.connect(self._handle_uf_flow_input)
-    #     params_layout.addChildWidget(lbl_uf_flow)   # <--- poner la distribucion 
-    #     params_layout.addChildWidget(self.lbl_input_UF)
-
-
-    #     # Temperatura
-    #     lbl_temperature = QLabel("Temperatura (°C):")
-    #     lbl_temperature.setStyleSheet(label_style)
-    #     self.input_temperature = ClickableLineEdit("0.0")
-    #     self.input_temperature.setFixedSize(120, 50)
-    #     self.input_temperature.setAlignment(Qt.AlignCenter)
-    #     self.input_temperature.setStyleSheet(input_style)
-    #     self.input_temperature.setReadOnly(True)
-    #     self.input_temperature.clicked.connect(
-    #         lambda: self.open_numpad("dialyTempControlSetPoint", self.input_temperature, "Temperatura")
-    #     )
-    #     params_layout.addWidget(lbl_temperature, 0, 2, Qt.AlignRight)
-    #     params_layout.addWidget(self.input_temperature, 0, 3)
-
-    #     # Conductividad
-    #     lbl_conductivity = QLabel("Conductividad (mS/cm):")
-    #     lbl_conductivity.setStyleSheet(label_style)
-    #     self.input_conductivity = ClickableLineEdit("0.0")
-    #     self.input_conductivity.setFixedSize(120, 50)
-    #     self.input_conductivity.setAlignment(Qt.AlignCenter)
-    #     self.input_conductivity.setStyleSheet(input_style)
-    #     self.input_conductivity.setReadOnly(True)
-    #     self.input_conductivity.clicked.connect(
-    #         lambda: self.open_numpad("dialyCondControlSetPoint", self.input_conductivity, "Conductividad")
-    #     )
-    #     params_layout.addWidget(lbl_conductivity, 1, 2, Qt.AlignRight)
-    #     params_layout.addWidget(self.input_conductivity, 1, 3)
-
-   
-
-    #     # Duración de Terapia (hh:mm)
-    #     lbl_duration = QLabel("T. Terapia (hh:mm)")
-    #     lbl_duration.setStyleSheet(label_style)
-    #     self.input_duration = ClickableLineEdit("00:00")
-    #     self.input_duration.setFixedSize(120, 50)
-    #     self.input_duration.setAlignment(Qt.AlignCenter)
-    #     self.input_duration.setStyleSheet(input_style)
-    #     self.input_duration.setReadOnly(True)
-    #     self.input_duration.clicked.connect(
-    #         lambda: self.open_time_numpad(
-    #             self.input_duration,
-    #             tag_hours="heparineTherapyHours",
-    #             tag_minutes="heparineTherapyMinutes",
-    #             title="Tiempo de terapia"
-    #         )
-    #     )
-    #     params_layout.addWidget(lbl_duration, 2, 2, Qt.AlignRight)
-    #     params_layout.addWidget(self.input_duration, 2, 3)                
-
-    #     # ── Configuración Bomba de Heparina ───────────────────────────────────────
-    #     #==================================COLUMNA 1=======================================
-    #     hep_config_frame = QFrame()    
-    #     hep_config_frame.setStyleSheet("""
-    #             QFrame {
-    #                 border: 2px solid #5c5c5c;
-    #                 border-radius: 8px;
-    #                 background-color: transparent;
-    #             }
-    #             QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
-    #     """)
-        
-    #     # Layout horizontal para el frame (Bolo a la izq, Botones a la derecha)
-    #     hep_frame_layout = QHBoxLayout(hep_config_frame)
-    #     hep_frame_layout.setContentsMargins(15, 15, 15, 15)
-    #     hep_frame_layout.setSpacing(15)
-
-    #     # -- Sección Bolo (Vertical: Label arriba, Input abajo) --
-        
-    #     bolus_layout = QHBoxLayout()
-    #     bolus_layout.setContentsMargins(0, 0, 0, 0)
-    #     bolus_layout.setSpacing(5)
-        
-    #     lbl_bolus = QLabel("Bolo (ml):")       
-    #     lbl_bolus.setStyleSheet(label_style) 
-    #     lbl_bolus.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-    #     bolus_layout.addWidget(lbl_bolus)
-
-        
-    #     self.input_bolus = ClickableLineEdit("0.0")
-    #     self.input_bolus.setFixedSize(120, 50)
-    #     self.input_bolus.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-    #     self.input_bolus.setStyleSheet(input_style)
-    #     self.input_bolus.setReadOnly(True)
-    #     self.input_bolus.clicked.connect(
-    #         lambda: self.open_numpad("heparineBolusQuantity", self.input_bolus, "bolo (ml)")
-    #     )
-                
-    #     bolus_layout.addWidget(self.input_bolus)
-        
-    #     # Agregamos el layout del bolo al frame principal
-    #     hep_frame_layout.addLayout(bolus_layout)
-        
-    #     # Espacio flexible para separar el bolo de los botones (opcional)
-    #     hep_frame_layout.addStretch() 
-
-    #     # -- Botones de Control --        
-    #     btn_heparin_home = PushbuttonEvent("HOME", self)
-    #     btn_heparin_home.setFixedSize(120, 80)
-    #     btn_heparin_home.setStyleSheet(button_style)
-    #     btn_heparin_home.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", True))
-    #     btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
-    #     hep_frame_layout.addWidget(btn_heparin_home)
-
-    #     #  Btn REV heparina
-    #     btn_rev_hep = PushbuttonEvent("REV", self)
-    #     btn_rev_hep.setFixedSize(120 ,80)
-    #     btn_rev_hep.setStyleSheet(button_style)
-    #     btn_rev_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", True))
-    #     btn_rev_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", False))
-    #     hep_frame_layout.addWidget(btn_rev_hep)
-    #     #  Btn FWD heparina
-    #     btn_fwd_hep = PushbuttonEvent("FWD", self)
-    #     btn_fwd_hep.setFixedSize(120, 80)
-    #     btn_fwd_hep.setStyleSheet(button_style)
-    #     btn_fwd_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", True))
-    #     btn_fwd_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", False))
-    #     hep_frame_layout.addWidget(btn_fwd_hep)
-
-  
-
-    # # ====================layout bomba de sangre =========================
-    #     blood_operation_frame = QFrame()
-    #     blood_operation_frame.setStyleSheet("""
-    #             QFrame {
-    #                 border: 2px solid #5c5c5c;
-    #                 border-radius: 8px;                
-    #                 background-color: transparent;
-    #             }
-    #             QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
-    #     """)      
-    #     blood_layout = QHBoxLayout(blood_operation_frame)
-    #     blood_layout.setContentsMargins(15, 15, 15, 15)
-    #     blood_layout.setSpacing(15)
-
-    #     lbl_bloob_pump = QLabel("Bomba de Sangre")
-    #     lbl_bloob_pump.setStyleSheet(label_style)
-    #     lbl_bloob_pump.setAlignment(Qt.AlignCenter)
-    #     blood_layout.addWidget(lbl_bloob_pump)
-    #     blood_layout.addStretch()  # Espacio flexible entre el label y los botones
-
-    #     self.btn_start_blood_pump = PushbuttonEvent("START", self)
-    #     self.btn_start_blood_pump.setFixedSize(120, 80)
-    #     self.btn_start_blood_pump.setStyleSheet(self.style_enabled)
-    #     self.btn_start_blood_pump.pressed.connect(self._start_blood_pump)
-    #     blood_layout.addWidget(self.btn_start_blood_pump)
-
-    #     self.btn_stop_blood_pump = PushbuttonEvent("STOP", self)
-    #     self.btn_stop_blood_pump.setFixedSize(120, 80)
-    #     self.btn_stop_blood_pump.setStyleSheet(self.style_stop_enabled)
-    #     self.btn_stop_blood_pump.pressed.connect(self._stop_blood_pump)
-    #     blood_layout.addWidget(self.btn_stop_blood_pump)
-
-    #     #=============== LLenado de filtro=================
-    #     filter_fill_frame = QFrame()
-    #     filter_fill_frame.setStyleSheet("""
-    #             QFrame {
-    #                 border: 2px solid #5c5c5c;
-    #                 border-radius: 8px;                
-    #                 background-color: transparent;
-    #             }
-    #             QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
-    #     """)
-    #     filter_fill_layout = QHBoxLayout(filter_fill_frame)
-    #     filter_fill_layout.setContentsMargins(15, 15, 15, 15)
-    #     filter_fill_layout.setSpacing(15)
-
-    #     lbl_filter_fill_button = QLabel("Llenado de filtro")
-    #     lbl_filter_fill_button.setStyleSheet(label_style)
-    #     lbl_filter_fill_button.setAlignment(Qt.AlignCenter)
-    #     filter_fill_layout.addWidget(lbl_filter_fill_button)
-    #     filter_fill_layout.addStretch()
-
-    #     self.btn_filter_fill = PushbuttonEvent("START",self)
-    #     self.btn_filter_fill.setFixedSize(120, 80)
-    #     self.btn_filter_fill.setStyleSheet(self.style_enabled)
-    #     self.btn_filter_fill.pressed.connect(self._start_filter_fill)
-    #     filter_fill_layout.addWidget(self.btn_filter_fill)
-
-
-
-
-
-    #   # ─── Agregando al layout principal ──────────────────────────────────
-    #     main_layout.addWidget(params_frame)
-
-    #     # === NUEVO: Contenedor horizontal para poner los frames uno al lado del otro ===
-    #     bottom_layout = QHBoxLayout()
-    #     bottom_layout.setContentsMargins(0, 0, 0, 0)
-    #     bottom_layout.setSpacing(20)        # espacio entre los dos grupos
-
-    #     # Grupo izquierdo: Bomba de Heparina (con bolo + botones HOME/REV/FWD)
-    #     bottom_layout.addWidget(hep_config_frame, stretch=1)
-
-    #     # Grupo derecho: Bomba de Sangre + Llenado de filtro (uno debajo del otro)
-    #     right_column = QVBoxLayout()
-    #     right_column.setSpacing(15)
-    #     right_column.addWidget(blood_operation_frame)
-    #     right_column.addWidget(filter_fill_frame)
-    #     right_column.addStretch(1)   # empuja todo hacia arriba
-
-    #     # Convertimos el layout vertical en un widget para poder agregarlo al HBox
-    #     right_widget = QWidget()
-    #     right_widget.setLayout(right_column)
-    #     bottom_layout.addWidget(right_widget, stretch=1)
-
-    #     # Agregamos el layout horizontal completo al main_layout
-    #     main_layout.addLayout(bottom_layout)
-
-    #     main_layout.addStretch(1)   # espacio al final para que no quede pegado abajo
 
     def setup_ui(self):
         # self.setStyleSheet("""
@@ -715,14 +392,10 @@ class TherapyConfigScreen(QWidget):
         """Maneja el encendido seguro de la bomba de sangre"""
         try:
             logger.info("Comando START bomba de sangre solicitado")
-            # 1. Habilitar loop de control (requisito)
-            # self.on_user_boolean_command("bloodControlLoopEnable", True)
-
-            # 2. Activar secuencia de arranque de la bomba
+          
             self._handle_dual_pump_toggle("bloodPumpStartButton", "bloodPumpStopButton", True)
 
-            # 3. Activar movimiento hacia adelante
-            # self.on_user_boolean_command("bloodPumpFWDButton", True)
+          
 
         except Exception as e:
             logger.error(f"Error en _start_blood_pump: {e}", exc_info=True)
@@ -914,9 +587,7 @@ class TherapyConfigScreen(QWidget):
         self._update_input_display(self.input_bolus, "heparineBolusQuantity")
         self._update_input_display(self.input_dialysate_flow, self.current_values.get("balanceChamberSetTiming", 0.0)) 
         self._update_input_display(self.lbl_input_UF, self.current_values.get("ultraFilterPumpSpeed", 0.0))
-
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
-
         self._update_bloop_pump_controls_state()
         self._update_filter_fill_button_state()
 
@@ -929,24 +600,20 @@ class TherapyConfigScreen(QWidget):
         2. Convierte mL/min -> Ciclos/timing.
         3. Escribe el valor en ciclos a la máquina.
         """
-        # Obtenemos el texto actual del widget correcto
-        # current_text = self.input_dialysate_flow.text()
-
         dialog = NumpadDialog(self, initial_value="", title="Flujo Dializante (mL/min)")
         
         if dialog.exec():
             # El usuario ingresó un valor en mL/min (ej: 500)
             value_str = dialog.get_value()
-            if not value_str:return 
+            if hasattr(self.input_dialysate_flow, 'setText'):
+                self.input_dialysate_flow.setText(str(value_str))
 
             flow_ml_min = float(value_str)            
-
-            self.input_dialysate_flow.setText(f"{flow_ml_min:.1f}")
-            self.input_dialysate_flow.clearFocus()
+            
             self.setFocus()
             
             try:
-                cycles_value = convertir_flujo_a_ciclos(flow_ml_min)                               
+                cycles_value = convertir_flujo_a_ciclos(flow_ml_min)
                 tag = "balanceChamberSetTiming"
                 self.on_user_input_setpoint(tag, cycles_value)
                 print(f"Flujo {flow_ml_min} mL/min convertido a {cycles_value} ciclos/timing y enviado a la máquina.")                               
@@ -956,31 +623,61 @@ class TherapyConfigScreen(QWidget):
                 logger.error(f"Error convirtiendo flujo a ciclos: {e}")
 
 
+        # def _handle_uf_flow_input(self):
+        #     """Handle UF flow input (L/h → ml/min)."""
+        
+                
+        #     dialog = NumpadDialog(self, initial_value="", title="Flujo UF (L/h)")
+        #     if dialog.exec():            
+        #         new_value = dialog.get_value()
+        #         if new_value is not None:
+        #             if hasattr(self.lbl_input_UF, 'setText'):
+        #                 self.lbl_input_UF.setText(str(new_value))            
+        #             try:            
+        #                 ml_min = convertir_litros_h_a_ml_min(float(new_value))
+        #                 self.on_user_input_setpoint("ultraFilterPumpSpeed", ml_min)
+        #                 self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
+        #             except Exception as e:
+        #                 logger.error(f"Error converting UF flow: {e}")
+
     def _handle_uf_flow_input(self):
         """Handle UF flow input (L/h → ml/min)."""
+    
+        # 1. Obtener el valor actual del widget para mostrarlo en el numpad
+        current_text = self.lbl_input_UF.text()
         
-        try:            
-            current_text = ""
-        except AttributeError:
-            current_text = "0.0"
-            
         dialog = NumpadDialog(self, initial_value=current_text, title="Flujo UF (L/h)")
-        if dialog.exec():
-            new_value = dialog.get_value()
-            if hasattr(self.lbl_input_UF, 'setText'):
-                self.lbl_input_UF.setText(str(new_value))
+    
+        if dialog.exec():            
+            new_value_str = dialog.get_value()
+        
+            if new_value_str is not None:
+                try:
+                    # 2. Convertir a float una sola vez y validar
+                    val_float = float(new_value_str)
+                
+                    # 3. Actualizar la interfaz inmediatamente
+                    if hasattr(self.lbl_input_UF, 'setText'):
+                        self.lbl_input_UF.setText(f"{val_float:.2f}")
 
-            try:
-                ml_min = convertir_litros_h_a_ml_min(new_value)
-                self.on_user_input_setpoint("ultraFilterPumpSpeed", ml_min)
-                self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
-            except Exception as e:
-                logger.error(f"Error converting UF flow: {e}")
+                    # 4. Realizar el cálculo matemático con el número, NO con el texto
+                    ml_min = convertir_litros_h_a_ml_min(val_float)
+                
+                    # 5. Enviar al controlador
+                    self.on_user_input_setpoint("ultraFilterPumpSpeed", ml_min)
+                
+                    # 6. Bloquear actualización de lectura por 3 segundos para dar tiempo al PLC
+                    self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
+                
+                except ValueError:
+                    logger.error(f"El valor ingresado no es un número válido: {new_value_str}")
+                except Exception as e:
+                    logger.error(f"Error convirtiendo flujo UF: {e}")
+
 
 
     def _update_input_display(self, widget: ClickableLineEdit, tag_or_value, precision: int = 1):
         if widget.hasFocus():
-            self.setFocus()
             return
         val_to_show = 0.0
         if isinstance(tag_or_value, str):

@@ -40,7 +40,7 @@ Funcionalidades clave:
 
 
 from PySide6.QtWidgets import (
-    QLineEdit, QWidget, QVBoxLayout, QLabel, QFrame, QHBoxLayout
+    QLineEdit, QSizePolicy, QWidget, QVBoxLayout, QLabel, QFrame, QHBoxLayout
 )
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QFont
@@ -192,30 +192,6 @@ class LabeledParameterWidget(QWidget):
     Un widget compuesto y reutilizable para la visualización y/o entrada
     de un parámetro numérico con una etiqueta descriptiva y unidades.
 
-    Este componente es versátil y puede configurarse como editable (para
-    configuración de setpoints) o como de solo lectura (para mostrar valores
-    de sensores), siempre con un formato claro y adaptado a interfaces táctiles.
-
-    Señales:
-        request_numpad (str, object, str): Emitida cuando el widget es editable
-            y se pulsa para solicitar la apertura de un teclado numérico virtual.
-            - `tag` (str): El tag asociado al parámetro.
-            - `self` (object): La instancia de `LabeledParameterWidget` que emitió la señal.
-            - `numpad_title` (str): Título sugerido para el diálogo del numpad.
-
-    Args:
-        label_text (str): Texto descriptivo del parámetro (ej. "Flujo de Sangre").
-        tag (str, optional): Identificador único (tag) del parámetro en el sistema.
-            Se usa para la comunicación de setpoints.
-        value (str, optional): Valor inicial a mostrar en el widget.
-        units (str, optional): Unidades de medida del parámetro (ej. "ml/min", "°C").
-        numpad_title (str, optional): Título a usar cuando se abre el numpad.
-            Si no se especifica, se usa `label_text`.
-        is_editable (bool, optional): Si es `True`, el valor se muestra en un
-            `ClickableLineEdit` y emitirá `request_numpad` al tocarlo.
-            Si es `False`, se muestra en un `QLabel` de solo lectura.
-        parent (QWidget, optional): El widget padre de este componente.
-
     Métodos:
         set_value(value): Actualiza el valor mostrado, aplicando un formato
                           numérico consistente (1 o 2 decimales según el valor).
@@ -242,30 +218,33 @@ class LabeledParameterWidget(QWidget):
             border: 2px solid #000000; border-radius: 5px; padding: 4px;
         """
 
-        self.setFixedHeight(90)  # Consistent touch target size
+        # self.setFixedHeight(100)  # Consistent touch target size
         self._tag = tag
         self._numpad_title = numpad_title or label_text
 
         # Container frame
         self.frame = QFrame(self)
+        self.frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.frame)
 
         # Inner layout
         frame_layout = QVBoxLayout(self.frame)
-        frame_layout.setContentsMargins(5, 5, 5, 5)
-        frame_layout.setSpacing(2)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame_layout.setSpacing(1)
 
         # Header label (description + units)
         header_text = f"{label_text} ({units})" if units else label_text
         self.header_label = QLabel(header_text)
-        self.header_label.setAlignment(Qt.AlignCenter)
+        self.header_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.header_label.setStyleSheet("""
+            background: transparent;
             border: none;
             color: #333333;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 24px;
+            padding-left: 8px;
         """)
 
         # Value widget (editable or read-only)
@@ -325,35 +304,6 @@ class LabeledTimeInput(QWidget):
     """
     Un widget compuesto y reutilizable para la visualización y/o entrada
     de valores de tiempo en formato HH:MM, con una etiqueta descriptiva.
-
-    Diseñado para entornos táctiles, permite a los usuarios introducir o
-    visualizar duraciones de terapia, tiempos de operación, etc., utilizando
-    un teclado numérico virtual especializado para tiempo.
-
-    Señales:
-        request_time_numpad (object, str, str, str, str): Emitida cuando el widget
-            es editable y se pulsa para solicitar la apertura de un teclado
-            numérico virtual de tiempo.
-            - `self` (object): La instancia de `LabeledTimeInput` que emitió la señal.
-            - `tag_hours` (str): Tag asociado a la parte de las horas del tiempo.
-            - `tag_minutes` (str): Tag asociado a la parte de los minutos del tiempo.
-            - `local_timer_id` (str): Identificador para un timer local asociado.
-            - `numpad_title` (str): Título sugerido para el diálogo del numpad.
-
-    Args:
-        label_text (str): Texto descriptivo del tiempo (ej. "T. Terapia").
-        initial_hh_mm (str, optional): Valor inicial del tiempo en formato "HH:MM".
-        tag_hours (str, optional): Tag del sistema para el valor de las horas.
-        tag_minutes (str, optional): Tag del sistema para el valor de los minutos.
-        local_timer_id (str, optional): Identificador para un timer interno asociado
-            a este tiempo (ej. "blood_pump_timer").
-        numpad_title (str, optional): Título a usar cuando se abre el numpad de tiempo.
-            Si no se especifica, se usa `label_text`.
-        is_editable (bool, optional): Si es `True`, el tiempo se muestra en un
-            `ClickableLineEdit` y emitirá `request_time_numpad` al tocarlo.
-            Si es `False`, se muestra en un `QLabel` de solo lectura.
-        parent (QWidget, optional): El widget padre de este componente.
-
     Métodos:
         set_time_value(hours, minutes): Actualiza el tiempo mostrado a "HH:MM".
         get_time_value() -> str: Retorna el texto actual del tiempo como "HH:MM".
@@ -372,7 +322,7 @@ class LabeledTimeInput(QWidget):
                  parent=None):
         super().__init__(parent)
 
-        self.setFixedHeight(90)
+        # self.setFixedHeight(90)
         self._tag_hours = tag_hours
         self._tag_minutes = tag_minutes
         self._local_timer_id = local_timer_id
@@ -386,23 +336,25 @@ class LabeledTimeInput(QWidget):
 
         # Container frame
         self.frame = QFrame(self)
+        self.frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.frame)
 
         # Inner layout
         frame_layout = QVBoxLayout(self.frame)
-        frame_layout.setContentsMargins(5, 5, 5, 5)
-        frame_layout.setSpacing(2)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame_layout.setSpacing(1)
 
         # Header label
         self.header_label = QLabel(label_text)
         self.header_label.setAlignment(Qt.AlignCenter)
         self.header_label.setStyleSheet("""
+            background: transparent;
             border: none;
             color: #333333;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 20px;
         """)
 
         # Clickable time display

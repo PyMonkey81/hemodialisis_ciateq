@@ -1373,7 +1373,7 @@ class ManualModeScreen(QWidget):
     def _handle_cb_flow_input(self):
         """Handle balance chamber flow input (ml/min → cycles)."""        
         try:
-            current_text = self.input_flow_cb.get_value()            
+            current_text = ""            
         except AttributeError:
             current_text = "0.0"
 
@@ -1384,7 +1384,7 @@ class ManualModeScreen(QWidget):
                 self.input_flow_cb.setText(str(new_value))
             
             try:
-                cycles = convertir_flujo_a_ciclos(new_value)
+                cycles = convertir_flujo_a_ciclos(float(new_value))
                 self.on_user_input_setpoint("balanceChamberSetTiming", cycles)
                 self.write_hold_off["balanceChamberSetTiming"] = QDateTime.currentMSecsSinceEpoch() + 3000
             except Exception as e:

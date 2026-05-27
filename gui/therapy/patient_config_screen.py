@@ -414,19 +414,15 @@ class PatientConfigScreen(QWidget):
         pid = current_item.text().split(" - ")[0]
         patient_name = self.patients_db.get(pid, {}).get("patient_name", pid)
 
-        # Confirmación de seguridad
-        confirm = FloatingConfirmDialog(
-            self,
-            title="¿Eliminar paciente?",
-            message=f"¿Estás seguro de eliminar al paciente?\n\n"
-                    f"ID: {pid}\n"
-                    f"Nombre: {patient_name}\n\n"
-                    f"Esta acción no se puede deshacer.",
-            confirm_text="Sí, Eliminar",
-            cancel_text="Cancelar"
-        )
+      
+        message=f"""¿Estás seguro de eliminar al paciente?\n\n 
+                    ID: {pid}\n
+                    Nombre: {patient_name}\n\n
+                    Esta acción no se puede deshacer."""
+    
+        
 
-        if confirm.exec() == QMessageBox.Accepted:
+        if self._confirm_message(message, "Sí, Eliminar", "Cancelar"):
             if pid in self.patients_db:
                 del self.patients_db[pid]
                 self._save_patients_to_file()   # Guardar cambios en JSON
@@ -441,6 +437,11 @@ class PatientConfigScreen(QWidget):
                 logger.info(f"Paciente eliminado: {pid} - {patient_name}")
             else:
                 self.show_error_message("Error: Paciente no encontrado.", 2000)            
+    
+    def _confirm_message(self, message: str, accept_text: str, cancel_text: str) -> bool:
+        """Muestra un mensaje de confirmación flotante y devuelve True si se acepta."""
+        dialog = FloatingConfirmDialog(self)
+        return dialog.show_confirm(message, accept_text=accept_text, cancel_text=cancel_text)
 
     def _refresh_patient_list(self):
         self.patient_list.clear()

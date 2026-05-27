@@ -28,15 +28,5 @@
         "patient_dry_weight_kg": 82.0,
         "patient_pre_weight_kg": 87.5,
         "uf_goal_liters": 5.5
-    },
-    "P004": {
-        "patient_id": "P004",
-        "patient_name": "Erik Cabrera",
-        "patient_gender": 1,
-        "patient_age": 37,
-        "patient_height_cm": 170.0,
-        "patient_dry_weight_kg": 68.0,
-        "patient_pre_weight_kg": 71.0,
-        "uf_goal_liters": 3.0
     }
 }
