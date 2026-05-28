@@ -953,6 +953,141 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
     #              Utility Methods
     # ────────────────────────────────────────────────
+    def _refresh_navigation_bar(self):
+        """
+        Habilita o deshabilita los botones de navegación según el estado actual del sistema.
+        - Si no hay conexión serial, solo "Salir" está habilitado.
+        - Si hay conexión, se habilitan/deshabilitan botones según el modo de tratamiento y estado de limpieza.
+        - "Alarmas" siempre está habilitado por seguridad.
+        - "Iniciar Tratamiento" tiene reglas especiales basadas en temperatura, conductividad y modo de tratamiento.
+        """
+
+        is_conected = self.serial_comm and self.serial_comm.is_connected
+
+        # =========================== SIN CONEXIÓN ===========================
+        if not is_conected:
+            for text, btn in self.navigation_buttons.items():
+                if text == "Salir":
+                    btn.setEnabled(True)
+                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
+                else:
+                    btn.setEnabled(False)
+                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
+            return
+
+        # =========================== ESTADOS ===========================  
+
+        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+        status_code = int(self.current_values.get("primingProcessStatus", 0))
+
+        is_cleaning_mode = (treatment_mode == 3)
+        is_cleaning_active = is_cleaning_mode and getattr(self, 'is_cleaning_in_progress', False)
+        in_treatment_active = (status_code == 14 or getattr(self, 'is_treatment_running', False))
+
+        active_screen_text = self._get_current_screen_nav_text()
+
+        # =========================== PROCESAR CADA BOTÓN ===========================
+
+        for text, btn in self.navigation_buttons.items():
+            # ==================== SALIR ====================
+            if text == "Salir":
+                enabled = not in_treatment_active and not is_cleaning_active
+                btn.setEnabled(enabled)
+                btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE if enabled else self.BTN_DISABLED_STYLE)
+                continue
+            # ==================== INICIAR TRATAMIENTO ====================
+            if text == "Iniciar\nTratamiento":
+                # DELEGAR COMPLETAMENTE a _update_treatment_controls_state()
+                continue
+            
+            # ==================== LIMPIEZA ====================
+            if text == "Limpieza":
+                enabled = is_cleaning_mode  # Solo habilitado cuando modo == 3
+                btn.setEnabled(enabled)                
+                if enabled and text == active_screen_text:
+                    btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
+                else:
+                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE if enabled else self.BTN_DISABLED_STYLE)
+                continue
+            # ==================== ALARMAS (Siempre accesible) ====================
+            if text == "Alarmas":
+                btn.setEnabled(True)
+                if text == active_screen_text:
+                    btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
+                else:
+                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
+                continue
+            # ==================== RESTO DE BOTONES ====================
+            if is_cleaning_active:
+                enabled = False  # Solo Alarmas + Limpieza están disponibles    
+            elif in_treatment_active:
+                enabled = (text == "Diálisis")  # Solo Diálisis + Alarmas   
+            else:
+                enabled = True  # Todos habilitados en estado normal
+
+            btn.setEnabled(enabled)
+
+            # Aplicar estilos
+            if enabled and text == active_screen_text:
+                btn.setStyleSheet(self.BTN_ACTIVE_STYLE)    
+            elif enabled:
+                btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
+            else:
+                btn.setStyleSheet(self.BTN_DISABLED_STYLE)
+
+
+    def _master_timer_tick(self):
+        """Timer Maestro - Se ejecuta cada 500ms. Centraliza toda la actualización."""
+        now = QDateTime.currentDateTime()
+        self.update_connection_status() # Esta función llama a refresh_alarms_label y update_led_bar_state
+        
+
+        if self.is_treatment_running:
+            self._update_therapy_time_displays()
+
+        # Actualizaciones cada 1 segundo exacto
+        delta_msecs = self.last_second_update.msecsTo(now)
+        if delta_msecs >= 1000:  # 1000 ms = 1 s
+            self.last_second_update = now
+            self.update_date_time()
+            
+            # Sumar la fracción exacta de hora que acaba de pasar (Delta)
+            hours_passed = delta_msecs / 3600000.0
+            
+            # 1. Horas de máquina encendida (siempre corre)
+            self.power_on_hours += hours_passed
+            
+            # 2. Horas de operación (solo si el tratamiento está activo, estado 14)
+            if self.operation_start_time is not None:
+                self.total_operation_hours += hours_passed
+
+            # 3. Logging de tratamiento
+            if self.treatment_logger:
+                self._log_treatment_current_data()
+                
+            # 4. Logging de cebado (si el logger de cebado existe)
+            if self.csv_logger:
+                self._log_current_data()
+
+        # Actualizaciones cada 1 minuto
+        if self.last_minute_update.secsTo(now) >= 60:
+            self.last_minute_update = now
+            
+            # Guardado automático de seguridad cada minuto (opcional pero recomendado)
+            self._save_power_on_hours()
+            self._save_operation_hours()
+
+            # Actualizar pantalla de mantenimiento si está visible
+            if self.screen_stack.currentWidget() == self.maintenance_screen:
+                self._update_maintenance_screen_immediately()
+        
+        self._update_gauges()
+
+        
+        self._update_treatment_controls_state() # Asegura que los botones de tratamiento estén en el estado correcto
+        self._update_priming_controls_state() # Asegura que los botones de cebado estén en el estado correcto
+        self._refresh_navigation_bar()
+
     def _get_current_screen_nav_text(self) -> str:
         """
         Devuelve el texto del botón de navegación asociado a la pantalla actualmente visible.
@@ -968,80 +1103,14 @@ class HemodialysisHMI(QMainWindow):
         # Para otras pantallas no navegables directamente desde la barra, o si no se quiere resaltar
         return "" 
 
-    def _set_navigation_buttons_enabled(self, enable_all: bool):
-        """
-        Habilita/deshabilita la mayoría de los botones de navegación y
-        aplica sus estilos por defecto.
-        Los botones "Salir" e "Iniciar Tratamiento" tienen un manejo especial.
-        """
-        for text, btn in self.navigation_buttons.items():
-            if text == "Salir":
-                btn.setEnabled(True) # "Salir" siempre habilitado
-                btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
-            elif text == "Iniciar\nTratamiento":
-                # Este botón se gestiona por _update_treatment_controls_state,
-                # aquí solo lo habilitamos/deshabilitamos pero su estilo final lo pone el otro método.
-                btn.setEnabled(enable_all)
-                if not enable_all: # Si deshabilitamos todos, asegurar estilo deshabilitado
-                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
-                # Si enable_all es True, _update_treatment_controls_state lo estilizará.
-            else:
-                btn.setEnabled(enable_all)
-                if enable_all:
-                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
-                else:
-                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
-        self._highlight_active_nav_button(self._get_current_screen_nav_text())
-
-    def _set_navigation_buttons_enabled(self, enable_all: bool):
-        """
-        Habilita/deshabilita la mayoría de los botones de navegación y
-        aplica sus estilos por defecto.
-        Los botones "Salir" e "Iniciar Tratamiento" tienen un manejo especial.
-        """
-        # Verificar si estamos en modo limpieza
-        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
-        is_cleaning_mode = (treatment_mode == 3)
-    
-        for text, btn in self.navigation_buttons.items():
-            if text == "Salir":
-                # "Salir" siempre habilitado (a menos que haya procesos críticos)
-                btn.setEnabled(True)
-                btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
-            
-            elif text == "Iniciar\nTratamiento":
-                # DELEGAR COMPLETAMENTE a _update_treatment_controls_state()
-                # Solo deshabilitar si estamos en modo limpieza
-                if is_cleaning_mode:
-                    btn.setEnabled(False)
-                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
-                # En cualquier otro caso, dejar que _update_treatment_controls_state() maneje
-                # No tocar btn.setEnabled() ni btn.setStyleSheet() aquí
-            
-            elif text == "Alarmas":
-                # Las alarmas siempre deben ser accesibles por seguridad
-                btn.setEnabled(True)
-                btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
-            
-            else:
-                # Resto de botones de navegación
-                btn.setEnabled(enable_all)
-                if enable_all:
-                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
-                else:
-                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
-                
-        # Aplicar resaltado del botón activo al final
-        self._highlight_active_nav_button(self._get_current_screen_nav_text())
-
-
     def _set_ui_connected_state(self, is_connected: bool):
         """
         Manages the overall UI state (buttons, header labels) based on connection status.
         """
         if is_connected:
             logger.info("Enabling UI elements for connected state.")
-            self._set_navigation_buttons_enabled(True)              
+               
+                      
             if hasattr(self, 'alarm_system') and self.alarm_system:
                 self.alarm_system.reset() # Resetea previous_states y current_values internos
             self.active_alarms.clear() # Limpia la lista del HMI
@@ -1058,7 +1127,6 @@ class HemodialysisHMI(QMainWindow):
         else: # Desconectado
             logger.warning("Disabling UI elements for disconnected state.")
             
-            self._set_navigation_buttons_enabled(False)            
             if hasattr(self, 'alarm_system') and self.alarm_system:
                 self.alarm_system.reset() # Resetea previous_states y current_values internos
             self.active_alarms.clear() # Limpia la lista del HMI
@@ -1068,20 +1136,7 @@ class HemodialysisHMI(QMainWindow):
             self.current_process_status.setText("Esperando conexión")
             self.show_home_screen()
             
-    # def _handle_cleaning_status_change(self, is_cleaning_active: bool):
-    #     """
-    #     Gestiona el estado de los botones de navegación cuando el ciclo de limpieza
-    #     se activa o desactiva.
-    #     """
-    #     logger.info(f"Estado de limpieza en CleaningScreen cambiado a: {is_cleaning_active}")
-    
-    #     # self._set_navigation_buttons_enabled(not is_cleaning_active)
-    #     self.is_cleaning_in_progress = is_cleaning_active
-    #     # Si la limpieza acaba de terminar, re-evaluamos el estado del botón "Iniciar Tratamiento"
-    #     # ya que puede que ahora esté disponible para empezar una diálisis.
-    #     # if not is_cleaning_active:
-    #     #      self._update_treatment_controls_state()
-    #     #      self._update_priming_controls_state()
+
 
     def _handle_cleaning_status_change(self, is_cleaning_active: bool):
         """Se llama cuando cambia el estado de limpieza desde CleaningScreen"""
@@ -1205,125 +1260,10 @@ class HemodialysisHMI(QMainWindow):
                 if self.screen_stack.currentWidget() == self.maintenance_screen:
                     self._update_maintenance_screen_immediately()
 
-    def _master_timer_tick(self):
-        """Timer Maestro - Se ejecuta cada 500ms. Centraliza toda la actualización."""
-        now = QDateTime.currentDateTime()
-        self.update_connection_status() # Esta función llama a refresh_alarms_label y update_led_bar_state
-        
-
-        if self.is_treatment_running:
-            self._update_therapy_time_displays()
-
-        # Actualizaciones cada 1 segundo exacto
-        delta_msecs = self.last_second_update.msecsTo(now)
-        if delta_msecs >= 1000:  # 1000 ms = 1 s
-            self.last_second_update = now
-            self.update_date_time()
-            
-            # Sumar la fracción exacta de hora que acaba de pasar (Delta)
-            hours_passed = delta_msecs / 3600000.0
-            
-            # 1. Horas de máquina encendida (siempre corre)
-            self.power_on_hours += hours_passed
-            
-            # 2. Horas de operación (solo si el tratamiento está activo, estado 14)
-            if self.operation_start_time is not None:
-                self.total_operation_hours += hours_passed
-
-            # 3. Logging de tratamiento
-            if self.treatment_logger:
-                self._log_treatment_current_data()
-                
-            # 4. Logging de cebado (si el logger de cebado existe)
-            if self.csv_logger:
-                self._log_current_data()
-
-        # Actualizaciones cada 1 minuto
-        if self.last_minute_update.secsTo(now) >= 60:
-            self.last_minute_update = now
-            
-            # Guardado automático de seguridad cada minuto (opcional pero recomendado)
-            self._save_power_on_hours()
-            self._save_operation_hours()
-
-            # Actualizar pantalla de mantenimiento si está visible
-            if self.screen_stack.currentWidget() == self.maintenance_screen:
-                self._update_maintenance_screen_immediately()
-        
-        self._update_gauges()
-
-        # self._set_navigation_buttons_enabled(is_connected)
-        self._update_treatment_controls_state() # Asegura que los botones de tratamiento estén en el estado correcto
-        self._update_priming_controls_state() # Asegura que los botones de cebado estén en el estado correcto
-        self._refresh_navigation_bar()
-
-    def _refresh_navigation_bar(self):
-        """ÚNICO punto de verdad para la habilitación de la barra de navegación."""
-        is_connected = self.serial_comm and self.serial_comm.is_connected
     
-        if not is_connected:
-            for text, btn in self.navigation_buttons.items():
-                if text == "Salir":
-                    btn.setEnabled(True)
-                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
-                else:
-                    btn.setEnabled(False)
-                    btn.setStyleSheet(self.BTN_DISABLED_STYLE)
-            return
 
-        # ====================== ESTADOS ======================
-        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
-        status_code = int(self.current_values.get("primingProcessStatus", 0))
     
-        is_cleaning_mode = (treatment_mode == 3)
-        is_cleaning_active = is_cleaning_mode and getattr(self, 'is_cleaning_in_progress', False)
-    
-        in_treatment_active = (status_code == 14 or getattr(self, 'is_treatment_running', False))
 
-        active_screen_text = self._get_current_screen_nav_text()
-
-        # ====================== PROCESAR CADA BOTÓN ======================
-        for text, btn in self.navigation_buttons.items():
-        
-            if text == "Salir":
-                enabled = not in_treatment_active and not is_cleaning_active
-                btn.setEnabled(enabled)
-                btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE if enabled else self.BTN_DISABLED_STYLE)
-                continue
-
-            if text == "Iniciar\nTratamiento":
-                continue
-
-            # ==================== LIMPIEZA ====================
-            if text == "Limpieza":
-                enabled = is_cleaning_mode   # ← SOLO se habilita cuando modo == 3
-
-                # print(f"[DEBUG] Limpieza → Modo:{treatment_mode} → {'HABILITADO' if enabled else 'DESHABILITADO'}")
-
-                btn.setEnabled(enabled)
-                if enabled and text == active_screen_text:
-                    btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
-                else:
-                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE if enabled else self.BTN_DISABLED_STYLE)
-                continue
-
-            # ==================== OTROS BOTONES ====================
-            if is_cleaning_active:
-                enabled = (text == "Alarmas")                    # Solo Alarmas + Limpieza
-            elif in_treatment_active:
-                enabled = (text in ["Diálisis", "Alarmas"])      # Solo Diálisis + Alarmas
-            else:
-                enabled = True
-
-            btn.setEnabled(enabled)
-        
-            if enabled and text == active_screen_text:
-                btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
-            elif enabled:
-                btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
-            else:
-                btn.setStyleSheet(self.BTN_DISABLED_STYLE)
-    
     def _update_gauges(self):
         
         gauge_mapping = {
