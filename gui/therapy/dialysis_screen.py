@@ -229,6 +229,8 @@ class DialysisScreen(QWidget):
         self.temperature_display       = SimpleValueDisplay("Temp.", "0.0", "°C")
         self.bolus_display             = SimpleValueDisplay("Bolo", "0.0", "ml")
         self.ktv_display               = SimpleValueDisplay("Kt/V", "0.00", "")
+        self.pt_3_display              = SimpleValueDisplay("PT-3", "0.00", "") # Placeholder para futura métrica de depuración
+        self.pt_7_display              = SimpleValueDisplay("PT-7", "0.00", "") # Placeholder para futura métrica de depuración
 
         
 
@@ -247,7 +249,9 @@ class DialysisScreen(QWidget):
         layout.addWidget(self.bolus_display,             5, 2)
         layout.addWidget(self.temperature_display,       6, 1)
         layout.addWidget(self.ktv_display,               6, 2)
-        layout.addWidget(QWidget(), 7, 1)
+        layout.addWidget(self.pt_3_display,             7, 1)
+        layout.addWidget(self.pt_7_display,             7, 2)
+        layout.addWidget(QWidget(), 8, 1)
 
     def update_values(self, new_values: dict):
         """Update all displayed values."""
@@ -286,7 +290,9 @@ class DialysisScreen(QWidget):
             "UF Total":                  self.uf_total_display,
             "uf_goal_liters":            self.uf_target_display,
             "heparineBolusQuantity":     self.bolus_display,   
-            "ktv_acumulado":             self.ktv_display,        
+            "ktv_acumulado":             self.ktv_display,       
+            "dialyLinePresProcessData":  self.pt_3_display,  # Placeholder para futura métrica de depuración PT-3
+            "dialyBChamPresProcessData": self.pt_7_display,  # Placeholder para futura métrica de depuración PT-7
             # "ktv_projectado":            self.ktv_display,  
         }
 

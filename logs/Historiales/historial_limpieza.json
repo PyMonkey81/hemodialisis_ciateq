@@ -1,0 +1,11 @@
+[
+    {
+        "fecha": "2026-05-29",
+        "hora_inicio": "16:31:07",
+        "hora_fin": "16:33:12",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-05-29 16:33:12"
+    }
+]

@@ -9,7 +9,7 @@
         },
         "0.0": {
             "time_hours": 0,
-            "time_minutes": 20,
+            "time_minutes": 2,
             "mode_name": "Corta",
             "mode_temp": 35.0,
             "mode_flow": 200.0

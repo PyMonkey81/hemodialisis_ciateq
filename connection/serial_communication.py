@@ -118,6 +118,7 @@ class SerialCommunication(QObject):
 
         for port_info in serial.tools.list_ports.comports():
             is_ftdi = port_info.manufacturer and "FTDI" in port_info.manufacturer.upper()
+            # is_ftdi = True
             # if port_info.manufacturer and "FTDI" in port_info.manufacturer.upper():
             if is_ftdi:
                 try:
@@ -130,8 +131,10 @@ class SerialCommunication(QObject):
                         port_name = port_info.device
 
                     self.serial_port = serial.Serial(
-                        # port=port_info.device,
+                        #  port="COM13",
                         port=port_name,
+                        # port="COM13",
+                        
                         baudrate=115200,
                         timeout=1.0,
                         write_timeout=0.5
