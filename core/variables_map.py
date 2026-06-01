@@ -229,7 +229,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x0B: {"name": "Conductividad dializante después del filtro", "label": "COND. POST-F", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyConductOFProcessData", "nivel": "amarillo"}, # 54
         0x0C: {"name": "Parametro de control ", "label": "FREC. CARD.", "type": "double", "rw": True, "unit": "lpm", "limites": (0,1000), "tag": "patHeartFreqProcessData", "nivel": "rojo"},     # 55 
         0x0D: {"name": "Presión en el tanque de calentamiento", "label": "P. TQ CALENT", "type": "double", "rw": True, "unit": "mmHg", "limites": (-100, 100), "tag": "dialyTankPresProcessData", "nivel": "cian"}, # 56
-        0x0E: {"name": "Presión en la línea del dializante", "label": "P. LIN DIAL", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyLinePresProcessData", "nivel": "amarillo"}, # 57
+        0x0E: {"name": "Presión en la línea del dializante", "label": "P. LIN DIAL", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyLinePresProcessData", "nivel": "amarillo"}, # 57 PT-3
         0x0F: {"name": "Presión Prefiltrado", "label": "P. PRE-FILTRO", "type": "double", "rw": True, "unit": "mmHg", "limites": (0, 500), "tag": "dialyPFilPmpPresProcessData", "nivel": "cian"},              #58  
     },
     
@@ -239,7 +239,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     0x06: {
         0x00: {"name": "Factor calibración bomba heparina", "label": "CAL HEPARINA", "type": "double", "rw": True, "unit": "ml/rev", "limites": (0.01, 10.0), "tag": "heparCalibFactorData", "nivel": "cian"},          # 59
         0x01: {"name": "Presión de ultrafiltrado", "label": "P. ULTRAFILT", "type": "double", "rw": True, "unit": "mmHg", "limites": (-50, 500), "tag": "dialyUFilPresProcessData", "nivel": "amarillo"},               # 60 
-        0x02: {"name": "Presión en cámara de balance", "label": "P. CAM.BAL", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 600), "tag": "dialyBChamPresProcessData", "nivel": "amarillo"},        # 61
+        0x02: {"name": "Presión en cámara de balance", "label": "P. CAM.BAL", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 600), "tag": "dialyBChamPresProcessData", "nivel": "amarillo"},        # 61 PT- 7
         0x03: {"name": "Presión arterial del circuito de sangre", "label": "P. ART CIRC", "type": "double", "rw": False, "unit": "mmHg", "limites": (-300, 600), "tag": "bloodArteryPressureData", "nivel": "rojo"},   # 62 
         0x04: {"name": "Presión venosa del circuito de sangre", "label": "P. VEN CIRC", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 500), "tag": "bloodVenousPressureData", "nivel": "rojo"},     # 63
         0x05: {"name": "Contador de ciclos de dialización", "label": "CONT CICLOS", "type": "double", "rw": False, "unit": "ciclos", "limites": (0, 100000), "tag": "dialyCycleOperationCount", "nivel": "cian"},      # 64

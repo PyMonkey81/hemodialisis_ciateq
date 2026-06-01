@@ -7,5 +7,14 @@
         "duracion_minutos": 2,
         "duracion_hhmm": "00:02",
         "timestamp_registro": "2026-05-29 16:33:12"
+    },
+    {
+        "fecha": "2026-06-01",
+        "hora_inicio": "13:16:43",
+        "hora_fin": "13:18:51",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-01 13:18:51"
     }
 ]

@@ -131,7 +131,6 @@ class SerialCommunication(QObject):
                         port_name = port_info.device
 
                     self.serial_port = serial.Serial(
-                        #  port="COM13",
                         port=port_name,
                         # port="COM13",
                         
@@ -292,16 +291,50 @@ class SerialCommunication(QObject):
         cmd = bytes([command_byte, 0xAA, var_id_in_group]) + struct.pack('<d', value)
         self.command_queue.put(cmd)
 
+    # def stop(self):
+    #     """Gracefully stop communication thread and close port."""
+    #     self.running = False
+    #     port_to_close = self.serial_port
+    #     if port_to_close and port_to_close.is_open:
+    #         try:
+    #             port_to_close.close()
+    #         except:
+    #             pass
+    #     if self.reader_thread and self.reader_thread.is_alive():
+    #         self.reader_thread.join(timeout=2.0)
+    #     self.serial_port = None
+    #     print("[INFO] Serial communication stopped")
+
     def stop(self):
-        """Gracefully stop communication thread and close port."""
+        """Gracefully stop communication thread and close port without triggering exceptions."""
+        if not self.running:
+            return  # Evita doble ejecución si ya se llamó antes
+
+        logger.info("Iniciando apagado síncrono del módulo de comunicación serial...")
         self.running = False
-        port_to_close = self.serial_port
-        if port_to_close and port_to_close.is_open:
-            try:
-                port_to_close.close()
-            except:
-                pass
+        self.is_connected = False
+
+        # 1. Esperar a que el hilo muera de forma natural. 
+        # Como read() tiene un timeout=1.0, el join debe esperar lo suficiente.
         if self.reader_thread and self.reader_thread.is_alive():
-            self.reader_thread.join(timeout=2.0)
-        self.serial_port = None
-        print("[INFO] Serial communication stopped")
+            logger.debug("Esperando la finalización del hilo de lectura (_communication_loop)...")
+            self.reader_thread.join(timeout=1.5)
+            
+            if self.reader_thread.is_alive():
+                logger.warning("El hilo serial no respondió al join a tiempo. Forzando cierre del puerto.")
+
+        # 2. Ahora que el hilo terminó (o expiró el timeout), es seguro cerrar el recurso físico.
+        if self.serial_port:
+            try:
+                if self.serial_port.is_open:
+                    # Limpiamos buffers para liberar descriptores de comunicación del SO
+                    self.serial_port.reset_input_buffer()
+                    self.serial_port.reset_output_buffer()
+                    self.serial_port.close()
+                    logger.info("Puerto serial cerrado correctamente.")
+            except Exception as e:
+                logger.error(f"Error al cerrar el puerto serial durante el shutdown: {e}")
+            finally:
+                self.serial_port = None
+
+        print("[INFO] Serial communication stopped clean")

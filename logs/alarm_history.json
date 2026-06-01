@@ -298,5 +298,65 @@
         "text": "Operador reconoci\u00f3 alarmas activas y silenci\u00f3 buzzer",
         "value": null,
         "level": "info"
+    },
+    {
+        "time": "11:05:46",
+        "text": "ACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "info"
+    },
+    {
+        "time": "11:05:46",
+        "text": "ACTIVADA: Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "rojo"
+    },
+    {
+        "time": "11:05:47",
+        "text": "DESACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "11:05:47",
+        "text": "NORMALIZADA: Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "11:05:49",
+        "text": "ACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "info"
+    },
+    {
+        "time": "11:05:49",
+        "text": "ACTIVADA: Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "rojo"
+    },
+    {
+        "time": "11:05:50",
+        "text": "DESACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "11:05:50",
+        "text": "NORMALIZADA: Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "15:17:54",
+        "text": "ACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "info"
+    },
+    {
+        "time": "15:17:54",
+        "text": "ACTIVADA: Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "rojo"
     }
 ]
