@@ -1305,8 +1305,7 @@ class HemodialysisHMI(QMainWindow):
                 if self.screen_stack.currentWidget() == self.maintenance_screen:
                     self._update_maintenance_screen_immediately()   
 
-    
-
+   
     def _update_gauges(self):
         
         gauge_mapping = {
@@ -1925,17 +1924,22 @@ class HemodialysisHMI(QMainWindow):
 
 
     # ====================== ESCRITURA HACIA HARDWARE ======================
+
+
+
     def _write_boolean_command(self, tag: str, state: bool):
         """
         Envía un comando booleano (True/False) al controlador vía serial.
         """
         if not self.serial_comm or not self.serial_comm.is_connected:
-            logger.warning(f"No se puede enviar comando booleano '{tag} = {state}': serial desconectado")            
+            logger.warning(f"No se puede enviar comando booleano '{tag} = {state}': serial no conectado")            
             return
 
         try:
+            logger.debug(f"Buscando tag booleano: {tag} = {state}")
+
             address = -1
-            for vars_group in VARIABLES.items():
+            for group_key, vars_group in VARIABLES.items():
                 if isinstance(vars_group, dict):
                     for var_id, info in vars_group.items():
                         if info.get("tag") == tag:
