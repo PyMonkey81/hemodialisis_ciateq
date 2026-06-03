@@ -770,6 +770,7 @@ class HemodialysisHMI(QMainWindow):
         try:
             self._write_boolean_command("dialyModeOperationPause", True)
             self._write_boolean_command("dialyModeOperationPause", False)
+            self.show_info_message("Terapia en pausa...", 1500)
         except Exception as e:
             logger.error(f"[Error] Error al pausar terapia {e}")
         
@@ -1435,6 +1436,10 @@ class HemodialysisHMI(QMainWindow):
                 can_start = True
                 can_stop = False
                 can_pause = False   # Es False, pero se pondra TRUE para nueva funcionalidad en cebado 
+            elif temp_ok and not cond_ok:
+                can_start = False
+                can_stop = False
+                can_pause = False  # Permitir pausa para forzar corrección de parámetros antes de iniciar
             else:
                 # Listo por estado, pero temperaturas/cond mal
                 can_start = False
@@ -2010,82 +2015,152 @@ class HemodialysisHMI(QMainWindow):
 
 
 
-    def _write_boolean_command(self, tag: str, state: bool):
-        """
-        Envía un comando booleano (True/False) al controlador vía serial.
-        """
+    # def _write_boolean_command(self, tag: str, state: bool):
+    #     """
+    #     Envía un comando booleano (True/False) al controlador vía serial.
+    #     """
+    #     if not self.serial_comm or not self.serial_comm.is_connected:
+    #         logger.warning(f"No se puede enviar comando booleano '{tag} = {state}': serial no conectado")            
+    #         return
+
+    #     try:
+    #         logger.debug(f"Buscando tag booleano: {tag} = {state}")
+
+    #         address = -1
+    #         for group_key, vars_group in VARIABLES.items():
+    #             if isinstance(vars_group, dict):
+    #                 for var_id, info in vars_group.items():
+    #                     if info.get("tag") == tag:
+    #                         address = var_id
+    #                         break
+    #             if address != -1:
+    #                 break
+
+    #         if address == -1:
+    #             logger.error(f"Tag booleano '{tag}' no encontrado en VARIABLES")
+    #             return
+
+    #         # Envío real
+    #         self.serial_comm.write_boolean(address, state)
+    #         logger.info(f"Comando booleano enviado: {tag} = {state} (Address {address})")
+
+    #     except Exception as e:
+    #         logger.error(f"Error al enviar comando booleano '{tag} = {state}': {e}")
+
+    # def _write_setpoint(self, tag: str, value: float):
+    #     """
+    #     Envía un setpoint (double) al controlador vía serial.
+    #     """
+    #     if not self.serial_comm or not self.serial_comm.is_connected:
+    #         logger.warning(f"No se puede escribir setpoint '{tag} = {value}': serial no conectado")
+    #         return  # Opcional: mostrar QMessageBox para feedback visual
+
+    #     try:
+    #         if not hasattr(self, '_tags_cache'):
+    #             self._tags_cache = {}
+            
+    #         if tag in self._tags_cache:
+    #             target_group, target_id = self._tags_cache[tag]
+    #         else:
+    #             target_group = target_id = -1
+    #             found = False
+
+    #             for group_key, vars_group in VARIABLES.items():
+    #                 if isinstance(vars_group, dict):
+    #                     for var_id, info in vars_group.items():
+    #                         if info.get("tag") == tag:
+    #                             target_group = group_key
+    #                             target_id = var_id
+    #                             found = True
+    #                             break
+    #                 if found:
+    #                     break
+
+    #             if not found or target_group == -1 or target_id == -1:
+    #                 logger.error(f"Tag '{tag}' no encontrado en VARIABLES")
+    #                 return
+    #             self._tags_cache[tag] = (target_group, target_id)
+
+    #         if not VARIABLES[target_group][target_id].get("rw", False):
+    #             logger.warning(f"Tag '{tag}' es de solo lectura (rw=False)")
+    #             return
+
+    #         # Envío real
+    #         self.serial_comm.write_double(target_group, target_id, value)
+    #         logger.info(f"Setpoint escrito correctamente: {tag} = {value} (Grupo {hex(target_group)}, ID {target_id})")
+
+    #     except Exception as e:
+    #         logger.error(f"Error al escribir setpoint '{tag} = {value}': {e}")
+
+
+    #===============================Codigo de prueba===============================
+    def _write_setpoint(self, tag: str, value: float):
         if not self.serial_comm or not self.serial_comm.is_connected:
-            logger.warning(f"No se puede enviar comando booleano '{tag} = {state}': serial no conectado")            
             return
 
         try:
-            logger.debug(f"Buscando tag booleano: {tag} = {state}")
+            group, address = self._resolve_tag(tag)
 
-            address = -1
-            for group_key, vars_group in VARIABLES.items():
-                if isinstance(vars_group, dict):
-                    for var_id, info in vars_group.items():
-                        if info.get("tag") == tag:
-                            address = var_id
-                            break
-                if address != -1:
-                    break
+            if group is None or address is None:
+                logger.error(f"Tag double '{tag}' no encontrado")
+                return
 
-            if address == -1:
-                logger.error(f"Tag booleano '{tag}' no encontrado en VARIABLES")
+            # Verificación de escritura (opcional pero recomendada)
+            if not VARIABLES[group][address].get("rw", False):
+                logger.warning(f"Intento de escritura en tag de solo lectura: {tag}")
+                return
+
+            # Envío real
+            self.serial_comm.write_double(group, address, value)
+            logger.info(f"SETPOINT [DBL]: {tag} -> {value} (G:{hex(group)}, ID:{address})")
+
+        except Exception as e:
+            logger.error(f"Error en write_setpoint para {tag}: {e}")
+
+    def _write_boolean_command(self, tag: str, state: bool):
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            logger.warning(f"No serial connection for: {tag}")            
+            return
+
+        try:
+            # Usamos el optimizador de búsqueda
+            _, address = self._resolve_tag(tag)
+
+            if address is None:
+                logger.error(f"Tag booleano '{tag}' no encontrado")
                 return
 
             # Envío real
             self.serial_comm.write_boolean(address, state)
-            logger.info(f"Comando booleano enviado: {tag} = {state} (Address {address})")
+            logger.info(f"COMANDO [BOOL]: {tag} -> {state} (Addr: {address})")
 
         except Exception as e:
-            logger.error(f"Error al enviar comando booleano '{tag} = {state}': {e}")
+            logger.error(f"Error en write_boolean para {tag}: {e}")
 
-    def _write_setpoint(self, tag: str, value: float):
+    
+    def _resolve_tag(self, tag: str) -> tuple:
         """
-        Envía un setpoint (double) al controlador vía serial.
+        Busca un tag en VARIABLES y devuelve (group_key, var_id).
+        Utiliza caché para evitar búsquedas repetitivas.
         """
-        if not self.serial_comm or not self.serial_comm.is_connected:
-            logger.warning(f"No se puede escribir setpoint '{tag} = {value}': serial no conectado")
-            return  # Opcional: mostrar QMessageBox para feedback visual
+        if not hasattr(self, '_tags_cache'):
+            self._tags_cache = {}
 
-        try:
-            if not hasattr(self, '_tags_cache'):
-                self._tags_cache = {}
-            
-            if tag in self._tags_cache:
-                target_group, target_id = self._tags_cache[tag]
-            else:
-                target_group = target_id = -1
-                found = False
+        if tag in self._tags_cache:
+            return self._tags_cache[tag]
 
-                for group_key, vars_group in VARIABLES.items():
-                    if isinstance(vars_group, dict):
-                        for var_id, info in vars_group.items():
-                            if info.get("tag") == tag:
-                                target_group = group_key
-                                target_id = var_id
-                                found = True
-                                break
-                    if found:
-                        break
+        # Si no está en caché, buscar en el mapa global
+        for group_key, vars_group in VARIABLES.items():
+            if isinstance(vars_group, dict):
+                for var_id, info in vars_group.items():
+                    if info.get("tag") == tag:
+                        self._tags_cache[tag] = (group_key, var_id)
+                        return group_key, var_id
+        
+        return None, None
 
-                if not found or target_group == -1 or target_id == -1:
-                    logger.error(f"Tag '{tag}' no encontrado en VARIABLES")
-                    return
-                self._tags_cache[tag] = (target_group, target_id)
 
-            if not VARIABLES[target_group][target_id].get("rw", False):
-                logger.warning(f"Tag '{tag}' es de solo lectura (rw=False)")
-                return
-
-            # Envío real
-            self.serial_comm.write_double(target_group, target_id, value)
-            logger.info(f"Setpoint escrito correctamente: {tag} = {value} (Grupo {hex(target_group)}, ID {target_id})")
-
-        except Exception as e:
-            logger.error(f"Error al escribir setpoint '{tag} = {value}': {e}")
+    #===============================FIn de codigo de prueba===============================
 
 
     def on_pattern_data(self, tag: str, value: float):        
