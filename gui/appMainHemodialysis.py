@@ -981,6 +981,9 @@ class HemodialysisHMI(QMainWindow):
                 if text == "Salir":
                     btn.setEnabled(True)
                     btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
+                elif text == "Servicio":
+                    btn.setEnabled(True)  # Permitir acceso a opciones de servicio incluso sin conexión
+                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
                 else:
                     btn.setEnabled(False)
                     btn.setStyleSheet(self.BTN_DISABLED_STYLE)
@@ -2108,13 +2111,26 @@ class HemodialysisHMI(QMainWindow):
             # específicos definidos en _set_ui_connected_state o directamente.
             # Los botones deshabilitados mantienen su BTN_DISABLED_STYLE.
 
+    # def handle_comm_config_change(self, sensor_id, port, is_enabled):
+    #     if sensor_id == "CONDUCTIVITY":
+    #         self.pattern_sensor.update_config(port, is_enabled)
+    #         logger.info(f"Sensor Conductividad: Puerto={port}, Habilitado={is_enabled}")
+    #     elif sensor_id == "BIOZ":
+    #         self.bioz_urea_controller.update_config(port, is_enabled)
+    #         logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}") 
+
     def handle_comm_config_change(self, sensor_id, port, is_enabled):
-        if sensor_id == "CONDUCTIVITY":
+        if sensor_id == "MAIN_CONTROL":
+            self.serial_comm.update_config(port, is_enabled)
+            logger.info(f"Controlador Principal: Puerto={port}, Habilitado={is_enabled}")
+            
+        elif sensor_id == "CONDUCTIVITY":
             self.pattern_sensor.update_config(port, is_enabled)
             logger.info(f"Sensor Conductividad: Puerto={port}, Habilitado={is_enabled}")
+            
         elif sensor_id == "BIOZ":
             self.bioz_urea_controller.update_config(port, is_enabled)
-            logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}") 
+            logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}")
 
     # ====================== PERSISTENCIA DE HORAS DE HARDWARE ======================
     def _helper_convert_hours_to_h_m(self, hours_float: float) -> tuple:
