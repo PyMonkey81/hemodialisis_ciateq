@@ -28,6 +28,8 @@ class PushbuttonEvent(QPushButton):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
+        self.setFocusPolicy(Qt.NoFocus) 
+
 
     def event(self, event):
         if event.type() == QEvent.Type.TouchBegin:
@@ -394,8 +396,7 @@ class TherapyConfigScreen(QWidget):
             logger.info("Comando START bomba de sangre solicitado")
           
             self._handle_dual_pump_toggle("bloodPumpStartButton", "bloodPumpStopButton", True)
-
-          
+            self.setFocus()        
 
         except Exception as e:
             logger.error(f"Error en _start_blood_pump: {e}", exc_info=True)
@@ -404,6 +405,7 @@ class TherapyConfigScreen(QWidget):
         try:
             logger.info("Comando Start de llenado de filtro")
             self.on_user_boolean_command("dialyFilterFillButton",True)
+            self.setFocus()
         except Exception as e:
             logger.error(f"Error en _start_filter_fill: {e}",exc_info=True)
 
@@ -420,7 +422,7 @@ class TherapyConfigScreen(QWidget):
 
             # 3. Detener movimiento hacia adelante
             # self.on_user_boolean_command("bloodPumpFWDButton", False)
-
+            self.setFocus()
         except Exception as e:
             logger.error(f"Error en _stop_blood_pump: {e}", exc_info=True)
 
@@ -433,6 +435,7 @@ class TherapyConfigScreen(QWidget):
             logger.info(f"Estado {status_code} (no 7). Botón 'Llenado de Filtro' DESHABILITADO.")
             btn_ff.setEnabled(False)
             btn_ff.setStyleSheet(self.style_disabled)
+            self.setFocus()
             return # Termina la función aquí, el botón se queda deshabilitado
             
         logger.info(f"Estado {status_code} (COLOCACIÓN DE FILTRO). Botón 'Llenado de Filtro' HABILITADO.")
@@ -541,6 +544,7 @@ class TherapyConfigScreen(QWidget):
                 if hasattr(input_widget, 'clearFocus'):
                     input_widget.clearFocus()
                 self.setFocus()
+
 
     def open_time_numpad(self, input_widget: ClickableLineEdit,
                          tag_hours: str = None, tag_minutes: str = None,

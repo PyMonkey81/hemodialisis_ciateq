@@ -243,8 +243,7 @@ class LabeledParameterWidget(QWidget):
             border: none;
             color: #333333;
             font-weight: bold;
-            font-size: 24px;
-            padding-left: 8px;
+            font-size: 18px;
         """)
 
         # Value widget (editable or read-only)

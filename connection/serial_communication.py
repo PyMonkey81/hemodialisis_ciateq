@@ -113,6 +113,7 @@ class SerialCommunication(QObject):
                 write_timeout=0.5
             )
             
+            
             # Ajustes específicos para evitar autorreseteos de hardware en Linux
             if current_os != "Windows":
                 self.serial_port.dtr = False
@@ -120,8 +121,22 @@ class SerialCommunication(QObject):
 
             time.sleep(1.5)  # Estabilización del hardware tras el DTR/RTS bind
             self.is_connected = True
+            #=========================Código de prueba======================
+            # self.serial_port.reset_input_buffer()
+            # self.serial_port.reset_output_buffer()
+            # time.sleep(0.5)
+            
+            # # Enviar comando dummy para "despertar" y limpiar buffers del controlador
+            # dummy = bytes([0x00, 0x00, 0x00])
+            # self.serial_port.write(dummy + b'\x00\x00')  # CRC dummy
+            # time.sleep(0.3)
+            # self.serial_port.reset_input_buffer()
+            # self.serial_port.reset_output_buffer()
+            #===========================Fin================================
+
             self.last_successful_communication = time.time()
             logger.info(f"[CONNECTED PPAL] OS: {current_os} | Puerto: {port_name}")
+            print(f"[CONNECTED PPAL] OS: {current_os} | Puerto: {port_name}")
             return True
         except Exception as e:
             logger.error(f"[CONTROLADOR PPAL] Error de conexión en {port_name}: {e}")

@@ -50,6 +50,7 @@ import os
 import sys
 import time
 import logging
+from unittest import result
 from PySide6.QtWidgets import *
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
 from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
@@ -63,7 +64,7 @@ import json
 # === MODULES ===
 from core.alarms import AlarmSystem
 from core.alarm_config_manager import AlarmConfigManager
-from core.variables_map import VARIABLES
+from core.variables_map import TAG_TO_ADDRESS, VARIABLES
 
 from connection.serial_communication import SerialCommunication
 from connection.led_bar_controller import LedBarController
@@ -1335,7 +1336,7 @@ class HemodialysisHMI(QMainWindow):
                     4: "LLENADO CÁMARA", 5: "CALENTAMIENTO", 6: "INFUSIÓN",
                     7: "COLOCACIÓN DE\nFILTRO", 8: "DIÁLISIS", 9: "BYPASS", 10: "CERRADO",
                     12: "ULTRAFILTRACIÓN OFF", 13: "LISTO PARA INICIAR\nTRATAMIENTO",
-                    14: "TRATAMIENTO INICIADO", 15: "PAUSA", 16: "TRATAMIENTO DETENIDO"
+                    14: "TRATAMIENTO INICIADO", 15: "PAUSA", 16: "TRATAMIENTO\n DETENIDO"
                 }
                 status_text = status_map.get(status_code, f"Espera.. ({status_code})")
                 self.current_process_status.setText(status_text)
@@ -1432,19 +1433,22 @@ class HemodialysisHMI(QMainWindow):
         if treatment_mode_selection == 3.0: # Si el modo seleccionado es "Limpieza"
             pass  # Para limpieza, no aplicamos esta lógica de habilitación de tratamiento. Se maneja por separado en _handle_cleaning_status_change.
         elif status_code == 13:  #13 LISTO PARA INICIAR
-            if temp_ok and cond_ok:
-                can_start = True
-                can_stop = False
-                can_pause = False   # Es False, pero se pondra TRUE para nueva funcionalidad en cebado 
-            elif temp_ok and not cond_ok:
-                can_start = False
-                can_stop = False
-                can_pause = False  # Permitir pausa para forzar corrección de parámetros antes de iniciar
-            else:
-                # Listo por estado, pero temperaturas/cond mal
-                can_start = False
-                can_stop = False
-                can_pause = True  # Permitir pausa para forzar corrección de parámetros antes de iniciar
+            can_start = temp_ok and cond_ok
+            can_stop = False
+            can_pause = False
+            # if temp_ok and cond_ok:
+            #     can_start = True
+            #     can_stop = False
+            #     can_pause = False   # Es False, pero se pondra TRUE para nueva funcionalidad en cebado 
+            # elif temp_ok and not cond_ok:
+            #     can_start = False
+            #     can_stop = False
+            #     can_pause = False  # Permitir pausa para forzar corrección de parámetros antes de iniciar
+            # else:
+            #     # Listo por estado, pero temperaturas/cond mal
+            #     can_start = False
+            #     can_stop = False
+            #     can_pause = True  # Permitir pausa para forzar corrección de parámetros antes de iniciar
 
         elif status_code == 14: # TRATAMIENTO CORRIENDO
             can_start = False
@@ -1452,13 +1456,14 @@ class HemodialysisHMI(QMainWindow):
             can_pause = True
         elif status_code == 15:  # estado de pausa 
             if temp_ok and cond_ok:
-                can_start = True
-                can_stop = True  #False se puede detener si se esta en pausa 
-                can_pause = False
-            else:                
+                can_start = True      # Reanudar
+                can_stop = True
+                can_pause = False     # Ya estamos en pausa
+            else:
+                # Parámetros no óptimos → solo permitir detener
                 can_start = False
-                can_stop = False
-                can_pause = True
+                can_stop = True
+                can_pause = False
 
         else: # CUALQUIER OTRO ESTADO (Cebado, Pausa, etc)
             can_start = False
@@ -2094,72 +2099,128 @@ class HemodialysisHMI(QMainWindow):
 
 
     #===============================Codigo de prueba===============================
+
     def _write_setpoint(self, tag: str, value: float):
         if not self.serial_comm or not self.serial_comm.is_connected:
+            logger.warning(f"No se puede escribir setpoint '{tag}': serial desconectado")
             return
 
         try:
             group, address = self._resolve_tag(tag)
 
             if group is None or address is None:
-                logger.error(f"Tag double '{tag}' no encontrado")
+                logger.error(f"Tag double '{tag}' no encontrado en VARIABLES")
                 return
 
-            # Verificación de escritura (opcional pero recomendada)
             if not VARIABLES[group][address].get("rw", False):
-                logger.warning(f"Intento de escritura en tag de solo lectura: {tag}")
+                logger.warning(f"Tag '{tag}' es de solo lectura")
                 return
 
-            # Envío real
             self.serial_comm.write_double(group, address, value)
-            logger.info(f"SETPOINT [DBL]: {tag} -> {value} (G:{hex(group)}, ID:{address})")
+            logger.info(f"SETPOINT [DBL]: {tag} = {value} (G:{hex(group)}, ID:{address})")
 
         except Exception as e:
-            logger.error(f"Error en write_setpoint para {tag}: {e}")
+            logger.error(f"Error escribiendo setpoint '{tag}': {e}")
+
 
     def _write_boolean_command(self, tag: str, state: bool):
         if not self.serial_comm or not self.serial_comm.is_connected:
-            logger.warning(f"No serial connection for: {tag}")            
+            logger.warning(f"No serial connection for boolean command: {tag}")
             return
 
         try:
-            # Usamos el optimizador de búsqueda
-            _, address = self._resolve_tag(tag)
+            _, address = self._resolve_tag(tag)  # group no se usa en boolean
 
             if address is None:
                 logger.error(f"Tag booleano '{tag}' no encontrado")
                 return
 
-            # Envío real
             self.serial_comm.write_boolean(address, state)
-            logger.info(f"COMANDO [BOOL]: {tag} -> {state} (Addr: {address})")
+            logger.info(f"COMANDO [BOOL]: {tag} = {state} (Addr: {address})")
 
         except Exception as e:
-            logger.error(f"Error en write_boolean para {tag}: {e}")
+            logger.error(f"Error en write_boolean_command '{tag}': {e}")
+
+
+    # def _write_setpoint(self, tag: str, value: float):
+    #     if not self.serial_comm or not self.serial_comm.is_connected:
+    #         return
+
+    #     try:
+    #         group, address = self._resolve_tag(tag)
+
+    #         if group is None or address is None:
+    #             logger.error(f"Tag double '{tag}' no encontrado")
+    #             return
+
+    #         # Verificación de escritura (opcional pero recomendada)
+    #         if not VARIABLES[group][address].get("rw", False):
+    #             logger.warning(f"Intento de escritura en tag de solo lectura: {tag}")
+    #             return
+
+    #         # Envío real
+    #         self.serial_comm.write_double(group, address, value)
+    #         logger.info(f"SETPOINT [DBL]: {tag} -> {value} (G:{hex(group)}, ID:{address})")
+
+    #     except Exception as e:
+    #         logger.error(f"Error en write_setpoint para {tag}: {e}")
+
+    # def _write_boolean_command(self, tag: str, state: bool):
+    #     if not self.serial_comm or not self.serial_comm.is_connected:
+    #         logger.warning(f"No serial connection for: {tag}")            
+    #         return
+
+    #     try:
+    #         # Usamos el optimizador de búsqueda
+    #         _, address = self._resolve_tag(tag)
+
+    #         if address is None:
+    #             logger.error(f"Tag booleano '{tag}' no encontrado")
+    #             return
+
+    #         # Envío real
+    #         self.serial_comm.write_boolean(address, state)
+    #         logger.info(f"COMANDO [BOOL]: {tag} -> {state} (Addr: {address})")
+
+    #     except Exception as e:
+    #         logger.error(f"Error en write_boolean para {tag}: {e}")
 
     
-    def _resolve_tag(self, tag: str) -> tuple:
+    # def _resolve_tag(self, tag: str) -> tuple[int | None, int | None]:
+    #     """
+    #     Busca un tag en VARIABLES y devuelve (group_key, var_id).
+    #     Utiliza caché para evitar búsquedas repetitivas.
+    #     """
+    #     if not hasattr(self, '_tags_cache'):
+    #         self._tags_cache = {}
+
+    #     if tag in self._tags_cache:
+    #         return self._tags_cache[tag]
+
+    #     # Si no está en caché, buscar en el mapa global
+    #     for group_key, vars_group in VARIABLES.items():
+    #         if isinstance(vars_group, dict):
+    #             for var_id, info in vars_group.items():
+    #                 if info.get("tag") == tag:
+    #                     self._tags_cache[tag] = (group_key, var_id)
+    #                     return group_key, var_id
+        
+    #     return None, None
+
+    def _resolve_tag(self, tag: str) -> tuple[int | None, int | None]:
         """
-        Busca un tag en VARIABLES y devuelve (group_key, var_id).
-        Utiliza caché para evitar búsquedas repetitivas.
+        Resuelve un tag a (group, address) usando el mapa inverso.
+        Mucho más rápido y limpio.
         """
         if not hasattr(self, '_tags_cache'):
             self._tags_cache = {}
 
         if tag in self._tags_cache:
             return self._tags_cache[tag]
-
-        # Si no está en caché, buscar en el mapa global
-        for group_key, vars_group in VARIABLES.items():
-            if isinstance(vars_group, dict):
-                for var_id, info in vars_group.items():
-                    if info.get("tag") == tag:
-                        self._tags_cache[tag] = (group_key, var_id)
-                        return group_key, var_id
-        
-        return None, None
-
-
+        result = TAG_TO_ADDRESS.get(tag, (None, None))
+        self._tags_cache[tag] = result
+        return result
+    
     #===============================FIn de codigo de prueba===============================
 
 
