@@ -623,28 +623,13 @@ class TherapyConfigScreen(QWidget):
                 logger.error(f"Error convirtiendo flujo a ciclos: {e}")
 
 
-        # def _handle_uf_flow_input(self):
-        #     """Handle UF flow input (L/h → ml/min)."""
-        
-                
-        #     dialog = NumpadDialog(self, initial_value="", title="Flujo UF (L/h)")
-        #     if dialog.exec():            
-        #         new_value = dialog.get_value()
-        #         if new_value is not None:
-        #             if hasattr(self.lbl_input_UF, 'setText'):
-        #                 self.lbl_input_UF.setText(str(new_value))            
-        #             try:            
-        #                 ml_min = convertir_litros_h_a_ml_min(float(new_value))
-        #                 self.on_user_input_setpoint("ultraFilterPumpSpeed", ml_min)
-        #                 self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
-        #             except Exception as e:
-        #                 logger.error(f"Error converting UF flow: {e}")
+  
 
     def _handle_uf_flow_input(self):
         """Handle UF flow input (L/h → ml/min)."""
     
         # 1. Obtener el valor actual del widget para mostrarlo en el numpad
-        current_text = self.lbl_input_UF.text()
+        current_text = ""
         
         dialog = NumpadDialog(self, initial_value=current_text, title="Flujo UF (L/h)")
     

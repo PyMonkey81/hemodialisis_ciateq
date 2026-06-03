@@ -125,7 +125,7 @@ class CommPortScreen(QWidget):
         self.btn_apply = QPushButton("Aplicar Cambios")
         self.btn_apply.setStyleSheet("""
             QPushButton {
-                background-color: #3b82f6;
+                background-color: #0f172a;
                 color: white;
                 font-size: 26px;
                 font-weight: bold;
@@ -142,7 +142,7 @@ class CommPortScreen(QWidget):
         self.btn_refresh = QPushButton("Actualizar Puertos")
         self.btn_refresh.setStyleSheet("""
             QPushButton {
-                background-color: #22c55e;
+                background-color: #0f172a;
                 color: white;
                 font-size: 26px;
                 font-weight: bold;
@@ -151,8 +151,8 @@ class CommPortScreen(QWidget):
                 min-height: 80px;
                 min-width: 240px;
             }
-            QPushButton:hover { background-color: #16a34a; }
-            QPushButton:pressed { background-color: #15803d; }
+            QPushButton:hover { background-color: #60a5fa; }
+            QPushButton:pressed { background-color: #1e40af; }
         """)
         self.btn_refresh.clicked.connect(self.refresh_ports)
 
@@ -355,7 +355,7 @@ class CommPortScreen(QWidget):
         if not hasattr(self, '_floating_msg') or self._floating_msg is None:
             self._floating_msg = FloatingMessage(self)
         self._floating_msg.show_error_message(text, timeout_ms)
-        
+
 # # gui/service/comm_port_screen.py
 
 # import serial.tools.list_ports

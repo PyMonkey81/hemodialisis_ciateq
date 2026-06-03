@@ -844,9 +844,9 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.cleaning_screen)
         if hasattr(self.cleaning_screen, "update_values"):
             self.cleaning_screen.update_values(self.current_values)
-        # if hasattr(self.cleaning_screen, '_load_initial_config_on_startup'):
-        #     # self.cleaning_screen._load_initial_config_on_startup()
-        #     self.cleaning_screen._load_mode_specific_configuration(self.cleaning_screen.selected_mode)  
+        if hasattr(self.cleaning_screen, '_load_initial_config_on_startup'):
+            # self.cleaning_screen._load_initial_config_on_startup()
+            self.cleaning_screen._load_mode_specific_configuration(self.cleaning_screen.selected_mode)  
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Limpieza")
@@ -1126,36 +1126,116 @@ class HemodialysisHMI(QMainWindow):
 
     def _set_ui_connected_state(self, is_connected: bool):
         """
-        Manages the overall UI state (buttons, header labels) based on connection status.
+        Manages the overall UI state based on connection status.
+        Protege al usuario si está en pantallas de configuración.
         """
+        # --- NUEVA LÓGICA DE PROTECCIÓN ---
+        current_widget = self.screen_stack.currentWidget()
+        # Definimos las pantallas donde NO queremos que el sistema nos saque automáticamente
+        service_screens = [self.comm_port_screen, self.options_screen, self.maintenance_screen, self.network_config_screen]
+        is_in_service_area = current_widget in service_screens
+        # ----------------------------------
+
         if is_connected:
             logger.info("Enabling UI elements for connected state.")
-               
-                      
+            
             if hasattr(self, 'alarm_system') and self.alarm_system:
-                self.alarm_system.reset() # Resetea previous_states y current_values internos
-            self.active_alarms.clear() # Limpia la lista del HMI
+                self.alarm_system.reset()
+            self.active_alarms.clear()
+            
             if hasattr(self, 'alarms_screen') and self.alarms_screen:
                 self.alarms_screen.reset_ui_state() 
             
             self.current_process_status.setText("Máquina conectada") 
-            self.refresh_treatment_selected() # Mostrar tratamiento seleccionado actualmente - default Hemodiálisis
+            self.refresh_treatment_selected()
 
-            self.show_home_screen() 
+            # Solo mandamos al Home si NO estamos en área de servicio
+            if not is_in_service_area:
+                self.show_home_screen() 
+            else:
+                logger.info("Manteniendo pantalla de servicio tras conexión.")
+
             self._update_treatment_controls_state()
             self._update_priming_controls_state()
 
-        else: # Desconectado
+        else: # ESTADO DESCONECTADO
             logger.warning("Disabling UI elements for disconnected state.")
             
             if hasattr(self, 'alarm_system') and self.alarm_system:
-                self.alarm_system.reset() # Resetea previous_states y current_values internos
-            self.active_alarms.clear() # Limpia la lista del HMI
+                self.alarm_system.reset() 
+            self.active_alarms.clear() 
+            
             if hasattr(self, 'alarms_screen') and self.alarms_screen:
-                self.alarms_screen.reset_ui_state() # Limpia la UI de la pantalla de alarmas
+                self.alarms_screen.reset_ui_state() 
 
             self.current_process_status.setText("Esperando conexión")
-            self.show_home_screen()
+            
+            # --- CORRECCIÓN CRÍTICA AQUÍ ---
+            # Antes esto no tenía protección y te mandaba a Home siempre al desconectarse
+            if not is_in_service_area:
+                self.show_home_screen()
+            else:
+                logger.info("Manteniendo pantalla de servicio tras desconexión (permitiendo configuración).")
+
+    # def _set_ui_connected_state(self, is_connected: bool):
+    #     """
+    #     Manages the overall UI state (buttons, header labels) based on connection status.
+    #     """
+    #     # if is_connected:
+    #     #     logger.info("Enabling UI elements for connected state.")
+               
+                      
+    #     #     if hasattr(self, 'alarm_system') and self.alarm_system:
+    #     #         self.alarm_system.reset() # Resetea previous_states y current_values internos
+    #     #     self.active_alarms.clear() # Limpia la lista del HMI
+    #     #     if hasattr(self, 'alarms_screen') and self.alarms_screen:
+    #     #         self.alarms_screen.reset_ui_state() 
+            
+    #     #     self.current_process_status.setText("Máquina conectada") 
+    #     #     self.refresh_treatment_selected() # Mostrar tratamiento seleccionado actualmente - default Hemodiálisis
+
+    #     #     self.show_home_screen() 
+    #     #     self._update_treatment_controls_state()
+    #     #     self._update_priming_controls_state()
+    #     if is_connected:
+    #         logger.info("Enabling UI elements for connected state.")
+            
+    #         if hasattr(self, 'alarm_system') and self.alarm_system:
+    #             self.alarm_system.reset()
+    #         self.active_alarms.clear()
+            
+    #         if hasattr(self, 'alarms_screen') and self.alarms_screen:
+    #             self.alarms_screen.reset_ui_state() 
+            
+    #         self.current_process_status.setText("Máquina conectada") 
+    #         self.refresh_treatment_selected()
+
+    #         # --- SOLUCIÓN AL BUG DE REDIRECCIÓN ---
+    #         # Verificamos cuál es la pantalla actual
+    #         current_widget = self.screen_stack.currentWidget()
+            
+    #         # Solo mandamos al Home si NO estamos en la pantalla de configuración de puertos
+    #         # o en la pantalla de opciones de servicio.
+    #         if current_widget != self.comm_port_screen and current_widget != self.options_screen:
+    #             self.show_home_screen() 
+    #         else:
+    #             logger.info("Conexión detectada pero se mantiene la pantalla actual para permitir configuración.")
+    #         # --------------------------------------
+
+    #         self._update_treatment_controls_state()
+    #         self._update_priming_controls_state()
+
+        # else: # Desconectado
+        #     logger.warning("Disabling UI elements for disconnected state.")
+            
+        #     if hasattr(self, 'alarm_system') and self.alarm_system:
+        #         self.alarm_system.reset() # Resetea previous_states y current_values internos
+        #     self.active_alarms.clear() # Limpia la lista del HMI
+        #     if hasattr(self, 'alarms_screen') and self.alarms_screen:
+        #         self.alarms_screen.reset_ui_state() # Limpia la UI de la pantalla de alarmas
+
+        #     self.current_process_status.setText("Esperando conexión")
+        #     self.show_home_screen()
             
 
     def _handle_cleaning_status_change(self, is_cleaning_active: bool):
@@ -2007,18 +2087,7 @@ class HemodialysisHMI(QMainWindow):
         except Exception as e:
             logger.error(f"Error al escribir setpoint '{tag} = {value}': {e}")
 
-    # def on_pattern_data(self, tag: str, value: float):        
-    #     if tag == "patternCondSensor":
-    #         VARIABLES[0x09][0x00]["value"] = value
-    #     elif tag == "patternCondRaw":
-    #         VARIABLES[0x09][0x02]["value"] = value
-    #     elif tag == "patternTempSensor":
-    #         VARIABLES[0x09][0x01]["value"] = value            
 
-    #     self.current_values[tag] = value  
-    #     current_widget = self.screen_stack.currentWidget()
-    #     if hasattr(current_widget, "update_values"):
-    #         current_widget.update_values(self.current_values)
     def on_pattern_data(self, tag: str, value: float):        
         """Mapeo directo de alta velocidad de los datos del sensor patrón hacia el diccionario global"""
         mapping = {
@@ -2111,13 +2180,7 @@ class HemodialysisHMI(QMainWindow):
             # específicos definidos en _set_ui_connected_state o directamente.
             # Los botones deshabilitados mantienen su BTN_DISABLED_STYLE.
 
-    # def handle_comm_config_change(self, sensor_id, port, is_enabled):
-    #     if sensor_id == "CONDUCTIVITY":
-    #         self.pattern_sensor.update_config(port, is_enabled)
-    #         logger.info(f"Sensor Conductividad: Puerto={port}, Habilitado={is_enabled}")
-    #     elif sensor_id == "BIOZ":
-    #         self.bioz_urea_controller.update_config(port, is_enabled)
-    #         logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}") 
+
 
     def handle_comm_config_change(self, sensor_id, port, is_enabled):
         if sensor_id == "MAIN_CONTROL":
@@ -2168,24 +2231,7 @@ class HemodialysisHMI(QMainWindow):
             logger.error(f"Error al leer archivo {file_path}: {e}")
         return 0.0
 
-    # def _save_operation_hours(self):
-    #     """Guarda las horas de operación de forma persistente"""
-    #     try:
-    #         import json
-    #         os.makedirs("config", exist_ok=True)
-    #         file_path = "config/operation_hours.json"
-            
-    #         data = {
-    #             "total_operation_hours": round(self.total_operation_hours, 4),
-    #             "last_update": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
-    #         }
-            
-    #         with open(file_path, 'w', encoding='utf-8') as f:
-    #             json.dump(data, f, indent=4, ensure_ascii=False)
-                
-    #         logger.info(f"Horas de operación guardadas: {self.total_operation_hours:.2f}h")
-    #     except Exception as e:
-    #         logger.error(f"Error guardando horas de operación: {e}")   
+
     def _save_hours_to_file(self, file_path: str, data_dict: dict, log_msg: str):
         """Escritura genérica y segura de configuraciones operativas de horas"""
         try:
@@ -2198,41 +2244,7 @@ class HemodialysisHMI(QMainWindow):
         except Exception as e:
             logger.error(f"Error escribiendo configuración en {file_path}: {e}")
 
-    # def _load_power_on_hours(self):
-    #     """Carga las horas de Power On desde archivo"""
-    #     try:
-    #         import json
-    #         file_path = "config/power_on_hours.json"
-    #         if os.path.exists(file_path):
-    #             with open(file_path, 'r', encoding='utf-8') as f:
-    #                 data = json.load(f)
-    #                 self.power_on_hours = data.get("power_on_hours", 0.0)
-    #             logger.info(f"Power On Hours cargadas: {self.power_on_hours:.2f} h")
-    #         else:
-    #             logger.info("No se encontró archivo de Power On Hours. Iniciando en 0.")
-    #     except Exception as e:
-    #         logger.error(f"Error cargando Power On Hours: {e}")
-    #         self.power_on_hours = 0.0
-                
-            
-    # def _save_power_on_hours(self):
-    #     """Guarda las horas de Power On de forma persistente"""
-    #     try:
-    #         import json
-    #         os.makedirs("config", exist_ok=True)
-    #         file_path = "config/power_on_hours.json"
 
-    #         data = {
-    #             "power_on_hours": round(self.power_on_hours, 4),
-    #             "last_update": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
-    #         }
-
-    #         with open(file_path, 'w', encoding='utf-8') as f:
-    #             json.dump(data, f, indent=4, ensure_ascii=False)
-
-    #         logger.info(f"Power On Hours guardadas: {self.power_on_hours:.2f} h")
-    #     except Exception as e:
-    #         logger.error(f"Error guardando Power On Hours: {e}")
     def _load_operation_hours(self):
         self.total_operation_hours = self._load_hours_from_file("config/operation_hours.json", "total_operation_hours")
         logger.info(f"Horas de operación cargadas: {self.total_operation_hours:.2f} h")
@@ -2255,40 +2267,7 @@ class HemodialysisHMI(QMainWindow):
             f"Power On Hours guardadas: {self.power_on_hours:.2f} h"
         )
 
-    # def _load_cleaning_hours(self):
-    #     """Carga las horas de limpieza desde archivo"""
-    #     try:
-    #         import json
-    #         file_path = "config/cleaning_hours.json"
-    #         if os.path.exists(file_path):
-    #             with open(file_path, 'r', encoding='utf-8') as f:
-    #                 data = json.load(f)
-    #                 self.cleaning_hours = data.get("cleaning_hours", 0.0)
-    #             logger.info(f"Horas de limpieza cargadas: {self.cleaning_hours:.2f} h")
-    #         else:
-    #             logger.info("No se encontró archivo de horas de limpieza. Iniciando en 0.")
-    #     except Exception as e:
-    #         logger.error(f"Error cargando horas de limpieza: {e}")
-    #         self.cleaning_hours = 0.0
 
-    # def _save_cleaning_hours(self):
-    #     """Guarda las horas de limpieza de forma persistente"""
-    #     try:
-    #         import json
-    #         os.makedirs("config", exist_ok=True)
-    #         file_path = "config/cleaning_hours.json"
-
-    #         data = {
-    #             "cleaning_hours": round(self.cleaning_hours, 4),
-    #             "last_update": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
-    #         }
-
-    #         with open(file_path, 'w', encoding='utf-8') as f:
-    #             json.dump(data, f, indent=4, ensure_ascii=False)
-
-    #         logger.info(f"Horas de limpieza guardadas: {self.cleaning_hours:.2f} h")
-    #     except Exception as e:
-    #         logger.error(f"Error guardando horas de limpieza: {e}")
     def _load_cleaning_hours(self):
         self.cleaning_hours = self._load_hours_from_file("config/cleaning_hours.json", "cleaning_hours")
         logger.info(f"Horas de limpieza cargadas: {self.cleaning_hours:.2f} h")
@@ -2300,53 +2279,7 @@ class HemodialysisHMI(QMainWindow):
             f"Horas de limpieza guardadas: {self.cleaning_hours:.2f} h"
         )
 
-    # def _update_maintenance_screen_immediately(self):
-    #     """Actualiza los valores de horas en la pantalla de mantenimiento de forma inmediata"""
-    #     if not hasattr(self, 'maintenance_screen'):
-    #         return
 
-    #     # --- Power On Hours ---
-    #     total_power_on_hours_float = self.power_on_hours
-        
-    #     # Calcular horas y minutos para visualización
-    #     display_po_hours = int(total_power_on_hours_float)
-    #     # Calcula la parte fraccionaria de las horas y la convierte a minutos, redondeando
-    #     display_po_minutes = round((total_power_on_hours_float - display_po_hours) * 60)
-        
-    #     # Manejar el caso especial donde los minutos redondean a 60
-    #     # (ej. 1.999 horas -> 1 hora y 59.94 minutos -> redondea a 60 minutos, lo cual es otra hora)
-    #     if display_po_minutes == 60:
-    #         display_po_minutes = 0
-    #         display_po_hours += 1
-
-    #     # --- Operation Hours ---
-    #     total_operation_hours_float = self.total_operation_hours
-
-    #     # Calcular horas y minutos para visualización (misma lógica)
-    #     display_op_hours = int(total_operation_hours_float)
-    #     display_op_minutes = round((total_operation_hours_float - display_op_hours) * 60)
-
-    #     # Manejar el caso especial donde los minutos redondean a 60
-    #     if display_op_minutes == 60:
-    #         display_op_minutes = 0
-    #         display_op_hours += 1
-            
-    #     # --- Cleaning Hours ---
-    #     total_clean_hours_float = self.cleaning_hours
-    #     display_clean_hours = int(total_clean_hours_float)
-    #     display_clean_minutes = round((total_clean_hours_float - display_clean_hours) * 60)
-
-    #     if display_clean_minutes == 60:
-    #         display_clean_minutes = 0
-    #         display_clean_hours += 1
-
-    #     # Actualizar la pantalla de mantenimiento
-    #     self.maintenance_screen.update_power_on_hours(display_po_hours, display_po_minutes)
-    #     self.maintenance_screen.update_operation_hours(display_op_hours, display_op_minutes)
-    #     self.maintenance_screen.update_cleaning_hours(display_clean_hours, display_clean_minutes)
-
-    #     logger.debug(f"Pantalla de mantenimiento actualizada - "
-    #                  f"Power On: {total_power_on_hours_float:.2f}h | Operación: {total_operation_hours_float:.2f}h")
 
     def _update_maintenance_screen_immediately(self):
         """Actualiza la interfaz de mantenimiento utilizando la lógica matemática compactada"""
@@ -2388,21 +2321,7 @@ class HemodialysisHMI(QMainWindow):
         except Exception as e:
             logger.error(f"Error escribiendo {label}: {e}")
 
-    # def _save_treatment_history(self):
-    #     """Guarda historial de tratamientos"""
-    #     try:
-    #         with open("logs/Historiales/historial_tratamientos.json", 'w', encoding='utf-8') as f:
-    #             json.dump(self.treatment_history, f, indent=4, ensure_ascii=False)
-    #     except Exception as e:
-    #         logger.error(f"Error guardando historial de tratamientos: {e}")
 
-    # def _save_cleaning_history(self):
-    #     """Guarda historial de limpiezas"""
-    #     try:
-    #         with open("logs/Historiales/historial_limpieza.json", 'w', encoding='utf-8') as f:
-    #             json.dump(self.cleaning_history, f, indent=4, ensure_ascii=False)
-    #     except Exception as e:
-    #         logger.error(f"Error guardando historial de limpieza: {e}")
     def _save_treatment_history(self):
         self._save_history_to_file("logs/Historiales/historial_tratamientos.json", self.treatment_history, "historial_tratamientos")
 
