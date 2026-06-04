@@ -229,17 +229,14 @@ class HemodialysisHMI(QMainWindow):
         self.cleaning_history = []
         
         self.current_treatment_start = None   # Para registrar cuando inicia un tratamiento
-        self.current_cleaning_start = None    # Para registrar cuando inicia una limpieza
-
-        
+        # self.current_cleaning_start = None    # Para registrar cuando inicia una limpieza
 
         # ====================== VARIABLES DE HORAS ======================
-        # Horas de Operación en Tratamiento
-        self.total_operation_hours = 0.0
-        self.power_on_hours = 0.0
-        self.cleaning_hours = 0.0
+        self.total_operation_hours = 0.0   # Tratamiento activo
+        self.power_on_hours = 0.0          # Máquina encendida
+        self.cleaning_hours = 0.0          # Tiempo en limpieza
 
-        # Timers de inicio para conteo preciso
+        # Timers de conteo
         self.operation_start_time = None
         self.cleaning_start_time = None
         self.last_resume_time = None
@@ -600,32 +597,28 @@ class HemodialysisHMI(QMainWindow):
             self.show_therapy_config_screen()
             return
             
-        current_status = int(self.current_values.get("primingProcessStatus", 0))
-        
-        # si esta en pausa y se reanuda el tratamiento no se genera otro archivo csv
+        current_status = int(self.current_values.get("primingProcessStatus", 0))        
         is_resuming = (current_status == 15)
 
-        if not is_resuming:             
+        if not is_resuming:
             self.accumulated_therapy_seconds = 0
-            self.current_treatment_start_date_time = QDateTime.currentDateTime() # Guardar fecha/hora de inicio del tratamiento para reportes
-            self.show_info_message("Iniciando tratamiento...", 1000)
-
+            self.current_treatment_start_date_time = QDateTime.currentDateTime()
             self.current_treatment_start = QDateTime.currentDateTime()
-
+            self.operation_start_time = QDateTime.currentDateTime()   # ← Importante
+            self.is_treatment_running = True
+            self.show_info_message("Iniciando tratamiento...", 1000)
         else:
-            logger.info("Reanudando tratamiento desde Pausa (manteniendo tiempo acumulado)")
             self.show_info_message("Reanudando tratamiento...", 2000)
-                
-        self.last_resume_time = QDateTime.currentDateTime()   
-        self.is_treatment_running = True
+            self.last_resume_time = QDateTime.currentDateTime()
+
+        self.last_resume_time = QDateTime.currentDateTime()
 
         try:        
             self._write_boolean_command("dialyModeOperationStart", True)            
             self._write_boolean_command("dialyModeOperationStop", False)
             logger.info("Comandos de terapia enviados: Start=True, Stop=False")
         except Exception as e:
-            logger.error(f"Error enviando comandos de terapia: {e}")          
-            
+            logger.error(f"Error enviando comandos de terapia: {e}")           
             self.show_error_message(f"Error al iniciar terapia: {e}", 4000)
 
         # Iniciar bioimpedancia y Kt/V
@@ -736,18 +729,13 @@ class HemodialysisHMI(QMainWindow):
 
 
     def stop_treatment(self):   
-
         try:            
             self._write_boolean_command("dialyModeOperationStop", True)
             self._write_boolean_command("dialyModeOperationStart", False)                   
-            logger.info("Comandos de cebado enviados: Start=True, Stop=False")
             self.show_info_message("Cerrando sesión de diálisis...", 1000)
             self.register_treatment_session()   # Registrar sesión en el historial (JSON) y guardar resumen CSV de tratamientos
         except Exception as e:
-            logger.error(f"Error enviando comandos de paro de terapia: {e}")
-
-
- 
+            logger.error(f"Error enviando comandos de paro de terapia: {e}") 
 
         if self.bioz_urea_controller:
             self.bioz_urea_controller.send_command("STOP")
@@ -772,9 +760,8 @@ class HemodialysisHMI(QMainWindow):
     def pause_treatment(self):
         try:
             self._write_boolean_command("dialyModeOperationPause", True)
-            self._write_boolean_command("dialyModeOperationPause", False)
+            # self._write_boolean_command("dialyModeOperationPause", False)
             self.show_info_message("Terapia en pausa...", 1500)
-
             self._pause_operation_timer()
             self.is_treatment_running = False
         except Exception as e:
@@ -1063,23 +1050,22 @@ class HemodialysisHMI(QMainWindow):
         if self.is_treatment_running:
             self._update_therapy_time_displays()
 
-
         # Actualizaciones cada 1 segundo
         delta_msecs = self.last_second_update.msecsTo(now)
-        if delta_msecs >= 1000:
+
+        if delta_msecs >= 1000:            
             self.last_second_update = now
             self.update_date_time()
             
-            hours_passed = delta_msecs / 3600000.0
-
-            # 1. Power On Hours (siempre corre)
+            hours_passed = delta_msecs / 3600000.0       
+            # 1. Power On Hours → Siempre cuenta
             self.power_on_hours += hours_passed
 
-            # 2. Horas de Operación en Tratamiento
-            if self.operation_start_time is not None:
+            # 2. Operation Hours → Solo cuando el tratamiento está realmente activo
+            if self.is_treatment_running and self.operation_start_time is not None:
                 self.total_operation_hours += hours_passed
 
-            # 3. === HORAS DE LIMPIEZA ===
+            # 3. Cleaning Hours
             if self.is_cleaning_in_progress and self.cleaning_start_time is not None:
                 self.cleaning_hours += hours_passed
 
@@ -1097,7 +1083,7 @@ class HemodialysisHMI(QMainWindow):
             
             self._save_power_on_hours()
             self._save_operation_hours()
-            self._save_cleaning_hours()          # ← NUEVO
+            self._save_cleaning_hours()
 
             if self.screen_stack.currentWidget() == self.maintenance_screen:
                 self._update_maintenance_screen_immediately()
@@ -1244,41 +1230,72 @@ class HemodialysisHMI(QMainWindow):
         #     self.show_home_screen()
             
 
+    # def _handle_cleaning_status_change(self, is_cleaning_active: bool):
+    #     """Maneja el cambio de estado de limpieza (VERSIÓN CORREGIDA)"""
+    #     logger.info(f"[CLEANING] Señal recibida → Activo: {is_cleaning_active}")
+
+    #     if is_cleaning_active and not self.is_cleaning_in_progress:
+    #         # === INICIO DE LIMPIEZA ===
+    #         self.is_cleaning_in_progress = True
+    #         self.current_cleaning_start = QDateTime.currentDateTime()   # ← Usar la misma variable
+    #         self.cleaning_start_time = self.current_cleaning_start      # Mantener compatibilidad si es necesario
+
+    #         self._start_cleaning_logger()
+    #         logger.info(f"🧼 Limpieza INICIADA - Tiempo guardado: {self.current_cleaning_start.toString('HH:mm:ss')}")
+
+    #     elif not is_cleaning_active and self.is_cleaning_in_progress:
+    #         # === FINAL DE LIMPIEZA ===
+    #         self.is_cleaning_in_progress = False
+            
+    #         if self.current_cleaning_start is not None:
+    #             elapsed_hours = self.current_cleaning_start.secsTo(QDateTime.currentDateTime()) / 3600.0
+    #             logger.info(f"🧼 Duración calculada: {elapsed_hours:.3f} horas (no sumada aquí; acumulada por Timer Maestro)")
+
+    #         # Registrar sesión
+    #         self.register_cleaning_session()
+    #         self._stop_cleaning_logger()
+    #         self._save_cleaning_hours()
+            
+    #         logger.info("✅ Limpieza finalizada y registrada correctamente")
+
+    #         # Limpiar variable
+    #         self.current_cleaning_start = None
+    #         self.cleaning_start_time = None
+
+    #     self._refresh_navigation_bar()
+
     def _handle_cleaning_status_change(self, is_cleaning_active: bool):
-        """Maneja el cambio de estado de limpieza (VERSIÓN CORREGIDA)"""
+        """Maneja el cambio de estado de limpieza"""
         logger.info(f"[CLEANING] Señal recibida → Activo: {is_cleaning_active}")
 
         if is_cleaning_active and not self.is_cleaning_in_progress:
             # === INICIO DE LIMPIEZA ===
             self.is_cleaning_in_progress = True
-            self.current_cleaning_start = QDateTime.currentDateTime()   # ← Usar la misma variable
-            self.cleaning_start_time = self.current_cleaning_start      # Mantener compatibilidad si es necesario
-
+            self.cleaning_start_time = QDateTime.currentDateTime()   # Variable principal para conteo
+            
             self._start_cleaning_logger()
-            logger.info(f"🧼 Limpieza INICIADA - Tiempo guardado: {self.current_cleaning_start.toString('HH:mm:ss')}")
+            logger.info(f"🧼 Limpieza INICIADA a las {self.cleaning_start_time.toString('HH:mm:ss')}")
 
         elif not is_cleaning_active and self.is_cleaning_in_progress:
             # === FINAL DE LIMPIEZA ===
             self.is_cleaning_in_progress = False
             
-            if self.current_cleaning_start is not None:
-                elapsed_hours = self.current_cleaning_start.secsTo(QDateTime.currentDateTime()) / 3600.0
-                logger.info(f"🧼 Duración calculada: {elapsed_hours:.3f} horas (no sumada aquí; acumulada por Timer Maestro)")
+            if self.cleaning_start_time is not None:
+                elapsed_hours = self.cleaning_start_time.secsTo(QDateTime.currentDateTime()) / 3600.0
+                logger.info(f"🧼 Limpieza finalizada - Duración: {elapsed_hours:.3f} horas")
 
-            # Registrar sesión
-            self.register_cleaning_session()
+            # Registrar en historial (importante)
+            self.register_cleaning_session()     # ← Se mantiene intacto
+            
             self._stop_cleaning_logger()
             self._save_cleaning_hours()
             
             logger.info("✅ Limpieza finalizada y registrada correctamente")
 
             # Limpiar variable
-            self.current_cleaning_start = None
             self.cleaning_start_time = None
 
-        self._refresh_navigation_bar()
-
-
+        # NO es necesario llamar _refresh_navigation_bar() aquí
     def handleGlobalValueChange(self, tag: str, value: float):
        
         self.current_values[tag] = value  # Actualiza el valor global
@@ -1348,16 +1365,19 @@ class HemodialysisHMI(QMainWindow):
                 if status_code == 7: # indica al usuario que debe colocar el filtro antes de iniciar el tratamiento
                     self.show_info_message("Coloque el filtro y conecte las líneas", 10000)                  
 
-                # ====================== LÓGICA DE HORAS ======================
-                if status_code == 14:  # TRATAMIENTO INICIADO
-                    if self.operation_start_time is None:
-                        self.operation_start_time = QDateTime.currentDateTime()
-                        logger.info("Iniciando conteo de horas de operación")
+                                # ====================== LÓGICA DE HORAS ======================
+                if status_code == 14:  # TRATAMIENTO INICIADO / ACTIVO
+                    if not self.is_treatment_running:
+                        self.is_treatment_running = True
+                        if self.operation_start_time is None:
+                            self.operation_start_time = QDateTime.currentDateTime()
+                            logger.info("▶️ Iniciando conteo de horas de operación (Tratamiento)")
 
                 elif status_code in [15, 16]:  # PAUSA o DETENIDO
-                    if self.operation_start_time is not None:
-                        logger.info(f"Tratamiento pausado/detenido. Total horas op: {self.total_operation_hours:.2f}h")
-                        self._pause_operation_timer()
+                    if self.is_treatment_running:
+                        self.is_treatment_running = False
+                        self._pause_operation_timer()  # Guarda y limpia timer
+                        logger.info(f"⏸️ Tratamiento pausado/detenido. Horas op: {self.total_operation_hours:.3f}h")
 
                 # Lógica de pausa de tiempo de terapia
                 if status_code == 15 and self.last_resume_time is not None:
@@ -2381,8 +2401,9 @@ class HemodialysisHMI(QMainWindow):
             self.operation_start_time = None
             self._save_operation_hours()
             logger.info("Operación en pausa: contador de horas de operación detenido.")
-            if hasattr(self, 'maintenance_screen'):
+            if hasattr(self, 'maintenance_screen'): # validar si esto genera error 
                 self._update_maintenance_screen_immediately()
+
 
     def _save_operation_hours(self):
         self._save_hours_to_file(
@@ -2525,25 +2546,64 @@ class HemodialysisHMI(QMainWindow):
         logger.info(f"✅ Tratamiento registrado: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
         self.current_treatment_start = None
 
+    # def register_cleaning_session(self):
+    #     """Registra una sesión completa de limpieza con validación"""
+    #     if not self.current_cleaning_start:
+    #         logger.warning("No hay sesión de limpieza activa en memoria para registrar.")
+    #         return
+
+    #     end_time = QDateTime.currentDateTime()
+        
+    #     if not self._validate_session(self.current_cleaning_start, end_time):
+    #         logger.warning(f"Sesión de limpieza no válida: inicio={self.current_cleaning_start.toString('yyyy-MM-dd HH:mm:ss')}, fin={end_time.toString('yyyy-MM-dd HH:mm:ss')}")
+    #         self.current_cleaning_start = None
+    #         return
+
+    #     duration_seconds = self.current_cleaning_start.secsTo(end_time)
+    #     duration_minutes = round(duration_seconds / 60)
+        
+    #     record = {
+    #         "fecha": self.current_cleaning_start.toString("yyyy-MM-dd"),
+    #         "hora_inicio": self.current_cleaning_start.toString("HH:mm:ss"),
+    #         "hora_fin": end_time.toString("HH:mm:ss"),
+    #         "tipo_tratamiento": "Limpieza",
+    #         "duracion_minutos": duration_minutes,
+    #         "duracion_hhmm": f"{duration_minutes//60:02d}:{duration_minutes%60:02d}",
+    #         "timestamp_registro": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
+    #     }
+        
+    #     # Evitar duplicados
+    #     if self.cleaning_history:
+    #         last = self.cleaning_history[-1]
+    #         if last["fecha"] == record["fecha"] and last["hora_inicio"] == record["hora_inicio"]:
+    #             logger.info("Sesión de limpieza duplicada ignorada.")
+    #             self.current_cleaning_start = None
+    #             return
+
+    #     self.cleaning_history.append(record)
+    #     self._save_cleaning_history()
+        
+    #     logger.info(f"✅ Limpieza registrada en histórico: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
+    #     self.current_cleaning_start = None
+
     def register_cleaning_session(self):
-        """Registra una sesión completa de limpieza con validación"""
-        if not self.current_cleaning_start:
-            logger.warning("No hay sesión de limpieza activa en memoria para registrar.")
+        """Registra una sesión completa de limpieza"""
+        if not self.cleaning_start_time:        # ← Cambiado a cleaning_start_time
+            logger.warning("No hay sesión de limpieza activa para registrar.")
             return
 
         end_time = QDateTime.currentDateTime()
         
-        if not self._validate_session(self.current_cleaning_start, end_time):
-            logger.warning(f"Sesión de limpieza no válida: inicio={self.current_cleaning_start.toString('yyyy-MM-dd HH:mm:ss')}, fin={end_time.toString('yyyy-MM-dd HH:mm:ss')}")
-            self.current_cleaning_start = None
+        if not self._validate_session(self.cleaning_start_time, end_time):
+            self.cleaning_start_time = None
             return
 
-        duration_seconds = self.current_cleaning_start.secsTo(end_time)
+        duration_seconds = self.cleaning_start_time.secsTo(end_time)
         duration_minutes = round(duration_seconds / 60)
         
         record = {
-            "fecha": self.current_cleaning_start.toString("yyyy-MM-dd"),
-            "hora_inicio": self.current_cleaning_start.toString("HH:mm:ss"),
+            "fecha": self.cleaning_start_time.toString("yyyy-MM-dd"),
+            "hora_inicio": self.cleaning_start_time.toString("HH:mm:ss"),
             "hora_fin": end_time.toString("HH:mm:ss"),
             "tipo_tratamiento": "Limpieza",
             "duracion_minutos": duration_minutes,
@@ -2556,15 +2616,13 @@ class HemodialysisHMI(QMainWindow):
             last = self.cleaning_history[-1]
             if last["fecha"] == record["fecha"] and last["hora_inicio"] == record["hora_inicio"]:
                 logger.info("Sesión de limpieza duplicada ignorada.")
-                self.current_cleaning_start = None
+                self.cleaning_start_time = None
                 return
-
         self.cleaning_history.append(record)
         self._save_cleaning_history()
         
-        logger.info(f"✅ Limpieza registrada en histórico: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
-        self.current_cleaning_start = None
-
+        logger.info(f"✅ Limpieza registrada: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
+        
 
     def closeEvent(self, event):
         

@@ -80,14 +80,14 @@ class CleaningScreen(QWidget):
 
         self.style_unchecked = """
             QPushButton {
-                background: #3b82f6; color: white; font-size: 24px; font-weight: bold;
+                background: #3b82f6; color: #ffffff; font-size: 24px; font-weight: bold;
                 border-radius: 12px; padding: 15px; border: 2px solid #2563eb;
             }
             QPushButton:hover { background: #60a5fa; }
         """
         self.style_checked = """
             QPushButton {
-                background: #22c55e; color: white; font-size: 24px; font-weight: bold;
+                background: #22c55e; color: #ffffff; font-size: 24px; font-weight: bold;
                 border-radius: 12px; padding: 15px; border: 2px solid #16a34a;
             }
         """
@@ -155,7 +155,7 @@ class CleaningScreen(QWidget):
         self.start_button.setProperty("base_color", "#047857")         
         self.start_button.setStyleSheet("""
             QPushButton {
-                background: #047857; color: white; font-size: 38px; font-weight: bold;
+                background: #047857; color: #ffffff; font-size: 38px; font-weight: bold;
                 border: none; border-radius: 16px; padding: 10px;
             }
             QPushButton:hover { background: #065f46; }
@@ -171,7 +171,7 @@ class CleaningScreen(QWidget):
         self.stop_button.setEnabled(False) # Inicialmente deshabilitado
         self.stop_button.setStyleSheet("""
             QPushButton {
-                background: #dc2626; color: white; font-size: 38px; font-weight: bold;
+                background: #dc2626; color: #ffffff; font-size: 38px; font-weight: bold;
                 border: none; border-radius: 16px; padding: 10px;
             }
             QPushButton:hover { background: #b91c1c; }
@@ -344,6 +344,7 @@ class CleaningScreen(QWidget):
 
         self._load_mode_specific_configuration(self.selected_mode)        
         self.cleaning_in_progress = True
+        self.update_buttons_state(treatment_mode_selection=3.0)
         self.mid_pause_done = False
         self.cleaning_active_changed.emit(True)   # ← Muy importante
         self.btn_short.setEnabled(False)
@@ -409,7 +410,7 @@ class CleaningScreen(QWidget):
         self.stop_button.setEnabled(False)
         self.btn_short.setEnabled(True)
         self.btn_long.setEnabled(True)
-
+        
         try:
             self.start_button.clicked.disconnect()
         except TypeError:
@@ -583,18 +584,6 @@ class CleaningScreen(QWidget):
         """
         Habilita o deshabilita el botón de limpieza basado en el modo de tratamiento (treatmentModeSelection).
         """
- 
-        if self.cleaning_in_progress:
-            self.start_button.setEnabled(False)
-            self.stop_button.setEnabled(True)
-            self.start_button.setText("En proceso...")
-            self.btn_short.setEnabled(False)
-            self.btn_long.setEnabled(False)
-            return
-
-        self.btn_short.setEnabled(True)
-        self.btn_long.setEnabled(True)
-
         style_disabled = """
             QPushButton {
                 background: #334155; color: #64748b;
@@ -602,11 +591,18 @@ class CleaningScreen(QWidget):
                 border-radius: 16px; padding: 10px;
             }
         """
+        style_disabled_ = """
+            QPushButton {
+                background: #334155; color: #64748b;
+                font-size: 24px; font-weight: bold; border: none;
+                border-radius: 12px; padding: 15px; border: 2px solid #2563eb;
+            }
+        """
         def set_enabled_style(btn):
-            color = btn.property("base_color")
+            color = btn.property("base_color") or "#047857"
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: {color}; color: white;
+                    background: {color}; color: #ffffff;
                     font-size: 38px; font-weight: bold; border: none;
                     border-radius: 16px; padding: 10px;
                 }}
@@ -614,9 +610,27 @@ class CleaningScreen(QWidget):
                 QPushButton:pressed {{ background: #064e3b; }}
             """)
 
+        def restore_mode_button_style(btn):
+            btn.setStyleSheet(self.style_checked if btn.isChecked() else self.style_unchecked)
+
+        if self.cleaning_in_progress:
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(True)
+            self.start_button.setText("En proceso...")
+            self.btn_short.setEnabled(False)
+            self.btn_long.setEnabled(False)
+            self.btn_short.setStyleSheet(style_disabled_)
+            self.btn_long.setStyleSheet(style_disabled_)
+            return
+
+        self.btn_short.setEnabled(True)
+        self.btn_long.setEnabled(True)
+        restore_mode_button_style(self.btn_short)
+        restore_mode_button_style(self.btn_long)
+
         if treatment_mode_selection == 3.0:
             if self.selected_mode is not None:
-                if not self.start_button.isEnabled():
+                if not self.start_button.isEnabled() or self.start_button.text() != "Iniciar":
                     self.start_button.setEnabled(True)
                     set_enabled_style(self.start_button)
                     self.start_button.setText("Iniciar")
@@ -633,8 +647,8 @@ class CleaningScreen(QWidget):
             if self.start_button.isEnabled() and self.start_button.text() != "Reiniciar":
                 self.start_button.setEnabled(False)
                 self.start_button.setStyleSheet(style_disabled)
-                self.stop_button.setEnabled(False) 
-                
+                self.stop_button.setEnabled(False)
+
                 self.current_phase = f"Esperando modo limpieza (Actual: {treatment_mode_selection})"
                 self.phase_label.setText(self.current_phase)
                 self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold;")
@@ -642,6 +656,8 @@ class CleaningScreen(QWidget):
                 self.start_button.setEnabled(True)
                 set_enabled_style(self.start_button)
                 self.stop_button.setEnabled(False)
+
+
 
     def on_user_boolean_command(self, tag, state):
         self.request_boolean_change.emit(tag, state)
