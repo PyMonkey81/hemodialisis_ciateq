@@ -159,8 +159,8 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     # ================================================================
     0x02: {
         0x00: {"name": "Presión intermembrana", "label": "PTM", "type": "double", "rw": True, "unit": "mmHg", "limites": (1, 100), "tag": "interMembPresClinicData", "nivel": "cian"},           # 0
-        0x01: {"name": "Selección de modo de tratamiento", "label": "MODO TTO", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "treatmentModeSelection", "nivel": "cian"}, # 1
-        0x02: {"name": "Estado actual de proceso de cebado", "label": "ESTADO CEBADO", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "primingProcessStatus", "nivel": "cian"},  # 2
+        0x01: {"name": "Selección de modo de tratamiento", "label": "MODO TTO", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "treatmentModeSelection", "nivel": "cian"}, # 1 *dialyOpModeSelector  
+        0x02: {"name": "Estado actual de proceso de cebado", "label": "ESTADO CEBADO", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "primingProcessStatus", "nivel": "cian"},  # 2 dialyCurrProcessState       
         0x03: {"name": "Variable clínica visualización 3", "label": "VAR CLINICA 3", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "availableClinicVariable4", "nivel": "cian"},  # 3
         0x04: {"name": "Selector de ciclos cámara de balance", "label": "SET CICLOS BAL.", "type": "double", "rw": True, "unit": "n", "limites": (1, 100), "tag": "balanceChamberCycleSet", "nivel": "cian"}, # 4
         0x05: {"name": "Volumen de heparina dosificado actual", "label": "VOL. HEPARINA", "type": "double", "rw": True, "unit": "ml", "limites": (0, 100), "tag": "heparineCurrentDosage", "nivel": "cian"},# 5

@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QHeaderView, QGroupBox, QMessageBox, QSizePolicy
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QColor
 import json
 import os
 from datetime import datetime
@@ -61,7 +61,7 @@ class HistoryScreen(QWidget):
         self.type_combo.addItems(["Tratamientos", "Limpieza"])
         self.type_combo.setFixedWidth(220)
         self.type_combo.setFixedHeight(50)
-        self.type_combo.setStyleSheet("font-size: 24px; padding: 2px;")
+        self.type_combo.setStyleSheet("color: #0f172a;font-size: 24px; padding: 2px;")
         self.type_combo.currentTextChanged.connect(self.on_filter_changed)
 
         self.load_button = QPushButton("Cargar Datos")
@@ -210,11 +210,17 @@ class HistoryScreen(QWidget):
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            self.table.setItem(row, 0, QTableWidgetItem(row_data.get("fecha", "")))
-            self.table.setItem(row, 1, QTableWidgetItem(row_data.get("hora_inicio", "")))
-            self.table.setItem(row, 2, QTableWidgetItem(row_data.get("hora_fin", "")))
-            self.table.setItem(row, 3, QTableWidgetItem(row_data.get("tipo_tratamiento", "")))
-            self.table.setItem(row, 4, QTableWidgetItem(row_data.get("duracion_hhmm", "00:00")))
+            items = [
+                QTableWidgetItem(row_data.get("fecha", "")),
+                QTableWidgetItem(row_data.get("hora_inicio", "")),
+                QTableWidgetItem(row_data.get("hora_fin", "")),
+                QTableWidgetItem(row_data.get("tipo_tratamiento", "")),
+                QTableWidgetItem(row_data.get("duracion_hhmm", "00:00"))
+            ]
+
+            for col, item in enumerate(items):
+                item.setForeground(QColor("#0f172a"))
+                self.table.setItem(row, col, item)
 
         # Actualizar total de horas
         total_hours = sum(item.get("duracion_minutos", 0) for item in data) / 60.0

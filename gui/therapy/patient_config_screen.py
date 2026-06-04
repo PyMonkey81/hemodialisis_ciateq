@@ -130,8 +130,6 @@ class PatientConfigScreen(QWidget):
         # 2. Creamos el QScrollArea
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)  # IMPORTANTE: Permite que el widget interno se redimensione
-        # scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-
         scroll_area.setStyleSheet("""
             QScrollArea { border: none; background: transparent; }
             QScrollBar:vertical {
@@ -196,7 +194,7 @@ class PatientConfigScreen(QWidget):
         selector_layout.setSpacing(15)
 
         self.patient_list = QListWidget()
-        self.patient_list.setStyleSheet("font-size: 22px; padding: 5px; border-radius: 8px; background-color: #fcfcfc;")
+        self.patient_list.setStyleSheet("color: #0f172a; font-size: 22px; padding: 5px; border-radius: 8px; background-color: #fcfcfc;")
         self.patient_list.setMinimumHeight(200) # Una altura mínima para que se vea bien la lista
         self.patient_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._refresh_patient_list()
@@ -269,6 +267,7 @@ class PatientConfigScreen(QWidget):
                 border-radius: 5px;
                 padding: 8px;
                 background-color: #fcfcfc;
+                color: #0f172a;
             }
         """)
         self.form_layout = QFormLayout()
@@ -284,10 +283,10 @@ class PatientConfigScreen(QWidget):
             if key == "gender":
                 widget = QComboBox()
                 widget.addItems(["", "Masculino (M)", "Femenino (F)"])
-                widget.setStyleSheet("font-size: 22px; padding: 8px;")
+                widget.setStyleSheet("font-size: 22px; padding: 8px; color: #0f172a;")
             else:
                 widget = QLineEdit(default)
-                widget.setStyleSheet("font-size: 22px; padding: 8px;")
+                widget.setStyleSheet("font-size: 22px; padding: 8px; color: #0f172a;")
                 if validator:
                     widget.setValidator(validator)
                 # Asegurar que el QLineEdit no sea editable por teclado físico

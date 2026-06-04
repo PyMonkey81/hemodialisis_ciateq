@@ -118,7 +118,7 @@ class AlarmScreenServiceConfig(QWidget):
                         display_text += "  [Booleana]"
 
                     lbl_name = QLabel(display_text)
-                    lbl_name.setStyleSheet("font-size: 22px; padding: 4px 0;")
+                    lbl_name.setStyleSheet("color: #0f172a; font-size: 22px; padding: 4px 0;")
 
                     # Agregar al grid
                     grid.addWidget(chk, row, 0, alignment=Qt.AlignCenter)

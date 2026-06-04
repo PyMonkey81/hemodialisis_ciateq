@@ -408,6 +408,7 @@ class HemodialysisHMI(QMainWindow):
         # Cargar horas persistentes
         self._load_operation_hours()
         self._load_power_on_hours()
+        self._load_cleaning_hours()
 
         # Iniciar el Timer Maestro (único)
         self.master_timer.start()
@@ -752,6 +753,7 @@ class HemodialysisHMI(QMainWindow):
             self.bioz_urea_controller.send_command("STOP")
 
         # Resetear estado de tiempo       
+        self._pause_operation_timer()
 
         self.is_treatment_running = False
         self.accumulated_therapy_seconds = 0  # Limpiar
@@ -772,6 +774,9 @@ class HemodialysisHMI(QMainWindow):
             self._write_boolean_command("dialyModeOperationPause", True)
             self._write_boolean_command("dialyModeOperationPause", False)
             self.show_info_message("Terapia en pausa...", 1500)
+
+            self._pause_operation_timer()
+            self.is_treatment_running = False
         except Exception as e:
             logger.error(f"[Error] Error al pausar terapia {e}")
         
@@ -846,9 +851,8 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.cleaning_screen)
         if hasattr(self.cleaning_screen, "update_values"):
             self.cleaning_screen.update_values(self.current_values)
-        if hasattr(self.cleaning_screen, '_load_initial_config_on_startup'):
-            # self.cleaning_screen._load_initial_config_on_startup()
-            self.cleaning_screen._load_mode_specific_configuration(self.cleaning_screen.selected_mode)  
+        if hasattr(self.cleaning_screen, "reset_cleaning_mode_selection"):
+            self.cleaning_screen.reset_cleaning_mode_selection(reset_display=True)
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Limpieza")
@@ -1259,8 +1263,7 @@ class HemodialysisHMI(QMainWindow):
             
             if self.current_cleaning_start is not None:
                 elapsed_hours = self.current_cleaning_start.secsTo(QDateTime.currentDateTime()) / 3600.0
-                self.cleaning_hours += elapsed_hours
-                logger.info(f"🧼 Duración calculada: {elapsed_hours:.3f} horas")
+                logger.info(f"🧼 Duración calculada: {elapsed_hours:.3f} horas (no sumada aquí; acumulada por Timer Maestro)")
 
             # Registrar sesión
             self.register_cleaning_session()
@@ -1271,6 +1274,7 @@ class HemodialysisHMI(QMainWindow):
 
             # Limpiar variable
             self.current_cleaning_start = None
+            self.cleaning_start_time = None
 
         self._refresh_navigation_bar()
 
@@ -1353,8 +1357,7 @@ class HemodialysisHMI(QMainWindow):
                 elif status_code in [15, 16]:  # PAUSA o DETENIDO
                     if self.operation_start_time is not None:
                         logger.info(f"Tratamiento pausado/detenido. Total horas op: {self.total_operation_hours:.2f}h")
-                        self.operation_start_time = None # Esto hace que el Timer Maestro deje de sumar
-                        self._save_operation_hours()                    
+                        self._pause_operation_timer()
 
                 # Lógica de pausa de tiempo de terapia
                 if status_code == 15 and self.last_resume_time is not None:
@@ -2274,21 +2277,6 @@ class HemodialysisHMI(QMainWindow):
         # --- 3. ACTUALIZACIÓN VISUAL 
         if hasattr(self, 'dialysis_screen') and hasattr(self.dialysis_screen, 'elapsed_time_display') and \
            hasattr(self.dialysis_screen, 'remaining_time_display'):
-            
-            # # Formato Transcurrido
-            # elapsed_h = current_elapsed_seconds // 3600
-            # elapsed_m = (current_elapsed_seconds % 3600) // 60
-            # elapsed_s = current_elapsed_seconds % 60
-            # elapsed_str = f"{elapsed_h:02d}:{elapsed_m:02d}:{elapsed_s:02d}"
-
-            # self.dialysis_screen.elapsed_time_display.set_value(elapsed_str)
-
-            # # Formato Restante
-            # rem_h = remaining_sec // 3600
-            # rem_m = (remaining_sec % 3600) // 60
-            # rem_s = remaining_sec % 60
-            # remaining_str = f"{rem_h:02d}:{rem_m:02d}:{rem_s:02d}"
-
             # self.dialysis_screen.remaining_time_display.set_value(remaining_str)
             elapsed_str = f"{current_elapsed_seconds // 3600:02d}:{(current_elapsed_seconds % 3600) // 60:02d}:{current_elapsed_seconds % 60:02d}"
             remaining_str = f"{remaining_sec // 3600:02d}:{(remaining_sec % 3600) // 60:02d}:{remaining_sec % 60:02d}"
@@ -2384,6 +2372,17 @@ class HemodialysisHMI(QMainWindow):
     def _load_operation_hours(self):
         self.total_operation_hours = self._load_hours_from_file("config/operation_hours.json", "total_operation_hours")
         logger.info(f"Horas de operación cargadas: {self.total_operation_hours:.2f} h")
+        if hasattr(self, 'maintenance_screen') and self.screen_stack.currentWidget() == self.maintenance_screen:
+            self._update_maintenance_screen_immediately()
+
+    def _pause_operation_timer(self):
+        """Detiene el conteo de horas de operación sin reiniciar el total acumulado."""
+        if self.operation_start_time is not None:
+            self.operation_start_time = None
+            self._save_operation_hours()
+            logger.info("Operación en pausa: contador de horas de operación detenido.")
+            if hasattr(self, 'maintenance_screen'):
+                self._update_maintenance_screen_immediately()
 
     def _save_operation_hours(self):
         self._save_hours_to_file(
@@ -2395,6 +2394,8 @@ class HemodialysisHMI(QMainWindow):
     def _load_power_on_hours(self):
         self.power_on_hours = self._load_hours_from_file("config/power_on_hours.json", "power_on_hours")
         logger.info(f"Power On Hours cargadas: {self.power_on_hours:.2f} h")
+        if hasattr(self, 'maintenance_screen') and self.screen_stack.currentWidget() == self.maintenance_screen:
+            self._update_maintenance_screen_immediately()
                 
     def _save_power_on_hours(self):
         self._save_hours_to_file(
@@ -2407,6 +2408,8 @@ class HemodialysisHMI(QMainWindow):
     def _load_cleaning_hours(self):
         self.cleaning_hours = self._load_hours_from_file("config/cleaning_hours.json", "cleaning_hours")
         logger.info(f"Horas de limpieza cargadas: {self.cleaning_hours:.2f} h")
+        if hasattr(self, 'maintenance_screen') and self.screen_stack.currentWidget() == self.maintenance_screen:
+            self._update_maintenance_screen_immediately()
 
     def _save_cleaning_hours(self):
         self._save_hours_to_file(

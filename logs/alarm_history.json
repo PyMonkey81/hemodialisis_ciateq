@@ -1228,5 +1228,53 @@
         "text": "NORMALIZADA: Detector Burbuja Aire en Sangre",
         "value": 0.0,
         "level": "info"
+    },
+    {
+        "time": "12:29:10",
+        "text": "ACTIVADA - Detector Sangre en Dializante",
+        "value": 1.0,
+        "level": "info"
+    },
+    {
+        "time": "12:29:10",
+        "text": "ACTIVADA: Detector Sangre en Dializante",
+        "value": 1.0,
+        "level": "rojo"
+    },
+    {
+        "time": "12:29:12",
+        "text": "DESACTIVADA - Detector Sangre en Dializante",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "12:29:12",
+        "text": "NORMALIZADA: Detector Sangre en Dializante",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "12:29:15",
+        "text": "ACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "info"
+    },
+    {
+        "time": "12:29:15",
+        "text": "ACTIVADA: Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "rojo"
+    },
+    {
+        "time": "12:29:17",
+        "text": "DESACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "12:29:17",
+        "text": "NORMALIZADA: Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
     }
 ]

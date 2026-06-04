@@ -34,5 +34,59 @@
         "duracion_minutos": 2,
         "duracion_hhmm": "00:02",
         "timestamp_registro": "2026-06-01 13:22:51"
+    },
+    {
+        "fecha": "2026-06-04",
+        "hora_inicio": "10:50:01",
+        "hora_fin": "10:52:01",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-04 10:52:01"
+    },
+    {
+        "fecha": "2026-06-04",
+        "hora_inicio": "10:59:55",
+        "hora_fin": "11:01:55",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-04 11:01:55"
+    },
+    {
+        "fecha": "2026-06-04",
+        "hora_inicio": "11:23:16",
+        "hora_fin": "11:25:16",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-04 11:25:16"
+    },
+    {
+        "fecha": "2026-06-04",
+        "hora_inicio": "11:30:36",
+        "hora_fin": "11:32:36",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-04 11:32:36"
+    },
+    {
+        "fecha": "2026-06-04",
+        "hora_inicio": "11:59:23",
+        "hora_fin": "12:01:24",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-04 12:01:24"
+    },
+    {
+        "fecha": "2026-06-04",
+        "hora_inicio": "12:01:49",
+        "hora_fin": "12:03:50",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-04 12:03:50"
     }
 ]

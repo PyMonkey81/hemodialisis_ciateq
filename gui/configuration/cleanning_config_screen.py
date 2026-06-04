@@ -52,7 +52,7 @@ class CleanningConfigScreen(QWidget):
         main_layout.setSpacing(15)
 
         title_label = QLabel("Configuración de Desinfección")
-        title_label.setStyleSheet("font-size: 28px; font-weight: bold;")
+        title_label.setStyleSheet("color: #0f172a; font-size: 28px; font-weight: bold;")
         title_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(title_label)
 
@@ -112,12 +112,12 @@ class CleanningConfigScreen(QWidget):
 
         # === Input de Tiempo ===
         lbl_time = QLabel("Tiempo de desinfección (hh:mm):") 
-        lbl_time.setStyleSheet("font-size: 20px; font-weight: bold;")
+        lbl_time.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
         main_layout.addWidget(lbl_time)
 
         # ClickableLineEdit para el tiempo
         self.desinfection_time_input = ClickableLineEdit("00:00")
-        self.desinfection_time_input.setStyleSheet("font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;")
+        self.desinfection_time_input.setStyleSheet("color: #0f172a; font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;")
         self.desinfection_time_input.setAlignment(Qt.AlignCenter)
         self.desinfection_time_input.setReadOnly(True)
         self.desinfection_time_input.clicked.connect(
@@ -130,11 +130,11 @@ class CleanningConfigScreen(QWidget):
 
         # === Input de Temperatura ===
         lbl_temperature = QLabel("Temperatura (°C):")
-        lbl_temperature.setStyleSheet("font-size: 20px; font-weight: bold;")
+        lbl_temperature.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
         main_layout.addWidget(lbl_temperature)
 
         self._desinfection_temp_input = ClickableLineEdit("0.0")
-        self._desinfection_temp_input.setStyleSheet("font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;")
+        self._desinfection_temp_input.setStyleSheet("color: #0f172a; font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;")
         self._desinfection_temp_input.setAlignment(Qt.AlignCenter)
         self._desinfection_temp_input.setReadOnly(True)
         self._desinfection_temp_input.clicked.connect(
@@ -149,11 +149,11 @@ class CleanningConfigScreen(QWidget):
 
         # ==========imput de flujo camara de balance=========
         lbl_balance_chamber_flow = QLabel("Flujo de Cámara (ml/min)")
-        lbl_balance_chamber_flow.setStyleSheet("font-size: 20px; font-weight: bold;")
+        lbl_balance_chamber_flow.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
         main_layout.addWidget(lbl_balance_chamber_flow)
 
         self._flow_bchamber = ClickableLineEdit("0.0")
-        self._flow_bchamber.setStyleSheet("font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;")
+        self._flow_bchamber.setStyleSheet("color: #0f172a; font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;")
         self._flow_bchamber.setAlignment(Qt.AlignCenter)
         self._flow_bchamber.setReadOnly(True)
         self._flow_bchamber.clicked.connect(

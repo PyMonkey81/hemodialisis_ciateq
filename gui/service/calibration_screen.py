@@ -304,15 +304,13 @@ class CalibrationScreen(QWidget):
     def _add_control_row(self, grid, row, col, label_text, unit_text, tag=None, numpad_title="", is_input=True, initial_value="0.0"):
         """Helper to add a labeled control row (label + input/display + unit)."""
         label = QLabel(label_text)
+        label.setStyleSheet("color: #0f172a; font-size: 18px; font-weight: bold; border: none; background: transparent;")
         grid.addWidget(label, row, col)
-        label_style = "color: #000000; font-size: 18px; font-weight: bold; border: none; background: transparent;"
-        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
-        button_style = """
-            QPushButton { background: #3b82f6; color: #ffffff; border-radius: 20px; font-weight: bold; }
-            QPushButton:pressed { background: #1e40af; }
-        """
+        label_style = "color: #0f172a; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+        indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #0f172a; border-radius: 5px; padding: 2px;"
+
         input_style = """
-            background: #FFFFE5; color: #000000; font-size: 18px; font-weight: bold;
+            background: #FFFFE5; color: #0f172a; font-size: 18px; font-weight: bold;
             border: 2px solid #000000; border-radius: 5px; padding: 4px;
         """
 

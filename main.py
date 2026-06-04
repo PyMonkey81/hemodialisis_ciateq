@@ -10,7 +10,9 @@ import ctypes
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QFont, QScreen
+from gui import theme_manager
 from gui.appMainHemodialysis import HemodialysisHMI
+from gui.theme_manager import ThemeManager
 
 
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'var', 'log')
@@ -163,79 +165,12 @@ if __name__ == "__main__":
     dark_palette.setColor(QPalette.ButtonText, Qt.white)
     app.setPalette(dark_palette)
 
-    # Global font (optional but recommended for consistency)
-    base_font = QFont("Arial Narrow", 12)
-    base_font.setWeight(QFont.Bold)
-    app.setFont(base_font)
+    theme_manager = ThemeManager(app)
+    # Puedes cambiar fuente global y tema aquí:
+    # theme_manager.apply_font("Arial Narrow", 16)
+    theme_manager.apply_theme("dark")  # o "dark"
+    theme_manager.apply_font(theme_manager.current_font_family, 16)
 
-    # Global style (uncomment and adjust as needed)
-    app.setStyleSheet("""
-        * {
-            font-family: "Arial Narrow", "Helvetica Condensed", Arial, sans-serif;
-            font-weight: bold;
-            color: #000000;
-        }
-        QMessageBox {
-            background-color: #2b2b2b;
-            color: #ffffff;        
-        }
-        QMessageBox QLabel {
-            color: #ffffff;
-            background-color: #2b2b2b;
-            padding: 12px;
-            min-width: 350px;
-        }
-        QMessageBox QPushButton {
-            background-color: #4CAF50;
-            color: #ffffff;
-            border: none;
-            border-radius: 6px;
-            padding: 10px 24px;
-            min-width: 100px;
-            font-weight: bold;
-        }
-        QMessageBox QPushButton:hover {
-            background-color: #45a049;
-        }
-        QMessageBox QPushButton:pressed {
-            background-color: #3e8e41;
-        }
-        QMessageBox QDialogButtonBox {  /* Para alinear botones si es necesario */
-            background-color: transparent;
-        }                      
-    
-        QLabel { font-size: 18px; }
-        QLineEdit, ClickableLineEdit {
-            font-family: Consolas, "Courier New", monospace;
-            font-size: 20px;
-            color: #000000;
-            border: 2px solid #000000;
-            border-radius: 6px;
-            padding: 4px;
-            min-width: 80px;
-        }
-        QLineEdit:!read-only, ClickableLineEdit:!read-only {
-            background: #FFFFE5;
-        }
-        QLineEdit:read-only, ClickableLineEdit:read-only, ClickableLineEdit[readOnly="true"] {
-            background: #FFFFE5;
-            color: #000000;
-            border: 2px solid #000000;
-        }
-        QLineEdit:focus, ClickableLineEdit:focus {
-            border: 2px solid #3b82f6;
-        }
-        QPushButton {
-            background: #3b82f6;
-            color: white;
-            border-radius: 8px;
-            font-size: 16px;
-            padding: 6px;
-            font-weight: bold;
-        }
-        QPushButton:pressed { background: #1e40af; }
-        QWidget { background: #fcfcfc; }
-    """)
     try:
         main_window = ScaledHemodialysisHMI()
         main_window.showFullScreen()
@@ -260,6 +195,6 @@ if __name__ == "__main__":
             None,
             "Fatal Application Error",
             f"Could not start the application:\n\n{e}\n\n"
-            "Contacte al soporte técnico de CIATEQ A.C." # Kept in Spanish as requested
+            "Contacte al soporte técnico de CIATEQ A.C." 
         )
         sys.exit(1)

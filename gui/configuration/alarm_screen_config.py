@@ -94,7 +94,7 @@ class AlarmScreenConfig(QWidget):
         headers = ["Parámetro", "Límite Inferior", "Límite Superior", "Nivel de Alarma"]
         for col, text in enumerate(headers):
             lbl = QLabel(text)
-            lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #7f8c8d;")
+            lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #0f172a;")
             self.grid_layout.addWidget(lbl, 0, col)
 
         self.populate_variables()
@@ -142,11 +142,11 @@ class AlarmScreenConfig(QWidget):
                 current_level = self.config_manager.get_severity(tag)
 
                 lbl_name = QLabel(f"{name} {f'({unit})' if unit else ''}")
-                lbl_name.setStyleSheet("font-size: 23px; font-weight: bold;")
+                lbl_name.setStyleSheet("color: #0f172a; font-size: 23px; font-weight: bold;")
 
                 combo_level = QComboBox()
                 combo_level.addItems(["cian", "naranja", "amarillo", "rojo"])
-                combo_level.setStyleSheet("font-size: 23px;")
+                combo_level.setStyleSheet("color: #0f172a; font-size: 23px;")
                 combo_level.setCurrentText(current_level)
                 combo_level.setFixedWidth(130)
 
@@ -293,7 +293,7 @@ class AlarmScreenConfig(QWidget):
         headers = ["Parámetro", "Límite Inferior", "Límite Superior", "Nivel de Alarma"]
         for col, text in enumerate(headers):
             lbl = QLabel(text)
-            lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #7f8c8d;")
+            lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #0f172a;")
             self.grid_layout.addWidget(lbl, 0, col) # row 0 para los encabezados
 
         # 3. Limpiar el diccionario de inputs y volver a poblar

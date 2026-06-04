@@ -202,7 +202,7 @@ class MaintenanceScreen(QWidget):
     def reset_cleaning_hours(self):
         if self._confirm_reset("Horas de Limpieza"):
             if self.parent_window:
-                self.parent_window.total_cleaning_hours = 0.0
+                self.parent_window.cleaning_hours = 0.0
                 self.parent_window._save_cleaning_hours()
                 self.clean_value.setText("00:00 hh:mm")
                 logger.warning("Horas de Limpieza fueron reseteadas por técnico")
