@@ -1646,7 +1646,7 @@ class HemodialysisHMI(QMainWindow):
         # 3. Refrescar interfaz visual
         self.refresh_alarms_label()
         self.update_led_bar_state()
-        self.update_led_bar_state()
+
     
     def handle_alarm(self, idx, active, value, name, level, limits):
         found_idx = -1 # buscar si la alarma ya está en la lista de alarmas activas
@@ -1707,7 +1707,80 @@ class HemodialysisHMI(QMainWindow):
         else:
             self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID, silence_buzzer=False)
 
+#==============================inicio de codigo de prueba========================
 
+    def show_operator_message(self, text: str, level: str = "info", timeout_ms: int = 4000):
+        """
+        Muestra un mensaje al operador con:
+        - Mensaje flotante
+        - LED + Buzzer temporal
+        - Restauración automática del estado de alarma (si existe)
+        """
+        # Guardar estado actual de alarmas antes de modificar
+        had_active_alarms = len(self.active_alarms) > 0
+        previous_cmd = None
+
+        if had_active_alarms:
+            # Guardamos el comando actual de alarma para restaurarlo después
+            priority_map = {"rojo": 4, "naranja": 3, "amarillo": 2, "cian": 1}
+            top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2], 0))
+            level_alarm = top_alarm[2]
+
+            if level_alarm == "rojo":
+                previous_cmd = self.led_bar.CMD_RED_SOLID
+            elif level_alarm == "naranja":
+                previous_cmd = self.led_bar.CMD_YELLOW_FLASH
+            elif level_alarm == "amarillo":
+                previous_cmd = self.led_bar.CMD_YELLOW_SOLID
+            else:
+                previous_cmd = self.led_bar.CMD_CYAN_SOLID
+
+        # Determinar comando y estilo según el nivel del mensaje
+        if level == "success":
+            self.show_success_message(text, timeout_ms)
+            cmd = getattr(self.led_bar, 'CMD_GREEN_SOLID', None)
+        elif level == "warning":
+            self.show_warning_message(text, timeout_ms)
+            cmd = getattr(self.led_bar, 'CMD_YELLOW_FLASH', None)
+        elif level == "error":
+            self.show_error_message(text, timeout_ms)
+            cmd = getattr(self.led_bar, 'CMD_RED_SOLID', None)
+        else:  # info
+            self.show_info_message(text, timeout_ms)
+            cmd = getattr(self.led_bar, 'CMD_CYAN_SOLID', None)
+
+        # Enviar comando al LED Bar + Buzzer activo
+        if hasattr(self, 'led_bar') and self.led_bar and cmd:
+            self.led_bar.send_state(cmd, silence_buzzer=False)
+
+        # Restaurar estado de alarma después del timeout
+        def restore_alarm_state():
+            if hasattr(self, 'led_bar') and self.led_bar:
+                if had_active_alarms and previous_cmd:
+                    self.led_bar.send_state(previous_cmd, 
+                                          silence_buzzer=self.buzzer_silenced_by_user)
+                else:
+                    # No había alarma → volver a verde o estado normal
+                    self.led_bar.send_state(self.led_bar.CMD_GREEN_SOLID, 
+                                          silence_buzzer=False)
+            self.update_led_bar_state()  # Forzar sincronización con sistema de alarmas
+
+        QTimer.singleShot(timeout_ms, restore_alarm_state)   
+
+
+# # En lugar de:
+# self.show_info_message("Cebado iniciado", 3000)
+
+# # Usa:
+# self.show_operator_message("Cebado iniciado", level="info", timeout_ms=3000)
+
+
+# # Ejemplos según tipo:
+# self.show_operator_message("Tratamiento iniciado correctamente", "success", 2500)
+# self.show_operator_message("Temperatura fuera de rango", "warning", 5000)
+# self.show_operator_message("Error crítico en bomba", "error", 8000)
+
+#===============================Fin de codigo de prueba======================
 # ====================== MÉTODOS DE MENSAJES FLOTANTES ======================
     def _get_or_create_floating_msg(self) -> FloatingMessage:
         """Helper para evitar la duplicación de instanciación del widget de mensajes"""
