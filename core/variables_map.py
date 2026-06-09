@@ -273,6 +273,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x05: {"name": "patient_dry_weight_kg","label": "PESO SECO","type": "double","rw": False,"unit": "kg","limites": (20, 200),"tag": "patient_dry_weight_kg","nivel": "blanco"},
         0x06: {"name": "patient_pre_weight_kg","label": "PESO PRE-DIAL","type": "double","rw": False,"unit": "kg","limites": (20, 200),"tag": "patient_pre_weight_kg","nivel": "blanco"},
         0x07: {"name": "uf_goal_liters","label": "OBJETIVO UF","type": "double","rw": True,"unit": "L","limites": (0.0, 10.0),"tag": "uf_goal_liters","nivel": "cian"},
+        0x08: {"name": "patient_heitmann", "label": "VOLUMEN DE AGUA", "type": "double","rw": True,"unit": "ml","limites": (0.0, 10.0),"tag": "heitmann_value","nivel": "cian"},
     },
     0x09: {
         0x00: {"name": "pattern conductivity sensor", "label": "PATTERN_CONDUCTIVITY", "type": "double", "rw": True, "unit": "mS/cm","limites": (0, 20), "tag": "patternCondSensor", "nivel":"cian"},

@@ -386,7 +386,7 @@ class CalibrationScreen(QWidget):
         cond_setpoint = self.current_values.get("dialyCondControlSetPoint", 0.0)
         cond_variable = self.current_values.get("dialyCondVariableData", 0.0)
         cond_output_raw = self.current_values.get("dialyCondControlOutput", 0.0) # Salida de conductividad
-        cond_output_percent = cond_output_raw / 5  #escala
+        cond_output_percent = cond_output_raw #/ 5   se escala en el main 
 
         self.cond_setpoint_history.append(cond_setpoint)
         self.cond_variable_history.append(cond_variable)

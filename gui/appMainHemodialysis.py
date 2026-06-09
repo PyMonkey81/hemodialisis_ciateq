@@ -42,7 +42,7 @@ Esta clase se instancia desde archivo `main.py`:
     sys.exit(app.exec())
 
 Author: Miguel de Jesus C. Espinoza Calderón
-Version: 2.17.1
+Version: 2.18.5
 """
 
 
@@ -50,16 +50,13 @@ import os
 import sys
 import time
 import logging
-from unittest import result
-from PySide6.QtWidgets import *
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
-from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QColor, QPixmap
-from gui.service.history_screen import HistoryScreen
-from logic.calculos import convertir_ciclos_a_flujo
-from utilities.csv_logger import CsvLogger
 import csv
 import json
+from typing import List, Tuple
+
+from PySide6.QtWidgets import *
+from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
+from PySide6.QtGui import QColor, QPixmap
 
 # === MODULES ===
 from core.alarms import AlarmSystem
@@ -75,14 +72,16 @@ from gui.therapy.main_screen import MainScreen
 from gui.therapy.alarms_screen import AlarmsScreen
 from gui.therapy.dialysis_screen import DialysisScreen
 from gui.therapy.treatment_mode_screen import TreatmentModeScreen
+from gui.therapy.ktv_screen import KTVScreen
 from gui.service.options_screen import OptionsScreen
+from gui.service.history_screen import HistoryScreen
 from gui.service.cleaning_screen import CleaningScreen
 from gui.service.comm_port_screen import CommPortScreen
 from gui.components.real_time_variables import RealTimeVariablesMonitor
 from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
-# from gui.components.ui_components import show_dark_message
 from gui.components.floating_message import FloatingMessage
+
 from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.configuration.alarm_screen_config import AlarmScreenConfig 
 from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
@@ -96,17 +95,15 @@ from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screen import TherapyConfigScreen
+
 from logic.ktv_calculator import CalculadoraKtV
 from logic.heitmann import heitmann
-from typing import List, Tuple
-
 from logic.calculos import (
-    convertir_flujo_a_ciclos,
-    convertir_ciclos_a_flujo,
-    convertir_litros_h_a_ml_min,
-    convertir_ml_min_a_litros_h,
+    convertir_flujo_a_ciclos, convertir_ciclos_a_flujo,
+    convertir_litros_h_a_ml_min, convertir_ml_min_a_litros_h,
     calculo_ptm
 )
+from utilities.csv_logger import CsvLogger
 
 logger = logging.getLogger(__name__)
 
@@ -215,21 +212,31 @@ class HemodialysisHMI(QMainWindow):
         }
 
         self.calculadora_ktv = CalculadoraKtV(parent=self)
+        # # ====================== TIMER MAESTRO (ÚNICO) ======================
+        # self.master_timer = QTimer(self)
+        # self.master_timer.setInterval(500)          # 500ms = 2 actualizaciones por segundo
+        # self.master_timer.timeout.connect(self._master_timer_tick)
+
+        # # Variables de control para el timer maestro
+        # self.last_second_update = QDateTime.currentDateTime()
+        # self.last_minute_update = QDateTime.currentDateTime()
+
         # ====================== TIMER MAESTRO (ÚNICO) ======================
         self.master_timer = QTimer(self)
-        self.master_timer.setInterval(500)          # 500ms = 2 actualizaciones por segundo
+        self.master_timer.setInterval(500)
         self.master_timer.timeout.connect(self._master_timer_tick)
 
         # Variables de control para el timer maestro
         self.last_second_update = QDateTime.currentDateTime()
         self.last_minute_update = QDateTime.currentDateTime()
+        self._timer_lock = False  # ← NUEVO: protección contra reentrancia
+
 
         # ====================== HISTORIAL DE TRATAMIENTOS Y LIMPIEZA ======================
         self.treatment_history = []   # Se cargará desde JSON
         self.cleaning_history = []
         
         self.current_treatment_start = None   # Para registrar cuando inicia un tratamiento
-        # self.current_cleaning_start = None    # Para registrar cuando inicia una limpieza
 
         # ====================== VARIABLES DE HORAS ======================
         self.total_operation_hours = 0.0   # Tratamiento activo
@@ -375,6 +382,8 @@ class HemodialysisHMI(QMainWindow):
 
         self.history_screen = HistoryScreen(parent=self)
 
+        self.KTVScreen = KTVScreen(parent=self, values_dict=self.current_values) # Pantalla de cálculo de Kt/V en tiempo real, con gráficos y todo el rollo.
+
         # Add all screens to stacked widget (order matters)
         self.screen_stack.addWidget(self._main_screen)                 # 0 - Home
         self.screen_stack.addWidget(self.dialysis_screen)              # 1   funciona
@@ -395,6 +404,10 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.alarm_service_screen_config)          # 16  se accede desde el menu de servicio técnico para configurar los limites de cada variable y su severidad. Esta pantalla es similar a la de configuración de alarmas pero con un enfoque específico para el servicio técnico, permitiendo ajustes avanzados que no están disponibles para el operador.
         self.screen_stack.addWidget(self._cleanning_config_screen)             # 17 configuración de modos de limpieza/desinfeccion      
         self.screen_stack.addWidget(self.history_screen)              # 18 pantalla de historial de tratamientos y mantenimientos realizados, con opción de exportar a PDF o CSV.
+        self.screen_stack.addWidget(self.KTVScreen)                   # 19 pantalla de cálculo de Kt/V en tiempo real, con gráficos y todo el rollo. Se accede desde el menú de Tipo de Tratamiento.
+
+
+        self.master_timer.timeout.connect(self.KTVScreen.on_master_tick)
 
         self.comm_port_screen.emit_current_configurations() # carga la configuracion de las puertos COM
 
@@ -717,7 +730,7 @@ class HemodialysisHMI(QMainWindow):
             self._write_boolean_command("dialyStartDialysisButt", False)              
            
             logger.info("Comandos de cebado enviados: Start=True, Stop=False")
-            self.show_info_message("Cebado detenido...", 1000)
+            self.show_info_message("Cebado detenido...", 3000)
         except Exception as e:
             logger.error(f"Error enviando comandos de cebado: {e}")
             self.show_warning_message("Cebado detenido, pero hubo problema al enviar comandos al controlador.", 4000)
@@ -732,7 +745,7 @@ class HemodialysisHMI(QMainWindow):
         try:            
             self._write_boolean_command("dialyModeOperationStop", True)
             self._write_boolean_command("dialyModeOperationStart", False)                   
-            self.show_info_message("Cerrando sesión de diálisis...", 1000)
+            self.show_info_message("Fin de terapia...", 3000)
             self.register_treatment_session()   # Registrar sesión en el historial (JSON) y guardar resumen CSV de tratamientos
         except Exception as e:
             logger.error(f"Error enviando comandos de paro de terapia: {e}") 
@@ -749,7 +762,11 @@ class HemodialysisHMI(QMainWindow):
 
         # Actualizar displays inmediatamente
         self._update_therapy_time_displays()
-
+        if hasattr(self, 'KTVScreen') and self.KTVScreen:
+            report = self.KTVScreen.save_final_report()
+            if report:
+                self.show_success_message(f"Reporte Kt/V guardado correctamente", 2000)
+            self.KTVScreen.ktv_records.clear()   # Limpiar para próxima terapia
         # Cerrar logger si existe
         if self.treatment_logger:
             self.treatment_logger.close()
@@ -760,7 +777,6 @@ class HemodialysisHMI(QMainWindow):
     def pause_treatment(self):
         try:
             self._write_boolean_command("dialyModeOperationPause", True)
-            # self._write_boolean_command("dialyModeOperationPause", False)
             self.show_info_message("Terapia en pausa...", 1500)
             self._pause_operation_timer()
             self.is_treatment_running = False
@@ -919,10 +935,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.maintenance_screen)
         self.left_content.show()
         self.right_content.show()
-        
-        # Actualización inmediata de horas al abrir la pantalla
-        self._update_maintenance_screen_immediately()
-        
+        self._update_maintenance_screen_immediately()        
         self._highlight_active_nav_button("Servicio")
 
     def show_alarm_config_limits_screen(self):
@@ -952,6 +965,14 @@ class HemodialysisHMI(QMainWindow):
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Historial")
+
+    def show_ktv_screen(self):
+        self.screen_stack.setCurrentWidget(self.KTVScreen)
+        if hasattr(self.KTVScreen, "update_values"):
+            self.KTVScreen.update_values(self.current_values)
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Diálisis")
 
 
     # ────────────────────────────────────────────────
@@ -1044,54 +1065,65 @@ class HemodialysisHMI(QMainWindow):
 
     def _master_timer_tick(self):
         """Timer Maestro - Se ejecuta cada 500ms. Actualizacion centralizada de estados, gauges, loggers y navegación."""
-        now = QDateTime.currentDateTime()
-        self.update_connection_status()
+        if self._timer_lock:
+            logger.warning("Timer tick saltado por lock")
+            return
+        self._timer_lock = True 
+        # cambios nuevos - se agrego _timer_lock y Try, si no funcionan se quitan 
+        try:
+            now = QDateTime.currentDateTime()
+            self.update_connection_status()
 
-        if self.is_treatment_running:
-            self._update_therapy_time_displays()
+            if self.is_treatment_running:
+                self._update_therapy_time_displays()
 
-        # Actualizaciones cada 1 segundo
-        delta_msecs = self.last_second_update.msecsTo(now)
+            # Actualizaciones cada 1 segundo
+            delta_msecs = self.last_second_update.msecsTo(now)
 
-        if delta_msecs >= 1000:            
-            self.last_second_update = now
-            self.update_date_time()
+            if delta_msecs >= 1000:            
+                self.last_second_update = now
+                self.update_date_time()
             
-            hours_passed = delta_msecs / 3600000.0       
-            # 1. Power On Hours → Siempre cuenta
-            self.power_on_hours += hours_passed
+                hours_passed = delta_msecs / 3600000.0       
+                # 1. Power On Hours → Siempre cuenta
+                self.power_on_hours += hours_passed
 
-            # 2. Operation Hours → Solo cuando el tratamiento está realmente activo
-            if self.is_treatment_running and self.operation_start_time is not None:
-                self.total_operation_hours += hours_passed
+                # 2. Operation Hours → Solo cuando el tratamiento está realmente activo
+                if self.is_treatment_running and self.operation_start_time is not None:
+                    self.total_operation_hours += hours_passed
 
-            # 3. Cleaning Hours
-            if self.is_cleaning_in_progress and self.cleaning_start_time is not None:
-                self.cleaning_hours += hours_passed
+                # 3. Cleaning Hours
+                if self.is_cleaning_in_progress and self.cleaning_start_time is not None:
+                    self.cleaning_hours += hours_passed
 
-            # Logging
-            if self.treatment_logger:
-                self._log_treatment_current_data()
-            if self.csv_logger:           # cebado
-                self._log_current_data()
-            if self.cleaning_logger:      # ← NUEVO: logger de limpieza
-                self._log_cleaning_current_data()
+                # Logging
+                if self.treatment_logger:
+                    self._log_treatment_current_data()
+                if self.csv_logger:           # cebado
+                    self._log_current_data()
+                if self.cleaning_logger:      # ← NUEVO: logger de limpieza
+                    self._log_cleaning_current_data()
 
-        # Cada minuto
-        if self.last_minute_update.secsTo(now) >= 60:
-            self.last_minute_update = now
+            # Cada minuto
+            if self.last_minute_update.secsTo(now) >= 60:
+                self.last_minute_update = now
             
-            self._save_power_on_hours()
-            self._save_operation_hours()
-            self._save_cleaning_hours()
+                self._save_power_on_hours()
+                self._save_operation_hours()
+                self._save_cleaning_hours()
 
-            if self.screen_stack.currentWidget() == self.maintenance_screen:
-                self._update_maintenance_screen_immediately()
+                if self.screen_stack.currentWidget() == self.maintenance_screen:
+                    self._update_maintenance_screen_immediately()
         
-        self._update_gauges()
-        self._update_treatment_controls_state()
-        self._update_priming_controls_state()
-        self._refresh_navigation_bar()
+            self._update_gauges()
+            self._update_treatment_controls_state()
+            self._update_priming_controls_state()
+            self._refresh_navigation_bar()
+        finally:
+            self._timer_lock = False
+
+
+        
 
     def _get_current_screen_nav_text(self) -> str:
         """
@@ -1112,6 +1144,8 @@ class HemodialysisHMI(QMainWindow):
         elif current_widget == self.network_config_screen: return "Servicio"
         elif current_widget == self.patient_config_screen: return "Diálisis"
         elif current_widget == self.therapy_config_screen: return "Diálisis"
+        elif current_widget == self.KTVScreen: return "Diálisis"
+        elif current_widget == self.history_screen: return "Historial"
         
         # Para otras pantallas no navegables directamente desde la barra, o si no se quiere resaltar
         return "" 
@@ -1147,8 +1181,8 @@ class HemodialysisHMI(QMainWindow):
             else:
                 logger.info("Manteniendo pantalla de servicio tras conexión.")
 
-            self._update_treatment_controls_state()
-            self._update_priming_controls_state()
+            
+            
 
         else: # ESTADO DESCONECTADO
             logger.warning("Disabling UI elements for disconnected state.")
@@ -1169,100 +1203,6 @@ class HemodialysisHMI(QMainWindow):
             else:
                 logger.info("Manteniendo pantalla de servicio tras desconexión (permitiendo configuración).")
 
-    # def _set_ui_connected_state(self, is_connected: bool):
-    #     """
-    #     Manages the overall UI state (buttons, header labels) based on connection status.
-    #     """
-    #     # if is_connected:
-    #     #     logger.info("Enabling UI elements for connected state.")
-               
-                      
-    #     #     if hasattr(self, 'alarm_system') and self.alarm_system:
-    #     #         self.alarm_system.reset() # Resetea previous_states y current_values internos
-    #     #     self.active_alarms.clear() # Limpia la lista del HMI
-    #     #     if hasattr(self, 'alarms_screen') and self.alarms_screen:
-    #     #         self.alarms_screen.reset_ui_state() 
-            
-    #     #     self.current_process_status.setText("Máquina conectada") 
-    #     #     self.refresh_treatment_selected() # Mostrar tratamiento seleccionado actualmente - default Hemodiálisis
-
-    #     #     self.show_home_screen() 
-    #     #     self._update_treatment_controls_state()
-    #     #     self._update_priming_controls_state()
-    #     if is_connected:
-    #         logger.info("Enabling UI elements for connected state.")
-            
-    #         if hasattr(self, 'alarm_system') and self.alarm_system:
-    #             self.alarm_system.reset()
-    #         self.active_alarms.clear()
-            
-    #         if hasattr(self, 'alarms_screen') and self.alarms_screen:
-    #             self.alarms_screen.reset_ui_state() 
-            
-    #         self.current_process_status.setText("Máquina conectada") 
-    #         self.refresh_treatment_selected()
-
-    #         # --- SOLUCIÓN AL BUG DE REDIRECCIÓN ---
-    #         # Verificamos cuál es la pantalla actual
-    #         current_widget = self.screen_stack.currentWidget()
-            
-    #         # Solo mandamos al Home si NO estamos en la pantalla de configuración de puertos
-    #         # o en la pantalla de opciones de servicio.
-    #         if current_widget != self.comm_port_screen and current_widget != self.options_screen:
-    #             self.show_home_screen() 
-    #         else:
-    #             logger.info("Conexión detectada pero se mantiene la pantalla actual para permitir configuración.")
-    #         # --------------------------------------
-
-    #         self._update_treatment_controls_state()
-    #         self._update_priming_controls_state()
-
-        # else: # Desconectado
-        #     logger.warning("Disabling UI elements for disconnected state.")
-            
-        #     if hasattr(self, 'alarm_system') and self.alarm_system:
-        #         self.alarm_system.reset() # Resetea previous_states y current_values internos
-        #     self.active_alarms.clear() # Limpia la lista del HMI
-        #     if hasattr(self, 'alarms_screen') and self.alarms_screen:
-        #         self.alarms_screen.reset_ui_state() # Limpia la UI de la pantalla de alarmas
-
-        #     self.current_process_status.setText("Esperando conexión")
-        #     self.show_home_screen()
-            
-
-    # def _handle_cleaning_status_change(self, is_cleaning_active: bool):
-    #     """Maneja el cambio de estado de limpieza (VERSIÓN CORREGIDA)"""
-    #     logger.info(f"[CLEANING] Señal recibida → Activo: {is_cleaning_active}")
-
-    #     if is_cleaning_active and not self.is_cleaning_in_progress:
-    #         # === INICIO DE LIMPIEZA ===
-    #         self.is_cleaning_in_progress = True
-    #         self.current_cleaning_start = QDateTime.currentDateTime()   # ← Usar la misma variable
-    #         self.cleaning_start_time = self.current_cleaning_start      # Mantener compatibilidad si es necesario
-
-    #         self._start_cleaning_logger()
-    #         logger.info(f"🧼 Limpieza INICIADA - Tiempo guardado: {self.current_cleaning_start.toString('HH:mm:ss')}")
-
-    #     elif not is_cleaning_active and self.is_cleaning_in_progress:
-    #         # === FINAL DE LIMPIEZA ===
-    #         self.is_cleaning_in_progress = False
-            
-    #         if self.current_cleaning_start is not None:
-    #             elapsed_hours = self.current_cleaning_start.secsTo(QDateTime.currentDateTime()) / 3600.0
-    #             logger.info(f"🧼 Duración calculada: {elapsed_hours:.3f} horas (no sumada aquí; acumulada por Timer Maestro)")
-
-    #         # Registrar sesión
-    #         self.register_cleaning_session()
-    #         self._stop_cleaning_logger()
-    #         self._save_cleaning_hours()
-            
-    #         logger.info("✅ Limpieza finalizada y registrada correctamente")
-
-    #         # Limpiar variable
-    #         self.current_cleaning_start = None
-    #         self.cleaning_start_time = None
-
-    #     self._refresh_navigation_bar()
 
     def _handle_cleaning_status_change(self, is_cleaning_active: bool):
         """Maneja el cambio de estado de limpieza"""
@@ -1407,7 +1347,7 @@ class HemodialysisHMI(QMainWindow):
                         border-radius: 10px;
                     }}
                 """)
-                self._update_priming_controls_state()
+                
 
                 # Actualizar inmediatamente la pantalla de mantenimiento si está visible
                 if self.screen_stack.currentWidget() == self.maintenance_screen:
@@ -1459,20 +1399,6 @@ class HemodialysisHMI(QMainWindow):
             can_start = temp_ok and cond_ok
             can_stop = False
             can_pause = False
-            # if temp_ok and cond_ok:
-            #     can_start = True
-            #     can_stop = False
-            #     can_pause = False   # Es False, pero se pondra TRUE para nueva funcionalidad en cebado 
-            # elif temp_ok and not cond_ok:
-            #     can_start = False
-            #     can_stop = False
-            #     can_pause = False  # Permitir pausa para forzar corrección de parámetros antes de iniciar
-            # else:
-            #     # Listo por estado, pero temperaturas/cond mal
-            #     can_start = False
-            #     can_stop = False
-            #     can_pause = True  # Permitir pausa para forzar corrección de parámetros antes de iniciar
-
         elif status_code == 14: # TRATAMIENTO CORRIENDO
             can_start = False
             can_stop = True
@@ -1510,7 +1436,7 @@ class HemodialysisHMI(QMainWindow):
             if hasattr(self.dialysis_screen, 'set_start_stop_buttons_state'):
                 self.dialysis_screen.set_start_stop_buttons_state(can_start, can_stop, can_pause)
 
-        self._refresh_navigation_bar()
+        
         
 
 
@@ -1540,32 +1466,6 @@ class HemodialysisHMI(QMainWindow):
 
             if status_code in [1, 10]: 
                  enable_stop_priming = False
-
-        # if treatment_mode_selection == 3.0: # Si el modo seleccionado es "Limpieza"            
-        #     pass 
-        # else: # Modo diferente de limpieza (donde SÍ aplica la lógica de cebado)
-        #     if status_code == 1: # "INICIO CEBADO"   
-        #         enable_start_priming = True
-            
-        #     # --- Lógica para "DETENER CEBADO" ---            
-        #     # Habilitar si el cebado está activo (estados 2 a 8)
-        #     if status_code >= 2 and status_code <= 9:
-        #         enable_stop_priming = True
-        #     elif status_code == 13: # Listos para iniciar tratamiento
-        #         enable_stop_priming = True    
-        #     # Habilitar si el tratamiento está activo (estado 14)
-        #     elif status_code == 14: # "TRATAMIENTO INICIADO"
-        #         enable_stop_priming = False # Si ya es tratamiento, no puedes detener el cebado
-        #     # Habilitar si el tratamiento está en pausa (estado 15)
-        #     elif status_code == 15: # "PAUSA"
-        #         enable_stop_priming = True
-        #     # Habilitar si el tratamiento acaba de ser detenido (estado 16)
-        #     elif status_code == 16: # "TRATAMIENTO DETENIDO"
-        #         enable_stop_priming = True
-
-        #     # Deshabilitar en estados donde no hay nada que detener o ya está en un estado inactivo/listo
-        #     if status_code in [1, 10]: # 1: INICIO CEBADO, 10: CERRADO
-        #          enable_stop_priming = False
 
         # Actualizar los botones en la pantalla de diálisis
         if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
@@ -1909,6 +1809,8 @@ class HemodialysisHMI(QMainWindow):
         genero_heitmann = 0 if self.genero == 2 else 1
 
         v_bis_litros = self._calculate_heitmann_volume(z_resistencia, self.altura, self.peso, genero_heitmann, self.edad) 
+        self.current_values["heitmann_value"] = v_bis_litros
+
         if v_bis_litros and v_bis_litros > 0:
             self.calculadora_ktv.set_volumen_bioimpedancia(v_bis_litros)
         else:
@@ -2045,10 +1947,7 @@ class HemodialysisHMI(QMainWindow):
                 self.bioz_urea_controller.stop()
             except Exception as e:
                 logger.error(f"Error deteniendo el controlador de BioZ/Urea: {e}")
-
-        # self.pattern_sensor.stop()
-        # time.sleep(0.1)
-        # logger.error("[INFO] Controlled shutdown completed.")
+    
         if hasattr(self, 'pattern_sensor') and self.pattern_sensor:
             try:
                 self.pattern_sensor.stop()
@@ -2114,88 +2013,6 @@ class HemodialysisHMI(QMainWindow):
 
     # ====================== ESCRITURA HACIA HARDWARE ======================
 
-
-
-    # def _write_boolean_command(self, tag: str, state: bool):
-    #     """
-    #     Envía un comando booleano (True/False) al controlador vía serial.
-    #     """
-    #     if not self.serial_comm or not self.serial_comm.is_connected:
-    #         logger.warning(f"No se puede enviar comando booleano '{tag} = {state}': serial no conectado")            
-    #         return
-
-    #     try:
-    #         logger.debug(f"Buscando tag booleano: {tag} = {state}")
-
-    #         address = -1
-    #         for group_key, vars_group in VARIABLES.items():
-    #             if isinstance(vars_group, dict):
-    #                 for var_id, info in vars_group.items():
-    #                     if info.get("tag") == tag:
-    #                         address = var_id
-    #                         break
-    #             if address != -1:
-    #                 break
-
-    #         if address == -1:
-    #             logger.error(f"Tag booleano '{tag}' no encontrado en VARIABLES")
-    #             return
-
-    #         # Envío real
-    #         self.serial_comm.write_boolean(address, state)
-    #         logger.info(f"Comando booleano enviado: {tag} = {state} (Address {address})")
-
-    #     except Exception as e:
-    #         logger.error(f"Error al enviar comando booleano '{tag} = {state}': {e}")
-
-    # def _write_setpoint(self, tag: str, value: float):
-    #     """
-    #     Envía un setpoint (double) al controlador vía serial.
-    #     """
-    #     if not self.serial_comm or not self.serial_comm.is_connected:
-    #         logger.warning(f"No se puede escribir setpoint '{tag} = {value}': serial no conectado")
-    #         return  # Opcional: mostrar QMessageBox para feedback visual
-
-    #     try:
-    #         if not hasattr(self, '_tags_cache'):
-    #             self._tags_cache = {}
-            
-    #         if tag in self._tags_cache:
-    #             target_group, target_id = self._tags_cache[tag]
-    #         else:
-    #             target_group = target_id = -1
-    #             found = False
-
-    #             for group_key, vars_group in VARIABLES.items():
-    #                 if isinstance(vars_group, dict):
-    #                     for var_id, info in vars_group.items():
-    #                         if info.get("tag") == tag:
-    #                             target_group = group_key
-    #                             target_id = var_id
-    #                             found = True
-    #                             break
-    #                 if found:
-    #                     break
-
-    #             if not found or target_group == -1 or target_id == -1:
-    #                 logger.error(f"Tag '{tag}' no encontrado en VARIABLES")
-    #                 return
-    #             self._tags_cache[tag] = (target_group, target_id)
-
-    #         if not VARIABLES[target_group][target_id].get("rw", False):
-    #             logger.warning(f"Tag '{tag}' es de solo lectura (rw=False)")
-    #             return
-
-    #         # Envío real
-    #         self.serial_comm.write_double(target_group, target_id, value)
-    #         logger.info(f"Setpoint escrito correctamente: {tag} = {value} (Grupo {hex(target_group)}, ID {target_id})")
-
-    #     except Exception as e:
-    #         logger.error(f"Error al escribir setpoint '{tag} = {value}': {e}")
-
-
-    #===============================Codigo de prueba===============================
-
     def _write_setpoint(self, tag: str, value: float):
         if not self.serial_comm or not self.serial_comm.is_connected:
             logger.warning(f"No se puede escribir setpoint '{tag}': serial desconectado")
@@ -2238,71 +2055,6 @@ class HemodialysisHMI(QMainWindow):
             logger.error(f"Error en write_boolean_command '{tag}': {e}")
 
 
-    # def _write_setpoint(self, tag: str, value: float):
-    #     if not self.serial_comm or not self.serial_comm.is_connected:
-    #         return
-
-    #     try:
-    #         group, address = self._resolve_tag(tag)
-
-    #         if group is None or address is None:
-    #             logger.error(f"Tag double '{tag}' no encontrado")
-    #             return
-
-    #         # Verificación de escritura (opcional pero recomendada)
-    #         if not VARIABLES[group][address].get("rw", False):
-    #             logger.warning(f"Intento de escritura en tag de solo lectura: {tag}")
-    #             return
-
-    #         # Envío real
-    #         self.serial_comm.write_double(group, address, value)
-    #         logger.info(f"SETPOINT [DBL]: {tag} -> {value} (G:{hex(group)}, ID:{address})")
-
-    #     except Exception as e:
-    #         logger.error(f"Error en write_setpoint para {tag}: {e}")
-
-    # def _write_boolean_command(self, tag: str, state: bool):
-    #     if not self.serial_comm or not self.serial_comm.is_connected:
-    #         logger.warning(f"No serial connection for: {tag}")            
-    #         return
-
-    #     try:
-    #         # Usamos el optimizador de búsqueda
-    #         _, address = self._resolve_tag(tag)
-
-    #         if address is None:
-    #             logger.error(f"Tag booleano '{tag}' no encontrado")
-    #             return
-
-    #         # Envío real
-    #         self.serial_comm.write_boolean(address, state)
-    #         logger.info(f"COMANDO [BOOL]: {tag} -> {state} (Addr: {address})")
-
-    #     except Exception as e:
-    #         logger.error(f"Error en write_boolean para {tag}: {e}")
-
-    
-    # def _resolve_tag(self, tag: str) -> tuple[int | None, int | None]:
-    #     """
-    #     Busca un tag en VARIABLES y devuelve (group_key, var_id).
-    #     Utiliza caché para evitar búsquedas repetitivas.
-    #     """
-    #     if not hasattr(self, '_tags_cache'):
-    #         self._tags_cache = {}
-
-    #     if tag in self._tags_cache:
-    #         return self._tags_cache[tag]
-
-    #     # Si no está en caché, buscar en el mapa global
-    #     for group_key, vars_group in VARIABLES.items():
-    #         if isinstance(vars_group, dict):
-    #             for var_id, info in vars_group.items():
-    #                 if info.get("tag") == tag:
-    #                     self._tags_cache[tag] = (group_key, var_id)
-    #                     return group_key, var_id
-        
-    #     return None, None
-
     def _resolve_tag(self, tag: str) -> tuple[int | None, int | None]:
         """
         Resuelve un tag a (group, address) usando el mapa inverso.
@@ -2317,7 +2069,7 @@ class HemodialysisHMI(QMainWindow):
         self._tags_cache[tag] = result
         return result
     
-    #===============================FIn de codigo de prueba===============================
+    #===============================FIN ESCRITURA A HARDWARE===============================
 
 
     def on_pattern_data(self, tag: str, value: float):        
@@ -2422,21 +2174,6 @@ class HemodialysisHMI(QMainWindow):
             hours_int += 1
         return hours_int, minutes_int
     
-    # def _load_operation_hours(self):
-    #     """Carga las horas de operación desde archivo persistente"""
-    #     try:
-    #         import json
-    #         file_path = "config/operation_hours.json"
-    #         if os.path.exists(file_path):
-    #             with open(file_path, 'r', encoding='utf-8') as f:
-    #                 data = json.load(f)
-    #                 self.total_operation_hours = data.get("total_operation_hours", 0.0)
-    #             logger.info(f"Horas de operación cargadas: {self.total_operation_hours:.2f} horas")
-    #         else:
-    #             logger.info("No existe archivo de horas de operación. Iniciando en 0 horas.")
-    #     except Exception as e:
-    #         logger.error(f"Error cargando horas de operación: {e}")
-    #         self.total_operation_hours = 0.0
     def _load_hours_from_file(self, file_path: str, key: str) -> float:
         """Carga genérica y segura de horas persistidas"""
         try:
@@ -2618,46 +2355,6 @@ class HemodialysisHMI(QMainWindow):
         
         logger.info(f"✅ Tratamiento registrado: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
         self.current_treatment_start = None
-
-    # def register_cleaning_session(self):
-    #     """Registra una sesión completa de limpieza con validación"""
-    #     if not self.current_cleaning_start:
-    #         logger.warning("No hay sesión de limpieza activa en memoria para registrar.")
-    #         return
-
-    #     end_time = QDateTime.currentDateTime()
-        
-    #     if not self._validate_session(self.current_cleaning_start, end_time):
-    #         logger.warning(f"Sesión de limpieza no válida: inicio={self.current_cleaning_start.toString('yyyy-MM-dd HH:mm:ss')}, fin={end_time.toString('yyyy-MM-dd HH:mm:ss')}")
-    #         self.current_cleaning_start = None
-    #         return
-
-    #     duration_seconds = self.current_cleaning_start.secsTo(end_time)
-    #     duration_minutes = round(duration_seconds / 60)
-        
-    #     record = {
-    #         "fecha": self.current_cleaning_start.toString("yyyy-MM-dd"),
-    #         "hora_inicio": self.current_cleaning_start.toString("HH:mm:ss"),
-    #         "hora_fin": end_time.toString("HH:mm:ss"),
-    #         "tipo_tratamiento": "Limpieza",
-    #         "duracion_minutos": duration_minutes,
-    #         "duracion_hhmm": f"{duration_minutes//60:02d}:{duration_minutes%60:02d}",
-    #         "timestamp_registro": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
-    #     }
-        
-    #     # Evitar duplicados
-    #     if self.cleaning_history:
-    #         last = self.cleaning_history[-1]
-    #         if last["fecha"] == record["fecha"] and last["hora_inicio"] == record["hora_inicio"]:
-    #             logger.info("Sesión de limpieza duplicada ignorada.")
-    #             self.current_cleaning_start = None
-    #             return
-
-    #     self.cleaning_history.append(record)
-    #     self._save_cleaning_history()
-        
-    #     logger.info(f"✅ Limpieza registrada en histórico: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
-    #     self.current_cleaning_start = None
 
     def register_cleaning_session(self):
         """Registra una sesión completa de limpieza"""

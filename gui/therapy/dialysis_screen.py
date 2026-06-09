@@ -194,8 +194,8 @@ class DialysisScreen(QWidget):
             ("MENÚ PACIENTE", "#0f172a", self.show_patient_config),
             ("APLICAR BOLO", "#0f172a", self.bolus_apply_dosage),
             ("INICIAR CEBADO", "#0f172a", self.parent_window.start_priming),
-            ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming), 
-            ("Kt/V", "#0f172a", self.parent_window.ktv_meassurement),           
+            ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming),  
+            ("Kt/V", "#0f172a", self.parent_window.show_ktv_screen),       
         ]
 
         for i, (text, color, callback) in enumerate(button_config):

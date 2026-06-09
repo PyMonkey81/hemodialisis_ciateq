@@ -22,7 +22,7 @@
     "P003": {
         "patient_id": "P003",
         "patient_name": "Carlos Ramírez Torres",
-        "patient_gender": 1,
+        "patient_gender": 2,
         "patient_age": 42,
         "patient_height_cm": 175.0,
         "patient_dry_weight_kg": 82.0,
