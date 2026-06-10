@@ -61,6 +61,7 @@ from PySide6.QtGui import QColor, QPixmap
 # === MODULES ===
 from core.alarms import AlarmSystem
 from core.alarm_config_manager import AlarmConfigManager
+from core.state_manager import AppStateManager, TreatmentPhase
 from core.variables_map import TAG_TO_ADDRESS, VARIABLES
 
 from connection.serial_communication import SerialCommunication
@@ -220,6 +221,21 @@ class HemodialysisHMI(QMainWindow):
         # # Variables de control para el timer maestro
         # self.last_second_update = QDateTime.currentDateTime()
         # self.last_minute_update = QDateTime.currentDateTime()
+
+
+        #======================= GESTOR DE ESTADOS ==========================
+
+        self.state = AppStateManager()
+        
+        # Conectar señales a métodos de la app
+        self.state.state_changed.connect(self._on_state_changed)
+        self.state.treatment_started.connect(self._on_treatment_started)
+        self.state.treatment_paused.connect(self._on_treatment_paused)
+        self.state.treatment_resumed.connect(self._on_treatment_resumed)
+        self.state.treatment_finished.connect(self._on_treatment_finished)
+        self.state.cleaning_started.connect(self._on_cleaning_started)
+        self.state.cleaning_finished.connect(self._on_cleaning_finished)
+        self.state.error_occurred.connect(self._on_state_error)
 
         # ====================== TIMER MAESTRO (ÚNICO) ======================
         self.master_timer = QTimer(self)
@@ -438,6 +454,42 @@ class HemodialysisHMI(QMainWindow):
         self.right_container.setStyleSheet("background: transparent")
 
     
+    def _on_state_changed(self, phase: TreatmentPhase, reason: str):
+        """Callback principal de cambio de estado"""
+        logger.info(f"Estado global cambiado: {phase.name} | {reason}")
+        self._update_buttons_state()
+        self._update_screens_state(phase)
+
+    def _on_treatment_started(self, start_time):
+        logger.info("Tratamiento INICIADO")
+        self.is_treatment_running = True
+        self.therapy_start_time = start_time
+        # Iniciar logger, bioz, etc. (ya lo tenés en start_treatment)
+
+    def _on_treatment_paused(self):
+        logger.info("Tratamiento PAUSADO")
+        self.is_treatment_running = False
+
+    def _on_treatment_resumed(self):
+        logger.info("Tratamiento REANUDADO")
+        self.is_treatment_running = True
+
+    def _on_treatment_finished(self):
+        logger.info("Tratamiento FINALIZADO")
+        self.is_treatment_running = False
+        self.therapy_start_time = None
+
+    def _on_cleaning_started(self):
+        logger.info("Limpieza INICIADA")
+        self.is_cleaning_in_progress = True
+
+    def _on_cleaning_finished(self):
+        logger.info("Limpieza FINALIZADA")
+        self.is_cleaning_in_progress = False
+
+    def _on_state_error(self, message: str):
+        logger.error(f"Error de estado: {message}")
+        self.show_error_message(message, 4000)
 
     # ────────────────────────────────────────────────
     #                   UI Setup
