@@ -1522,5 +1522,59 @@
         "text": "NORMALIZADA: Detector Sangre en Dializante",
         "value": 0.0,
         "level": "info"
+    },
+    {
+        "time": "18:01:39",
+        "text": "Operador solicit\u00f3 reset de alarmas de sobrepresi\u00f3n de bombas",
+        "value": null,
+        "level": "info"
+    },
+    {
+        "time": "18:11:15",
+        "text": "ACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "info"
+    },
+    {
+        "time": "18:11:15",
+        "text": "ACTIVADA: Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "rojo"
+    },
+    {
+        "time": "18:11:16",
+        "text": "DESACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "18:11:16",
+        "text": "NORMALIZADA: Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "18:11:18",
+        "text": "ACTIVADA - Detector Sangre en Dializante",
+        "value": 1.0,
+        "level": "info"
+    },
+    {
+        "time": "18:11:18",
+        "text": "ACTIVADA: Detector Sangre en Dializante",
+        "value": 1.0,
+        "level": "rojo"
+    },
+    {
+        "time": "18:11:19",
+        "text": "DESACTIVADA - Detector Sangre en Dializante",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "18:11:19",
+        "text": "NORMALIZADA: Detector Sangre en Dializante",
+        "value": 0.0,
+        "level": "info"
     }
 ]

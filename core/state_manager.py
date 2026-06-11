@@ -101,7 +101,7 @@ class AppStateManager(QObject):
         elif new == TreatmentPhase.IDLE:
             if old == TreatmentPhase.CLEANING:
                 self.cleaning_finished.emit()
-            if old in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            if old in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY):
                 self.treatment_finished.emit()
 
     def reset_to_idle(self, reason: str = "Reset manual"):
@@ -113,7 +113,7 @@ class AppStateManager(QObject):
         """Información actual del estado"""
         return {
             "phase": self.current_phase.name,
-            "is_treatment_running": self.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED),
+            "is_treatment_running": self.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY),
             "is_cleaning_in_progress": self.current_phase == TreatmentPhase.CLEANING,
             "is_paused": self.current_phase == TreatmentPhase.PAUSED,
             "is_ready": self.current_phase == TreatmentPhase.READY,
@@ -126,10 +126,12 @@ class AppStateManager(QObject):
             return 0
         return int((datetime.now() - self.therapy_start_time).total_seconds() / 60)
 
+
     def _is_valid_transition(self, current: TreatmentPhase, new: TreatmentPhase) -> bool:
         allowed = {
-            TreatmentPhase.IDLE: [TreatmentPhase.PREPARING, TreatmentPhase.CLEANING, TreatmentPhase.RUNNING, TreatmentPhase.READY, TreatmentPhase.ERROR],
-            TreatmentPhase.PREPARING: [TreatmentPhase.RUNNING, TreatmentPhase.IDLE, TreatmentPhase.ERROR, TreatmentPhase.READY],
+            TreatmentPhase.IDLE: [TreatmentPhase.PREPARING, TreatmentPhase.CLEANING, TreatmentPhase.READY, TreatmentPhase.ERROR],
+            TreatmentPhase.PREPARING: [TreatmentPhase.READY, TreatmentPhase.IDLE, TreatmentPhase.ERROR],
+            TreatmentPhase.READY: [TreatmentPhase.RUNNING, TreatmentPhase.IDLE, TreatmentPhase.ERROR],
             TreatmentPhase.RUNNING: [TreatmentPhase.PAUSED, TreatmentPhase.FINISHING, TreatmentPhase.ERROR],
             TreatmentPhase.PAUSED: [TreatmentPhase.RUNNING, TreatmentPhase.FINISHING, TreatmentPhase.IDLE],
             TreatmentPhase.FINISHING: [TreatmentPhase.IDLE],
@@ -137,5 +139,4 @@ class AppStateManager(QObject):
             TreatmentPhase.ERROR: [TreatmentPhase.IDLE]
         }
         return new in allowed.get(current, [])
-    
 
