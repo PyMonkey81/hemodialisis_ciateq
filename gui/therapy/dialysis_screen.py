@@ -118,6 +118,10 @@ class SimpleValueDisplay(QWidget):
             text = str(value)
         self.label_value.setText(text)
 
+    def set_time_value(self, time_str: str):
+        """Método específico para mostrar tiempo en formato HH:MM:SS"""
+        self.label_value.setText(time_str)
+
 
 class DialysisScreen(QWidget):
     
@@ -374,62 +378,13 @@ class DialysisScreen(QWidget):
         if self.parent_window and hasattr(self.parent_window, "show_patient_config_screen"):
             self.parent_window.show_patient_config_screen()
 
-    def _update_time_display(self, time_widget, tag_hours: str, tag_minutes: str, timer_id: str):
-        if not tag_hours and not tag_minutes:
-            return
-        
-        current_ms = QDateTime.currentMSecsSinceEpoch()
-        hold_hours = self.write_hold_off.get(tag_hours, 0) if tag_hours else 0
-        hold_minutes = self.write_hold_off.get(tag_minutes, 0) if tag_minutes else 0
 
-        if current_ms < hold_hours or current_ms < hold_minutes:
-            return
-
-        hours = int(self.current_values.get(tag_hours, 0)) if tag_hours else 0
-        minutes = int(self.current_values.get(tag_minutes, 0)) if tag_minutes else 0
-
-        if isinstance(time_widget, LabeledTimeInput):
-            time_widget.set_time_value(hours, minutes)
-        elif hasattr(time_widget, 'setText'):
-            if not time_widget.hasFocus():
-                time_widget.setText(f"{hours:02d}:{minutes:02d}")
-
-        if timer_id and timer_id in self.local_timer_states:
-            if not self.local_timer_states[timer_id]["active"]:
-                total_ms = (hours * 3600 + minutes * 60) * 1000
-                self.local_timer_states[timer_id]["duration_ms"] = total_ms
-
-
-    def _update_elapsed_and_remaining_time(self):
-        """Actualiza displays de tiempo transcurrido y restante"""
-        if not self.is_treatment_running or self.therapy_start_time is None:
-            self.elapsed_time_display.set_value("00:00")
-            self.remaining_time_display.set_value("00:00")
-            return
-
-        # Tiempo transcurrido
-        elapsed = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
-        elapsed_hours = elapsed // 3600
-        elapsed_min = (elapsed % 3600) // 60
-        elapsed_str = f"{elapsed_hours:02d}:{elapsed_min:02d}"
-        self.elapsed_time_display.set_value(elapsed_str)
-
-        # Tiempo restante
-        remaining_seconds = max(0, self.total_therapy_seconds - elapsed)
-        rem_hours = remaining_seconds // 3600
-        rem_min = (remaining_seconds % 3600) // 60
-        remaining_str = f"{rem_hours:02d}:{rem_min:02d}"
-        self.remaining_time_display.set_value(remaining_str)
-
-        if remaining_seconds <= 0 and self.is_treatment_running:
-            self.stop_treatment()
-
-    
-    def _format_ms_to_hh_mm(self, ms: int) -> str:
-        total_seconds = max(0, ms // 1000)
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        return f"{hours:02d}:{minutes:02d}"
+    def update_therapy_times(self, elapsed_str: str, remaining_str: str):
+        """Método llamado desde el Main para actualizar tiempos"""
+        if hasattr(self, 'elapsed_time_display') and self.elapsed_time_display:
+            self.elapsed_time_display.set_value(elapsed_str)
+        if hasattr(self, 'remaining_time_display') and self.remaining_time_display:
+            self.remaining_time_display.set_value(remaining_str)
 
 
     def set_priming_buttons_state(self, enable_start_priming: bool, enable_stop_priming: bool):
