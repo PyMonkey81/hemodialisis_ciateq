@@ -125,19 +125,19 @@ class AppStateManager(QObject):
         if not self.therapy_start_time:
             return 0
         return int((datetime.now() - self.therapy_start_time).total_seconds() / 60)
-
-
+    
     def _is_valid_transition(self, current: TreatmentPhase, new: TreatmentPhase) -> bool:
         """Define reglas de transición seguras"""
         allowed = {
             TreatmentPhase.IDLE: [TreatmentPhase.PREPARING, TreatmentPhase.CLEANING, TreatmentPhase.READY, TreatmentPhase.ERROR],
-            TreatmentPhase.PREPARING: [TreatmentPhase.READY, TreatmentPhase.IDLE, TreatmentPhase.ERROR],
-            TreatmentPhase.READY: [TreatmentPhase.RUNNING, TreatmentPhase.IDLE, TreatmentPhase.ERROR],
-            TreatmentPhase.RUNNING: [TreatmentPhase.PAUSED, TreatmentPhase.FINISHING, TreatmentPhase.ERROR, TreatmentPhase.IDLE],   # ← Permite detener
+            TreatmentPhase.PREPARING: [TreatmentPhase.READY, TreatmentPhase.IDLE, TreatmentPhase.ERROR, TreatmentPhase.CLEANING],
+            TreatmentPhase.READY: [TreatmentPhase.RUNNING, TreatmentPhase.IDLE, TreatmentPhase.ERROR, TreatmentPhase.CLEANING],            
+            TreatmentPhase.RUNNING: [TreatmentPhase.PAUSED, TreatmentPhase.FINISHING, TreatmentPhase.ERROR, TreatmentPhase.IDLE],
             TreatmentPhase.PAUSED: [TreatmentPhase.RUNNING, TreatmentPhase.FINISHING, TreatmentPhase.IDLE],
             TreatmentPhase.FINISHING: [TreatmentPhase.IDLE],
             TreatmentPhase.CLEANING: [TreatmentPhase.IDLE],
             TreatmentPhase.ERROR: [TreatmentPhase.IDLE]
         }
         return new in allowed.get(current, [])
+
 

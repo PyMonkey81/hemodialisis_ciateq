@@ -277,5 +277,68 @@
         "duracion_minutos": 1,
         "duracion_hhmm": "00:01",
         "timestamp_registro": "2026-06-10 19:42:21"
+    },
+    {
+        "fecha": "2026-06-10",
+        "hora_inicio": "20:37:12",
+        "hora_fin": "20:38:48",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-10 20:38:48"
+    },
+    {
+        "fecha": "2026-06-11",
+        "hora_inicio": "10:35:09",
+        "hora_fin": "10:36:21",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 1,
+        "duracion_hhmm": "00:01",
+        "timestamp_registro": "2026-06-11 10:36:21"
+    },
+    {
+        "fecha": "2026-06-11",
+        "hora_inicio": "10:42:11",
+        "hora_fin": "10:47:30",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 5,
+        "duracion_hhmm": "00:05",
+        "timestamp_registro": "2026-06-11 10:47:30"
+    },
+    {
+        "fecha": "2026-06-11",
+        "hora_inicio": "13:03:04",
+        "hora_fin": "13:05:04",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-11 13:05:04"
+    },
+    {
+        "fecha": "2026-06-11",
+        "hora_inicio": "13:07:40",
+        "hora_fin": "13:09:40",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-11 13:09:40"
+    },
+    {
+        "fecha": "2026-06-11",
+        "hora_inicio": "13:10:26",
+        "hora_fin": "13:12:26",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-11 13:12:26"
+    },
+    {
+        "fecha": "2026-06-11",
+        "hora_inicio": "14:22:12",
+        "hora_fin": "14:44:12",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 22,
+        "duracion_hhmm": "00:22",
+        "timestamp_registro": "2026-06-11 14:44:12"
     }
 ]
