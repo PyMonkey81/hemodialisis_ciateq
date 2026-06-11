@@ -861,33 +861,35 @@ class HemodialysisHMI(QMainWindow):
             self._write_boolean_command("dialyModeOperationStop", True)
             self._write_boolean_command("dialyModeOperationStart", False)                   
             self.show_info_message("Fin de terapia...", 3000)
-            self.register_treatment_session()   # Registrar sesión en el historial (JSON) y guardar resumen CSV de tratamientos
+            self.register_treatment_session()
         except Exception as e:
-            logger.error(f"Error enviando comandos de paro de terapia: {e}") 
+            logger.error(f"Error enviando comandos de paro: {e}") 
 
         if self.bioz_urea_controller:
             self.bioz_urea_controller.send_command("STOP")
 
-        # Resetear estado de tiempo       
         self._pause_operation_timer()
 
-        self.state.reset_to_idle("Tratamiento detenido...")
-        self.accumulated_therapy_seconds = 0  # Limpiar
-        self.last_resume_time = None          # Limpiar
+        # ←←← CORRECCIÓN PRINCIPAL
+        success = self.state.reset_to_idle("Usuario detuvo tratamiento")
+        if not success:
+            logger.warning("Transición a IDLE rechazada, forzando...")
+            self.state.current_phase = TreatmentPhase.IDLE  # Forzar en caso extremo
 
-        # Actualizar displays inmediatamente
+        self.accumulated_therapy_seconds = 0
+        self.last_resume_time = None
+
         self._update_therapy_time_displays()
+
         if hasattr(self, 'KTVScreen') and self.KTVScreen:
             report = self.KTVScreen.save_final_report()
             if report:
-                self.show_success_message(f"Reporte Kt/V guardado correctamente", 2000)
-            self.KTVScreen.ktv_records.clear()   # Limpiar para próxima terapia
-        # Cerrar logger si existe
+                self.show_success_message("Reporte Kt/V guardado", 2000)
+            self.KTVScreen.ktv_records.clear()
+
         if self.treatment_logger:
             self.treatment_logger.close()
             self.treatment_logger = None
-            logger.info("Sesión detenida - logger cerrado")
-
 
     def pause_treatment(self):
         try:
@@ -1107,6 +1109,7 @@ class HemodialysisHMI(QMainWindow):
             now = QDateTime.currentDateTime()
             self.update_connection_status()
 
+            # ←←← ACTUALIZACIÓN DE TIMERS
             if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
                 self._update_therapy_time_displays()
 
@@ -1122,7 +1125,7 @@ class HemodialysisHMI(QMainWindow):
                 self.power_on_hours += hours_passed
 
                 # 2. Operation Hours → Solo cuando el tratamiento está realmente activo
-                if self.is_treatment_running and self.operation_start_time is not None:
+                if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED) and self.operation_start_time is not None:
                     self.total_operation_hours += hours_passed
 
                 # 3. Cleaning Hours
@@ -1209,74 +1212,41 @@ class HemodialysisHMI(QMainWindow):
                     btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
 
     def _refresh_navigation_bar(self):
-        """
-        Actualiza habilitado/deshabilitado de todos los botones usando StateManager.
-        'Diálisis' es navegación (pantalla), no acción de inicio.
-        """
         is_connected = self.serial_comm and self.serial_comm.is_connected
         if not is_connected:
             for text, btn in self.navigation_buttons.items():
-                if text == "Salir":
+                if text in ["Salir", "Servicio"]:
                     btn.setEnabled(True)
-                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
-                elif text == "Servicio":
-                    btn.setEnabled(True)
-                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
+                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE if text == "Salir" else self.BTN_ENABLED_DEFAULT_STYLE)
                 else:
                     btn.setEnabled(False)
                     btn.setStyleSheet(self.BTN_DISABLED_STYLE)
             return
 
-        # ====================== CON CONEXIÓN ======================
         phase = self.state.current_phase
-        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
 
         for text, btn in self.navigation_buttons.items():
             enabled = True
 
             if text == "Salir":
-                enabled = phase in (TreatmentPhase.IDLE, TreatmentPhase.READY, TreatmentPhase.ERROR)
-
-            elif text == "Alarmas":
-                enabled = True  # Siempre accesible
-
-            elif text == "Limpieza":
-                enabled = (treatment_mode == 3) and phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED)
-
+                enabled = True  # Permitir siempre salir por seguridad
             elif text == "Diálisis":
-                # Es navegación → se permite en READY, RUNNING y PAUSED
-                enabled = phase in (TreatmentPhase.READY, TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE)
-
+                enabled = True  # Siempre habilitado (es solo navegación)
             elif text == "Iniciar\nTratamiento":
-                # Este se maneja principalmente en _update_buttons_state()
-                # Pero reforzamos aquí
-                # enabled = phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED)
-                pass
-            elif phase == TreatmentPhase.RUNNING:
-                enabled = text in ["Diálisis", "Alarmas", "Historial"]
+                enabled = phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED)
+            elif text == "Limpieza":
+                enabled = int(self.current_values.get("treatmentModeSelection", 0)) == 3
 
-            elif phase == TreatmentPhase.PAUSED:
-                enabled = text in ["Diálisis", "Alarmas", "Historial", "Iniciar\nTratamiento"]
-
-            elif phase == TreatmentPhase.READY:
-                enabled = True  # En READY se puede navegar casi todo
-
-            elif phase == TreatmentPhase.CLEANING:
-                enabled = text in ["Limpieza", "Alarmas", "Historial", "Servicio"]
-
-            # Aplicar cambios
             if btn.isEnabled() != enabled:
                 btn.setEnabled(enabled)
 
             # Estilos
-            if enabled:
-                current_screen = self._get_current_screen_nav_text()
-                if text == current_screen:
-                    btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
-                elif text == "Iniciar\nTratamiento" and phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
-                    self._set_button_style(btn, "start")
-                else:
-                    btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
+            if enabled and text == self._get_current_screen_nav_text():
+                btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
+            elif enabled and text == "Iniciar\nTratamiento" and phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
+                self._set_button_style(btn, "start")
+            elif enabled:
+                btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
             else:
                 btn.setStyleSheet(self.BTN_DISABLED_STYLE)
 
@@ -2394,8 +2364,9 @@ class HemodialysisHMI(QMainWindow):
             current_widget.update_values(self.current_values)
 
     def _update_therapy_time_displays(self):
-        # 1. Si no hay tratamiento, limpiar los displays y salir.   
-        if self.state.current_phase == TreatmentPhase.IDLE:    
+        """Actualiza los timers de la pantalla de Diálisis"""
+        # --- 1. Si NO hay tratamiento activo, limpiar displays ---
+        if self.state.current_phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY):
             if hasattr(self, 'dialysis_screen') and \
                hasattr(self.dialysis_screen, 'elapsed_time_display') and \
                hasattr(self.dialysis_screen, 'remaining_time_display'):
@@ -2403,30 +2374,26 @@ class HemodialysisHMI(QMainWindow):
                 self.dialysis_screen.remaining_time_display.set_value("00:00:00")
             return
 
-        # --- 2. CÁLCULO INTERNO DE TIEMPO (Siempre se ejecuta) ---
+        # --- 2. Cálculo de tiempo ---
         current_elapsed_seconds = self.accumulated_therapy_seconds
         if self.last_resume_time is not None:
             current_segment_seconds = self.last_resume_time.secsTo(QDateTime.currentDateTime())
             current_elapsed_seconds += current_segment_seconds
 
-        # Registro en minutos reales consumidos para el cálculo iónico de Kt/V
         self._current_elapsed_therapy_min = current_elapsed_seconds / 60.0
 
-        # Calcular tiempo restante
         remaining_sec = max(0, self.total_therapy_seconds - current_elapsed_seconds)
 
-        # Evaluar paro automático (INCLUSO SI ESTÁ EN OTRA PANTALLA)
-        if remaining_sec <= 0:
+        # Paro automático al terminar
+        if remaining_sec <= 0 and self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
             self.stop_treatment()
             self.stop_priming()
-            # Ajustar para que los displays queden en cero exacto inmediatamente después del paro
-            current_elapsed_seconds = self.total_therapy_seconds 
-            remaining_sec = 0 # Asegurar que remaining_sec sea 0 para la actualización visual final
+            return
 
-        # --- 3. ACTUALIZACIÓN VISUAL 
+        # --- 3. Actualización visual ---
         if hasattr(self, 'dialysis_screen') and hasattr(self.dialysis_screen, 'elapsed_time_display') and \
            hasattr(self.dialysis_screen, 'remaining_time_display'):
-            # self.dialysis_screen.remaining_time_display.set_value(remaining_str)
+            
             elapsed_str = f"{current_elapsed_seconds // 3600:02d}:{(current_elapsed_seconds % 3600) // 60:02d}:{current_elapsed_seconds % 60:02d}"
             remaining_str = f"{remaining_sec // 3600:02d}:{(remaining_sec % 3600) // 60:02d}:{remaining_sec % 60:02d}"
 
