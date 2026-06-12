@@ -44,6 +44,7 @@ import pyqtgraph as pg
 import numpy as np
 from collections import deque
 from gui.components.ui_components import LabeledParameterWidget, LabeledTimeInput
+from core.state_manager import TreatmentPhase
 import logging
 logger = logging.getLogger(__name__)
 
@@ -305,9 +306,8 @@ class DialysisScreen(QWidget):
             value = self.current_values.get(tag, 0.0)
             widget.set_value(value)
         
-        # # Kt/V placeholder (implement when CalculadoraKtV is ready)
-        # ktv_value = 0.00 # Aquí iría tu cálculo real para Kt/V
-        # self.ktv_display.set_value(ktv_value)
+        if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'state'):
+            self.update_state(self.parent_window.state.current_phase)#
 
 
     def bolus_apply_dosage(self):
@@ -327,9 +327,7 @@ class DialysisScreen(QWidget):
         btn_iniciar = self.action_buttons.get("INICIAR")
         btn_detener = self.action_buttons.get("DETENER")
         btn_pausar = self.action_buttons.get("PAUSAR") # se agrego este boton a la logica de activación/desactivación
-        btn_ktv = self.action_buttons.get("Kt/V") # se agrego este boton a la logica de activación/desactivación para que solo se pueda medir Kt/V durante la terapia activa
-
-
+        
         style_enabled = """
             QPushButton { background: #39ec21; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 15px; border: 3px solid #1e293b; }
             QPushButton:pressed { background: #334155; }
@@ -362,10 +360,6 @@ class DialysisScreen(QWidget):
         if btn_pausar:
             btn_pausar.setEnabled(enable_pause)
             btn_pausar.setStyleSheet(style_pause_enabled if enable_pause else style_disabled)  
-
-        # if btn_ktv:
-        #     btn_ktv.setEnabled(enable_stop) # Solo habilitar Kt/V cuando la terapia esté activa
-        #     btn_ktv.setStyleSheet(style_ktv_enabled if enable_stop else style_disabled)      
 
 
     def show_therapy_config(self):
@@ -413,6 +407,44 @@ class DialysisScreen(QWidget):
             btn_stop_priming.setStyleSheet(style_priming_enabled if enable_stop_priming else style_priming_disabled)
     
     
+    def update_state(self, phase: TreatmentPhase):
+        """Actualiza el estado visual de esta pantalla"""
+
+        # status_code = int(self.current_values.get("primingProcessStatus", 0))
+        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)     # dialyTempVariableData anterior
+        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)   # Setpoint de temperatura
+        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)      # conductividad actual   
+        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)   # Setpoint de conductividad
+              
+        # 2. Lógica de validación (Tolerancias)
+        temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
+        cond_ok = abs(cond_actual - cond_set) <= 2.0
+        
+        treatment_mode_selection = int(self.current_values.get("treatmentModeSelection", 0))
+        if treatment_mode_selection != 3.0:
+            if phase == TreatmentPhase.RUNNING:   # Estado 14
+                self.set_priming_buttons_state(False, False)
+                self.set_start_stop_buttons_state(False, True, True)
+            elif phase == TreatmentPhase.PAUSED: # Estado 15
+                self.set_priming_buttons_state(False, False)
+                if temp_ok and cond_ok: # si se cumplen las condiciones 
+                    self.set_start_stop_buttons_state(True, True, False)
+                else:
+                    self.set_start_stop_buttons_state(False, True, True)
+            elif phase == TreatmentPhase.READY: # estado 13
+                self.set_priming_buttons_state(False, True)
+                start_ok = temp_ok and cond_ok
+                self.set_start_stop_buttons_state(start_ok, False, False)
+            elif phase == TreatmentPhase.PREPARING:
+                self.set_priming_buttons_state(False, True)
+                self.set_start_stop_buttons_state(False, False, False)
+            elif phase == TreatmentPhase.IDLE: 
+                self.set_priming_buttons_state(True, False)
+                self.set_start_stop_buttons_state(False, False, False)
+
+    
+
+
 
 
 

@@ -14,7 +14,7 @@ from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit
 from logic.calculos import convertir_flujo_a_ciclos, convertir_litros_h_a_ml_min
-
+from core.state_manager import TreatmentPhase
 
 import logging
 logger = logging.getLogger(__name__)
@@ -62,6 +62,7 @@ class TherapyConfigScreen(QWidget):
         # self.setStyleSheet("background: #0f172a;")
         self.write_hold_off = {}
         self.toggle_hold_off = {}
+        self.status_code = 0.0
         self.setup_ui()
 
 
@@ -426,21 +427,18 @@ class TherapyConfigScreen(QWidget):
         except Exception as e:
             logger.error(f"Error en _stop_blood_pump: {e}", exc_info=True)
 
-    def _update_filter_fill_button_state(self):
-        status_code = int(self.current_values.get("primingProcessStatus", 0))
-        btn_ff = self.btn_filter_fill # Correcto: usa la variable local 'btn_ff' de aquí en adelante
-        
-        # Evalúa si el estado actual NO es 7. Esto incluye el estado 14 y cualquier otro.
-        if status_code != 7:
-            logger.info(f"Estado {status_code} (no 7). Botón 'Llenado de Filtro' DESHABILITADO.")
-            btn_ff.setEnabled(False)
-            btn_ff.setStyleSheet(self.style_disabled)
-            self.setFocus()
-            return # Termina la función aquí, el botón se queda deshabilitado
-            
-        logger.info(f"Estado {status_code} (COLOCACIÓN DE FILTRO). Botón 'Llenado de Filtro' HABILITADO.")
-        btn_ff.setEnabled(True)
-        btn_ff.setStyleSheet(self.style_enabled)
+    def _update_filter_fill_button_state(self, enable: bool):
+        """Habilita/deshabilita botón de llenado de filtro"""
+        if enable:
+            self.btn_filter_fill.setEnabled(True)
+            self.btn_filter_fill.setStyleSheet(self.style_enabled)
+            logger.info("Botón Llenado de Filtro → HABILITADO (Estado 7)")
+        else:
+            self.btn_filter_fill.setEnabled(False)
+            self.btn_filter_fill.setStyleSheet(self.style_disabled)
+            logger.debug("Botón Llenado de Filtro → DESHABILITADO")
+
+
 
         
 
@@ -593,7 +591,10 @@ class TherapyConfigScreen(QWidget):
         self._update_input_display(self.lbl_input_UF, self.current_values.get("ultraFilterPumpSpeed", 0.0))
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
         self._update_bloop_pump_controls_state()
-        self._update_filter_fill_button_state()
+        
+        if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'state'):
+            self.update_state(self.parent_window.state.current_phase)
+        
 
 
 
@@ -683,9 +684,55 @@ class TherapyConfigScreen(QWidget):
         self.request_boolean_change.emit(tag, state)
         print("confirmado")
 
+    def update_state(self, phase: TreatmentPhase):
+        """Actualiza el estado de los botones según fase global + estado del hardware"""
+        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+        status_code = int(self.current_values.get("primingProcessStatus", 0))
+
+        logger.debug(f"TherapyConfigScreen - update_state: Phase={phase.name}, Status={status_code}")
+
+        # ==================== BOTÓN LLENADO DE FILTRO ====================
+        if phase == TreatmentPhase.PREPARING and status_code == 7:
+            self._update_filter_fill_button_state(True)   # Solo se habilita en estado 7
+        else:
+            self._update_filter_fill_button_state(False)
+
+        # ==================== BOTONES BOMBA DE SANGRE ====================
+        if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            # Durante tratamiento activo → deshabilitar controles manuales de bomba
+            self.btn_start_blood_pump.setEnabled(False)
+            self.btn_stop_blood_pump.setEnabled(False)
+            self.btn_start_blood_pump.setStyleSheet(self.style_disabled)
+            self.btn_stop_blood_pump.setStyleSheet(self.style_disabled)
+            
+        elif phase in (TreatmentPhase.IDLE, TreatmentPhase.READY, TreatmentPhase.PREPARING):
+            # Fuera de tratamiento → actualizar según estado real de la bomba
+            self._update_bloop_pump_controls_state()
+        else:
+            # Estados de error o limpieza
+            self.btn_start_blood_pump.setEnabled(False)
+            self.btn_stop_blood_pump.setEnabled(False)
+            self.btn_start_blood_pump.setStyleSheet(self.style_disabled)
+            self.btn_stop_blood_pump.setStyleSheet(self.style_disabled)
+
+        # ==================== OTROS BOTONES / CONTROLES ====================
+        # Deshabilitar inputs numéricos durante tratamiento activo
+        enabled_inputs = (phase != TreatmentPhase.RUNNING)
+
+        for widget in [self.input_heparin, self.input_blood_flow, self.input_dialysate_flow,
+                       self.lbl_input_UF, self.input_temperature, self.input_conductivity,
+                       self.input_duration, self.input_bolus]:
+            if hasattr(widget, 'setEnabled'):
+                widget.setEnabled(enabled_inputs)
+
+        # Opcional: deshabilitar botón de bolo durante tratamiento
+        if hasattr(self, 'input_bolus'):
+            self.input_bolus.setEnabled(phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED))
+
+   
 
     def showEvent(self, event):
         super().showEvent(event)
         self.setFocus()
 
- 
+    

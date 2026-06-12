@@ -40,20 +40,6 @@ class TimerManager(QObject):
         if self.main.state.current_phase == TreatmentPhase.CLEANING and self.cleaning_start_time:
             self.cleaning_hours += hours_passed
 
-    # def _on_second_tick(self):
-    #     hours_passed = 1 / 3600.0
-
-    #     self.power_on_hours += hours_passed
-
-    #     # Contar operación solo si el timer fue iniciado y no ha sido pausado/detenido
-    #     if self.operation_start_time is not None:
-    #         self.total_operation_hours += hours_passed
-
-    #     # Contar limpieza solo si el timer de limpieza fue iniciado y no ha sido detenido
-    #     if self.cleaning_start_time is not None:
-    #         self.cleaning_hours += hours_passed
-
-
     # ====================== CONTROL DE TIMERS ======================
 
     def start_operation_timer(self):
@@ -114,53 +100,3 @@ class TimerManager(QObject):
         self._save_hours("config/power_on_hours.json", "power_on_hours", self.power_on_hours)
 
 
-
-  # def _load_operation_hours(self):
-    #     self.total_operation_hours = self._load_hours_from_file("config/operation_hours.json", "total_operation_hours")
-    #     logger.info(f"Horas de operación cargadas: {self.total_operation_hours:.2f} h")
-    #     if hasattr(self, 'maintenance_screen') and self.screen_stack.currentWidget() == self.maintenance_screen:
-    #         self._update_maintenance_screen_immediately()
-
-    # def _pause_operation_timer(self):
-    #     """Detiene el conteo de horas de operación sin reiniciar el total acumulado."""
-    #     if self.operation_start_time is not None:
-    #         self.operation_start_time = None
-    #         self._save_operation_hours()
-    #         logger.info("Operación en pausa: contador de horas de operación detenido.")
-    #         if hasattr(self, 'maintenance_screen'): # validar si esto genera error 
-    #             self._update_maintenance_screen_immediately()
-
-
-    # def _save_operation_hours(self):
-    #     self._save_hours_to_file(
-    #         "config/operation_hours.json", 
-    #         {"total_operation_hours": round(self.total_operation_hours, 4)},
-    #         f"Horas de operación guardadas: {self.total_operation_hours:.2f}h"
-    #     )
-
-    # def _load_power_on_hours(self):
-    #     self.power_on_hours = self._load_hours_from_file("config/power_on_hours.json", "power_on_hours")
-    #     logger.info(f"Power On Hours cargadas: {self.power_on_hours:.2f} h")
-    #     if hasattr(self, 'maintenance_screen') and self.screen_stack.currentWidget() == self.maintenance_screen:
-    #         self._update_maintenance_screen_immediately()
-                
-    # def _save_power_on_hours(self):
-    #     self._save_hours_to_file(
-    #         "config/power_on_hours.json", 
-    #         {"power_on_hours": round(self.power_on_hours, 4)},
-    #         f"Power On Hours guardadas: {self.power_on_hours:.2f} h"
-    #     )
-
-
-    # def _load_cleaning_hours(self):
-    #     self.cleaning_hours = self._load_hours_from_file("config/cleaning_hours.json", "cleaning_hours")
-    #     logger.info(f"Horas de limpieza cargadas: {self.cleaning_hours:.2f} h")
-    #     if hasattr(self, 'maintenance_screen') and self.screen_stack.currentWidget() == self.maintenance_screen:
-    #         self._update_maintenance_screen_immediately()
-
-    # def _save_cleaning_hours(self):
-    #     self._save_hours_to_file(
-    #         "config/cleaning_hours.json", 
-    #         {"cleaning_hours": round(self.cleaning_hours, 4)},
-    #         f"Horas de limpieza guardadas: {self.cleaning_hours:.2f} h"
-    #     )

@@ -16,6 +16,7 @@ import logging
 import json
 import os
 from logic.calculos import convertir_flujo_a_ciclos 
+from core.state_manager import TreatmentPhase
 from gui.components.floating_confirm import FloatingConfirmDialog
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class CleaningScreen(QWidget):
         self.mid_pause_done = False # NUEVO: Para controlar la pausa intermedia en limpieza larga
         self.waiting_for_line_change_confirmation = False  # Prevenir re-inicio automático durante confirmación
         self.cleaning_mode_active = False  # Controla la entrada/salida del modo limpieza para resetear selección
-        # self.timer_started = False
+        
         
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet("background: #0f172a;")
@@ -541,7 +542,8 @@ class CleaningScreen(QWidget):
             self.cleaning_mode_active = False
             self._clear_mode_selection(reset_display=True)
 
-        self.update_buttons_state(treatment_mode_selection=treatment_mode)
+        if hasattr(self.parent_window, 'state'):
+            self.update_state(self.parent_window.state.current_phase)
 
         # === LÓGICA CLAVE: Iniciar conteo solo cuando llegue al estado 6 (infusión) ===
         # Pero NO si estamos esperando confirmación de cambio de línea
@@ -658,9 +660,52 @@ class CleaningScreen(QWidget):
                 self.stop_button.setEnabled(False)
 
 
+    def update_state(self, phase: TreatmentPhase):
+        """Método llamado por ScreenStateManager - Actualiza botones según estado global"""
+        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+        status_code = int(self.current_values.get("primingProcessStatus", 0))
+
+        logger.debug(f"CleaningScreen - update_state: Phase={phase.name}, Mode={treatment_mode}, Status={status_code}")
+
+        # ==================== LÓGICA PRINCIPAL ====================
+
+        if phase == TreatmentPhase.CLEANING:
+            # Estamos en modo limpieza
+            if self.cleaning_in_progress:
+                # Durante limpieza activa
+                self.start_button.setEnabled(False)
+                self.stop_button.setEnabled(True)
+                self.btn_short.setEnabled(False)
+                self.btn_long.setEnabled(False)
+            else:
+                # Listo para iniciar limpieza
+                self.start_button.setEnabled(self.selected_mode is not None)
+                self.stop_button.setEnabled(False)
+                self.btn_short.setEnabled(True)
+                self.btn_long.setEnabled(True)
+
+            self.update_buttons_state(treatment_mode_selection=3.0)
+
+        else:
+            # NO estamos en limpieza (IDLE, RUNNING, PREPARING, etc.)
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(False)
+            self.btn_short.setEnabled(True)
+            self.btn_long.setEnabled(True)
+
+            # Si estamos saliendo del modo limpieza, reseteamos selección
+            if self.cleaning_mode_active:
+                self.cleaning_mode_active = False
+                self._clear_mode_selection(reset_display=True)
+
+            self.update_buttons_state(treatment_mode_selection=treatment_mode)
+
 
     def on_user_boolean_command(self, tag, state):
         self.request_boolean_change.emit(tag, state)
 
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)
+    
+    def update_state(self, phase: TreatmentPhase):
+        pass

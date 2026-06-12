@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 import logging
 from gui.components.floating_confirm import FloatingConfirmDialog
+from core.state_manager import TreatmentPhase
 logger = logging.getLogger(__name__)
 
 
@@ -212,3 +213,5 @@ class MaintenanceScreen(QWidget):
         mensaje = f"¿Estás seguro de resetear {counter_name}?\nEsta acción es irreversible.\nPresiona 'Resetear' si estás completamente seguro."
         return dialog.show_confirm(mensaje, accept_text="Sí, Resetear", cancel_text="Cancelar")
 
+    def update_state(self, phase: TreatmentPhase):
+        pass
