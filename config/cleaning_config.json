@@ -1,18 +1,18 @@
 {
     "modes": {
-        "1.0": {
-            "time_hours": 0,
-            "time_minutes": 20,
-            "mode_name": "Larga",
-            "mode_temp": 37.0,
-            "mode_flow": 50.0
-        },
         "0.0": {
             "time_hours": 0,
-            "time_minutes": 2,
+            "time_minutes": 40,
             "mode_name": "Corta",
             "mode_temp": 35.0,
-            "mode_flow": 200.0
+            "mode_flow": 500.0
+        },
+        "1.0": {
+            "time_hours": 0,
+            "time_minutes": 2,
+            "mode_name": "Larga",
+            "mode_temp": 35.0,
+            "mode_flow": 300.0
         }
     },
     "last_active_mode_value": 0.0,

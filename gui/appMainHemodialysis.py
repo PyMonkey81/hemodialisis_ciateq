@@ -919,7 +919,8 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.maintenance_screen)
         self.left_content.show()
         self.right_content.show()
-        self._update_maintenance_screen_immediately()        
+        # self._update_maintenance_screen_immediately()    
+        self.timer_manager._update_maintenance_screen()    
         self._highlight_active_nav_button("Servicio")
 
     def show_alarm_config_limits_screen(self):
@@ -972,12 +973,11 @@ class HemodialysisHMI(QMainWindow):
             self.update_connection_status()
             self.update_date_time() 
 
-            if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
                 self.treatment_controller.update_therapy_times()
 
             if self.screen_stack.currentWidget() == self.maintenance_screen:
-                self._update_maintenance_screen_immediately()
-
+                self.timer_manager._update_maintenance_screen()
 
             self._update_gauges()
             self._refresh_navigation_bar()
@@ -1370,7 +1370,8 @@ class HemodialysisHMI(QMainWindow):
 
                 # Actualizar mantenimiento
                 if self.screen_stack.currentWidget() == self.maintenance_screen:
-                    self._update_maintenance_screen_immediately()  
+                    # self._update_maintenance_screen_immediately()  
+                    self.timer_manager._update_maintenance_screen()
                 
 
    
@@ -1773,6 +1774,7 @@ class HemodialysisHMI(QMainWindow):
         """
         current_is_connected = self.serial_comm and self.serial_comm.is_connected
         if current_is_connected != self._is_connected_prev_state:
+            # self._sync_state_with_hardware()
             self._set_ui_connected_state(current_is_connected)
          
         if not current_is_connected:
@@ -2002,28 +2004,28 @@ class HemodialysisHMI(QMainWindow):
             logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}")
 
     # ====================== PERSISTENCIA DE HORAS DE HARDWARE ======================
-    def _helper_convert_hours_to_h_m(self, hours_float: float) -> tuple:
-        """Helper matemático para uniformar el desglose de horas decimales a visualización H:M"""
-        hours_int = int(hours_float)
-        minutes_int = round((hours_float - hours_int) * 60)
-        if minutes_int == 60:
-            minutes_int = 0
-            hours_int += 1
-        return hours_int, minutes_int
+    # def _helper_convert_hours_to_h_m(self, hours_float: float) -> tuple:
+    #     """Helper matemático para uniformar el desglose de horas decimales a visualización H:M"""
+    #     hours_int = int(hours_float)
+    #     minutes_int = round((hours_float - hours_int) * 60)
+    #     if minutes_int == 60:
+    #         minutes_int = 0
+    #         hours_int += 1
+    #     return hours_int, minutes_int
     
-    def _update_maintenance_screen_immediately(self):
-        if not hasattr(self, 'maintenance_screen') or not hasattr(self, 'timer_manager'):
-            return
+    # def _update_maintenance_screen_immediately(self):
+    #     if not hasattr(self, 'maintenance_screen') or not hasattr(self, 'timer_manager'):
+    #         return
 
-        info = self.timer_manager.get_hours_info()
+    #     info = self.timer_manager.get_hours_info()
 
-        po_h, po_m = self._helper_convert_hours_to_h_m(info["power_on"])
-        op_h, op_m = self._helper_convert_hours_to_h_m(info["operation"])
-        cl_h, cl_m = self._helper_convert_hours_to_h_m(info["cleaning"])
+    #     po_h, po_m = self._helper_convert_hours_to_h_m(info["power_on"])
+    #     op_h, op_m = self._helper_convert_hours_to_h_m(info["operation"])
+    #     cl_h, cl_m = self._helper_convert_hours_to_h_m(info["cleaning"])
 
-        self.maintenance_screen.update_power_on_hours(po_h, po_m)
-        self.maintenance_screen.update_operation_hours(op_h, op_m)
-        self.maintenance_screen.update_cleaning_hours(cl_h, cl_m)
+    #     self.maintenance_screen.update_power_on_hours(po_h, po_m)
+    #     self.maintenance_screen.update_operation_hours(op_h, op_m)
+    #     self.maintenance_screen.update_cleaning_hours(cl_h, cl_m)
 
     # ====================== HISTORIAL JSON (CON VALIDACIÓN) ======================
 
