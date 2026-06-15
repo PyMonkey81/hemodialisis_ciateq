@@ -63,6 +63,7 @@ from core.alarms import AlarmSystem
 from core.alarm_config_manager import AlarmConfigManager
 from core.state_manager import AppStateManager, TreatmentPhase
 from core.timer_manager import TimerManager
+from core.treatment_controller import TreatmentController
 from core.variables_map import TAG_TO_ADDRESS, VARIABLES
 
 from connection.serial_communication import SerialCommunication
@@ -204,6 +205,20 @@ class HemodialysisHMI(QMainWindow):
             "patternTempSensor": "Temp. Sensor patrón",
             "patternCondRaw": "Cond. Sensor raw", 
         }
+
+        #======================= GESTOR DE ESTADOS ==========================
+
+        self.state = AppStateManager()
+        
+        # Conectar señales a métodos de la app
+        self.state.state_changed.connect(self._on_state_changed)
+        self.state.treatment_started.connect(self._on_treatment_started)
+        self.state.treatment_paused.connect(self._on_treatment_paused)
+        self.state.treatment_resumed.connect(self._on_treatment_resumed)
+        self.state.treatment_finished.connect(self._on_treatment_finished)
+        self.state.cleaning_started.connect(self._on_cleaning_started)
+        self.state.cleaning_finished.connect(self._on_cleaning_finished)
+        self.state.error_occurred.connect(self._on_state_error)
     # ====================== TIMER MANAGER ======================
         
         self.timer_manager = TimerManager(self)
@@ -231,19 +246,11 @@ class HemodialysisHMI(QMainWindow):
         # self.last_minute_update = QDateTime.currentDateTime()
 
 
-        #======================= GESTOR DE ESTADOS ==========================
+        # ====================== TREATMENT CONTROLLER ======================
 
-        self.state = AppStateManager()
-        
-        # Conectar señales a métodos de la app
-        self.state.state_changed.connect(self._on_state_changed)
-        self.state.treatment_started.connect(self._on_treatment_started)
-        self.state.treatment_paused.connect(self._on_treatment_paused)
-        self.state.treatment_resumed.connect(self._on_treatment_resumed)
-        self.state.treatment_finished.connect(self._on_treatment_finished)
-        self.state.cleaning_started.connect(self._on_cleaning_started)
-        self.state.cleaning_finished.connect(self._on_cleaning_finished)
-        self.state.error_occurred.connect(self._on_state_error)
+        self.treatment_controller = TreatmentController(self)
+
+
 
         # ====================== TIMER MAESTRO (ÚNICO) ======================
         self.master_timer = QTimer(self)
@@ -675,117 +682,141 @@ class HemodialysisHMI(QMainWindow):
     #              Navigation Methods
     # ────────────────────────────────────────────────
     def start_treatment(self):
-        """Inicia o reanuda tratamiento con validaciones robustas de estado"""
-        logger.info("=== INTENTO DE INICIO DE TRATAMIENTO ===")
+        """Delegado al TreatmentController"""
+        success = self.treatment_controller.start_treatment()
+        if success:
+            self._update_therapy_time_displays()
+            self._refresh_navigation_bar()
 
-        # ==================== 1. VALIDACIÓN DE ESTADO (NUEVO) ====================
-        current_phase = self.state.current_phase
+    def pause_treatment(self):
+        """Delegado al TreatmentController"""
+        success = self.treatment_controller.pause_treatment()
+        if success:
+            self._update_therapy_time_displays()
+            self._refresh_navigation_bar()
+    
+    def stop_treatment(self):
+        """Delegado al TreatmentController"""
+        success = self.treatment_controller.stop_treatment()
+        if success:
+            self._update_therapy_time_displays()
+            self._refresh_navigation_bar()
+    
+    # def start_treatment(self):
+    #     """Inicia o reanuda tratamiento con validaciones robustas de estado"""
+    #     logger.info("=== INTENTO DE INICIO DE TRATAMIENTO ===")
+
+    #     # ==================== 1. VALIDACIÓN DE ESTADO (NUEVO) ====================
+    #     current_phase = self.state.current_phase
         
-        if current_phase == TreatmentPhase.RUNNING:
-            logger.warning("Intento de iniciar tratamiento cuando ya está corriendo")
-            self.show_warning_message("El tratamiento ya se encuentra en ejecución", 2500)
-            return
+    #     if current_phase == TreatmentPhase.RUNNING:
+    #         logger.warning("Intento de iniciar tratamiento cuando ya está corriendo")
+    #         self.show_warning_message("El tratamiento ya se encuentra en ejecución", 2500)
+    #         return
 
-        if current_phase == TreatmentPhase.CLEANING:
-            logger.error("No se puede iniciar tratamiento durante limpieza")
-            self.show_error_message("Finalice el proceso de limpieza antes de iniciar tratamiento", 4000)
-            return
+    #     if current_phase == TreatmentPhase.CLEANING:
+    #         logger.error("No se puede iniciar tratamiento durante limpieza")
+    #         self.show_error_message("Finalice el proceso de limpieza antes de iniciar tratamiento", 4000)
+    #         return
 
-        if current_phase == TreatmentPhase.ERROR:
-            logger.error("No se puede iniciar tratamiento en estado de error")
-            self.show_error_message("Resuelva las alarmas activas antes de iniciar tratamiento", 4000)
-            return
+    #     if current_phase == TreatmentPhase.ERROR:
+    #         logger.error("No se puede iniciar tratamiento en estado de error")
+    #         self.show_error_message("Resuelva las alarmas activas antes de iniciar tratamiento", 4000)
+    #         return
 
-        if current_phase not in (TreatmentPhase.IDLE, TreatmentPhase.PAUSED, TreatmentPhase.READY, TreatmentPhase.PREPARING):
-            logger.error(f"Estado actual no permite iniciar: {current_phase.name}")
-            self.show_error_message(f"No se puede iniciar tratamiento en estado: {current_phase.name}", 3500)
-            return
+    #     if current_phase not in (TreatmentPhase.IDLE, TreatmentPhase.PAUSED, TreatmentPhase.READY, TreatmentPhase.PREPARING):
+    #         logger.error(f"Estado actual no permite iniciar: {current_phase.name}")
+    #         self.show_error_message(f"No se puede iniciar tratamiento en estado: {current_phase.name}", 3500)
+    #         return
 
-        # ==================== 2. VALIDACIONES CLÍNICAS / CONFIGURACIÓN ====================
-        hours = int(self.current_values.get("heparineTherapyHours", 0))
-        minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
-        self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
+    #     # ==================== 2. VALIDACIONES CLÍNICAS / CONFIGURACIÓN ====================
+    #     hours = int(self.current_values.get("heparineTherapyHours", 0))
+    #     minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
+    #     self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
 
-        if self.total_therapy_seconds <= 0:
-            logger.warning("Duración de terapia no configurada")
-            self.show_warning_message("Configure la duración de la terapia antes de iniciar", 3000)
-            self.show_therapy_config_screen()
-            return
+    #     if self.total_therapy_seconds <= 0:
+    #         logger.warning("Duración de terapia no configurada")
+    #         self.show_warning_message("Configure la duración de la terapia antes de iniciar", 3000)
+    #         self.show_therapy_config_screen()
+    #         return
 
-        # Validar otros parámetros críticos        
+    #     # Validar otros parámetros críticos        
 
-        # ==================== 3. INICIO DEL TRATAMIENTO ====================
-        is_resuming = (current_phase == TreatmentPhase.PAUSED)
+    #     # ==================== 3. INICIO DEL TRATAMIENTO ====================
+    #     is_resuming = (current_phase == TreatmentPhase.PAUSED)
 
-        if not is_resuming:
-            success = self.state.set_phase(TreatmentPhase.RUNNING, "Inicio de tratamiento")
-            if not success:
-                return
-            self.timer_manager.start_operation_timer()
-            self.timer_manager.last_resume_time = QDateTime.currentDateTime()
-            self.accumulated_therapy_seconds = 0
-            self.current_treatment_start_date_time = QDateTime.currentDateTime()
-            self.current_treatment_start = QDateTime.currentDateTime()
-            self.operation_start_time = QDateTime.currentDateTime()
-            self.last_resume_time = QDateTime.currentDateTime()   # ← Muy importante
-            self.show_info_message("Iniciando tratamiento...", 1500)
-        else:  # Reanudación
-            success = self.state.set_phase(TreatmentPhase.RUNNING, "Reanudación de tratamiento")
-            if not success:
-                return
+    #     if not is_resuming:
+    #         success = self.state.set_phase(TreatmentPhase.RUNNING, "Inicio de tratamiento")
+    #         if not success:
+    #             return
+    #         self.timer_manager.start_operation_timer()
+    #         self.timer_manager.last_resume_time = QDateTime.currentDateTime()
+            
+    #         self.accumulated_therapy_seconds = 0
+    #         self.current_treatment_start_date_time = QDateTime.currentDateTime()
+    #         self.current_treatment_start = QDateTime.currentDateTime()
+    #         self.operation_start_time = QDateTime.currentDateTime()
 
-            self.timer_manager.last_resume_time = QDateTime.currentDateTime()
-            self.show_info_message("Reanudando tratamiento...", 2000)
+    #         self.last_resume_time = QDateTime.currentDateTime()   # ← Muy importante
 
-        # ==================== 4. COMANDOS AL HARDWARE ====================
-        try:
-            self._write_boolean_command("dialyModeOperationStart", True)
-            self._write_boolean_command("dialyModeOperationStop", False)
-            logger.info("Comandos de inicio enviados correctamente al hardware")
-        except Exception as e:
-            logger.error(f"Error enviando comandos al hardware: {e}")
-            self.show_error_message(f"Error de comunicación: {e}", 4000)
-            self.state.reset_to_idle("Error en comandos de hardware")
-            return
+    #         self.show_info_message("Iniciando tratamiento...", 1500)
+    #     else:  # Reanudación
+    #         success = self.state.set_phase(TreatmentPhase.RUNNING, "Reanudación de tratamiento")
+    #         if not success:
+    #             return
 
-        # Iniciar Bioimpedancia
-        if hasattr(self, 'bioz_urea_controller') and self.bioz_urea_controller:
-            try:
-                self.bioz_urea_controller.send_command("SRTB")
-            except Exception as e:
-                logger.warning(f"No se pudo iniciar BiozUrea: {e}")
+    #         self.timer_manager.last_resume_time = QDateTime.currentDateTime()
+    #         self.show_info_message("Reanudando tratamiento...", 2000)
 
-        # Actualizar UI
-        if self.screen_stack.currentWidget() == self.dialysis_screen:
-            self.dialysis_screen.update_values(self.current_values)
+    #     # ==================== 4. COMANDOS AL HARDWARE ====================
+    #     try:
+    #         self._write_boolean_command("dialyModeOperationStart", True)
+    #         self._write_boolean_command("dialyModeOperationStop", False)
+    #         logger.info("Comandos de inicio enviados correctamente al hardware")
+    #     except Exception as e:
+    #         logger.error(f"Error enviando comandos al hardware: {e}")
+    #         self.show_error_message(f"Error de comunicación: {e}", 4000)
+    #         self.state.reset_to_idle("Error en comandos de hardware")
+    #         return
 
-        # Logger CSV
-        self._setup_treatment_logger(is_resuming)
+    #     # Iniciar Bioimpedancia
+    #     if hasattr(self, 'bioz_urea_controller') and self.bioz_urea_controller:
+    #         try:
+    #             self.bioz_urea_controller.send_command("SRTB")
+    #         except Exception as e:
+    #             logger.warning(f"No se pudo iniciar BiozUrea: {e}")
 
-        logger.info("✅ Tratamiento iniciado correctamente")
+    #     # Actualizar UI
+    #     if self.screen_stack.currentWidget() == self.dialysis_screen:
+    #         self.dialysis_screen.update_values(self.current_values)
+
+    #     # Logger CSV
+    #     self._setup_treatment_logger(is_resuming)
+
+    #     logger.info("✅ Tratamiento iniciado correctamente")
 
 
-    def _setup_treatment_logger(self, is_resuming: bool):
-        """Configura o reutiliza el logger CSV"""
-        if is_resuming and self.treatment_logger is not None:
-            logger.info("Reanudando logger existente")
-        else:
+    # def _setup_treatment_logger(self, is_resuming: bool):
+    #     """Configura o reutiliza el logger CSV"""
+    #     if is_resuming and self.treatment_logger is not None:
+    #         logger.info("Reanudando logger existente")
+    #     else:
 
-            if self.treatment_logger:
-                self.treatment_logger.close()
-                self.treatment_logger = None
+    #         if self.treatment_logger:
+    #             self.treatment_logger.close()
+    #             self.treatment_logger = None
 
-            try:
-                LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
-                self.treatment_logger = CsvLogger(
-                    log_directory=LOG_DIRECTORY,
-                    parameter_key_map=self.parameter_mapping
-                )
-                logger.info("Nuevo logger CSV creado para el tratamiento")
-            except Exception as e:
-                logger.error(f"Error creando logger CSV: {e}")
-                self.show_error_message("Error al iniciar registro de datos", 3500)
-                return
+    #         try:
+    #             LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
+    #             self.treatment_logger = CsvLogger(
+    #                 log_directory=LOG_DIRECTORY,
+    #                 parameter_key_map=self.parameter_mapping
+    #             )
+    #             logger.info("Nuevo logger CSV creado para el tratamiento")
+    #         except Exception as e:
+    #             logger.error(f"Error creando logger CSV: {e}")
+    #             self.show_error_message("Error al iniciar registro de datos", 3500)
+    #             return
 
     def start_priming(self):
         """
@@ -858,73 +889,73 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Sesión detenida - logger cerrado")
 
 
-    def stop_treatment(self):   
-        try:            
-            self._write_boolean_command("dialyModeOperationStop", True)
-            self._write_boolean_command("dialyModeOperationStart", False)                   
-            self.show_info_message("Fin de terapia...", 3000)
-            self.register_treatment_session()
-        except Exception as e:
-            logger.error(f"Error enviando comandos de paro: {e}") 
+    # def stop_treatment(self):   
+    #     try:            
+    #         self._write_boolean_command("dialyModeOperationStop", True)
+    #         self._write_boolean_command("dialyModeOperationStart", False)                   
+    #         self.show_info_message("Fin de terapia...", 3000)
+    #         self.register_treatment_session()
+    #     except Exception as e:
+    #         logger.error(f"Error enviando comandos de paro: {e}") 
 
-        if self.bioz_urea_controller:
-            self.bioz_urea_controller.send_command("STOP")
+    #     if self.bioz_urea_controller:
+    #         self.bioz_urea_controller.send_command("STOP")
 
-        # CORREGIDO: Usar TimerManager correctamente
-        self.timer_manager.pause_operation_timer()
+    #     # CORREGIDO: Usar TimerManager correctamente
+    #     self.timer_manager.pause_operation_timer()
 
-        success = self.state.reset_to_idle("Usuario detuvo tratamiento")
-        if not success:
-            logger.warning("Transición a IDLE rechazada, forzando...")
-            self.state.current_phase = TreatmentPhase.IDLE
+    #     success = self.state.reset_to_idle("Usuario detuvo tratamiento")
+    #     if not success:
+    #         logger.warning("Transición a IDLE rechazada, forzando...")
+    #         self.state.current_phase = TreatmentPhase.IDLE
 
-        self.accumulated_therapy_seconds = 0
-        self.last_resume_time = None
+    #     self.accumulated_therapy_seconds = 0
+    #     self.last_resume_time = None
 
-        self._update_therapy_time_displays()
+    #     self._update_therapy_time_displays()
 
-                # === Manejo seguro de KTVScreen ===
-        if hasattr(self, 'KTVScreen') and self.KTVScreen:
-            try:
-                report = self.KTVScreen.save_final_report()
-                if report:
-                    self.show_success_message("Reporte Kt/V guardado", 2000)
+    #             # === Manejo seguro de KTVScreen ===
+    #     if hasattr(self, 'KTVScreen') and self.KTVScreen:
+    #         try:
+    #             report = self.KTVScreen.save_final_report()
+    #             if report:
+    #                 self.show_success_message("Reporte Kt/V guardado", 2000)
                 
-                # Limpiar registros para próxima sesión
-                if hasattr(self.KTVScreen, 'ktv_records'):
-                    self.KTVScreen.ktv_records.clear()
-                if hasattr(self.KTVScreen, 'ktv_points'):
-                    self.KTVScreen.ktv_points.clear()
-                if hasattr(self.KTVScreen, 'heit_points'):
-                    self.KTVScreen.heit_points.clear()
+    #             # Limpiar registros para próxima sesión
+    #             if hasattr(self.KTVScreen, 'ktv_records'):
+    #                 self.KTVScreen.ktv_records.clear()
+    #             if hasattr(self.KTVScreen, 'ktv_points'):
+    #                 self.KTVScreen.ktv_points.clear()
+    #             if hasattr(self.KTVScreen, 'heit_points'):
+    #                 self.KTVScreen.heit_points.clear()
                     
-            except Exception as e:
-                logger.error(f"Error al guardar/limpiar reporte KTV: {e}")
+    #         except Exception as e:
+    #             logger.error(f"Error al guardar/limpiar reporte KTV: {e}")
 
-        if self.treatment_logger:
-            self.treatment_logger.close()
-            self.treatment_logger = None
-            logger.info("Sesión detenida - logger cerrado")
+    #     if self.treatment_logger:
+    #         self.treatment_logger.close()
+    #         self.treatment_logger = None
+    #         logger.info("Sesión detenida - logger cerrado")
 
 
 
-    def pause_treatment(self):
-        """Pausa el tratamiento y acumula el tiempo transcurrido"""
-        try:
-            self._write_boolean_command("dialyModeOperationPause", True)
-            self.show_info_message("Terapia en pausa...", 1500)
+    # def pause_treatment(self):
+    #     """Pausa el tratamiento y acumula el tiempo transcurrido"""
+    #     try:
+    #         self._write_boolean_command("dialyModeOperationPause", True)
+    #         self.show_info_message("Terapia en pausa...", 1500)
 
-            # Acumular tiempo antes de pausar
-            if self.timer_manager.last_resume_time is not None:
-                elapsed_segment = self.timer_manager.last_resume_time.secsTo(QDateTime.currentDateTime())
-                self.accumulated_therapy_seconds += elapsed_segment
-                self.timer_manager.last_resume_time = None
+    #         # Acumular tiempo antes de pausar
+    #         if self.timer_manager.last_resume_time is not None:
+    #             elapsed_segment = self.timer_manager.last_resume_time.secsTo(QDateTime.currentDateTime())
+    #             self.accumulated_therapy_seconds += elapsed_segment
+    #             self.timer_manager.last_resume_time = None
 
-            self.timer_manager.pause_operation_timer()
-            self.state.set_phase(TreatmentPhase.PAUSED, "Pausa manual")
+    #         self.timer_manager.pause_operation_timer()
+    #         self.state.set_phase(TreatmentPhase.PAUSED, "Pausa manual")
 
-        except Exception as e:
-            logger.error(f"Error al pausar terapia: {e}")
+    #     except Exception as e:
+    #         logger.error(f"Error al pausar terapia: {e}")
 
         
     def _save_treatment_summary_csv(self):
@@ -1133,7 +1164,8 @@ class HemodialysisHMI(QMainWindow):
             self.update_date_time() 
 
             if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
-                self._update_therapy_time_displays()
+                self.treatment_controller.update_therapy_times()
+                # self._update_therapy_time_displays()
 
             if self.screen_stack.currentWidget() == self.maintenance_screen:
                 self._update_maintenance_screen_immediately()
@@ -2149,49 +2181,50 @@ class HemodialysisHMI(QMainWindow):
             current_widget.update_values(self.current_values)
 
     def _update_therapy_time_displays(self):        
-        phase = self.state.current_phase
+        self.treatment_controller.update_therapy_times()
+        # phase = self.state.current_phase
 
-        # 1. Obtener el tiempo total configurado
-        hours = int(self.current_values.get("heparineTherapyHours", 0))
-        minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
-        # Actualizamos la variable de la clase para que siempre tenga el último valor configurado
-        self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
+        # # 1. Obtener el tiempo total configurado
+        # hours = int(self.current_values.get("heparineTherapyHours", 0))
+        # minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
+        # # Actualizamos la variable de la clase para que siempre tenga el último valor configurado
+        # self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
 
-        # 2. Si no estamos en tratamiento (RUNNING/PAUSED/IDLE durante tratamiento), 
-        #    mostramos 0 de tiempo transcurrido y el TOTAL configurado como restante.
-        if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
-            remaining_str = f"{hours:02d}:{minutes:02d}:00"
-            if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
-                self.dialysis_screen.update_therapy_times("00:00:00", remaining_str)
-            return
+        # # 2. Si no estamos en tratamiento (RUNNING/PAUSED/IDLE durante tratamiento), 
+        # #    mostramos 0 de tiempo transcurrido y el TOTAL configurado como restante.
+        # if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+        #     remaining_str = f"{hours:02d}:{minutes:02d}:00"
+        #     if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
+        #         self.dialysis_screen.update_therapy_times("00:00:00", remaining_str)
+        #     return
 
-        # 3. Lógica normal si el tratamiento está en curso o en pausa
+        # # 3. Lógica normal si el tratamiento está en curso o en pausa
+        # # current_elapsed = self.accumulated_therapy_seconds
+        # # if self.timer_manager.last_resume_time is not None and phase == TreatmentPhase.RUNNING:
+        # #     current_segment = self.timer_manager.last_resume_time.secsTo(QDateTime.currentDateTime())
+        # #     current_elapsed += current_segment
+
+        # # self._current_elapsed_therapy_min = current_elapsed / 60.0
+        # # remaining = max(0, self.total_therapy_seconds - current_elapsed)
+
         # current_elapsed = self.accumulated_therapy_seconds
-        # if self.timer_manager.last_resume_time is not None and phase == TreatmentPhase.RUNNING:
+        # if self.timer_manager.last_resume_time is not None:
         #     current_segment = self.timer_manager.last_resume_time.secsTo(QDateTime.currentDateTime())
         #     current_elapsed += current_segment
 
         # self._current_elapsed_therapy_min = current_elapsed / 60.0
         # remaining = max(0, self.total_therapy_seconds - current_elapsed)
 
-        current_elapsed = self.accumulated_therapy_seconds
-        if self.timer_manager.last_resume_time is not None:
-            current_segment = self.timer_manager.last_resume_time.secsTo(QDateTime.currentDateTime())
-            current_elapsed += current_segment
+        # if remaining <= 0 and phase == TreatmentPhase.RUNNING:
+        #     self.stop_treatment()
+        #     self.stop_priming()
+        #     return
 
-        self._current_elapsed_therapy_min = current_elapsed / 60.0
-        remaining = max(0, self.total_therapy_seconds - current_elapsed)
+        # elapsed_str = f"{current_elapsed // 3600:02d}:{(current_elapsed % 3600) // 60:02d}:{current_elapsed % 60:02d}"
+        # remaining_str = f"{remaining // 3600:02d}:{(remaining % 3600) // 60:02d}:{remaining % 60:02d}"
 
-        if remaining <= 0 and phase == TreatmentPhase.RUNNING:
-            self.stop_treatment()
-            self.stop_priming()
-            return
-
-        elapsed_str = f"{current_elapsed // 3600:02d}:{(current_elapsed % 3600) // 60:02d}:{current_elapsed % 60:02d}"
-        remaining_str = f"{remaining // 3600:02d}:{(remaining % 3600) // 60:02d}:{remaining % 60:02d}"
-
-        if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
-            self.dialysis_screen.update_therapy_times(elapsed_str, remaining_str)
+        # if hasattr(self, 'dialysis_screen') and self.dialysis_screen:
+        #     self.dialysis_screen.update_therapy_times(elapsed_str, remaining_str)
 
 
     def handle_comm_config_change(self, sensor_id, port, is_enabled):

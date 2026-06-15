@@ -706,6 +706,4 @@ class CleaningScreen(QWidget):
 
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)
-    
-    def update_state(self, phase: TreatmentPhase):
-        pass
+   
