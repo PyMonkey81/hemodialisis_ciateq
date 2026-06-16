@@ -76,6 +76,7 @@ class AppStateManager(QObject):
         self.state_changed.emit(new_phase, reason)
 
         return True
+
     
     def _update_derived_flags(self):
         """Actualiza flags derivados"""
