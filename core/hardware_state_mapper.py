@@ -28,10 +28,15 @@ class HardwareStateMapper:
         code = int(status_code)
         mode = int(treatment_mode)
 
-        # Caso especial: Limpieza
-        if mode == 3 and code == 6:
-            return TreatmentPhase.CLEANING
+        # Caso especial: Limpieza (solo cuando realmente está en modo limpieza)
+        if mode == 3:
+            if code == 6:
+                return TreatmentPhase.CLEANING
+            elif code in [2, 3, 4, 5]:  
+                return TreatmentPhase.PREPARING   # Preparación de limpieza     
+            
 
+        # Estados normales
         if code in HardwareStateMapper.STATUS_TO_PHASE:
             return HardwareStateMapper.STATUS_TO_PHASE[code]
 
@@ -48,7 +53,9 @@ class HardwareStateMapper:
 
         # Limpieza especial
         if mode == 3 and code == 6:
-            return "Limpieza en progreso"
+            return "Limpieza en progreso.."
+        if mode == 3 and code in [2,3,4,5]:
+            return "Preparando limpieza"
 
         descriptions = {
             1: "Espera",
@@ -56,7 +63,7 @@ class HardwareStateMapper:
             3: "Preparando",
             4: "Preparando",
             5: "Preparando",
-            6: "Infusión",           # Solo se ve si NO eslimpieza 
+            6: "Infusión",           # Solo se ve si NO es limpieza
             7: "Colocar filtro",
             8: "Diálisis",
             9: "Bypass",
@@ -81,3 +88,66 @@ class HardwareStateMapper:
     def is_preparing(status_code: int) -> bool:
         return int(status_code) in HardwareStateMapper.PREPARING_STATUSES
     
+
+
+# # core/hardware_state_mapper.py
+# """
+# Traductor centralizado entre estados del hardware (primingProcessStatus)
+# y las fases internas de la aplicación (TreatmentPhase).
+# """
+
+# import logging
+# from core.state_manager import TreatmentPhase
+
+# logger = logging.getLogger(__name__)
+
+
+# class HardwareStateMapper:
+#     """Mapeo oficial y único de estados del hardware"""
+
+#     # Mapeo directo
+#     STATUS_TO_PHASE = {
+#         1: TreatmentPhase.IDLE,      # INICIO CEBADO / Espera
+#         13: TreatmentPhase.READY,
+#         14: TreatmentPhase.RUNNING,
+#         15: TreatmentPhase.PAUSED,
+#         16: TreatmentPhase.IDLE,     # TRATAMIENTO DETENIDO
+#     }
+
+#     PREPARING_STATUSES = set(range(2, 13))   # 2 al 12 inclusive
+
+#     @staticmethod
+#     def get_phase(status_code: int) -> TreatmentPhase:
+#         """Devuelve la fase correspondiente según el hardware"""
+#         code = int(status_code)
+
+#         if code in HardwareStateMapper.STATUS_TO_PHASE:
+#             return HardwareStateMapper.STATUS_TO_PHASE[code]
+
+#         if code in HardwareStateMapper.PREPARING_STATUSES:
+#             return TreatmentPhase.PREPARING
+
+#         # Default seguro
+#         return TreatmentPhase.IDLE
+
+#     @staticmethod
+#     def should_count_operation_time(status_code: int) -> bool:
+#         """Solo cuenta tiempo de terapia cuando el hardware está realmente en RUNNING"""
+#         return int(status_code) == 14
+
+#     @staticmethod
+#     def is_preparing(status_code: int) -> bool:
+#         return int(status_code) in HardwareStateMapper.PREPARING_STATUSES
+
+#     @staticmethod
+#     def get_description(status_code: int) -> str:
+#         """Descripciones amigables para UI"""
+#         desc = {
+#             1: "Espera...",
+#             7: "Colocar filtro",
+#             14: "Tratamiento en curso",
+#             13: "Inicia\ntratamiento",
+#             15: "Pausa",
+#             16: "Tratamiento\ndetenido",
+#         }
+#         return desc.get(int(status_code), f"Estado {status_code}")

@@ -459,6 +459,7 @@ class HemodialysisHMI(QMainWindow):
     def _on_state_changed(self, phase: TreatmentPhase, reason: str):
         """Callback principal de cambio de estado"""
         logger.info(f"Estado global cambiado: {phase.name} | {reason}")
+        print(f" {phase.name}")
         self._update_buttons_state()
         self._refresh_navigation_bar()
         self.screen_state_manager.update_all_screens(phase)
@@ -513,6 +514,7 @@ class HemodialysisHMI(QMainWindow):
             else:
                 self.state.reset_to_idle(reason)
             return        
+        
         if status_code == 13:
             self.state.set_phase(TreatmentPhase.READY, reason)
             self.screen_state_manager.update_all_screens(TreatmentPhase.READY)
@@ -522,7 +524,7 @@ class HemodialysisHMI(QMainWindow):
         elif status_code == 15:
             self.state.set_phase(TreatmentPhase.PAUSED, reason)
             self.screen_state_manager.update_all_screens(TreatmentPhase.PAUSED)
-        elif status_code in [2, 3, 4, 5, 6, 7]:
+        elif status_code in [2, 3, 4, 5, 6, 7,8,9,10,11,12]:
             self.state.set_phase(TreatmentPhase.PREPARING, reason)
             self.screen_state_manager.update_all_screens(TreatmentPhase.PREPARING)
         else:
@@ -692,19 +694,25 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
     #              Navigation Methods
     # ────────────────────────────────────────────────
-    def start_treatment(self):
-        """Delegado seguro - evita loops"""
-        logger.info("=== BOTÓN INICIAR TRATAMIENTO PRESIONADO ===")
-        
-        # Protección anti-loop
-        if self.state.current_phase == TreatmentPhase.RUNNING:
-            logger.warning("Ya está en RUNNING, ignorando llamada repetida")
-            return
 
-        success = self.treatment_controller.start_treatment()
-        if success:
-            self._update_therapy_time_displays()
-            self._refresh_navigation_bar()
+    def start_treatment(self):
+        """Delegado seguro"""
+        if getattr(self, '_start_treatment_locked', False):
+            return
+        self._start_treatment_locked = True
+
+        try:
+            logger.info("=== BOTÓN INICIAR TRATAMIENTO PRESIONADO ===")
+            
+            if self.state.current_phase == TreatmentPhase.RUNNING:
+                return
+
+            success = self.treatment_controller.start_treatment()
+            if success:
+                self._update_therapy_time_displays()
+                self._refresh_navigation_bar()
+        finally:
+            self._start_treatment_locked = False
 
     def pause_treatment(self):
         """Delegado al TreatmentController"""
@@ -723,6 +731,7 @@ class HemodialysisHMI(QMainWindow):
     def _update_therapy_time_displays(self):
         """Actualiza displays de tiempo (delegado)"""
         self.treatment_controller.update_therapy_times()
+    
     
     
     def start_priming(self):
@@ -790,42 +799,13 @@ class HemodialysisHMI(QMainWindow):
             logger.error(f"Error enviando comandos de cebado: {e}")
             self.show_warning_message("Cebado detenido, pero hubo problema al enviar comandos al controlador.", 4000)
             
-        if self.csv_logger:
-            self.csv_logger.close()
-            self.csv_logger = None
-            logger.info("Sesión detenida - logger cerrado")
+        # if self.csv_logger:
+        #     self.csv_logger.close()
+        #     self.csv_logger = None
+        #     logger.info("Sesión detenida - logger cerrado")
 
         
-    def _save_treatment_summary_csv(self):
-        """Guarda un registro simple con Fecha, Hora de Inicio y Hora de Fin del tratamiento."""
-        if not self.current_treatment_start_date_time:
-            return  # No hay tratamiento registrado
- 
 
-        end_time = QDateTime.currentDateTime()
-        date_str = self.current_treatment_start_date_time.toString("yyyy-MM-dd")
-        start_str = self.current_treatment_start_date_time.toString("HH:mm:ss")
-        end_str = end_time.toString("HH:mm:ss")
-
-        os.makedirs("logs", exist_ok=True)
-        filepath = "logs/historial_tratamientos.csv"
-        file_exists = os.path.isfile(filepath)
-
-        try:
-            with open(filepath, mode='a', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                # Si el archivo es nuevo, escribir encabezados
-                if not file_exists:
-                    writer.writerow(["Fecha", "Hora_Inicio", "Hora_Fin"])
-                
-                # Escribir los datos del tratamiento
-                writer.writerow([date_str, start_str, end_str])
-            logger.info(f"Resumen de tratamiento guardado: {date_str} de {start_str} a {end_str}")
-        except Exception as e:
-            logger.error(f"Error al guardar el historial de tratamientos CSV: {e}")
-
-        # Limpiar la variable para el próximo tratamiento
-        self.current_treatment_start_date_time = None
 
 
     def end_dialysis_session(self):
@@ -1002,14 +982,24 @@ class HemodialysisHMI(QMainWindow):
             self.update_connection_status()
             self.update_date_time() 
 
-            if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
                 self.treatment_controller.update_therapy_times()
+
+            # ==================== LOGGERS ====================
+            if self.state.current_phase == TreatmentPhase.RUNNING:
+                self._log_treatment_current_data()      # Logger de tratamiento
+
+            elif self.state.current_phase == TreatmentPhase.CLEANING:
+                self._log_cleaning_current_data()       # Logger de limpieza
+
+            elif self.state.current_phase == TreatmentPhase.PREPARING:
+                self._log_current_data()                  # Cebado / Priming (el general)
 
             if self.screen_stack.currentWidget() == self.maintenance_screen:
                 self.timer_manager._update_maintenance_screen()
 
             self._update_gauges()
-            self._refresh_navigation_bar()
+            self._refresh_navigation_bar()       
 
         finally:
             self._timer_lock = False
@@ -1318,6 +1308,7 @@ class HemodialysisHMI(QMainWindow):
 
         # 2. Actualizar el valor centralizado (Ya convertido de manera segura)
         self.current_values[tag] = value
+        
                 
         # Actualizar sistema de alarmas si existe
         if self.alarm_system:
@@ -1329,85 +1320,6 @@ class HemodialysisHMI(QMainWindow):
         # ────────────────────────────────────────────────────────────────
         # Manejo de primingProcessStatus (estado del proceso + horas de operación)
         # ────────────────────────────────────────────────────────────────
-        # if tag == "primingProcessStatus":
-        #     status_code = int(value)
-        #     self._sync_state_with_hardware()
-        #     if status_code != self._last_priming_status:
-        #         logger.info(f"Cambio de estado hardware: {self._last_priming_status} → {status_code}")
-        #         self._last_priming_status = status_code
-
-        #         # ==================== MAPA DE ESTADOS VISUALES ====================
-        #         status_map = {
-        #             1: "INICIO CEBADO", 2: "LLENADO DE TANQUE", 3: "LLENADO DE LINEA",
-        #             4: "LLENADO CÁMARA", 5: "CALENTAMIENTO", 6: "INFUSIÓN",
-        #             7: "COLOCACIÓN DE\nFILTRO", 8: "DIÁLISIS", 9: "BYPASS", 
-        #             10: "CERRADO", 12: "ULTRAFILTRACIÓN OFF", 
-        #             13: "LISTO PARA INICIAR\nTRATAMIENTO",
-        #             14: "TRATAMIENTO INICIADO", 15: "PAUSA", 16: "TRATAMIENTO DETENIDO"
-        #         }
-        #         status_text = status_map.get(status_code, f"Espera.. ({status_code})")
-        #         self.current_process_status.setText(status_text)
-
-        #         if status_code == 7:
-        #             self.show_info_message("Coloque el filtro y conecte las líneas", 10000)
-                    
-
-        #         # ==================== SINCRONIZACIÓN CON STATE MANAGER ====================
-        #         if self.state.current_phase != TreatmentPhase.CLEANING:
-        #             if status_code == 13:   # ← ESTADO READY
-        #                 if self.state.current_phase != TreatmentPhase.READY:
-        #                     self.state.set_phase(TreatmentPhase.READY, 
-        #                                    "Hardware → Estado 13 (Listo para iniciar tratamiento)")
-
-        #             elif status_code == 14:   # Tratamiento corriendo
-        #                 if self.state.current_phase != TreatmentPhase.RUNNING:
-        #                     self.state.set_phase(TreatmentPhase.RUNNING, 
-        #                                    "Hardware → Estado 14 (Tratamiento activo)")
-
-        #             elif status_code == 15:   # Pausa
-        #                 if self.state.current_phase != TreatmentPhase.PAUSED:
-        #                     self.state.set_phase(TreatmentPhase.PAUSED, 
-        #                                        "Hardware → Estado 15 (Pausa)")
-
-        #             elif status_code == 16:   # Detenido
-        #                 if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY):
-        #                     self.state.reset_to_idle("Hardware → Estado 16 (Detenido)")
-        #             elif 2 <= status_code <= 12: 
-        #                 # Durante el cebado / preparación
-        #                 if self.state.current_phase != TreatmentPhase.PREPARING: 
-        #                     self.state.set_phase(TreatmentPhase.PREPARING, 
-        #                                        f"Hardware → Estado {status_code} (Preparando)")     
-        #             else:
-        #                 if self.state.current_phase != TreatmentPhase.IDLE: 
-        #                     self.state.set_phase(TreatmentPhase.IDLE, 
-        #                                          f"Hardware → Estado {status_code} (Estado Idle) ") 
-
-        #         # ==================== COLORES ====================
-        #         if status_code in [6, 7, 13]:
-        #             color = "#25AD37"      # Verde (Listo / Avanzado)
-        #         elif status_code in [1, 2, 3, 4, 5, 8]:
-        #             color = "#eab308"      # Amarillo (En proceso)
-        #         elif status_code in [14]:
-        #             color = "#22c55e"      # Verde fuerte
-        #         elif status_code in [15, 16]:
-        #             color = "#ef4444"      # Rojo
-        #         else:
-        #             color = "#C6E3E6"
-
-        #         self.current_process_status.setStyleSheet(f"""
-        #             QLabel {{
-        #                 color: #ffffff;
-        #                 background: {color};
-        #                 font-weight: bold;
-        #                 font-size: 25px;
-        #                 border-radius: 10px;
-        #             }}
-        #         """)
-
-        #         # Actualizar mantenimiento
-        #         if self.screen_stack.currentWidget() == self.maintenance_screen:
-        #             # self._update_maintenance_screen_immediately()  
-        #             self.timer_manager._update_maintenance_screen()
         if tag == "primingProcessStatus":
             status_code = int(value)
 
@@ -1423,14 +1335,42 @@ class HemodialysisHMI(QMainWindow):
 
                 self.current_process_status.setText(display_text)
 
-                # Cambiar fase solo si es diferente y no estamos en limpieza manual
-                if new_phase != self.state.current_phase:
-                    if not (self.state.current_phase == TreatmentPhase.CLEANING and new_phase != TreatmentPhase.CLEANING):
+                old_phase = self.state.current_phase  # ← Guardamos siempre el estado anterior
+
+                # Cambiar fase + acciones solo si realmente cambió
+                if new_phase != old_phase:
+                    if not (old_phase == TreatmentPhase.CLEANING and new_phase != TreatmentPhase.CLEANING):
                         reason = f"Hardware → {display_text}"
                         self.state.set_phase(new_phase, reason)
                         self.screen_state_manager.update_all_screens(new_phase)
 
-                # Sincronizar timers
+                        # === CONTROL DEL TIMER DE TERAPIA SEGÚN HARDWARE ===
+                        if hasattr(self, 'treatment_controller'):
+                            if new_phase == TreatmentPhase.RUNNING:
+                                self.treatment_controller.start_therapy_timer()
+                                
+                                if not self.current_treatment_start:
+                                    self.current_treatment_start = QDateTime.currentDateTime()
+                                # Logger: nueva sesión o reanudación
+                                is_resuming = (old_phase == TreatmentPhase.PAUSED)
+                                self.treatment_controller._setup_treatment_logger(is_resuming)
+                                
+                            elif new_phase == TreatmentPhase.PAUSED:
+                                self.treatment_controller.pause_therapy_timer()
+
+                # === REGISTRO DE HISTORIAL AL FINALIZAR TRATAMIENTO ===
+                if new_phase == TreatmentPhase.IDLE and old_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY):
+                    logger.info("Hardware confirmó fin de tratamiento → Registrando historial")
+                    if hasattr(self, 'register_treatment_session'):
+                        self.register_treatment_session()
+                    
+                    # Cerrar logger
+                    if hasattr(self, 'treatment_logger') and self.treatment_logger:
+                        self.treatment_logger.close()
+                        self.treatment_logger = None
+                        
+
+                # Sincronizar timers del TimerManager
                 self.timer_manager.sync_with_hardware(status_code)
 
                 # Mensaje especial para colocar filtro
@@ -1458,6 +1398,147 @@ class HemodialysisHMI(QMainWindow):
                         border-radius: 10px;
                     }}
                 """)    
+        # if tag == "primingProcessStatus":
+        #     status_code = int(value)
+
+        #     if status_code != self._last_priming_status:
+        #         logger.info(f"Cambio de estado hardware: {self._last_priming_status} → {status_code}")
+        #         self._last_priming_status = status_code
+
+        #         treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+
+        #         # === NUEVA LÓGICA ===
+        #         new_phase = self.hardware_mapper.get_phase(status_code, treatment_mode)
+        #         display_text = self.hardware_mapper.get_display_text(status_code, treatment_mode)
+
+        #         self.current_process_status.setText(display_text)
+
+        #         # Cambiar fase + acciones solo si realmente cambió
+        #         if new_phase != self.state.current_phase:
+        #             if not (self.state.current_phase == TreatmentPhase.CLEANING and new_phase != TreatmentPhase.CLEANING):
+        #                 reason = f"Hardware → {display_text}"
+        #                 self.state.set_phase(new_phase, reason)
+        #                 self.screen_state_manager.update_all_screens(new_phase)
+
+        #                 # === CONTROL DEL TIMER DE TERAPIA SEGÚN HARDWARE ===
+        #                 if hasattr(self, 'treatment_controller'):
+        #                     if new_phase == TreatmentPhase.RUNNING:
+        #                         self.treatment_controller.start_therapy_timer()
+                                
+        #                         # Logger: nueva sesión o reanudación
+        #                         is_resuming = (self.state.current_phase == TreatmentPhase.PAUSED)
+        #                         self.treatment_controller._setup_treatment_logger(is_resuming)
+                                
+        #                     elif new_phase == TreatmentPhase.PAUSED:
+        #                         self.treatment_controller.pause_therapy_timer()
+                
+                
+        #         if new_phase == TreatmentPhase.IDLE and self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY):
+        #             # Registrar historial cuando el hardware confirma detención
+        #             if hasattr(self, 'register_treatment_session'):
+        #                 self.register_treatment_session()
+                    
+        #             # Cerrar logger
+        #             if hasattr(self, 'treatment_logger') and self.treatment_logger:
+        #                 self.treatment_logger.close()
+        #                 self.treatment_logger = None
+
+
+        #         # Sincronizar timers del TimerManager
+        #         self.timer_manager.sync_with_hardware(status_code)
+
+        #         # Mensaje especial para colocar filtro
+        #         if status_code == 7:
+        #             self.show_info_message("Coloque el filtro y presione 'Llenado de Filtro'", 8000)
+
+        #         # ==================== COLORES ====================
+        #         if status_code in [6, 7, 13]:
+        #             color = "#25AD37"
+        #         elif status_code in [1, 2, 3, 4, 5, 8]:
+        #             color = "#eab308"
+        #         elif status_code == 14:
+        #             color = "#22c55e"
+        #         elif status_code in [15, 16]:
+        #             color = "#ef4444"
+        #         else:
+        #             color = "#C6E3E6"
+
+        #         self.current_process_status.setStyleSheet(f"""
+        #             QLabel {{
+        #                 color: #ffffff;
+        #                 background: {color};
+        #                 font-weight: bold;
+        #                 font-size: 25px;
+        #                 border-radius: 10px;
+        #             }}
+        #         """)    
+        # if tag == "primingProcessStatus":
+        #     status_code = int(value)
+
+        #     if status_code != self._last_priming_status:
+        #         logger.info(f"Cambio de estado hardware: {self._last_priming_status} → {status_code}")
+        #         self._last_priming_status = status_code
+
+        #         treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+
+        #         # === NUEVA LÓGICA ===
+        #         new_phase = self.hardware_mapper.get_phase(status_code, treatment_mode)
+        #         display_text = self.hardware_mapper.get_display_text(status_code, treatment_mode)
+
+        #         self.current_process_status.setText(display_text)
+
+        #         if new_phase != self.state.current_phase:
+        #             if not (self.state.current_phase == TreatmentPhase.CLEANING and new_phase != TreatmentPhase.CLEANING):
+        #                 reason = f"Hardware → {display_text}"
+        #                 self.state.set_phase(new_phase, reason)
+        #                 self.screen_state_manager.update_all_screens(new_phase)
+
+        #                 # === CONTROL DEL TIMER DE TERAPIA SEGÚN HARDWARE ===
+        #                 if hasattr(self, 'treatment_controller'):
+        #                     if new_phase == TreatmentPhase.RUNNING:
+        #                         self.treatment_controller.start_therapy_timer()
+        #                     elif new_phase == TreatmentPhase.PAUSED:
+        #                         self.treatment_controller.pause_therapy_timer()
+                
+        #         if new_phase == TreatmentPhase.RUNNING and self.state.current_phase != TreatmentPhase.RUNNING:
+        #                 is_resuming = (self.state.current_phase == TreatmentPhase.PAUSED)
+        #                 self.treatment_controller._setup_treatment_logger(is_resuming)
+
+        #         # Cambiar fase solo si es diferente y no estamos en limpieza manual
+        #         if new_phase != self.state.current_phase:
+        #             if not (self.state.current_phase == TreatmentPhase.CLEANING and new_phase != TreatmentPhase.CLEANING):
+        #                 reason = f"Hardware → {display_text}"
+        #                 self.state.set_phase(new_phase, reason)
+        #                 self.screen_state_manager.update_all_screens(new_phase)
+
+        #         # Sincronizar timers
+        #         self.timer_manager.sync_with_hardware(status_code)
+
+        #         # Mensaje especial para colocar filtro
+        #         if status_code == 7:
+        #             self.show_info_message("Coloque el filtro y presione 'Llenado de Filtro'", 8000)
+
+        #         # ==================== COLORES ====================
+        #         if status_code in [6, 7, 13]:
+        #             color = "#25AD37"
+        #         elif status_code in [1, 2, 3, 4, 5, 8]:
+        #             color = "#eab308"
+        #         elif status_code == 14:
+        #             color = "#22c55e"
+        #         elif status_code in [15, 16]:
+        #             color = "#ef4444"
+        #         else:
+        #             color = "#C6E3E6"
+
+        #         self.current_process_status.setStyleSheet(f"""
+        #             QLabel {{
+        #                 color: #ffffff;
+        #                 background: {color};
+        #                 font-weight: bold;
+        #                 font-size: 25px;
+        #                 border-radius: 10px;
+        #             }}
+        #         """)    
 
    
     def _update_gauges(self):
@@ -2114,6 +2195,37 @@ class HemodialysisHMI(QMainWindow):
 
     # ====================== HISTORIAL JSON (CON VALIDACIÓN) ======================
 
+    # def _save_treatment_summary_csv(self):
+    #     """Guarda un registro simple con Fecha, Hora de Inicio y Hora de Fin del tratamiento."""
+    #     if not self.current_treatment_start_date_time:
+    #         return  # No hay tratamiento registrado
+ 
+
+    #     end_time = QDateTime.currentDateTime()
+    #     date_str = self.current_treatment_start_date_time.toString("yyyy-MM-dd")
+    #     start_str = self.current_treatment_start_date_time.toString("HH:mm:ss")
+    #     end_str = end_time.toString("HH:mm:ss")
+
+    #     os.makedirs("logs", exist_ok=True)
+    #     filepath = "logs/historial_tratamientos.csv"
+    #     file_exists = os.path.isfile(filepath)
+
+    #     try:
+    #         with open(filepath, mode='a', newline='', encoding='utf-8') as f:
+    #             writer = csv.writer(f)
+    #             # Si el archivo es nuevo, escribir encabezados
+    #             if not file_exists:
+    #                 writer.writerow(["Fecha", "Hora_Inicio", "Hora_Fin"])
+                
+    #             # Escribir los datos del tratamiento
+    #             writer.writerow([date_str, start_str, end_str])
+    #         logger.info(f"Resumen de tratamiento guardado: {date_str} de {start_str} a {end_str}")
+    #     except Exception as e:
+    #         logger.error(f"Error al guardar el historial de tratamientos CSV: {e}")
+
+    #     # Limpiar la variable para el próximo tratamiento
+    #     self.current_treatment_start_date_time = None
+
     def _load_histories(self):
         """Carga los historiales desde JSON al iniciar"""
         os.makedirs("logs/Historiales", exist_ok=True)
@@ -2171,6 +2283,7 @@ class HemodialysisHMI(QMainWindow):
         # Validación de fechas
         if not self._validate_session(self.current_treatment_start, end_time):
             self.current_treatment_start = None
+            print("no se esta registrando ")
             return
 
         duration_seconds = self.current_treatment_start.secsTo(end_time)

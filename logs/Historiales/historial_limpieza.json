@@ -196,5 +196,23 @@
         "duracion_minutos": 14,
         "duracion_hhmm": "00:14",
         "timestamp_registro": "2026-06-11 15:58:02"
+    },
+    {
+        "fecha": "2026-06-16",
+        "hora_inicio": "23:19:37",
+        "hora_fin": "23:22:04",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-16 23:22:04"
+    },
+    {
+        "fecha": "2026-06-16",
+        "hora_inicio": "23:25:59",
+        "hora_fin": "23:28:19",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-16 23:28:19"
     }
 ]

@@ -24,23 +24,17 @@ class TreatmentController:
         self.accumulated_therapy_seconds = 0
         self.last_resume_time = None
         self.total_therapy_seconds = 0
+        
+        # self.total_therapy_seconds = 0
+        self.therapy_start_time = None        # Para esta sesión de terapia
+        self.accumulated_therapy_seconds = 0  # Tiempo acumulado (pausas)
 
     # ====================== START TREATMENT ======================
 
     def start_treatment(self):
         """Inicia o reanuda tratamiento con mensaje correcto"""
         logger.info("=== INTENTO DE INICIO DE TRATAMIENTO ===")
-
-        current_phase = self.state.current_phase
-
-        if current_phase == TreatmentPhase.RUNNING:
-            logger.warning("Ya está en RUNNING - ignorando comando repetido")
-            return False
-
-        if current_phase == TreatmentPhase.CLEANING:
-            self.main.show_error_message("Finalice primero la limpieza", 3000)
-            return False
-
+        
         try:
             # Comandos al hardware
             self.main._write_boolean_command("dialyModeOperationStart", True)
@@ -50,10 +44,10 @@ class TreatmentController:
             if self.bioz_urea_controller:
                 try:
                     self.bioz_urea_controller.send_command("SRTB")
-                    print("enviando comando a bio")
+                    
                 except Exception as e:
                     logger.warning(f"BiozUrea no respondió: {e}")
-                    print("no hay controlador bio")
+
             return True
 
         except Exception as e:
@@ -61,30 +55,33 @@ class TreatmentController:
             self.main.show_error_message("Error al iniciar tratamiento")
             return False
         
-    def _setup_treatment_logger(self, is_resuming: bool):
-        """Configura o reinicia el logger de sesión"""
-        if is_resuming and self.main.treatment_logger is not None:
+    def _setup_treatment_logger(self, is_resuming: bool = False):
+        if is_resuming and getattr(self.main, 'treatment_logger', None) is not None:
             logger.info("Reanudando logger existente")
-        else: 
-            if self.main.treatment_logger:
-                self.main.treatment_logger.close()
-                self.main.treatment_logger = None
+            return
 
-            try:
-                LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
-                self.main.treatment_logger = CsvLogger(
-                    log_directory=LOG_DIRECTORY,
-                    parameter_key_map=self.main.parameter_mapping
-                )
-                logger.info("Nuevo logger CSV creado por el tratamiento")
-            except Exception as e:
-                logger.error(f"Error creando logger CSV: {e}")
-                return 
-      
+        if getattr(self.main, 'treatment_logger', None):
+            self.main.treatment_logger.close()
+            self.main.treatment_logger = None
+
+        try:
+            LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
+            self.main.treatment_logger = CsvLogger(
+                log_directory=LOG_DIRECTORY,
+                parameter_key_map=self.main.parameter_mapping
+            )
+            logger.info(f"Nuevo logger creado: {LOG_DIRECTORY}")
+        except Exception as e:
+            logger.error(f"Error creando logger: {e}")
 
     # ====================== PAUSE / STOP (mantengo limpios) ======================
 
     def pause_treatment(self):
+        if self.therapy_start_time:
+            seconds_passed = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
+            self.accumulated_therapy_seconds += seconds_passed
+            self.therapy_start_time = None
+
         if self.state.current_phase != TreatmentPhase.RUNNING:
             return False
         try:
@@ -103,7 +100,14 @@ class TreatmentController:
             self.main._write_boolean_command("dialyModeOperationStop", True)
             self.main._write_boolean_command("dialyModeOperationStart", False)
             self.main._write_boolean_command("dialyStopDialysisButt",True) # detiene secuencia de cebado tambien 
-            self.main._write_boolean_command("dialyStartDialysisButt", False)              
+            self.main._write_boolean_command("dialyStartDialysisButt", False)    
+            
+            if self.bioz_urea_controller:
+                self.bioz_urea_controller.send_command("STOP")
+
+            logger.info("Comandos de STOP enviados al hardware")
+
+            logger.info("Tratamiento detenido y registrado correctamente")          
             return True
 
         except Exception as e:
@@ -112,47 +116,57 @@ class TreatmentController:
             return False
 
     # ====================== SINCRONIZACIÓN DE RELOJES ======================
+    def start_therapy_timer(self):
+        """Inicia o reinicia el timer de terapia cuando hardware confirma RUNNING"""
+        if not self.therapy_start_time:
+            self.therapy_start_time = QDateTime.currentDateTime()
+            logger.info("Timer de terapia iniciado (hardware en RUNNING)")
+        else:
+            logger.info("Reanudando timer de terapia")
+
+    def pause_therapy_timer(self):
+        """Pausa el timer (llamado cuando hardware entra en 15)"""
+        if self.therapy_start_time:
+            seconds_passed = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
+            self.accumulated_therapy_seconds += seconds_passed
+            self.therapy_start_time = None
+            logger.info(f"Timer de terapia PAUSADO. Acumulado: {self.accumulated_therapy_seconds}s")
 
     def get_elapsed_seconds(self) -> int:
-        """Obtiene elapsed usando TimerManager (más confiable)"""
-        if hasattr(self.main, 'timer_manager') and self.main.timer_manager:
-            # Calculamos elapsed a partir de horas totales guardadas
-            hours = self.main.timer_manager.total_operation_hours
-            return int(hours * 3600)
-        return 0
+        """Elapsed de la terapia actual (no usa TimerManager)"""
+        if not self.therapy_start_time:
+            return self.accumulated_therapy_seconds
+
+        now = QDateTime.currentDateTime()
+        elapsed_this_session = self.therapy_start_time.secsTo(now)
+        return self.accumulated_therapy_seconds + elapsed_this_session
 
     def update_therapy_times(self):
-        """Actualiza tiempos con lógica limpia y sincronizada"""
         phase = self.state.current_phase
         status_code = int(self.main.current_values.get("primingProcessStatus", 0))
-        treatment_mode = int(self.main.current_values.get("treatmentModeSelection", 0))
 
-        # Fuera de terapia activa
+        # Fuera de terapia
         if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
             hours = int(self.main.current_values.get("heparineTherapyHours", 0))
             minutes = int(self.main.current_values.get("heparineTherapyMinutes", 0))
             self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
             
             remaining_str = f"{hours:02d}:{minutes:02d}:00"
-            
             if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:
                 self.main.dialysis_screen.update_therapy_times(remaining_str, "00:00:00")
             return
 
-        # ==================== TERAPIA ACTIVA ====================
+        # Terapia activa
         current_elapsed = self.get_elapsed_seconds()
         remaining = max(0, self.total_therapy_seconds - current_elapsed)
 
-        # Paro automático cuando se termina el tiempo
         if remaining <= 0 and phase == TreatmentPhase.RUNNING and status_code == 14:
-            logger.info(f"Tiempo completado (elapsed={current_elapsed}s) → Paro automático")
+            logger.info("Tiempo de terapia completado")
             self.stop_treatment()
+            self.main.stop_priming()
             return
 
-        # Actualizar pantalla
         if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:
             elapsed_str = f"{current_elapsed // 3600:02d}:{(current_elapsed % 3600) // 60:02d}:{current_elapsed % 60:02d}"
             remaining_str = f"{remaining // 3600:02d}:{(remaining % 3600) // 60:02d}:{remaining % 60:02d}"
-            
             self.main.dialysis_screen.update_therapy_times(elapsed_str, remaining_str)
-

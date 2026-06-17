@@ -48,8 +48,10 @@ class AppStateManager(QObject):
     def set_phase(self, new_phase: TreatmentPhase, reason: str = "") -> bool:
         """Cambia de fase de forma segura y emite señales"""
         if self.current_phase == new_phase:
+            logger.debug("Estado igual, no se cambia")
             return True
-
+        
+        logger.info(f"[STATE CHANGE] {self.current_phase.name} → {new_phase.name} | {reason}")
         if not self._is_valid_transition(self.current_phase, new_phase):
             logger.error(f"Transición inválida: {self.current_phase.name} → {new_phase.name} | {reason}")
             self.error_occurred.emit(f"Transición inválida: {self.current_phase.name} → {new_phase.name}")
