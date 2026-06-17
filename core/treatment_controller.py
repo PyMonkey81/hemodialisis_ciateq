@@ -103,10 +103,9 @@ class TreatmentController:
             self.main._write_boolean_command("dialyStartDialysisButt", False)    
             
             if self.bioz_urea_controller:
-                self.bioz_urea_controller.send_command("STOP")
+                self.bioz_urea_controller.send_command("STOP")            
 
-            logger.info("Comandos de STOP enviados al hardware")
-
+            
             logger.info("Tratamiento detenido y registrado correctamente")          
             return True
 
@@ -131,6 +130,29 @@ class TreatmentController:
             self.accumulated_therapy_seconds += seconds_passed
             self.therapy_start_time = None
             logger.info(f"Timer de terapia PAUSADO. Acumulado: {self.accumulated_therapy_seconds}s")
+    
+    def stop_therapy_timer(self):
+        """Resetea completamente el timer de sesión cuando se detiene la terapia"""
+        logger.info("Reset completo de timer de terapia (nueva sesión)")
+        
+        self.accumulated_therapy_seconds = 0
+        self.last_resume_time = None
+        self.therapy_start_time = None
+        self.total_therapy_seconds = 0   # ← Muy importante
+
+        # Limpiar KTV también
+        if hasattr(self.main, 'KTVScreen') and self.main.KTVScreen:
+            try:
+                self.main.KTVScreen.save_final_report()
+                if hasattr(self.main.KTVScreen, 'ktv_records'):
+                    self.main.KTVScreen.ktv_records.clear()
+                if hasattr(self.main.KTVScreen, 'ktv_points'):
+                    self.main.KTVScreen.ktv_points.clear()
+                if hasattr(self.main.KTVScreen, 'heit_points'):
+                    self.main.KTVScreen.heit_points.clear()
+            except Exception as e:
+                logger.warning(f"Error limpiando KTV: {e}")
+        print("si se ejecuto en Treatment_controller")
 
     def get_elapsed_seconds(self) -> int:
         """Elapsed de la terapia actual (no usa TimerManager)"""

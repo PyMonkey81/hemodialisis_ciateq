@@ -8,7 +8,7 @@
         "enabled": false
     },
     "bioz_urea_sensor": {
-        "port": "Auto",
-        "enabled": false
+        "port": "COM12",
+        "enabled": true
     }
 }

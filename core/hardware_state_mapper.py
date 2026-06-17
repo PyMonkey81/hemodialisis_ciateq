@@ -54,25 +54,25 @@ class HardwareStateMapper:
         # Limpieza especial
         if mode == 3 and code == 6:
             return "Limpieza en progreso.."
-        if mode == 3 and code in [2,3,4,5]:
-            return "Preparando limpieza"
+        # if mode == 3 and code in [2,3,4,5]:
+        #     return "Preparando limpieza"
 
         descriptions = {
-            1: "Espera",
-            2: "Preparando",
-            3: "Preparando",
-            4: "Preparando",
-            5: "Preparando",
-            6: "Infusión",           # Solo se ve si NO es limpieza
-            7: "Colocar filtro",
+            1: "ESPERA",
+            2: "LLENADO DE TANQUE",
+            3: "LLENADO DE LINEA",
+            4: "LLENADO DE CÁMARA",
+            5: "CALENTAMIENTO",
+            6: "INFUSIÓN",           # Solo se ve si NO es limpieza
+            7: "COLOCAR FILTRO",
             8: "Diálisis",
             9: "Bypass",
             10: "Cerrado",
             12: "Ultrafilt. Off",
-            13: "Listo para iniciar",
-            14: "Terapia en curso",
-            15: "Pausa",
-            16: "Tratamiento detenido",
+            13: "LISTO PARA\nINICIAR ",
+            14: "TERAPIA EN CURSO",
+            15: "PAUSA",
+            16: "TRATAMIENTO\n DETENIDO",
         }
 
         return descriptions.get(code, f"Preparando ({code})")

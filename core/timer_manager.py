@@ -22,6 +22,7 @@ class TimerManager(QObject):
 
         self.operation_start_time = None
         self.cleaning_start_time = None
+        self.is_cleaning_paused = False
         self.last_power_on_tick = QDateTime.currentDateTime()
 
         self._load_all_hours()
@@ -64,11 +65,17 @@ class TimerManager(QObject):
             self.operation_start_time = None
 
         # ==================== CLEANING HOURS ====================
-        if self.main.state.current_phase == TreatmentPhase.CLEANING and self.cleaning_start_time:
+        # if self.main.state.current_phase == TreatmentPhase.CLEANING and self.cleaning_start_time:
+        #     msecs_clean = self.cleaning_start_time.msecsTo(now)
+        #     self.cleaning_hours += msecs_clean / 3600000.0
+        #     self.cleaning_start_time = now
+        if (self.main.state.current_phase == TreatmentPhase.CLEANING and 
+            self.cleaning_start_time and 
+            not self.is_cleaning_paused):
+            
             msecs_clean = self.cleaning_start_time.msecsTo(now)
             self.cleaning_hours += msecs_clean / 3600000.0
-            self.cleaning_start_time = now
-
+            self.cleaning_start_time = now   # reset para próximo tick
         self._update_maintenance_screen()
 
     def sync_with_hardware(self, status_code: int):
@@ -88,19 +95,49 @@ class TimerManager(QObject):
                 self.total_operation_hours += msecs / 3600000.0
                 self.operation_start_time = None
 
+    # =============== CLEANING ========================
 
+    # def start_cleaning_timer(self):
+    #     """Inicia conteo de limpieza"""
+    #     self.cleaning_start_time = QDateTime.currentDateTime()
+
+    # def stop_cleaning_timer(self):
+    #     """Detiene y guarda conteo de limpieza"""
+    #     if self.cleaning_start_time:
+    #         now = QDateTime.currentDateTime()
+    #         msecs = self.cleaning_start_time.msecsTo(now)
+    #         self.cleaning_hours += msecs / 3600000.0
+    #         self.cleaning_start_time = None
+    #     self._save_cleaning_hours()    
+    
     def start_cleaning_timer(self):
-        """Inicia conteo de limpieza"""
         self.cleaning_start_time = QDateTime.currentDateTime()
+        self.is_cleaning_paused = False
 
-    def stop_cleaning_timer(self):
-        """Detiene y guarda conteo de limpieza"""
+    def pause_cleaning_timer(self):
         if self.cleaning_start_time:
-            now = QDateTime.currentDateTime()
-            msecs = self.cleaning_start_time.msecsTo(now)
+            self._accumulate_cleaning_segment()
+            self.is_cleaning_paused = True
+
+    def resume_cleaning_timer(self):
+        self.cleaning_start_time = QDateTime.currentDateTime()
+        self.is_cleaning_paused = False
+
+    def _accumulate_cleaning_segment(self):
+        """Acumula el segmento actual"""
+        if self.cleaning_start_time:
+            msecs = self.cleaning_start_time.msecsTo(QDateTime.currentDateTime())
             self.cleaning_hours += msecs / 3600000.0
             self.cleaning_start_time = None
+
+    def stop_cleaning_timer(self):
+        if self.cleaning_start_time:
+            self._accumulate_cleaning_segment()
+        self.is_cleaning_paused = False
         self._save_cleaning_hours()
+    
+    
+    # =======================================================================
 
     def get_hours_info(self):
         return {

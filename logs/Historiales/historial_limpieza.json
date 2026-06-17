@@ -214,5 +214,95 @@
         "duracion_minutos": 2,
         "duracion_hhmm": "00:02",
         "timestamp_registro": "2026-06-16 23:28:19"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "10:30:07",
+        "hora_fin": "10:32:39",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 3,
+        "duracion_hhmm": "00:03",
+        "timestamp_registro": "2026-06-17 10:32:39"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "10:33:19",
+        "hora_fin": "10:35:35",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-17 10:35:35"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "10:36:01",
+        "hora_fin": "10:38:23",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-17 10:38:23"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "10:42:31",
+        "hora_fin": "10:45:08",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 3,
+        "duracion_hhmm": "00:03",
+        "timestamp_registro": "2026-06-17 10:45:08"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "10:45:42",
+        "hora_fin": "10:48:04",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-17 10:48:04"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "10:48:27",
+        "hora_fin": "10:50:52",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-17 10:50:52"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "10:51:16",
+        "hora_fin": "10:54:39",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 3,
+        "duracion_hhmm": "00:03",
+        "timestamp_registro": "2026-06-17 10:54:39"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "11:17:01",
+        "hora_fin": "11:19:41",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 3,
+        "duracion_hhmm": "00:03",
+        "timestamp_registro": "2026-06-17 11:19:41"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "11:21:32",
+        "hora_fin": "11:23:47",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-17 11:23:47"
+    },
+    {
+        "fecha": "2026-06-17",
+        "hora_inicio": "12:56:07",
+        "hora_fin": "12:59:08",
+        "tipo_tratamiento": "Limpieza",
+        "duracion_minutos": 3,
+        "duracion_hhmm": "00:03",
+        "timestamp_registro": "2026-06-17 12:59:08"
     }
 ]
