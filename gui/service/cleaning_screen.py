@@ -1,19 +1,43 @@
-# gui/service/cleaning_screen.py
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QPushButton, QProgressBar, QVBoxLayout, QHBoxLayout, 
-    QSizePolicy, QFrame, QButtonGroup
+    QWidget, QLabel, QPushButton, QProgressBar, QVBoxLayout, QHBoxLayout,
+    QSizePolicy, QFrame, QButtonGroup, QMessageBox
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QDateTime
+from PySide6.QtCore import Qt, QTimer, Signal, QElapsedTimer
 import logging
 import json
 import os
-from logic.calculos import convertir_flujo_a_ciclos 
+
+# Suponiendo que estos módulos existen en tu estructura de proyecto
+from logic.calculos import convertir_flujo_a_ciclos
 from core.state_manager import TreatmentPhase
 from gui.components.floating_confirm import FloatingConfirmDialog
 
 logger = logging.getLogger(__name__)
 
-CONFIG_FILE_PATH = "config/cleaning_config.json" 
+# Define constantes para las rutas de archivo y configuración
+CONFIG_DIR = "config"
+CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "cleaning_config.json")
+
+# Asegura que el directorio de configuración exista
+os.makedirs(CONFIG_DIR, exist_ok=True)
+
+# Estructura de configuración por defecto
+DEFAULT_CONFIG = {
+    "modes": {
+        "0.0": { # Desinfección Química Corta
+            "time_hours": 0,
+            "time_minutes": 15,
+            "mode_temp": 35.0,
+            "mode_flow": 100.0
+        },
+        "1.0": { # Desinfección Química Larga
+            "time_hours": 0,
+            "time_minutes": 30,
+            "mode_temp": 40.0,
+            "mode_flow": 120.0
+        }
+    }
+}
 
 
 class CleaningScreen(QWidget):
@@ -21,37 +45,46 @@ class CleaningScreen(QWidget):
     request_boolean_change = Signal(str, bool)
     cleaning_active_changed = Signal(bool)
 
-    cleaning_paused = Signal()      # Para TimerManager
-    cleaning_resumed = Signal()     # Para TimerManager
+    # NUEVAS SEÑALES para comunicar el estado de conteo a TimerManager
+    cleaning_started_counting = Signal() # Se emite cuando CleaningScreen entra en fase ACTIVE
+    cleaning_stopped_counting = Signal() # Se emite cuando CleaningScreen sale de fase ACTIVE (pause, finish, stop)
 
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
         self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}
 
-        self.cleaning_in_progress = False
+        # ==================== ESTADOS DE LA PANTALLA ====================
+        # Define las fases del proceso de limpieza para el control interno de la UI
+        # Fases: IDLE, PREPARING, ACTIVE, PAUSED, FINISHED, STOPPED
+        self.cleaning_phase = "IDLE"
+        self.cleaning_in_progress = False # True si hay una limpieza en cualquier fase activa (PREPARING, ACTIVE, PAUSED)
         
-        self.mid_pause_done = False
-        self.waiting_for_line_change_confirmation = False
-        self.cleaning_mode_active = False
-        self.selected_mode = None
+        self.cleaning_timer_started = False    # Indica si el QElapsedTimer para la duración ha iniciado
+        self.cleaning_active_duration = 0.0    # Tiempo total acumulado de limpieza activa (segundos)
 
-        self.cleaning_timer_started = False
+        # Timer de alta precisión para rastrear la duración activa real de la limpieza
+        self.active_elapsed_timer = QElapsedTimer()
 
-        self.total_time_seconds = 0
-        self.remaining_time_seconds = 0
+        self.mid_pause_done = False # True si la pausa a mitad de proceso ya ocurrió
+        self.waiting_for_line_change_confirmation = False # True si el diálogo de cambio de línea está abierto y bloqueando
 
-        self.cleaning_active_duration = 0.0      # ← NUEVO: tiempo activo en segundos
-        self.cleaning_segment_start = None
+        self.selected_mode = None # Almacena 0.0 para Corta, 1.0 para Larga
 
+        self.total_time_seconds = 0      # Tiempo total configurado para el modo seleccionado
+        self.remaining_time_seconds = 0  # Tiempo restante de la cuenta regresiva
+
+        # QTimer para la barra de progreso y la cuenta regresiva de la UI
         self.progress_timer = QTimer(self)
+        self.progress_timer.setInterval(1000) # Se actualiza cada segundo
         self.progress_timer.timeout.connect(self._update_progress)
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet("background: #0f172a;")
 
-        self.setup_ui() 
-        self._load_initial_config_on_startup() 
+        self.setup_ui()
+        self._load_config_defaults_if_needed() # Asegura que el archivo de configuración exista
+        self._reset_to_initial_state()        # Inicializa la UI y el estado de forma limpia
 
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -70,11 +103,12 @@ class CleaningScreen(QWidget):
         mode_layout.setSpacing(20)
 
         self.btn_mode_group = QButtonGroup(self)
-        self.btn_mode_group.setExclusive(True)
+        self.btn_mode_group.setExclusive(True) # Solo un botón puede estar seleccionado a la vez
 
         self.btn_short = QPushButton("Desinfección Química Corta")
         self.btn_long = QPushButton("Desinfección Química Larga")
 
+        # Estilos de los botones para los modos de limpieza
         self.style_unchecked = """
             QPushButton {
                 background: #3b82f6; color: #ffffff; font-size: 24px; font-weight: bold;
@@ -88,29 +122,36 @@ class CleaningScreen(QWidget):
                 border-radius: 12px; padding: 15px; border: 2px solid #16a34a;
             }
         """
+        self.style_disabled = """
+            QPushButton {
+                background: #334155; color: #64748b; font-size: 24px; font-weight: bold;
+                border-radius: 12px; padding: 15px; border: 2px solid #475569;
+            }
+        """
 
         for btn, mode_val in [(self.btn_short, 0.0), (self.btn_long, 1.0)]:
             btn.setStyleSheet(self.style_unchecked)
             btn.setCheckable(True)
+            # Conexión del evento `toggled` para manejar el cambio de selección de modo
             btn.toggled.connect(lambda checked, b=btn, val=mode_val: self._on_mode_toggled(b, val, checked))
             mode_layout.addWidget(btn)
             self.btn_mode_group.addButton(btn)
 
         main_layout.addWidget(mode_frame)
 
-        # Current Phase
-        self.phase_label = QLabel("Esperando modo de limpieza...")
+        # Etiqueta para mostrar la fase actual de la limpieza
+        self.phase_label = QLabel("Esperando selección de modo...")
         self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold; background: transparent; min-height: 60px;")
         self.phase_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.phase_label)
 
-        # Progress Bar
+        # Barra de Progreso
         self.progress_bar = QProgressBar()
         self.progress_bar.setMinimum(0)
-        self.progress_bar.setMaximum(100)
+        self.progress_bar.setMaximum(1) # Valor inicial para evitar división por cero
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(True)
-        self.progress_bar.setFormat("%p% - %v/%m seg")
+        self.progress_bar.setFormat("0% - 0/0 seg")
         self.progress_bar.setFixedHeight(60)
         self.progress_bar.setStyleSheet("""
             QProgressBar {
@@ -124,7 +165,7 @@ class CleaningScreen(QWidget):
         """)
         main_layout.addWidget(self.progress_bar)
 
-        # Labels
+        # Etiquetas para mostrar la configuración del modo seleccionado
         self.time_label = QLabel("Tiempo configurado: --:--")
         self.temp_label = QLabel("Temperatura configurada: 0.0 °C")
         self.flow_label = QLabel("Flujo configurado: 0.0 ml/min")
@@ -135,13 +176,13 @@ class CleaningScreen(QWidget):
 
         main_layout.addStretch()
 
-        # Buttons
+        # Botones de Inicio y Detención
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
         self.start_button = QPushButton("Iniciar")
         self.start_button.setFixedSize(300, 100)
-        self.start_button.setEnabled(False)
+        self.start_button.setEnabled(False) # Deshabilitado inicialmente
         self.start_button.setStyleSheet("""
             QPushButton {
                 background: #047857; color: #ffffff; font-size: 38px; font-weight: bold;
@@ -155,7 +196,7 @@ class CleaningScreen(QWidget):
 
         self.stop_button = QPushButton("Detener")
         self.stop_button.setFixedSize(300, 100)
-        self.stop_button.setEnabled(False)
+        self.stop_button.setEnabled(False) # Deshabilitado inicialmente
         self.stop_button.setStyleSheet("""
             QPushButton {
                 background: #dc2626; color: #ffffff; font-size: 38px; font-weight: bold;
@@ -170,173 +211,206 @@ class CleaningScreen(QWidget):
         button_layout.addStretch()
         main_layout.addLayout(button_layout)
 
-    def _on_mode_toggled(self, button, mode_value, checked):
+    def _load_config_defaults_if_needed(self):
+        """
+        Asegura que el archivo de configuración exista y contenga las configuraciones
+        por defecto para los modos de limpieza.
+        """
+        if not os.path.exists(CONFIG_FILE_PATH):
+            logger.info(f"Archivo de configuración no encontrado en {CONFIG_FILE_PATH}. Creando con valores por defecto.")
+            try:
+                with open(CONFIG_FILE_PATH, 'w', encoding='utf-8') as f:
+                    json.dump(DEFAULT_CONFIG, f, indent=4)
+            except IOError as e:
+                logger.error(f"Error al crear el archivo de configuración por defecto: {e}")
+                self.config_data = DEFAULT_CONFIG # Usar configuración por defecto en memoria
+                return
+
+        try:
+            with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            
+            # Asegurar que todas las claves por defecto estén presentes, fusionando si es necesario
+            if "modes" not in config_data:
+                config_data["modes"] = {}
+            for mode_key, default_mode_config in DEFAULT_CONFIG["modes"].items():
+                if mode_key not in config_data["modes"]:
+                    config_data["modes"][mode_key] = default_mode_config
+            
+            # Guardar la configuración fusionada de nuevo en el archivo
+            with open(CONFIG_FILE_PATH, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=4)
+            self.config_data = config_data
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"Error al cargar o parsear el archivo de configuración: {e}. Usando configuración por defecto.")
+            self.config_data = DEFAULT_CONFIG
+
+    def _on_mode_toggled(self, button: QPushButton, mode_value: float, checked: bool):
+        """
+        Maneja el evento de selección/deselección de los botones de modo.
+        Controla la habilitación del botón "Iniciar" y la carga de la configuración.
+        """
+        if self.cleaning_in_progress:
+            # Impide cambiar el modo mientras la limpieza está activa
+            button.blockSignals(True)
+            button.setChecked(not checked) # Revertir el estado de marcado
+            button.blockSignals(False)
+            self.parent_window.show_warning_message("No se puede cambiar el modo mientras la limpieza está en curso.", 3000)
+            return
+
         if checked:
             button.setStyleSheet(self.style_checked)
             self.selected_mode = mode_value
             self._load_mode_specific_configuration(mode_value)
             self.start_button.setEnabled(True)
-        else:
-            button.setStyleSheet(self.style_unchecked)
+            self.start_button.setText("Iniciar") # Asegura que el texto sea "Iniciar" al seleccionar un nuevo modo
+        else: # Este bloque se ejecuta si se desmarca un botón (ej. al seleccionar otro en un QButtonGroup exclusivo)
+            if self.selected_mode == mode_value: # Solo si el modo desmarcado era el actualmente seleccionado
+                button.setStyleSheet(self.style_unchecked)
+                self.selected_mode = None
+                self._update_config_display_labels_to_default() # Resetear labels a valores por defecto
+                self.start_button.setEnabled(False)
+                self.start_button.setText("Iniciar")
 
     def _load_mode_specific_configuration(self, mode_value: float):
-        # --- Inicializar todas las variables por defecto ---
-        # importante cargar, si no hay archivo de configuracion crash app 
-        
-        config_data = {}
-        if os.path.exists(CONFIG_FILE_PATH):
-            try:
-                with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-            except Exception as e:
-                logger.error(f"Error leyendo config: {e}")
+        """
+        Carga y aplica la configuración específica para el modo de limpieza seleccionado.
+        Actualiza las etiquetas de la UI y emite los comandos de setpoint al controlador.
+        """
+        mode_config = self.config_data.get("modes", {}).get(str(mode_value))
+        if not mode_config:
+            logger.warning(f"Configuración para el modo {mode_value} no encontrada. Usando valores por defecto para mostrar.")
+            mode_config = DEFAULT_CONFIG["modes"].get(str(mode_value), DEFAULT_CONFIG["modes"]["0.0"]) # Fallback a cortos por defecto
 
-        mode_config = config_data.get("modes", {}).get(str(mode_value))
-        hours = mode_config.get("time_hours", 0) if mode_config else 0
-        minutes = mode_config.get("time_minutes", 15) if mode_config else 15
-        temp = mode_config.get("mode_temp", 35.0) if mode_config else 35.0
-        flow = mode_config.get("mode_flow", 100.0) if mode_config else 100.0
+        hours = mode_config.get("time_hours", 0)
+        minutes = mode_config.get("time_minutes", 15)
+        temp = mode_config.get("mode_temp", 35.0)
+        flow = mode_config.get("mode_flow", 100.0)
 
         self.total_time_seconds = (hours * 3600) + (minutes * 60)
         self.remaining_time_seconds = self.total_time_seconds
 
+        # Emitir setpoints al controlador (configuración del hardware)
         self.on_user_input_setpoint("heparineTherapyHours", float(hours))
         self.on_user_input_setpoint("heparineTherapyMinutes", float(minutes))
         self.on_user_input_setpoint("dialyTempControlSetPoint", float(temp))
         self._handle_cb_flow_input(flow)
 
+        # Actualizar la UI
         self.time_label.setText(f"Tiempo configurado: {hours:02d}:{minutes:02d}")
         self.temp_label.setText(f"Temperatura configurada: {temp:.1f} °C")
         self.flow_label.setText(f"Flujo configurado: {flow:.1f} ml/min")
-        self.progress_bar.setMaximum(self.total_time_seconds)
+        self.progress_bar.setMaximum(self.total_time_seconds if self.total_time_seconds > 0 else 1)
         self.progress_bar.setValue(0)
+        self.progress_bar.setFormat(f"0% - 0/{self.total_time_seconds} seg")
 
-    def _load_initial_config_on_startup(self):
-        config_data = {}
-        if os.path.exists(CONFIG_FILE_PATH):
-            try:
-                with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-            except Exception as e:
-                logger.error(f"Error cargando config inicial: {e}")
-        
-        saved_mode_value = config_data.get("last_active_mode_value", 0.0)
-        
-        hours = 0
-        minutes = 15
-        temp = 35.0
-        flow = 100.0
-
-        mode_config = config_data.get("modes", {}).get(str(saved_mode_value))
-        if mode_config:
-            hours = mode_config.get("time_hours", 0)
-            minutes = mode_config.get("time_minutes", 15)
-            temp = mode_config.get("mode_temp", 35.0)
-            flow = mode_config.get("mode_flow", 100.0)
-            
-        self.time_label.setText(f"Tiempo configurado: {hours:02d}:{minutes:02d}")
-        self.temp_label.setText(f"Temperatura configurada: {temp:.1f} °C")
-        self.flow_label.setText(f"Flujo configurado: {flow:.1f} ml/min")
-
-        self.selected_mode = None
-        self.btn_mode_group.setExclusive(False)
-        self.btn_short.setChecked(False)
-        self.btn_long.setChecked(False)
-        self.btn_mode_group.setExclusive(True)
-
-    def _handle_cb_flow_input(self, value: float):
-        if value is None: return 
-        try: 
-            cycles_value = convertir_flujo_a_ciclos(value)
-            self.on_user_input_setpoint("balanceChamberSetTiming", cycles_value)
-        except Exception as e:
-            logger.error(f"Error convirtiendo flujo: {e}")
-
-    def _start_cleaning(self):
-        if self.selected_mode is None:
-            self.parent_window.show_warning_message("Seleccione un modo de desinfección", 2000)
-            return
-
-        self._load_mode_specific_configuration(self.selected_mode)
-        self.cleaning_in_progress = True
-        self.cleaning_timer_started = False        
-        self.cleaning_active_duration = 0.0
-        self.cleaning_segment_start = None
-
-        self.update_buttons_state(treatment_mode_selection=3.0) # verificar
-        self.mid_pause_done = False
-        self.cleaning_active_changed.emit(True)
-
-        self.cleaning_active_changed.emit(True)
-        # self.cleaning_resumed.emit()
-
-        self.btn_short.setEnabled(False)
-        self.btn_long.setEnabled(False)
-
-        try:
-            self.on_user_input_setpoint("treatmentModeSelection", 3.0)
-            self.on_user_boolean_command("dialyStartDialysisButt", True)
-            self.on_user_boolean_command("dialyStopDialysisButt", False)
-
-            self.current_phase = "Preparando sistema..."
-            self.phase_label.setText(self.current_phase)
-            self.phase_label.setStyleSheet("color: #facc15; font-size: 32px; font-weight: bold;")
-
-            self.start_button.setEnabled(False)
-            self.start_button.setText("En proceso...")
-            self.stop_button.setEnabled(True)
-
-        except Exception as e:
-            logger.error(f"Error al iniciar limpieza: {e}")
-            self.cleaning_in_progress = False
-            self.cleaning_active_changed.emit(False)
-
-    def _stop_cleaning(self):
-        self.cleaning_in_progress = False
-        self.waiting_for_line_change_confirmation = False
-        self.cleaning_active_changed.emit(False)
-
-        try:
-            self.on_user_boolean_command("dialyStartDialysisButt", False)
-            self.on_user_boolean_command("dialyStopDialysisButt", True)
-        except Exception as e:
-            logger.error(f"Error enviando stop: {e}")
-
-        self.reset_ui()
-        self.parent_window.show_info_message("Limpieza detenida...", 2000)
-
-    def reset_ui(self):
-        self.cleaning_in_progress = False
-        self.progress_timer.stop()
-        self.mid_pause_done = False
-        self.waiting_for_line_change_confirmation = False
-
-        self.current_phase = "Esperando modo de limpieza..."
-        self.phase_label.setText(self.current_phase)
-        self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold;")
-
-        self.progress_bar.setValue(0)
+    def _update_config_display_labels_to_default(self):
+        """Resetea las etiquetas de tiempo/temperatura/flujo a su estado por defecto sin selección."""
         self.time_label.setText("Tiempo configurado: --:--")
         self.temp_label.setText("Temperatura configurada: 0.0 °C")
         self.flow_label.setText("Flujo configurado: 0.0 ml/min")
+        self.progress_bar.setMaximum(1)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("0% - 0/0 seg")
 
-        self.start_button.setEnabled(False)
-        self.start_button.setText("Iniciar")
-        self.stop_button.setEnabled(False)
-        self.btn_short.setEnabled(True)
-        self.btn_long.setEnabled(True)
+    def _handle_cb_flow_input(self, value: float):
+        if value is None: return
+        try:
+            cycles_value = convertir_flujo_a_ciclos(value)
+            self.on_user_input_setpoint("balanceChamberSetTiming", cycles_value)
+        except Exception as e:
+            logger.error(f"Error convirtiendo flujo a ciclos: {e}")
+
+    # ====================== GRAFCET: INICIO ======================
+    def _start_cleaning(self):
+        """Inicia el proceso de limpieza."""
+        if self.selected_mode is None:
+            self.parent_window.show_warning_message("Seleccione un modo de desinfección antes de iniciar.", 2000)
+            return
+
+        # Asegura que la configuración para el modo seleccionado esté cargada
+        self._load_mode_specific_configuration(self.selected_mode)
+
+        # ET2: Preparación (antes de que la infusión del hardware comience)
+        self.cleaning_phase = "PREPARING"
+        self.cleaning_in_progress = True
+        self.cleaning_timer_started = False # El QElapsedTimer aún no ha iniciado
+        self.cleaning_active_duration = 0.0
+        self.mid_pause_done = False
+        self.waiting_for_line_change_confirmation = False # No estamos esperando confirmación al inicio
+
+        # self.cleaning_active_changed.emit(True) # Notifica al padre/state manager que la limpieza está iniciando
 
         try:
-            self.start_button.clicked.disconnect()
-        except TypeError:
-            pass
-        self.start_button.clicked.connect(self._start_cleaning)
+            # Enviar comandos para iniciar la secuencia de limpieza del hardware
+            self.on_user_input_setpoint("treatmentModeSelection", 3.0) # Establecer modo de limpieza en el hardware
+            self.on_user_boolean_command("dialyStartDialysisButt", True)
+            self.on_user_boolean_command("dialyStopDialysisButt", False)
 
-        if self.selected_mode is not None:
-            self._load_mode_specific_configuration(self.selected_mode)
+            self.phase_label.setText("Preparando sistema para desinfección...")
+            self.phase_label.setStyleSheet("color: #facc15; font-size: 32px; font-weight: bold;")
 
+            # Deshabilitar elementos de la UI durante el proceso activo
+            self.start_button.setEnabled(False)
+            self.start_button.setText("Iniciando...")
+            self.stop_button.setEnabled(True)
+            self.btn_short.setEnabled(False)
+            self.btn_long.setEnabled(False)
+            self.btn_short.setStyleSheet(self.style_disabled)
+            self.btn_long.setStyleSheet(self.style_disabled)
+
+        except Exception as e:
+            logger.error(f"Error al iniciar limpieza: {e}")
+            self._reset_to_initial_state() # Resetear la UI en caso de error
+
+    # ====================== GRAFCET: TRANSICIÓN A ACTIVO (Infusión del Hardware) ======================
+    def _start_real_cleaning_timer(self):
+        """
+        Se llama cuando `primingProcessStatus == 6` (estado de infusión) es detectado
+        Y la pantalla está en fase "PREPARING" (inicio o reanudación confirmada por el usuario).
+        Inicia o reanuda la cuenta regresiva de la UI y el conteo de duración activa.
+        """
+        # Si la fase ya es ACTIVE, no hay nada que hacer.
+        if self.cleaning_phase == "ACTIVE":
+            return
+
+        self.cleaning_phase = "ACTIVE"
+        self.cleaning_timer_started = True
+
+        # Iniciar o reiniciar el temporizador de alta precisión para la duración activa acumulada
+        if not self.active_elapsed_timer.isValid():
+            self.active_elapsed_timer.start()
+            self.cleaning_active_changed.emit(True)
+        else:
+            self.active_elapsed_timer.restart() # Reiniciar para contar el nuevo segmento de tiempo activo
+
+        self.phase_label.setText("Desinfección química en curso...")
+        self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
+
+        # Iniciar el temporizador de cuenta regresiva de la UI si no está activo
+        if not self.progress_timer.isActive():
+            self.progress_timer.start() # Usa el intervalo configurado (1000ms)
+            logger.info("Progress timer RE-INICIADO.")
+        self._update_time_display() # Actualizar inmediatamente la UI
+
+        # **** EMITIR SEÑAL para que TimerManager comience a contar ****
+        self.cleaning_started_counting.emit()
+        logger.debug("cleaning_started_counting signal emitted.")
+
+
+    # ====================== GRAFCET: ACTUALIZACIÓN DE PROGRESO ======================
     def _update_progress(self):
-        if not self.cleaning_in_progress:
+        """
+        Decrementa el tiempo restante y actualiza la barra de progreso.
+        Maneja la pausa a mitad de proceso.
+        Esta función solo se ejecuta si `self.progress_timer` está activo.
+        """
+        if self.cleaning_phase != "ACTIVE":
+            # Esto es una salvaguarda; idealmente, no debería ser llamado si no está en fase ACTIVE
+            # Pero asegura que el timer de la UI se detenga si por alguna razón sigue activo.
+            self.progress_timer.stop()
+            self.cleaning_stopped_counting.emit() # Asegurar que TimerManager también pare
+            logger.warning(f"Progress timer corriendo en fase incorrecta ({self.cleaning_phase}). Detenido.")
             return
 
         if self.remaining_time_seconds > 0:
@@ -344,933 +418,344 @@ class CleaningScreen(QWidget):
             self.progress_bar.setValue(self.total_time_seconds - self.remaining_time_seconds)
             self._update_time_display()
 
-            if not self.mid_pause_done and self.remaining_time_seconds <= self.total_time_seconds // 2:
+            # Transición a pausa intermedia (a la mitad del tiempo)
+            if not self.mid_pause_done and self.total_time_seconds > 0 and \
+               self.remaining_time_seconds <= self.total_time_seconds // 2:
+                logger.info(f"Punto medio alcanzado. Iniciando pausa para cambio de línea. Tiempo restante: {self.remaining_time_seconds}")
                 self._pause_for_line_change()
-                return
+                return # Salir para evitar más decrementos de tiempo en este ciclo
         else:
+            # Limpieza completada
+            logger.info("Tiempo de limpieza agotado. Finalizando limpieza.")
             self.progress_timer.stop()
             self._finish_cleaning()
 
     def _pause_for_line_change(self):
+        """ET4: Pausa obligatoria para cambio de línea."""
+        self._accumulate_active_time() # Acumular tiempo activo antes de pausar
+        
+        # **** EMITIR SEÑAL para que TimerManager PARE de contar ****
+        self.cleaning_stopped_counting.emit()
+        logger.debug("cleaning_stopped_counting signal emitted for pause.")
+
+        self.cleaning_phase = "PAUSED"
         self.mid_pause_done = True
-        self.waiting_for_line_change_confirmation = True
+        self.waiting_for_line_change_confirmation = True # Indica que un diálogo está abierto y bloqueando
 
-        # Acumular tiempo activo antes de pausar
-        self._accumulate_active_time()    
-        self.progress_timer.stop()
-        self.cleaning_paused.emit()       
+        self.progress_timer.stop() # ¡Detener el temporizador de cuenta regresiva de la UI!
+        logger.info("Progress timer DETENIDO por pausa intermedia.")
 
-        self.current_phase = "Pausa: Cambiar línea"
-        self.phase_label.setText(self.current_phase)
+        self.phase_label.setText("PAUSA: Cambie la línea")
         self.phase_label.setStyleSheet("color: #f59e0b; font-size: 34px; font-weight: bold;")
 
+        # Enviar comandos para detener el proceso del hardware (estado de idle)
         self.on_user_boolean_command("dialyStartDialysisButt", False)
         self.on_user_boolean_command("dialyStopDialysisButt", True)
 
-        if self._confirm_message("Cambie la línea y presione Continuar", "Continuar", "Cancelar"):
+        # Mostrar diálogo de confirmación (BLOQUEANTE)
+        user_confirmed = self._confirm_message("Cambie la línea y presione 'Continuar' para reanudar.", "Continuar", "Detener")
+        
+        # Una vez que el diálogo se cierra (el usuario ha hecho una elección)
+        if user_confirmed:
             self._resume_cleaning()
         else:
+            # El usuario eligió detener la limpieza durante la pausa
             self._stop_cleaning()
 
+    def _resume_cleaning(self):
+        """Reanuda el proceso de limpieza después de una pausa intermedia."""
+        logger.info("Usuario ha confirmado reanudación. Preparando para reanudar limpieza.")
+        self.waiting_for_line_change_confirmation = False # El diálogo ya no está abierto
+        
+        # Volver a entrar en PREPARING para esperar que el hardware alcance el estado de infusión (primingProcessStatus == 6)
+        self.cleaning_phase = "PREPARING"
 
+        self.phase_label.setText("Reanudando... Esperando hardware")
+        self.phase_label.setStyleSheet("color: #facc15; font-size: 32px; font-weight: bold;")
+
+        # Enviar comandos para reiniciar el proceso del hardware
+        self.on_user_boolean_command("dialyStartDialysisButt", True)
+        self.on_user_boolean_command("dialyStopDialysisButt", False)
+
+    def _finish_cleaning(self):
+        """Finaliza el proceso de limpieza cuando el tiempo expira."""
+        self._accumulate_active_time() # Acumular cualquier tiempo activo restante
+        self.progress_timer.stop() # Asegurarse de que el temporizador esté detenido
+
+        # **** EMITIR SEÑAL para que TimerManager PARE de contar ****
+        self.cleaning_stopped_counting.emit()
+        logger.debug("cleaning_stopped_counting signal emitted for finish.")
+
+        # Enviar comandos para detener el proceso del hardware
+        self.on_user_boolean_command("dialyStartDialysisButt", False)
+        self.on_user_boolean_command("dialyStopDialysisButt", True)
+
+        self.cleaning_phase = "FINISHED"
+        self.cleaning_in_progress = False
+        self.cleaning_timer_started = False
+        self.cleaning_active_changed.emit(False) # Notificar al padre/state manager que la limpieza ha terminado
+
+        self.phase_label.setText("Limpieza completada ✓")
+        self.phase_label.setStyleSheet("color: #6ee7b7; font-size: 36px; font-weight: bold;")
+
+        self.progress_bar.setValue(self.total_time_seconds)
+        self._update_time_display() # Mostrar "00:00" para el tiempo restante
+
+        if hasattr(self.parent_window, 'finish_cleaning_session'):
+            self.parent_window.finish_cleaning_session(self.cleaning_active_duration)
+
+        # Actualizaciones de la UI para el estado finalizado
+        self.start_button.setText("Reiniciar")
+        self.start_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+
+        # Re-habilitar botones de selección de modo y seleccionar visualmente el modo completado
+        self.btn_short.setEnabled(True)
+        self.btn_long.setEnabled(True)
+        
+        # Necesitamos deshabilitar temporalmente la exclusividad para forzar el estado "checked"
+        # sin que se desmarque el otro automáticamente si no hay un toggled real
+        self.btn_mode_group.setExclusive(False) 
+        if self.selected_mode == 0.0:
+            self.btn_short.setChecked(True)
+            self.btn_long.setChecked(False)
+            self.btn_short.setStyleSheet(self.style_checked)
+            self.btn_long.setStyleSheet(self.style_unchecked)
+        elif self.selected_mode == 1.0:
+            self.btn_long.setChecked(True)
+            self.btn_short.setChecked(False)
+            self.btn_long.setStyleSheet(self.style_checked)
+            self.btn_short.setStyleSheet(self.style_unchecked)
+        self.btn_mode_group.setExclusive(True) # Re-habilitar exclusividad
+
+        # Reconectar el botón de inicio para reiniciar el modo actual (que aún está seleccionado)
+        try:
+            self.start_button.clicked.disconnect()
+        except (TypeError, RuntimeError): # RuntimeError para Python 3.11+
+            pass
+        self.start_button.clicked.connect(self._start_cleaning) # "Reiniciar" implica iniciar el mismo modo
+
+    def _accumulate_active_time(self):
+        """
+        Acumula tiempo usando QElapsedTimer (alta precisión) antes de pausar o detener.
+        """
+        # Solo acumular si el temporizador se inició y es válido y no ha expirado (es decir, está corriendo)
+        if self.cleaning_timer_started and self.active_elapsed_timer.isValid():
+            elapsed_ms = self.active_elapsed_timer.elapsed()
+            self.cleaning_active_duration += elapsed_ms / 1000.0
+            # Reiniciar el temporizador para el siguiente segmento activo, si lo hay
+            self.active_elapsed_timer.restart()
+            logger.debug(f"Acumulado {elapsed_ms/1000.0:.2f}s. Duración activa total: {self.cleaning_active_duration:.2f}s")
+        elif self.cleaning_timer_started and not self.active_elapsed_timer.isValid():
+             logger.warning("QElapsedTimer debería haberse iniciado pero no es válido. Omitiendo acumulación.")
+
+
+    def _stop_cleaning(self):
+        """Detiene el proceso de limpieza y resetea la UI a su estado inicial."""
+        logger.info("Deteniendo limpieza por solicitud del usuario.")
+        if self.cleaning_in_progress: # Solo acumular si estaba realmente en curso
+            self._accumulate_active_time()
+        
+        self.progress_timer.stop() # Asegurarse de detener el contador de UI
+
+        # **** EMITIR SEÑAL para que TimerManager PARE de contar ****
+        self.cleaning_stopped_counting.emit()
+        logger.debug("cleaning_stopped_counting signal emitted for stop.")
+
+        self.cleaning_in_progress = False
+        self.waiting_for_line_change_confirmation = False # Si estaba esperando, ya no lo está
+        self.cleaning_active_changed.emit(False) # Notificar que la limpieza ha terminado/detenido
+
+        try:
+            # Enviar comandos para detener el proceso del hardware
+            self.on_user_boolean_command("dialyStartDialysisButt", False)
+            self.on_user_boolean_command("dialyStopDialysisButt", True)
+        except Exception as e:
+            logger.error(f"Error enviando comando de paro al hardware: {e}")
+
+        self._reset_to_initial_state() # Realizar un reseteo completo de la UI
+        self.parent_window.show_info_message("Limpieza detenida.", 2000)
+
+    def _reset_to_initial_state(self):
+        """
+        Resetea todas las variables de estado internas y los elementos de la UI a su estado
+        inicial por defecto (sin modo seleccionado, botones deshabilitados).
+        """
+        logger.info("Reseteando UI a estado inicial.")
+        self.cleaning_phase = "IDLE"
+        self.cleaning_in_progress = False
+        self.cleaning_timer_started = False
+        self.cleaning_active_duration = 0.0 # Resetear la duración activa total
+        self.active_elapsed_timer = QElapsedTimer() # Resetear el temporizador de alta precisión
+
+        self.mid_pause_done = False
+        self.waiting_for_line_change_confirmation = False
+        self.selected_mode = None
+
+        self.total_time_seconds = 0
+        self.remaining_time_seconds = 0
+
+        self.progress_timer.stop()
+
+        self.phase_label.setText("Esperando selección de modo...")
+        self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold;")
+
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("0% - 0/0 seg")
+        self.progress_bar.setMaximum(1) # Asegurar que el máximo no sea 0
+        self._update_config_display_labels_to_default()
+
+        # Resetear estado de los botones
+        self.start_button.setEnabled(False)
+        self.start_button.setText("Iniciar")
+        self.stop_button.setEnabled(False)
+
+        # Resetear botones de selección de modo (desmarcarlos y habilitarlos)
+        self.btn_mode_group.setExclusive(False) # Deshabilitar exclusividad temporalmente para desmarcar
+        self.btn_short.setChecked(False)
+        self.btn_long.setChecked(False)
+        self.btn_short.setStyleSheet(self.style_unchecked)
+        self.btn_long.setStyleSheet(self.style_unchecked)
+        self.btn_short.setEnabled(True)
+        self.btn_long.setEnabled(True)
+        self.btn_mode_group.setExclusive(True) # Re-habilitar exclusividad
+
+        # Asegurar que el botón de inicio esté conectado a la lógica de inicio original
+        try:
+            self.start_button.clicked.disconnect()
+        except (TypeError, RuntimeError): 
+            pass
+        self.start_button.clicked.connect(self._start_cleaning)
 
     def _confirm_message(self, message: str, accept_text: str, cancel_text: str) -> bool:
-        dialog = FloatingConfirmDialog(self)
+        """Muestra un diálogo de confirmación personalizado."""
+        # Usar la ventana padre principal como padre del diálogo para una correcta visualización
+        dialog = FloatingConfirmDialog(self.parent_window)
         return dialog.show_confirm(message, accept_text, cancel_text)
 
     def _update_time_display(self):
+        """Actualiza la etiqueta de tiempo y el formato de la barra de progreso."""
         minutes = self.remaining_time_seconds // 60
         seconds = self.remaining_time_seconds % 60
         self.time_label.setText(f"Tiempo restante: {minutes:02d}:{seconds:02d}")
 
-    def _resume_cleaning(self):
-        self.waiting_for_line_change_confirmation = False
-        self.cleaning_segment_start = QDateTime.currentDateTime()  
-                
-        self.cleaning_resumed.emit()                   
-
-        self.on_user_boolean_command("dialyStartDialysisButt", True)
-        self.on_user_boolean_command("dialyStopDialysisButt", False)
-
-        self.current_phase = "Desinfección química en curso..."
-        self.phase_label.setText(self.current_phase)
-        self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
-
-        self.progress_timer.start(1000)
-        self._update_time_display()
-
-    def _finish_cleaning(self):
-        self._accumulate_active_time()
-        self.cleaning_in_progress = False
-        self.cleaning_timer_started = False
-        self.cleaning_active_changed.emit(False)
-
-        self.current_phase = "Limpieza completada ✓"
-        self.phase_label.setText(self.current_phase)
-        self.phase_label.setStyleSheet("color: #6ee7b7; font-size: 36px; font-weight: bold;")
-
-        self.progress_bar.setValue(self.total_time_seconds)
-        self.time_label.setText("Tiempo restante: 00:00")
-
-        try:
-            self.on_user_boolean_command("dialyStartDialysisButt", False)
-            self.on_user_boolean_command("dialyStopDialysisButt", True)
-            self.parent_window.show_success_message("✅ Ciclo de limpieza completado", 3000)
-        except Exception as e:
-            logger.error(f"Error al finalizar: {e}")
-
-        self.start_button.setText("Reiniciar")
-        self.start_button.setEnabled(True)
-        self.stop_button.setEnabled(False)
-        self.btn_short.setEnabled(True)
-        self.btn_long.setEnabled(True)
-
-        try:
-            self.start_button.clicked.disconnect()
-        except:
-            pass
-        self.start_button.clicked.connect(self.reset_ui)
-
-        # Pasar la duración activa al main para registro
-        if hasattr(self.parent_window, 'register_cleaning_session_with_duration'):
-            self.parent_window.register_cleaning_session_with_duration(self.cleaning_active_duration)
-        else:
-            # fallback temporal
-            self.parent_window.register_cleaning_session()
-
- 
-    def _accumulate_active_time(self):
-        """Acumula el tiempo del segmento activo actual"""
-        if self.cleaning_segment_start:
-            msecs = self.cleaning_segment_start.msecsTo(QDateTime.currentDateTime())
-            self.cleaning_active_duration += msecs / 1000.0
-            self.cleaning_segment_start = None
+        total_secs = self.total_time_seconds if self.total_time_seconds > 0 else 1
+        elapsed_secs = self.total_time_seconds - self.remaining_time_seconds
+        percentage = int((elapsed_secs / total_secs) * 100)
+        self.progress_bar.setFormat(f"{percentage}% - {elapsed_secs}/{self.total_time_seconds} seg")
 
     def update_values(self, new_values: dict):
+        """
+        Recibe valores actualizados del controlador/state manager.
+        Este es el punto de entrada principal para cambios de estado externos
+        que afectan la lógica de limpieza.
+        """
         self.current_values = new_values
-        treatment_mode = new_values.get("treatmentModeSelection", 0.0)
         priming_status = int(new_values.get("primingProcessStatus", 0))
 
-        if hasattr(self.parent_window, 'state'):
-            self.update_state(self.parent_window.state.current_phase)
+        logger.debug(f"CleaningScreen update_values: phase={self.cleaning_phase}, priming_status={priming_status}, in_progress={self.cleaning_in_progress}, waiting_confirm={self.waiting_for_line_change_confirmation}")
 
-        if (self.cleaning_in_progress and 
-            priming_status == 6 and 
-            not self.progress_timer.isActive() and
-            not self.waiting_for_line_change_confirmation): 
-            self._start_real_cleaning_timer()       
-            # self._start_progress_timer()
-    
-    def _start_real_cleaning_timer(self):
-        """Se llama cuando el hardware confirma status == 6"""
-        self.cleaning_timer_started = True
-        self.cleaning_segment_start = QDateTime.currentDateTime()
-        
-        self.cleaning_resumed.emit()                   # Para TimerManager
-
-        self.current_phase = "Desinfección química en curso..."
-        self.phase_label.setText(self.current_phase)
-        self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
-
-        self._start_progress_timer()   # tu método existente
-        self.parent_window.show_success_message("Limpieza activa iniciada", 2000)
+        # Lógica para iniciar/reanudar el temporizador de limpieza activa basado en el estado del hardware
+        # Esto ocurre cuando:
+        # 1. Una limpieza está en progreso (self.cleaning_in_progress es True).
+        # 2. El hardware reporta estado de infusión (priming_status == 6).
+        # 3. La pantalla está en la fase 'PREPARING', lo que significa que está lista para que el hardware
+        #    entre en infusión (ya sea al inicio o después de una reanudación confirmada por el usuario).
+        if (self.cleaning_in_progress and
+            priming_status == 6 and
+            self.cleaning_phase == "PREPARING"): # Solo si la fase es PREPARING (esperando hardware)
+            
+            logger.info(f"Detectado primingProcessStatus=6 y cleaning_phase='PREPARING'. Transicionando a ACTIVE.")
+            self._start_real_cleaning_timer()
+            
+        # Asegurar que los estados de los botones de la UI sean consistentes
+        # con el progreso general de la limpieza.
+        self.update_buttons_state(self.cleaning_in_progress)
 
     def update_state(self, phase: TreatmentPhase):
-        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
-        status_code = int(self.current_values.get("primingProcessStatus", 0))
-
-        if phase == TreatmentPhase.CLEANING or (treatment_mode == 3):
-            if self.cleaning_in_progress:
+        """
+        Recibe la fase de tratamiento de alto nivel actualizada del state manager.
+        Asegura que CleaningScreen reaccione si el tratamiento cambia fuera de limpieza.
+        """
+        # Si la fase global NO es limpieza, y nuestra pantalla cree que la limpieza ESTÁ en progreso
+        if phase != TreatmentPhase.CLEANING and self.cleaning_in_progress:
+            logger.warning(f"La fase de tratamiento cambió a {phase} mientras la limpieza estaba en curso. Deteniendo limpieza.")
+            self._stop_cleaning() # Forzar la detención de la limpieza si la fase global ya no es CLEANING
+        
+        # Si la fase global ES limpieza, asegurar que nuestra pantalla esté preparada
+        if phase == TreatmentPhase.CLEANING:
+            # Si no hay limpieza activa en esta pantalla Y se ha seleccionado un modo,
+            # habilitar el botón de iniciar y los botones de modo.
+            if not self.cleaning_in_progress and self.selected_mode is not None:
+                self.start_button.setEnabled(True)
+                self.btn_short.setEnabled(True)
+                self.btn_long.setEnabled(True)
+                # Asegurar que el modo seleccionado visualmente esté marcado
+                if self.selected_mode == 0.0: self.btn_short.setStyleSheet(self.style_checked)
+                elif self.selected_mode == 1.0: self.btn_long.setStyleSheet(self.style_checked)
+                # Asegurar que el otro modo esté desmarcado
+                if self.selected_mode == 0.0: self.btn_long.setStyleSheet(self.style_unchecked)
+                elif self.selected_mode == 1.0: self.btn_short.setStyleSheet(self.style_unchecked)
+                
+            elif self.cleaning_in_progress: # Si la limpieza está en curso, deshabilitar modos y habilitar detener
+                 self.start_button.setEnabled(False)
+                 self.stop_button.setEnabled(True)
+                 self.btn_short.setEnabled(False)
+                 self.btn_long.setEnabled(False)
+                 self.btn_short.setStyleSheet(self.style_disabled)
+                 self.btn_long.setStyleSheet(self.style_disabled)
+        else: # No está en fase de limpieza global
+            if not self.cleaning_in_progress: # Solo si nuestro estado local no es de limpieza activa
+                # Resetear la UI para reflejar que no estamos en el modo de limpieza
                 self.start_button.setEnabled(False)
-                self.stop_button.setEnabled(True)
-            else:
-                self.start_button.setEnabled(self.selected_mode is not None)
                 self.stop_button.setEnabled(False)
-            self.update_buttons_state(treatment_mode_selection=3.0)
-        else:
-            self.start_button.setEnabled(False)
-            self.stop_button.setEnabled(False)
-            if self.cleaning_in_progress:
-                self.cleaning_in_progress = False
-                self.cleaning_active_changed.emit(False)
-                self.reset_ui()
-            self.update_buttons_state(treatment_mode_selection=treatment_mode)
+                self.btn_short.setEnabled(True)
+                self.btn_long.setEnabled(True)
+                self.btn_short.setStyleSheet(self.style_unchecked)
+                self.btn_long.setStyleSheet(self.style_unchecked)
+                self.btn_mode_group.setExclusive(False)
+                self.btn_short.setChecked(False)
+                self.btn_long.setChecked(False)
+                self.btn_mode_group.setExclusive(True)
 
-    def update_buttons_state(self, treatment_mode_selection: float):
-        if self.cleaning_in_progress:
+
+    def update_buttons_state(self, cleaning_active: bool):
+        """
+        Actualiza el estado de habilitado/deshabilitado de los botones de inicio/detención
+        y selección de modo según si la limpieza está activa o no.
+        """
+        if cleaning_active:
             self.start_button.setEnabled(False)
             self.stop_button.setEnabled(True)
-            return
-
-        if treatment_mode_selection == 3.0 and self.selected_mode is not None:
-            self.start_button.setEnabled(True)
+            self.btn_short.setEnabled(False)
+            self.btn_long.setEnabled(False)
+            self.btn_short.setStyleSheet(self.style_disabled)
+            self.btn_long.setStyleSheet(self.style_disabled)
+        else: # Limpieza no activa
             self.stop_button.setEnabled(False)
-        else:
-            self.start_button.setEnabled(False)
-            self.stop_button.setEnabled(False)
+            self.btn_short.setEnabled(True)
+            self.btn_long.setEnabled(True)
+            # Re-aplicar el estilo correcto para los botones de modo seleccionados/no seleccionados
+            if self.selected_mode is not None:
+                self.start_button.setEnabled(True)
+                if self.selected_mode == 0.0:
+                    self.btn_short.setStyleSheet(self.style_checked)
+                    self.btn_long.setStyleSheet(self.style_unchecked)
+                else: # self.selected_mode == 1.0
+                    self.btn_long.setStyleSheet(self.style_checked)
+                    self.btn_short.setStyleSheet(self.style_unchecked)
+            else: # Ningún modo seleccionado
+                self.start_button.setEnabled(False)
+                self.btn_short.setStyleSheet(self.style_unchecked)
+                self.btn_long.setStyleSheet(self.style_unchecked)
 
-    def _start_progress_timer(self):
-        if not self.mid_pause_done:
-            self.remaining_time_seconds = self.total_time_seconds
-            self.progress_bar.setValue(0)
-
-        self.progress_bar.setMaximum(self.total_time_seconds)
-        self.current_phase = "Desinfección química en curso..."
-        self.phase_label.setText(self.current_phase)
-        self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
-
-        if not self.progress_timer.isActive():
-            self.progress_timer.start(1000)
-        self._update_time_display()
-
+    # --- Comunicación Externa (Señales) ---
     def on_user_boolean_command(self, tag, state):
+        """Emite una señal para cambiar un valor booleano en el controlador."""
         self.request_boolean_change.emit(tag, state)
 
     def on_user_input_setpoint(self, tag, value):
+        """Emite una señal para cambiar un setpoint (valor flotante) en el controlador."""
         self.request_setpoint_change.emit(tag, value)
 
-    def _handle_cb_flow_input(self, value: float):
-        if value is None: return 
-        try: 
-            cycles_value = convertir_flujo_a_ciclos(value)
-            self.on_user_input_setpoint("balanceChamberSetTiming", cycles_value)
-        except Exception as e:
-            logger.error(f"Error convirtiendo flujo: {e}")
-# # gui/service/cleaning_screen.py
-# # Cleaning / Disinfection screen (stacked index 3)
 
-
-# """
-# Módulo para la pantalla de control del ciclo de limpieza y desinfección.
-
-# """
-
-# from PySide6.QtWidgets import (
-#      QMessageBox, QWidget, QLabel, QPushButton,
-#     QProgressBar, QVBoxLayout, QHBoxLayout, QSizePolicy, QFrame, QButtonGroup
-# )
-# from PySide6.QtCore import Qt, QTimer, Signal
-# import logging
-# import json
-# import os
-# from logic.calculos import convertir_flujo_a_ciclos 
-# from core.state_manager import TreatmentPhase
-# from gui.components.floating_confirm import FloatingConfirmDialog
-
-# logger = logging.getLogger(__name__)
-
-# # Definimos la ruta del archivo de configuración (igual que en la otra pantalla)
-# # Es crucial que esta ruta sea la misma que la de cleanning_config_screen.py
-# CONFIG_FILE_PATH = "config/cleaning_config.json" 
-
-
-# class CleaningScreen(QWidget):
-#     request_setpoint_change = Signal(str, float)
-#     request_boolean_change = Signal(str, bool)
-#     cleaning_active_changed = Signal(bool) # NUEVO: Señal para comunicar el estado de limpieza
-
-#     def __init__(self, parent=None, values_dict=None):
-#         super().__init__(parent)
-#         self.parent_window = parent
-#         self.current_values = values_dict if values_dict is not None else {}
-
-#         self.cleaning_in_progress = False
-#         self.mid_pause_done = False # NUEVO: Para controlar la pausa intermedia en limpieza larga
-#         self.waiting_for_line_change_confirmation = False  # Prevenir re-inicio automático durante confirmación
-#         self.cleaning_mode_active = False  # Controla la entrada/salida del modo limpieza para resetear selección
-        
-        
-#         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-#         self.setStyleSheet("background: #0f172a;")
-
-#         self.current_phase = "Esperando condiciones..."
-#         self.total_time_seconds = 0
-#         self.remaining_time_seconds = 0        
-#         self.selected_mode = None # Almacena el modo seleccionado (0.0 o 1.0)
-
-#         self.progress_timer = QTimer(self)
-#         self.progress_timer.timeout.connect(self._update_progress)
-
-#         self.setup_ui() 
-#         self._load_initial_config_on_startup() 
-        
-
-#     def setup_ui(self):
-#         main_layout = QVBoxLayout(self)
-#         main_layout.setContentsMargins(60, 40, 60, 40)
-#         main_layout.setSpacing(30)
-
-#         title_label = QLabel("Limpieza / Desinfección")
-#         title_label.setStyleSheet("color: #cbd5e1; font-size: 52px; font-weight: bold; background: transparent;")
-#         title_label.setAlignment(Qt.AlignCenter)
-#         main_layout.addWidget(title_label)
-
-#         # ── Frame para Selección de Modo ─────────────────────────────────────────
-#         mode_frame = QFrame()
-#         mode_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px; padding: 15px;")
-#         mode_layout = QHBoxLayout(mode_frame)
-#         mode_layout.setSpacing(20)
-
-#         self.btn_mode_group = QButtonGroup(self)
-#         self.btn_mode_group.setExclusive(True)
-
-#         self.btn_short = QPushButton("Desinfección Química Corta")
-#         self.btn_long = QPushButton("Desinfección Química Larga")
-
-#         self.style_unchecked = """
-#             QPushButton {
-#                 background: #3b82f6; color: #ffffff; font-size: 24px; font-weight: bold;
-#                 border-radius: 12px; padding: 15px; border: 2px solid #2563eb;
-#             }
-#             QPushButton:hover { background: #60a5fa; }
-#         """
-#         self.style_checked = """
-#             QPushButton {
-#                 background: #22c55e; color: #ffffff; font-size: 24px; font-weight: bold;
-#                 border-radius: 12px; padding: 15px; border: 2px solid #16a34a;
-#             }
-#         """
-
-#         for btn, mode_val in [(self.btn_short, 0.0), (self.btn_long, 1.0)]:
-#             btn.setStyleSheet(self.style_unchecked)
-#             btn.setCheckable(True)
-#             btn.toggled.connect(lambda checked, b=btn, val=mode_val: self._on_mode_toggled(b, val, checked))
-#             mode_layout.addWidget(btn)
-#             self.btn_mode_group.addButton(btn)
-
-#         main_layout.addWidget(mode_frame)
-
-#         # ── Current Phase / Status ───────────────────────────────────────────────
-#         self.phase_label = QLabel(self.current_phase)
-#         self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold; background: transparent; min-height: 60px;")
-#         self.phase_label.setAlignment(Qt.AlignCenter)
-#         main_layout.addWidget(self.phase_label)
-
-#         # ── Progress Bar ─────────────────────────────────────────────────────────
-#         self.progress_bar = QProgressBar()
-#         self.progress_bar.setMinimum(0)
-#         self.progress_bar.setMaximum(100)
-#         self.progress_bar.setValue(0)
-#         self.progress_bar.setTextVisible(True)
-#         self.progress_bar.setFormat("%p% - %v/%m seg")
-#         self.progress_bar.setFixedHeight(60)
-#         self.progress_bar.setStyleSheet("""
-#             QProgressBar {
-#                 background: #1e293b; border: 2px solid #475569; border-radius: 10px;
-#                 text-align: center; color: #ffffff; font-size: 24px; font-weight: bold;
-#             }
-#             QProgressBar::chunk {
-#                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #60a5fa);
-#                 border-radius: 8px;
-#             }
-#         """)
-#         main_layout.addWidget(self.progress_bar)
-
-#         # ── Remaining Time ───────────────────────────────────────────────────────
-#         self.time_label = QLabel("Tiempo configurado: --:--")
-#         self.time_label.setStyleSheet("color: #cbd5e1; font-size: 28px; font-weight: bold; background: transparent;")
-#         self.time_label.setAlignment(Qt.AlignCenter)
-#         main_layout.addWidget(self.time_label)
-
-#         self.temp_label = QLabel("Temperatura configurada: 0.0 °C")
-#         self.temp_label.setStyleSheet("color: #cbd5e1; font-size: 28px; font-weight: bold; background: transparent;")
-#         self.temp_label.setAlignment(Qt.AlignCenter)
-#         main_layout.addWidget(self.temp_label)
-
-#         self.flow_label = QLabel("Flujo configurado: 0.0 ml/min")
-#         self.flow_label.setStyleSheet("color: #cbd5e1; font-size: 28px; font-weight: bold; background: transparent;")
-#         self.flow_label.setAlignment(Qt.AlignCenter)
-#         main_layout.addWidget(self.flow_label)
-
-#         main_layout.addStretch()
-
-#         # ── Start / Stop Buttons ───────────────────────────────────────────────
-#         button_layout = QHBoxLayout()
-#         button_layout.addStretch()
-
-#         self.start_button = QPushButton("Iniciar")
-#         self.start_button.setFixedSize(300, 100)
-#         self.start_button.setEnabled(False)  
-#         self.start_button.setProperty("base_color", "#047857")         
-#         self.start_button.setStyleSheet("""
-#             QPushButton {
-#                 background: #047857; color: #ffffff; font-size: 38px; font-weight: bold;
-#                 border: none; border-radius: 16px; padding: 10px;
-#             }
-#             QPushButton:hover { background: #065f46; }
-#             QPushButton:pressed { background: #064e3b; }
-#             QPushButton:disabled { background: #334155; color: #64748b; }
-#         """)
-#         self.start_button.clicked.connect(self._start_cleaning)
-#         button_layout.addWidget(self.start_button)
-
-#         # === Botón de Detener Limpieza ===
-#         self.stop_button = QPushButton("Detener")
-#         self.stop_button.setFixedSize(300, 100)
-#         self.stop_button.setEnabled(False) # Inicialmente deshabilitado
-#         self.stop_button.setStyleSheet("""
-#             QPushButton {
-#                 background: #dc2626; color: #ffffff; font-size: 38px; font-weight: bold;
-#                 border: none; border-radius: 16px; padding: 10px;
-#             }
-#             QPushButton:hover { background: #b91c1c; }
-#             QPushButton:pressed { background: #991b1b; }
-#             QPushButton:disabled { background: #334155; color: #64748b; }
-#         """)
-#         self.stop_button.clicked.connect(self._stop_cleaning)
-#         button_layout.addWidget(self.stop_button)
-#         # ========================================
-
-#         button_layout.addStretch()
-#         main_layout.addLayout(button_layout)
-
-#         # Initial UI state
-#         self.phase_label.setText("Esperando estado listo...")
-#         self.progress_bar.setValue(0)
-#         self.progress_timer.stop()
-
-#     def _handle_cb_flow_input(self, value: float):
-#         if value is None: return 
-#         flow_ml_min = value 
-#         print(f"Valor de flujo recibido para conversión: {flow_ml_min} ml/min")
-
-#         try: 
-#             cycles_value = convertir_flujo_a_ciclos(flow_ml_min)
-#             tag = "balanceChamberSetTiming"
-#             self.on_user_input_setpoint(tag, cycles_value)
-#             print(f"Flujo enviado correctamente: {cycles_value}")
-
-#         except Exception as e:
-#             logger.error(f"Error al convertir flujo en ciclos máquina: {e}")
-
-    # def _load_initial_config_on_startup(self):
-    #     """
-    #     Carga la última configuración guardada al iniciar la pantalla
-    #     y simula la selección del botón correspondiente.
-    #     """
-    #     config_data = {}
-    #     if os.path.exists(CONFIG_FILE_PATH):
-    #         try:
-    #             with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
-    #                 config_data = json.load(f)
-    #         except (json.JSONDecodeError, Exception) as e:
-    #             logger.error(f"Error al cargar configuración inicial desde JSON: {e}")
-        
-    #     saved_mode_value = config_data.get("last_active_mode_value", 0.0)
-        
-    #     # --- Inicializar todas las variables por defecto ---
-    #     hours = 0
-    #     minutes = 15
-    #     temp = 35.0
-    #     flow = 100.0 # Valor por defecto para flujo
-    #     # ----------------------------------------------------
-
-    #     mode_config = config_data.get("modes", {}).get(str(saved_mode_value))
-    #     if mode_config:
-    #         hours = mode_config.get("time_hours", 0)
-    #         minutes = mode_config.get("time_minutes", 15)
-    #         temp = mode_config.get("mode_temp", 35.0)
-    #         flow = mode_config.get("mode_flow", 100.0) # Obtener flow, con valor por defecto
-            
-    #     self.time_label.setText(f"Tiempo configurado: {hours:02d}:{minutes:02d}")
-    #     self.temp_label.setText(f"Temperatura configurada: {temp:.1f} °C")
-    #     self.flow_label.setText(f"Flujo configurado: {flow:.1f} ml/min")
-
-    #     # No seleccionar automáticamente un modo al cargar la configuración inicial.
-    #     # El usuario deberá elegir un modo activo antes de iniciar limpieza.
-    #     self.selected_mode = None
-    #     self.btn_mode_group.setExclusive(False)
-    #     self.btn_short.setChecked(False)
-    #     self.btn_long.setChecked(False)
-    #     self.btn_mode_group.setExclusive(True)
-
-#     def _clear_mode_selection(self, reset_display: bool = True):
-#         """Deselecciona los botones de modo y actualiza el estado básico de la UI."""
-#         self.selected_mode = None
-#         self.btn_mode_group.setExclusive(False)
-#         self.btn_short.setChecked(False)
-#         self.btn_long.setChecked(False)
-#         self.btn_mode_group.setExclusive(True)
-#         self.btn_short.setEnabled(True)
-#         self.btn_long.setEnabled(True)
-
-#         if reset_display:
-#             self.time_label.setText("Tiempo configurado: --:--")
-#             self.temp_label.setText("Temperatura configurada: 0.0 °C")
-#             self.flow_label.setText("Flujo configurado: 0.0 ml/min")
-#             self.progress_bar.setValue(0)
-#             self.total_time_seconds = 0
-#             self.remaining_time_seconds = 0
-
-#         self.start_button.setEnabled(False)
-#         self.start_button.setText("Iniciar")
-#         self.start_button.setStyleSheet("""
-#             QPushButton {
-#                 background: #334155; color: #64748b;
-#                 font-size: 38px; font-weight: bold; border: none;
-#                 border-radius: 16px; padding: 10px;
-#             }
-#         """)
-
-#     def reset_cleaning_mode_selection(self, reset_display: bool = True):
-#         """Resetear la selección de modo al entrar en la pantalla o al salir de modo limpieza."""
-#         if self.cleaning_in_progress:
-#             return
-#         self.cleaning_mode_active = False
-#         self._clear_mode_selection(reset_display=reset_display)
-
-    # def _on_mode_toggled(self, button, mode_value, checked):
-    #     """Maneja la selección del modo, carga el JSON y envía los tags"""
-    #     if checked:
-    #         button.setStyleSheet(self.style_checked)
-    #         self.selected_mode = mode_value
-    #         self._load_mode_specific_configuration(mode_value) # Carga la configuración específica del modo
-    #     else:
-    #         button.setStyleSheet(self.style_unchecked)
-
-
-    
-
-    # def _load_mode_specific_configuration(self, mode_value: float):
-    #     """
-    #     Carga el tiempo desde JSON para el modo específico,
-    #     actualiza la UI y envía los tags al controlador.
-    #     """
-    #     # --- Inicializar todas las variables por defecto ---
-    #     hours, minutes = 0, 15 # Valores por defecto (15 min)
-    #     _temp = 35.0 
-    #     _flow = 100.0 # Valor por defecto para flujo
-    #     # ----------------------------------------------------
-
-    #     config_data = {}
-    #     if os.path.exists(CONFIG_FILE_PATH):
-    #         try:
-    #             with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
-    #                 config_data = json.load(f)
-    #         except (json.JSONDecodeError, Exception) as e:
-    #             logger.error(f"Error al leer JSON de limpieza para modo {mode_value}: {e}")
-
-    #     # Intentar obtener la configuración para el modo específico
-    #     mode_config = config_data.get("modes", {}).get(str(mode_value))
-    #     # print(f"Configuración cargada para modo {mode_value}: {mode_config}")
-    #     if mode_config:
-    #         hours = mode_config.get("time_hours", 0)
-    #         minutes = mode_config.get("time_minutes", 15)
-    #         _temp = mode_config.get("mode_temp", 35.0)
-    #         _flow = mode_config.get("mode_flow", 100.0)
-        
-    #     # Calcular total en segundos
-    #     self.total_time_seconds = (hours * 3600) + (minutes * 60)
-    #     self.remaining_time_seconds = self.total_time_seconds
-        
-    #     # Escribir los valores solicitados al controlador
-    #     self.on_user_input_setpoint("heparineTherapyHours", float(hours))
-    #     self.on_user_input_setpoint("heparineTherapyMinutes", float(minutes))
-    #     self.on_user_input_setpoint("dialyTempControlSetPoint", float(_temp))
-    #     self._handle_cb_flow_input(_flow)
-    #     # Actualizar UI
-    #     self.time_label.setText(f"Tiempo configurado: {hours:02d}:{minutes:02d}")
-    #     self.temp_label.setText(f"Temperatura configurada: {_temp:.1f} °C")
-    #     self.flow_label.setText(f"Flujo configurado: {_flow:.1f} ml/min")
-    #     self.progress_bar.setMaximum(self.total_time_seconds)
-    #     self.progress_bar.setValue(0)
-    #     logger.info(f"Modo {mode_value} cargado. Tiempo: {hours}h {minutes}m. Escrito a controlador.")
-
-
-
-    # def _start_cleaning(self):
-    #     """Inicia el ciclo de limpieza"""
-    #     if self.selected_mode is None:
-    #         self.parent_window.show_warning_message("Seleccione un modo de desinfección", 2000)
-    #         return
-
-    #     self._load_mode_specific_configuration(self.selected_mode)        
-    #     self.cleaning_in_progress = True
-    #     self.update_buttons_state(treatment_mode_selection=3.0)
-    #     self.mid_pause_done = False
-    #     self.cleaning_active_changed.emit(True)   # ← Muy importante
-    #     self.btn_short.setEnabled(False)
-    #     self.btn_long.setEnabled(False)
-
-    #     try:
-    #         self.on_user_input_setpoint("treatmentModeSelection", 3.0)
-    #         self.on_user_boolean_command("dialyStartDialysisButt", True)
-    #         self.on_user_boolean_command("dialyStopDialysisButt", False)
-
-    #         self.parent_window.show_info_message("Iniciando ciclo de limpieza...", 1000)
-
-    #         self.current_phase = "Preparando sistema..."
-    #         self.phase_label.setText(self.current_phase)
-    #         self.phase_label.setStyleSheet("color: #facc15; font-size: 32px; font-weight: bold;")
-
-    #         self.start_button.setEnabled(False)
-    #         self.start_button.setText("En proceso...")
-    #         self.stop_button.setEnabled(True)
-
-    #     except Exception as e:
-    #         logger.error(f"Error al iniciar limpieza: {e}")
-    #         self.cleaning_in_progress = False
-    #         self.cleaning_active_changed.emit(False)
-
-    # def _stop_cleaning(self):
-    #     """Detención manual"""
-    #     logger.info("Deteniendo limpieza manualmente.")
-
-    #     self.cleaning_in_progress = False
-    #     self.waiting_for_line_change_confirmation = False  # Limpiar bandera de pausa
-    #     self.cleaning_active_changed.emit(False)        # ← CRÍTICO
-
-    #     try:
-    #         self.on_user_boolean_command("dialyStartDialysisButt", False)
-    #         self.on_user_boolean_command("dialyStopDialysisButt", True)
-    #     except Exception as e:
-    #         logger.error(f"Error enviando stop: {e}")
-
-    #     self.reset_ui()
-    #     self.parent_window.show_info_message("Limpieza detenida por usuario", 2000)
-
-  
- 
-    # def reset_ui(self):
-    #     """Reinicia la UI"""
-    #     self.cleaning_in_progress = False
-    #     self.progress_timer.stop()
-    #     self.mid_pause_done = False
-    #     self.waiting_for_line_change_confirmation = False
-
-    #     self.current_phase = "Esperando modo de limpieza..."
-    #     self.phase_label.setText(self.current_phase)
-    #     self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold;")
-
-    #     self.progress_bar.setValue(0)
-    #     self.time_label.setText("Tiempo configurado: --:--")
-    #     self.temp_label.setText("Temperatura configurada: 0.0 °C")
-    #     self.flow_label.setText("Flujo configurado: 0.0 ml/min")
-
-    #     self.start_button.setEnabled(False)
-    #     self.start_button.setText("Iniciar")
-    #     self.stop_button.setEnabled(False)
-    #     self.btn_short.setEnabled(True)
-    #     self.btn_long.setEnabled(True)
-        
-    #     try:
-    #         self.start_button.clicked.disconnect()
-    #     except TypeError:
-    #         pass
-    #     self.start_button.clicked.connect(self._start_cleaning)
-
-    #     if self.selected_mode is not None:
-    #         self._load_mode_specific_configuration(self.selected_mode)
-
-
-    # def _update_progress(self):
-    #     """Actualiza el progreso cada segundo"""
-    #     if not self.cleaning_in_progress:
-    #         return
-
-    #     if self.remaining_time_seconds > 0:
-    #         self.remaining_time_seconds -= 1
-    #         self.progress_bar.setValue(self.total_time_seconds - self.remaining_time_seconds)
-    #         self._update_time_display()
-
-    #         # Pausa intermedia
-    #         half_time = self.total_time_seconds // 2
-    #         if (not self.mid_pause_done and 
-    #             self.remaining_time_seconds <= half_time):            
-    #             self._pause_for_line_change()
-    #             return  #no seguir descontando
-    #     else:
-    #         self.progress_timer.stop()
-    #         self._finish_cleaning()
-
-
-    # def _pause_for_line_change(self):
-    #     """Pausa el proceso en la mitad para cambiar la línea"""
-    #     self.mid_pause_done = True
-    #     self.progress_timer.stop()   # Pausamos el timer
-    #     self.waiting_for_line_change_confirmation = True  # Bloquear re-inicio automático desde update_values
-
-    #     self.current_phase = "Pausa: Cambiar línea"
-    #     self.phase_label.setText(self.current_phase)
-    #     self.phase_label.setStyleSheet("color: #f59e0b; font-size: 34px; font-weight: bold;")  # Naranja
-
-    #     # Detener proceso en la máquina
-    #     self.on_user_boolean_command("dialyStartDialysisButt", False)
-    #     self.on_user_boolean_command("dialyStopDialysisButt", True)
-
-    #     message = "Por favor, cambie la línea y luego presione Continuar para reanudar la limpieza."
-    #     accept_text = "Continuar..."
-    #     cancel_text = "Cancelar"
-    #     # Mostrar confirmación
-    #     if self._confirm_message(message, accept_text, cancel_text):
-    #         self._resume_cleaning()        
-    #     else:
-    #         # Si cancela, detenemos todo
-    #         self._stop_cleaning()
-    
-
-#     def _confirm_message(self, message: str, accept_text: str, cancel_text: str) -> bool:
-#         """Muestra un mensaje de confirmación flotante y devuelve True si se acepta."""
-#         dialog = FloatingConfirmDialog(self)
-#         return dialog.show_confirm(message, accept_text=accept_text, cancel_text=cancel_text)
-        
-#     def _update_time_display(self):
-#         """Format and display remaining time."""
-#         minutes = self.remaining_time_seconds // 60
-#         seconds = self.remaining_time_seconds % 60
-#         self.time_label.setText(f"Tiempo restante: {minutes:02d}:{seconds:02d}")
-
-#     def _resume_cleaning(self):
-#         """Reanuda el proceso después de cambiar la línea"""
-#         self.waiting_for_line_change_confirmation = False  # Permitir nuevamente la lógica de update_values
-        
-#         self.on_user_boolean_command("dialyStartDialysisButt", True)
-#         self.on_user_boolean_command("dialyStopDialysisButt", False)
-
-#         self.current_phase = "Desinfección química en curso..."
-#         self.phase_label.setText(self.current_phase)
-#         self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
-
-#         self.progress_timer.start(1000)  # Reanudar timer
-#         logger.info(f"Limpieza reanudada - Tiempo restante: {self.remaining_time_seconds} seg")
-
-        
-#     def _finish_cleaning(self):
-#         """Finaliza el ciclo de limpieza (por tiempo)"""
-#         logger.info("Finalizando ciclo de limpieza automáticamente.")
-
-#         self.cleaning_in_progress = False
-#         self.cleaning_active_changed.emit(False)        # ← CRÍTICO
-
-#         self.current_phase = "Limpieza completada ✓"
-#         self.phase_label.setText(self.current_phase)
-#         self.phase_label.setStyleSheet("color: #6ee7b7; font-size: 36px; font-weight: bold;")
-
-#         self.progress_bar.setValue(self.total_time_seconds)
-#         self.time_label.setText("Tiempo restante: 00:00")
-
-#         try:
-#             self.on_user_boolean_command("dialyStartDialysisButt", False)
-#             self.on_user_boolean_command("dialyStopDialysisButt", True)
-#             self.parent_window.show_success_message("✅ Ciclo de limpieza completado", 3000)
-#         except Exception as e:
-#             logger.error(f"Error al finalizar: {e}")
-
-#         self.start_button.setText("Reiniciar")
-#         self.start_button.setEnabled(True)
-#         self.stop_button.setEnabled(False)
-#         self.btn_short.setEnabled(True)
-#         self.btn_long.setEnabled(True)
-
-#         try:
-#             self.start_button.clicked.disconnect()
-#         except:
-#             pass
-#         self.start_button.clicked.connect(self.reset_ui)
-
-#     # def update_values(self, new_values: dict):
-#     #     """Recibe actualizaciones desde el main window"""
-#     #     self.current_values = new_values
-    
-#     #     treatment_mode = new_values.get("treatmentModeSelection", 0.0)
-#     #     priming_status = int(new_values.get("primingProcessStatus", 0))
-
-#     #     current_cleaning_mode = (treatment_mode == 3.0)
-#     #     if current_cleaning_mode and not self.cleaning_mode_active and not self.cleaning_in_progress:
-#     #         self.cleaning_mode_active = True
-#     #         self._clear_mode_selection(reset_display=True)
-#     #     elif not current_cleaning_mode and self.cleaning_mode_active:
-#     #         self.cleaning_mode_active = False
-#     #         self._clear_mode_selection(reset_display=True)
-
-#     #     if hasattr(self.parent_window, 'state'):
-#     #         self.update_state(self.parent_window.state.current_phase)
-
-#     #     # === LÓGICA CLAVE: Iniciar conteo solo cuando llegue al estado 6 (infusión) ===
-#     #     # Pero NO si estamos esperando confirmación de cambio de línea
-#     #     if (self.cleaning_in_progress and 
-#     #         priming_status == 6 and 
-#     #         not self.progress_timer.isActive() and
-#     #         not self.waiting_for_line_change_confirmation):        
-#     #         self._start_progress_timer()
-    
-#     def update_values(self, new_values: dict):
-#         """Recibe actualizaciones desde el main window"""
-#         self.current_values = new_values
-    
-#         treatment_mode = new_values.get("treatmentModeSelection", 0.0)
-#         priming_status = int(new_values.get("primingProcessStatus", 0))
-
-#         current_cleaning_mode = (treatment_mode == 3.0)
-
-#         # Solo limpiar si realmente salimos de modo limpieza
-#         if not current_cleaning_mode and self.cleaning_mode_active:
-#             self.cleaning_mode_active = False
-#             if not self.cleaning_in_progress:
-#                 self._clear_mode_selection(reset_display=True)
-#         elif current_cleaning_mode and not self.cleaning_mode_active:
-#             self.cleaning_mode_active = True
-
-#         if hasattr(self.parent_window, 'state'):
-#             self.update_state(self.parent_window.state.current_phase)
-
-#         # Iniciar conteo cuando llegue a estado 6
-#         if (self.cleaning_in_progress and 
-#             priming_status == 6 and 
-#             not self.progress_timer.isActive() and
-#             not self.waiting_for_line_change_confirmation):        
-#             self._start_progress_timer()
-
-#     def _start_progress_timer(self):
-#         """Inicia o reanuda el temporizador de progreso.
-    
-#         IMPORTANTE: No reinicia el tiempo restante si ya se hizo la pausa intermedia.
-#         """
-#         # Solo resetear el tiempo la PRIMERA vez (inicio del ciclo)
-#         if not self.mid_pause_done:
-#             self.remaining_time_seconds = self.total_time_seconds
-#             self.progress_bar.setValue(0)
-#             logger.info(f"Iniciando temporizador desde cero: {self.total_time_seconds} segundos")
-#         else:
-#             logger.info(f"Reanudando temporizador - Tiempo restante: {self.remaining_time_seconds} segundos")
-
-#         # Configurar barra de progreso
-#         self.progress_bar.setMaximum(self.total_time_seconds)
-    
-#         # Actualizar fase
-#         self.current_phase = "Desinfección química en curso..."
-#         self.phase_label.setText(self.current_phase)
-#         self.phase_label.setStyleSheet("color: #22c55e; font-size: 32px; font-weight: bold;")
-
-#         # Iniciar timer
-#         if not self.progress_timer.isActive():
-#             self.progress_timer.start(1000)
-    
-#         self._update_time_display()
-    
-#         logger.info(f"Temporizador iniciado (mid_pause_done={self.mid_pause_done})")
-
-#     def update_buttons_state(self, treatment_mode_selection: float):
-#         """
-#         Habilita o deshabilita el botón de limpieza basado en el modo de tratamiento (treatmentModeSelection).
-#         """
-#         style_disabled = """
-#             QPushButton {
-#                 background: #334155; color: #64748b;
-#                 font-size: 38px; font-weight: bold; border: none;
-#                 border-radius: 16px; padding: 10px;
-#             }
-#         """
-#         style_disabled_ = """
-#             QPushButton {
-#                 background: #334155; color: #64748b;
-#                 font-size: 24px; font-weight: bold; border: none;
-#                 border-radius: 12px; padding: 15px; border: 2px solid #2563eb;
-#             }
-#         """
-#         def set_enabled_style(btn):
-#             color = btn.property("base_color") or "#047857"
-#             btn.setStyleSheet(f"""
-#                 QPushButton {{
-#                     background: {color}; color: #ffffff;
-#                     font-size: 38px; font-weight: bold; border: none;
-#                     border-radius: 16px; padding: 10px;
-#                 }}
-#                 QPushButton:hover {{ background: #065f46; }}
-#                 QPushButton:pressed {{ background: #064e3b; }}
-#             """)
-
-#         def restore_mode_button_style(btn):
-#             btn.setStyleSheet(self.style_checked if btn.isChecked() else self.style_unchecked)
-
-#         if self.cleaning_in_progress:
-#             self.start_button.setEnabled(False)
-#             self.stop_button.setEnabled(True)
-#             self.start_button.setText("En proceso...")
-#             self.btn_short.setEnabled(False)
-#             self.btn_long.setEnabled(False)
-#             self.btn_short.setStyleSheet(style_disabled_)
-#             self.btn_long.setStyleSheet(style_disabled_)
-#             return
-
-#         self.btn_short.setEnabled(True)
-#         self.btn_long.setEnabled(True)
-#         restore_mode_button_style(self.btn_short)
-#         restore_mode_button_style(self.btn_long)
-
-#         if treatment_mode_selection == 3.0:
-#             if self.selected_mode is not None:
-#                 if not self.start_button.isEnabled() or self.start_button.text() != "Iniciar":
-#                     self.start_button.setEnabled(True)
-#                     set_enabled_style(self.start_button)
-#                     self.start_button.setText("Iniciar")
-#                 self.stop_button.setEnabled(False)
-#             else:
-#                 self.start_button.setEnabled(False)
-#                 self.start_button.setStyleSheet(style_disabled)
-#                 self.stop_button.setEnabled(False)
-
-#             self.current_phase = "Sistema listo para limpieza"
-#             self.phase_label.setText(self.current_phase)
-#             self.phase_label.setStyleSheet("color: #4ade80; font-size: 32px; font-weight: bold;")
-#         else: # Si el modo no es limpieza (3.0)
-#             if self.start_button.isEnabled() and self.start_button.text() != "Reiniciar":
-#                 self.start_button.setEnabled(False)
-#                 self.start_button.setStyleSheet(style_disabled)
-#                 self.stop_button.setEnabled(False)
-
-#                 self.current_phase = f"Esperando modo limpieza (Actual: {treatment_mode_selection})"
-#                 self.phase_label.setText(self.current_phase)
-#                 self.phase_label.setStyleSheet("color: #94a3b8; font-size: 32px; font-weight: bold;")
-#             elif self.start_button.text() == "Reiniciar":
-#                 self.start_button.setEnabled(True)
-#                 set_enabled_style(self.start_button)
-#                 self.stop_button.setEnabled(False)
-
-#     def update_state(self, phase: TreatmentPhase):
-#         """Método llamado por ScreenStateManager - Actualiza botones según estado global"""
-#         treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
-#         status_code = int(self.current_values.get("primingProcessStatus", 0))
-
-#         logger.debug(f"CleaningScreen - update_state: Phase={phase.name}, Mode={treatment_mode}, Status={status_code}")
-
-#         # ==================== LÓGICA PRINCIPAL ====================
-
-#         if phase == TreatmentPhase.CLEANING:
-#             # Estamos en modo limpieza
-#             if self.cleaning_in_progress:
-#                 # Durante limpieza activa
-#                 self.start_button.setEnabled(False)
-#                 self.stop_button.setEnabled(True)
-#                 self.btn_short.setEnabled(False)
-#                 self.btn_long.setEnabled(False)
-#             else:
-#                 # Listo para iniciar limpieza
-#                 self.start_button.setEnabled(self.selected_mode is not None)
-#                 self.stop_button.setEnabled(False)
-#                 self.btn_short.setEnabled(True)
-#                 self.btn_long.setEnabled(True)
-
-#             self.update_buttons_state(treatment_mode_selection=3.0)
-
-#         else:
-#             # NO estamos en limpieza (IDLE, RUNNING, PREPARING, etc.)
-#             self.start_button.setEnabled(False)
-#             self.stop_button.setEnabled(False)
-#             self.btn_short.setEnabled(True)
-#             self.btn_long.setEnabled(True)
-
-#             # Si estamos saliendo del modo limpieza, reseteamos selección
-#             if self.cleaning_mode_active:
-#                 self.cleaning_mode_active = False
-#                 self._clear_mode_selection(reset_display=True)
-
-#             self.update_buttons_state(treatment_mode_selection=treatment_mode)
-
-
-#     def on_user_boolean_command(self, tag, state):
-#         self.request_boolean_change.emit(tag, state)
-
-#     def on_user_input_setpoint(self, tag, value):
-#         self.request_setpoint_change.emit(tag, value)
-   

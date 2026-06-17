@@ -371,8 +371,12 @@ class HemodialysisHMI(QMainWindow):
         self.cleaning_screen.request_setpoint_change.connect(self._write_setpoint)
         self.cleaning_screen.request_boolean_change.connect(self._write_boolean_command)
         self.cleaning_screen.cleaning_active_changed.connect(self._handle_cleaning_status_change) 
-        self.cleaning_screen.cleaning_paused.connect(self.pause_cleaning_timer)
-        self.cleaning_screen.cleaning_resumed.connect(self.resume_cleaning_timer)
+        # self.cleaning_screen.cleaning_paused.connect(self.pause_cleaning_timer)
+        # self.cleaning_screen.cleaning_resumed.connect(self.resume_cleaning_timer)
+
+        self.cleaning_screen.cleaning_started_counting.connect(self.timer_manager.on_cleaning_started_counting)
+        self.cleaning_screen.cleaning_stopped_counting.connect(self.timer_manager.on_cleaning_stopped_counting)
+# ...
 
         self.options_screen = OptionsScreen(parent=self)
         
@@ -1257,20 +1261,49 @@ class HemodialysisHMI(QMainWindow):
                 logger.info("Manteniendo pantalla de servicio tras desconexión (permitiendo configuración).")
 
 
+    # def _handle_cleaning_status_change(self, is_cleaning_active: bool):
+    #     logger.info(f"[CLEANING] Señal recibida → Activo: {is_cleaning_active}")
+
+    #     if is_cleaning_active:
+    #         self.state.set_phase(TreatmentPhase.CLEANING, "Inicio de limpieza")
+    #         self.timer_manager.start_cleaning_timer()
+    #         self.cleaning_start_time = QDateTime.currentDateTime()
+    #         self._start_cleaning_logger()
+    #     else:
+    #         self.state.set_phase(TreatmentPhase.IDLE, "Fin de limpieza")
+    #         self.timer_manager.stop_cleaning_timer()
+    #         self.register_cleaning_session()
+    #         self._stop_cleaning_logger()
+    #         self.cleaning_start_time = None
+
+    # def _handle_cleaning_status_change(self, is_cleaning_active: bool):
+    #     logger.info(f"[CLEANING] Señal recibida → Activo: {is_cleaning_active}")
+
+    #     if is_cleaning_active:
+    #         self.state.set_phase(TreatmentPhase.CLEANING, "Inicio de limpieza")
+    #         self._start_cleaning_logger()
+    #     else:
+    #         self.state.set_phase(TreatmentPhase.IDLE, "Fin de limpieza")
+    #         # Ya no llamamos stop_cleaning_timer aquí, porque lo manejamos desde finish_cleaning_session
+    #         self._stop_cleaning_logger()
+    #         self.cleaning_start_time = None
+
     def _handle_cleaning_status_change(self, is_cleaning_active: bool):
         logger.info(f"[CLEANING] Señal recibida → Activo: {is_cleaning_active}")
 
         if is_cleaning_active:
             self.state.set_phase(TreatmentPhase.CLEANING, "Inicio de limpieza")
-            self.timer_manager.start_cleaning_timer()
-            self.cleaning_start_time = QDateTime.currentDateTime()
+            # --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+            self.cleaning_start_time = QDateTime.currentDateTime() # <--- Establecer la hora de inicio de la limpieza
+            # -----------------------------------
             self._start_cleaning_logger()
         else:
             self.state.set_phase(TreatmentPhase.IDLE, "Fin de limpieza")
-            self.timer_manager.stop_cleaning_timer()
-            self.register_cleaning_session()
             self._stop_cleaning_logger()
-            self.cleaning_start_time = None
+            # self.cleaning_start_time = None # Esto se reinicia al finalizar, lo cual es correcto.
+                                           # Sin embargo, lo mantendremos para el registro en el historial
+                                           # y luego lo estableceremos a None en el método de registro.
+
 
     def pause_cleaning_timer(self):
         """Llamado desde CleaningScreen"""
@@ -2137,6 +2170,56 @@ class HemodialysisHMI(QMainWindow):
         logger.info(f"✅ Tratamiento registrado: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
         self.current_treatment_start = None
 
+
+    def finish_cleaning_session(self, active_duration_seconds: float):
+        """Método centralizado para finalizar limpieza con duración real"""
+        logger.info(f"[CLEANING] Finalizando sesión con duración real: {active_duration_seconds:.1f} segundos")
+
+        # *** CAMBIO CLAVE AQUÍ ***
+        # Estas líneas se ELIMINAN porque TimerManager.on_cleaning_stopped_counting
+        # ya ha procesado y acumulado esta duración cuando la señal
+        # cleaning_stopped_counting fue emitida por CleaningScreen.
+        # self.timer_manager.cleaning_hours += active_duration_seconds / 3600.0
+        # self.timer_manager._save_cleaning_hours()
+        logger.debug("Acumulación de cleaning_hours gestionada por TimerManager a través de señales.")
+        # *** FIN CAMBIO CLAVE ***
+
+        # Registrar en historial (esto sí es el propósito de este método)
+        self.register_cleaning_session_with_duration(active_duration_seconds)
+
+        self._stop_cleaning_logger()
+        self.cleaning_start_time = None 
+
+
+    def register_cleaning_session_with_duration(self, duration_seconds: float):
+        """Registra sesión de limpieza usando duración real (no wall time)"""
+        # ... (este método se mantiene igual)
+        if duration_seconds < 1: # Un segundo mínimo para que el historial sea relevante
+            logger.warning(f"Sesión de limpieza muy corta ({duration_seconds:.0f}s). No se registra en historial.")
+            return
+
+        duration_minutes = round(duration_seconds / 60)
+        
+        record = {
+            "fecha": QDateTime.currentDateTime().toString("yyyy-MM-dd"),
+            "hora_inicio": self.cleaning_start_time.toString("HH:mm:ss") if self.cleaning_start_time else "--:--",
+            "hora_fin": QDateTime.currentDateTime().toString("HH:mm:ss"),
+            "tipo_tratamiento": "Limpieza",
+            "duracion_minutos": duration_minutes,
+            "duracion_hhmm": f"{duration_minutes//60:02d}:{duration_minutes%60:02d}",
+            "timestamp_registro": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
+        }
+        self.cleaning_start_time = None 
+        self.cleaning_history.append(record)
+        self._save_cleaning_history()
+
+        
+        
+        logger.info(f"✅ Limpieza registrada en historial: {duration_minutes} minutos (duración real).")
+        
+
+
+        
     def register_cleaning_session(self):
         """Registra una sesión completa de limpieza"""
         if not self.cleaning_start_time:        # ← Cambiado a cleaning_start_time
