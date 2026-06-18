@@ -32,7 +32,7 @@
     "P004": {
         "patient_id": "P004",
         "patient_name": "FER RODRIGUEZ LOJERO",
-        "patient_gender": 1,
+        "patient_gender": 2,
         "patient_age": 60,
         "patient_height_cm": 170.0,
         "patient_dry_weight_kg": 70.0,

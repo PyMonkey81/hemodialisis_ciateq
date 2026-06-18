@@ -132,6 +132,10 @@ class BiozUreaController(QObject):
     def running(self, value: bool):
         self._running = value
 
+    def is_enabled(self) -> bool:
+        """Indica si el controlador está habilitado desde configuración."""
+        return self._is_enabled
+
     def update_config(self, port_name: str, is_enabled: bool):
         """
         Actualiza la configuración de comunicación desde la UI.

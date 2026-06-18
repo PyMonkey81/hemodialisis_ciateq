@@ -163,6 +163,10 @@ class TreatmentController:
         elapsed_this_session = self.therapy_start_time.secsTo(now)
         return self.accumulated_therapy_seconds + elapsed_this_session
 
+    def get_elapsed_therapy_minutes(self) -> float:
+        """Tiempo transcurrido de terapia en minutos para consumidores como Kt/V."""
+        return self.get_elapsed_seconds() / 60.0
+
     def update_therapy_times(self):
         phase = self.state.current_phase
         status_code = int(self.main.current_values.get("primingProcessStatus", 0))

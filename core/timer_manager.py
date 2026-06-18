@@ -48,9 +48,13 @@ class TimerManager(QObject):
     def _on_second_tick(self):
         """Actualización precisa de todos los contadores cada segundo."""
         now = QDateTime.currentDateTime()
-        
-        status_code = int(self.main.current_values.get("primingProcessStatus", 0))
-        treatment_mode = int(self.main.current_values.get("treatmentModeSelection", 0))
+
+        values = getattr(self.main, "current_values", {})
+        if not isinstance(values, dict):
+            values = {}
+
+        status_code = int(values.get("primingProcessStatus", 0))
+        treatment_mode = int(values.get("treatmentModeSelection", 0))
 
         # ==================== POWER ON (siempre activo) ====================
         msecs_power = self.last_power_on_tick.msecsTo(now)
@@ -95,8 +99,11 @@ class TimerManager(QObject):
         """Sincronización llamada desde update_value cuando cambia primingProcessStatus"""
         if not self.hardware_mapper:
             return
-            
-        treatment_mode = int(self.main.current_values.get("treatmentModeSelection", 0))
+
+        values = getattr(self.main, "current_values", {})
+        if not isinstance(values, dict):
+            values = {}
+        treatment_mode = int(values.get("treatmentModeSelection", 0))
         
         # La lógica de sync_with_hardware es para operation_hours, se mantiene igual.
         if self.hardware_mapper.should_count_operation_time(status_code, treatment_mode):

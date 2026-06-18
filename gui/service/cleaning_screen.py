@@ -339,7 +339,7 @@ class CleaningScreen(QWidget):
         self.mid_pause_done = False
         self.waiting_for_line_change_confirmation = False # No estamos esperando confirmación al inicio
 
-        # self.cleaning_active_changed.emit(True) # Notifica al padre/state manager que la limpieza está iniciando
+        self.cleaning_active_changed.emit(True) # Notifica al padre/state manager que la limpieza está iniciando
 
         try:
             # Enviar comandos para iniciar la secuencia de limpieza del hardware
@@ -380,7 +380,7 @@ class CleaningScreen(QWidget):
         # Iniciar o reiniciar el temporizador de alta precisión para la duración activa acumulada
         if not self.active_elapsed_timer.isValid():
             self.active_elapsed_timer.start()
-            self.cleaning_active_changed.emit(True)
+            
         else:
             self.active_elapsed_timer.restart() # Reiniciar para contar el nuevo segmento de tiempo activo
 
