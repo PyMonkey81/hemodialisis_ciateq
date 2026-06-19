@@ -1,0 +1,39 @@
+# Python environments
+.venv/
+venv/
+env/
+.venv*/
+venv*/
+
+# Build outputs
+build/
+dist/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Logs and local env files
+*.log
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+.history/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Large dependency payloads that should never be versioned
+**/PySide6/Qt*/
+**/PySide6/*.dll
+**/PySide6/*.exe
+**/PySide6/resources/*.pak
+**/shiboken*/
+**/Qt*/bin/*.dll
