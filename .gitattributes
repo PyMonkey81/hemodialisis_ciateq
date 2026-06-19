@@ -1,1 +1,15 @@
-hemodialisis_ciateq/_version.py export-subst
+# Entornos virtuales
+.venv/
+venv/
+
+# Builds de PyInstaller
+build/
+dist/
+
+# Cachés
+__pycache__/
+*.pyc
+*.pyo
+
+# Otros
+*.egg-info/
