@@ -47,6 +47,7 @@ class TreatmentController:
                     
                 except Exception as e:
                     logger.warning(f"BiozUrea no respondió: {e}")
+                    
 
             return True
 

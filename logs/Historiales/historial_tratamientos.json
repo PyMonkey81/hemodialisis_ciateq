@@ -1,0 +1,11 @@
+[
+    {
+        "fecha": "2026-06-19",
+        "hora_inicio": "16:10:02",
+        "hora_fin": "16:42:17",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 32,
+        "duracion_hhmm": "00:32",
+        "timestamp_registro": "2026-06-19 16:42:17"
+    }
+]

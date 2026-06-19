@@ -1,6 +1,11 @@
+
+
 # -*- mode: python ; coding: utf-8 -*-
-import hemodialisis_ciateq
-version = hemodialisis_ciateq.__version__
+
+from pathlib import Path
+
+BASE_DIR = Path(globals().get('SPEC', '.')).resolve().parent
+ICON_FILE = BASE_DIR / 'src' / 'hemodialisis_ciateq' / 'resources' / 'images' / 'icon.ico'
 
 a = Analysis(
     ['src/hemodialisis_ciateq/main.py'],
@@ -40,6 +45,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    version=version,          # ← Automático
-    icon='src/hemodialisis_ciateq/resources/images/icon.ico',
+    version='version_info.txt',
+    icon=str(ICON_FILE),
 )

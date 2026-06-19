@@ -236,3 +236,565 @@
 2026-06-19 14:30:44,074 | INFO | [BIOZ/UREA] Puerto serial cerrado.
 2026-06-19 14:30:44,074 | INFO | [BIOZ/UREA] Controlador detenido.
 2026-06-19 14:30:44,074 | INFO | [INFO] Secuencia de apagado completo finalizada.
+2026-06-19 16:08:31,601 | INFO | Tema aplicado: Dark
+2026-06-19 16:08:31,601 | ERROR | Tema 'dark' no existe.
+2026-06-19 16:08:31,601 | INFO | Fuente aplicada: Arial Narrow (16 pt)
+2026-06-19 16:08:31,603 | INFO | TimerManager iniciado.
+2026-06-19 16:08:31,603 | INFO | KtvGrafcet inicializado.
+2026-06-19 16:08:31,603 | INFO | KtvController inicializado.
+2026-06-19 16:08:31,895 | INFO | MainScreen initialized successfully.
+2026-06-19 16:08:31,984 | WARNING | [BIOZ/UREA] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 16:08:31,984 | INFO | KtvController: Dependencias inyectadas.
+2026-06-19 16:08:31,984 | WARNING | [COND. PATRÓN] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 16:08:31,985 | INFO | LedBarController: Hilo de comunicación iniciado.
+2026-06-19 16:08:31,992 | INFO | AlarmsScreen: alarm_system found. Known alarm count: 4
+2026-06-19 16:08:32,230 | INFO | Reseteando UI a estado inicial.
+2026-06-19 16:08:32,235 | INFO | OptionsScreen UI setup complete with service options buttons.
+2026-06-19 16:08:32,261 | INFO | Manual mode module initialized (v1.0.0)
+2026-06-19 16:08:32,317 | INFO | Test panel module initialized (v1.0.0)
+2026-06-19 16:08:32,391 | INFO | Configuración cargada desde config\sensor_comm_config.json
+2026-06-19 16:08:32,406 | INFO | Se cargaron 4 pacientes desde config/patients.json
+2026-06-19 16:08:32,427 | INFO | Configuracion de terapia (V1.0.0)
+2026-06-19 16:08:32,628 | INFO | [CONTROLADOR PPAL] Configuración recibida: Puerto='COM13', Habilitado=True
+2026-06-19 16:08:32,628 | INFO | [CONTROLADOR PPAL] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 16:08:32,629 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 16:08:32,629 | INFO | [CONTROLADOR PPAL] Hilo de comunicación iniciado exitosamente.
+2026-06-19 16:08:32,629 | INFO | Controlador Principal: Puerto=COM13, Habilitado=True
+2026-06-19 16:08:32,629 | INFO | [COND. PATRÓN] Configuración recibida: Puerto='Auto' (interno: 'Auto'), Habilitado=False
+2026-06-19 16:08:32,629 | INFO | Sensor Conductividad: Puerto=Auto, Habilitado=False
+2026-06-19 16:08:32,629 | INFO | [BIOZ/UREA] Configuración recibida: Puerto='COM12' (internamente: 'COM12'), Habilitado=True
+2026-06-19 16:08:32,629 | INFO | [BIOZ/UREA] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 16:08:32,630 | INFO | [BIOZ/UREA] Hilo de comunicación iniciado.
+2026-06-19 16:08:32,630 | INFO | Sensor BioZ: Puerto=COM12, Habilitado=True
+2026-06-19 16:08:32,630 | INFO | Timer Maestro iniciado correctamente (intervalo 500ms)
+2026-06-19 16:08:32,630 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 16:08:32,658 | ERROR | [CONTROLADOR PPAL] Error de conexión en COM13: could not open port 'COM13': PermissionError(13, 'Access is denied.', None, 5)
+2026-06-19 16:08:32,659 | WARNING | Disabling UI elements for disconnected state.
+2026-06-19 16:08:32,659 | INFO | AlarmsScreen UI state reset.
+2026-06-19 16:08:33,045 | INFO | Scaled HMI: 1813×1020 (factor 0.94x) on 1920×1020
+2026-06-19 16:08:33,046 | INFO | ======================================================================
+2026-06-19 16:08:33,046 | INFO |    CIATEQ A.C. - HEMODIALYSIS MACHINE HMI
+2026-06-19 16:08:33,046 | INFO |    FULLSCREEN MODE WITH DYNAMIC SCALING
+2026-06-19 16:08:33,046 | INFO |    Applied scaling factor: 0.80x
+2026-06-19 16:08:33,046 | INFO | ======================================================================
+2026-06-19 16:08:33,448 | INFO | Sincronizando estado - Status: 0, Mode: 0
+2026-06-19 16:08:33,450 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:08:33,450 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:08:33,450 | INFO | Botón STOP: DESHABILITADO
+2026-06-19 16:08:34,155 | INFO | [CONNECTED PPAL] OS: Windows | Puerto: COM13
+2026-06-19 16:08:34,313 | INFO | Cambio de estado hardware: -1 → 1
+2026-06-19 16:08:34,628 | INFO | Sincronizando estado - Status: 1, Mode: 0
+2026-06-19 16:08:34,628 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:08:34,628 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:08:34,628 | INFO | Enabling UI elements for connected state.
+2026-06-19 16:08:34,630 | INFO | AlarmsScreen UI state reset.
+2026-06-19 16:08:34,790 | INFO | [BIOZ/UREA] Conectado exitosamente en puerto ESPECÍFICO: COM12
+2026-06-19 16:08:34,790 | INFO | [BIOZ] Conectado y en modo IDLE (esperando comandos)
+2026-06-19 16:08:39,712 | INFO | CSV Logger: Archivo 'logs/hemodialysis_cebado\hemodialysis_log_20260619_160839.csv' creado.
+2026-06-19 16:08:39,712 | INFO | Logger CSV iniciado correctamente para cebado
+2026-06-19 16:08:39,712 | INFO | COMANDO [BOOL]: dialyStartDialysisButt = True (Addr: 39)
+2026-06-19 16:08:39,712 | INFO | COMANDO [BOOL]: dialyStopDialysisButt = False (Addr: 40)
+2026-06-19 16:08:39,712 | INFO | Comandos de cebado enviados: Start=True, Stop=False
+2026-06-19 16:08:52,717 | INFO | Cambio de estado hardware: 1 → 6
+2026-06-19 16:08:52,717 | INFO | [STATE CHANGE] IDLE → PREPARING | Hardware → INFUSIÓN
+2026-06-19 16:08:52,717 | INFO | Estado: IDLE → PREPARING | Hardware → INFUSIÓN
+2026-06-19 16:08:52,717 | INFO | Estado global cambiado: PREPARING | Hardware → INFUSIÓN
+2026-06-19 16:08:52,722 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:08:52,722 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:08:52,724 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:08:52,724 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:09:24,496 | INFO | Pacientes guardados correctamente (4)
+2026-06-19 16:09:57,742 | INFO | Cambio de estado hardware: 6 → 13
+2026-06-19 16:09:57,742 | INFO | [STATE CHANGE] PREPARING → READY | Hardware → LISTO PARA
+INICIAR 
+2026-06-19 16:09:57,744 | INFO | Estado: PREPARING → READY | Hardware → LISTO PARA
+INICIAR 
+2026-06-19 16:09:57,744 | INFO | Estado global cambiado: READY | Hardware → LISTO PARA
+INICIAR 
+2026-06-19 16:09:57,749 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:09:57,749 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:09:57,751 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:09:57,751 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:10:02,432 | INFO | Cambio de estado hardware: 13 → 14
+2026-06-19 16:10:02,432 | INFO | [STATE CHANGE] READY → RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:10:02,432 | INFO | Tratamiento INICIADO
+2026-06-19 16:10:02,432 | INFO | [KtvController] Reseteando estado para nuevo tratamiento.
+2026-06-19 16:10:02,432 | INFO | [Kt/V GRAFCET] Reseteando secuencia a IDLE.
+2026-06-19 16:10:02,434 | INFO | Estado: READY → RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:10:02,434 | INFO | Estado global cambiado: RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:10:02,437 | INFO | Timer de terapia iniciado (hardware en RUNNING)
+2026-06-19 16:10:02,437 | INFO | CSV Logger: Archivo 'logs/tratamiento_hemodialisis\hemodialysis_log_20260619_161002.csv' creado.
+2026-06-19 16:10:02,439 | INFO | Nuevo logger creado: logs/tratamiento_hemodialisis
+2026-06-19 16:10:04,929 | INFO | [KtvController] Frecuencia automática de Kt/V establecida a 15 minutos.
+2026-06-19 16:10:04,929 | INFO | Frecuencia de cálculo automático de Kt/V cambiada a 15 minutos.
+2026-06-19 16:10:08,398 | INFO | [KtvController] Iniciando secuencia de medición Kt/V (MANUAL).
+2026-06-19 16:10:08,398 | INFO | [Kt/V GRAFCET] Inicio de secuencia
+2026-06-19 16:10:08,398 | INFO | [Kt/V GRAFCET] Transición: IDLE → START_BIOIMPEDANCE
+2026-06-19 16:10:08,400 | INFO | [Kt/V GRAFCET] Transición: START_BIOIMPEDANCE → WAIT_BIOIMPEDANCE
+2026-06-19 16:10:13,403 | INFO | [Kt/V GRAFCET] Transición: WAIT_BIOIMPEDANCE → START_UREA
+2026-06-19 16:10:13,403 | INFO | [Kt/V GRAFCET] Transición: START_UREA → WAIT_UREA
+2026-06-19 16:10:15,402 | INFO | [Kt/V GRAFCET] Transición: WAIT_UREA → CAPTURE_T1
+2026-06-19 16:10:15,402 | INFO | [KtvController] T1 capturado: CdIn=13.958712050012492, CdOut=13.995161412463757, Temp=36.87171488895391
+2026-06-19 16:10:15,402 | INFO | [KtvController] Original conductivity setpoint saved: 14.00 mS/cm
+2026-06-19 16:10:15,402 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T1 → SET_STEP_CONDUCTIVITY
+2026-06-19 16:10:15,402 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 15.0 (G:0x4, ID:6)
+2026-06-19 16:10:15,402 | INFO | [KtvController] Conductivity setpoint changed to: 15.00 mS/cm
+2026-06-19 16:10:15,402 | INFO | [Kt/V GRAFCET] Transición: SET_STEP_CONDUCTIVITY → WAIT_CONDUCTIVITY_STEP
+2026-06-19 16:10:15,667 | INFO | [BIOZ] Modo simplificado → Z = 295.85 Ω
+2026-06-19 16:10:21,052 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:21,215 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:21,714 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:22,215 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:22,715 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:23,215 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:23,709 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:24,211 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:25,875 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:26,213 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:10:26,712 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:12:15,398 | INFO | [Kt/V GRAFCET] Transición: WAIT_CONDUCTIVITY_STEP → CAPTURE_T2
+2026-06-19 16:12:15,398 | INFO | [KtvController] T2 capturado: CdIn=13.985409455895178, CdOut=14.018732913531192, Temp=37.06853453616987
+2026-06-19 16:12:15,398 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T2 → RESTORE_CONDUCTIVITY
+2026-06-19 16:12:15,398 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 14.0 (G:0x4, ID:6)
+2026-06-19 16:12:15,399 | INFO | [KtvController] Conductivity setpoint restored to: 14.00 mS/cm
+2026-06-19 16:12:15,399 | INFO | [Kt/V GRAFCET] Transición: RESTORE_CONDUCTIVITY → WAIT_RESTORE
+2026-06-19 16:12:35,536 | INFO | Cambio de estado hardware: 14 → 15
+2026-06-19 16:12:35,536 | INFO | [STATE CHANGE] RUNNING → PAUSED | Hardware → PAUSA
+2026-06-19 16:12:35,538 | INFO | Tratamiento PAUSADO
+2026-06-19 16:12:35,538 | INFO | [Kt/V GRAFCET] Pausando secuencia desde WAIT_RESTORE.
+2026-06-19 16:12:35,538 | INFO | [Kt/V GRAFCET] Transición: WAIT_RESTORE → PAUSED_SEQUENCE
+2026-06-19 16:12:35,538 | INFO | [KtvController] Medición Kt/V pausada.
+2026-06-19 16:12:35,538 | INFO | Estado: RUNNING → PAUSED | Hardware → PAUSA
+2026-06-19 16:12:35,538 | INFO | Estado global cambiado: PAUSED | Hardware → PAUSA
+2026-06-19 16:12:35,546 | INFO | [KtvController] Medición Kt/V pausada.
+2026-06-19 16:12:35,548 | INFO | Timer de terapia PAUSADO. Acumulado: 153s
+2026-06-19 16:12:39,410 | INFO | Cambio de estado hardware: 15 → 14
+2026-06-19 16:12:39,410 | INFO | [STATE CHANGE] PAUSED → RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:12:39,410 | INFO | Tratamiento INICIADO
+2026-06-19 16:12:39,410 | INFO | [KtvController] Reseteando estado para nuevo tratamiento.
+2026-06-19 16:12:39,410 | INFO | [Kt/V GRAFCET] Reseteando secuencia a IDLE.
+2026-06-19 16:12:39,412 | INFO | Estado: PAUSED → RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:12:39,412 | INFO | Estado global cambiado: RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:12:39,413 | INFO | Timer de terapia iniciado (hardware en RUNNING)
+2026-06-19 16:12:39,413 | INFO | Reanudando logger existente
+2026-06-19 16:12:52,101 | INFO | [KtvController] Iniciando secuencia de medición Kt/V (MANUAL).
+2026-06-19 16:12:52,101 | INFO | [Kt/V GRAFCET] Inicio de secuencia
+2026-06-19 16:12:52,101 | INFO | [Kt/V GRAFCET] Transición: IDLE → START_BIOIMPEDANCE
+2026-06-19 16:12:52,102 | INFO | [Kt/V GRAFCET] Transición: START_BIOIMPEDANCE → WAIT_BIOIMPEDANCE
+2026-06-19 16:12:57,111 | INFO | [Kt/V GRAFCET] Transición: WAIT_BIOIMPEDANCE → START_UREA
+2026-06-19 16:12:57,111 | INFO | [Kt/V GRAFCET] Transición: START_UREA → WAIT_UREA
+2026-06-19 16:12:59,104 | INFO | [Kt/V GRAFCET] Transición: WAIT_UREA → CAPTURE_T1
+2026-06-19 16:12:59,104 | INFO | [KtvController] T1 capturado: CdIn=13.994253536196489, CdOut=14.047150949465104, Temp=37.029737584719435
+2026-06-19 16:12:59,104 | INFO | [KtvController] Original conductivity setpoint saved: 14.00 mS/cm
+2026-06-19 16:12:59,105 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T1 → SET_STEP_CONDUCTIVITY
+2026-06-19 16:12:59,105 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 15.0 (G:0x4, ID:6)
+2026-06-19 16:12:59,105 | INFO | [KtvController] Conductivity setpoint changed to: 15.00 mS/cm
+2026-06-19 16:12:59,105 | INFO | [Kt/V GRAFCET] Transición: SET_STEP_CONDUCTIVITY → WAIT_CONDUCTIVITY_STEP
+2026-06-19 16:13:13,646 | INFO | Cambio de estado hardware: 14 → 15
+2026-06-19 16:13:13,646 | INFO | [STATE CHANGE] RUNNING → PAUSED | Hardware → PAUSA
+2026-06-19 16:13:13,646 | INFO | Tratamiento PAUSADO
+2026-06-19 16:13:13,646 | INFO | [Kt/V GRAFCET] Pausando secuencia desde WAIT_CONDUCTIVITY_STEP.
+2026-06-19 16:13:13,646 | INFO | [Kt/V GRAFCET] Transición: WAIT_CONDUCTIVITY_STEP → PAUSED_SEQUENCE
+2026-06-19 16:13:13,646 | INFO | [KtvController] Medición Kt/V pausada.
+2026-06-19 16:13:13,646 | INFO | Estado: RUNNING → PAUSED | Hardware → PAUSA
+2026-06-19 16:13:13,646 | INFO | Estado global cambiado: PAUSED | Hardware → PAUSA
+2026-06-19 16:13:13,650 | INFO | [KtvController] Medición Kt/V pausada.
+2026-06-19 16:13:13,653 | INFO | Timer de terapia PAUSADO. Acumulado: 187s
+2026-06-19 16:13:21,622 | INFO | Cambio de estado hardware: 15 → 14
+2026-06-19 16:13:21,622 | INFO | [STATE CHANGE] PAUSED → RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:13:21,622 | INFO | Tratamiento INICIADO
+2026-06-19 16:13:21,622 | INFO | [KtvController] Reseteando estado para nuevo tratamiento.
+2026-06-19 16:13:21,622 | INFO | [Kt/V GRAFCET] Reseteando secuencia a IDLE.
+2026-06-19 16:13:21,623 | INFO | Estado: PAUSED → RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:13:21,623 | INFO | Estado global cambiado: RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:13:21,626 | INFO | Timer de terapia iniciado (hardware en RUNNING)
+2026-06-19 16:13:21,626 | INFO | Reanudando logger existente
+2026-06-19 16:13:23,828 | INFO | [KtvController] Iniciando secuencia de medición Kt/V (MANUAL).
+2026-06-19 16:13:23,828 | INFO | [Kt/V GRAFCET] Inicio de secuencia
+2026-06-19 16:13:23,828 | INFO | [Kt/V GRAFCET] Transición: IDLE → START_BIOIMPEDANCE
+2026-06-19 16:13:23,828 | INFO | [Kt/V GRAFCET] Transición: START_BIOIMPEDANCE → WAIT_BIOIMPEDANCE
+2026-06-19 16:13:28,823 | INFO | [Kt/V GRAFCET] Transición: WAIT_BIOIMPEDANCE → START_UREA
+2026-06-19 16:13:28,823 | INFO | [Kt/V GRAFCET] Transición: START_UREA → WAIT_UREA
+2026-06-19 16:13:30,824 | INFO | [Kt/V GRAFCET] Transición: WAIT_UREA → CAPTURE_T1
+2026-06-19 16:13:30,824 | INFO | [KtvController] T1 capturado: CdIn=14.002535899312223, CdOut=14.040871197634823, Temp=37.06823875367573
+2026-06-19 16:13:30,824 | INFO | [KtvController] Original conductivity setpoint saved: 15.00 mS/cm
+2026-06-19 16:13:30,824 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T1 → SET_STEP_CONDUCTIVITY
+2026-06-19 16:13:30,824 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 16.0 (G:0x4, ID:6)
+2026-06-19 16:13:30,824 | INFO | [KtvController] Conductivity setpoint changed to: 16.00 mS/cm
+2026-06-19 16:13:30,824 | INFO | [Kt/V GRAFCET] Transición: SET_STEP_CONDUCTIVITY → WAIT_CONDUCTIVITY_STEP
+2026-06-19 16:14:20,265 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:20,286 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:20,786 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:21,275 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:21,776 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:22,284 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:22,774 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:23,286 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:30,885 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:31,283 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:31,774 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:32,274 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:32,776 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:33,274 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:33,774 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:34,274 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:34,776 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:35,274 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:35,788 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:36,291 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:36,792 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:37,291 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:37,793 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:38,291 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:38,790 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:39,291 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:39,792 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:40,291 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:40,791 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:41,292 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:41,792 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:42,291 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:42,793 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:43,289 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:43,789 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:44,290 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:44,792 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:45,291 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:45,791 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:46,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:46,809 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:47,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:47,809 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:48,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:48,807 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:49,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:49,803 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:50,304 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:50,807 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:51,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:51,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:52,309 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:52,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:53,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:53,810 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:54,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:54,806 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:55,309 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:55,809 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:56,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:56,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:57,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:57,809 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:58,306 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:58,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:59,309 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:14:59,809 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:00,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:00,804 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:01,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:01,810 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:02,314 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:02,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:03,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:03,809 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:04,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:04,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:05,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:05,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:06,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:06,809 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:07,309 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:07,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:08,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:08,807 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:09,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:09,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:10,307 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:10,807 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:11,308 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:11,807 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:12,309 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:12,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:13,304 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:13,808 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:14,325 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:14,823 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:15,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:15,826 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:16,333 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:16,824 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:17,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:17,818 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:18,326 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:18,825 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:19,325 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:19,826 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:20,325 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:20,824 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:21,321 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:21,824 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:22,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:22,825 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:23,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:23,826 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:24,319 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:24,821 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:25,323 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:25,820 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:26,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:26,825 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:27,325 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:27,825 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:28,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:28,820 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:29,322 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:29,824 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:30,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:30,825 | INFO | [Kt/V GRAFCET] Transición: WAIT_CONDUCTIVITY_STEP → CAPTURE_T2
+2026-06-19 16:15:30,825 | INFO | [KtvController] T2 capturado: CdIn=13.99820334744951, CdOut=13.958206545425714, Temp=36.97150813938066
+2026-06-19 16:15:30,825 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T2 → RESTORE_CONDUCTIVITY
+2026-06-19 16:15:30,825 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 15.0 (G:0x4, ID:6)
+2026-06-19 16:15:30,825 | INFO | [KtvController] Conductivity setpoint restored to: 15.00 mS/cm
+2026-06-19 16:15:30,825 | INFO | [Kt/V GRAFCET] Transición: RESTORE_CONDUCTIVITY → WAIT_RESTORE
+2026-06-19 16:15:30,825 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:31,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:31,825 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:32,321 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:32,823 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:33,324 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:33,825 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:34,325 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:34,824 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:35,342 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:35,837 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:36,339 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:36,842 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:37,342 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:37,841 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:38,345 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:38,841 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:39,340 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:39,841 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:40,342 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:40,843 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:41,342 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:41,841 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:42,335 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:42,838 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:15:43,341 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:17:30,823 | INFO | [Kt/V GRAFCET] Transición: WAIT_RESTORE → CALCULATE_RESULT
+2026-06-19 16:17:30,823 | WARNING | [KTV_CALC] Delta de conductividad de entrada demasiado pequeño. Delta Cd_in = -0.004
+2026-06-19 16:17:30,823 | WARNING | [KTV_CALC] Delta de conductividad de entrada demasiado pequeño. Delta Cd_in = -0.004
+2026-06-19 16:17:30,823 | INFO | [KtvController] Cálculo final: Proyectado=0.00 | Acumulado=0.00
+2026-06-19 16:17:30,833 | INFO | [Kt/V GRAFCET] Transición: CALCULATE_RESULT → FINISHED
+2026-06-19 16:17:30,833 | INFO | [KtvController] Secuencia Kt/V finalizada correctamente.
+2026-06-19 16:17:30,833 | INFO | [Kt/V GRAFCET] Reseteando secuencia a IDLE.
+2026-06-19 16:17:30,833 | INFO | [Kt/V GRAFCET] Secuencia finalizada con éxito.
+2026-06-19 16:25:15,016 | INFO | [KtvController] Iniciando medición automática de Kt/V. Tiempo de terapia: 15 min.
+2026-06-19 16:25:15,016 | INFO | [KtvController] Iniciando secuencia de medición Kt/V (AUTOMÁTICA).
+2026-06-19 16:25:15,017 | INFO | [Kt/V GRAFCET] Inicio de secuencia
+2026-06-19 16:25:15,017 | INFO | [Kt/V GRAFCET] Transición: IDLE → START_BIOIMPEDANCE
+2026-06-19 16:25:15,017 | INFO | [Kt/V GRAFCET] Transición: START_BIOIMPEDANCE → WAIT_BIOIMPEDANCE
+2026-06-19 16:25:20,014 | INFO | [Kt/V GRAFCET] Transición: WAIT_BIOIMPEDANCE → START_UREA
+2026-06-19 16:25:20,014 | INFO | [Kt/V GRAFCET] Transición: START_UREA → WAIT_UREA
+2026-06-19 16:25:22,019 | INFO | [Kt/V GRAFCET] Transición: WAIT_UREA → CAPTURE_T1
+2026-06-19 16:25:22,019 | INFO | [KtvController] T1 capturado: CdIn=14.035490924524115, CdOut=14.009489285349082, Temp=36.57046086397721
+2026-06-19 16:25:22,019 | INFO | [KtvController] Original conductivity setpoint saved: 15.00 mS/cm
+2026-06-19 16:25:22,019 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T1 → SET_STEP_CONDUCTIVITY
+2026-06-19 16:25:22,019 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 16.0 (G:0x4, ID:6)
+2026-06-19 16:25:22,019 | INFO | [KtvController] Conductivity setpoint changed to: 16.00 mS/cm
+2026-06-19 16:25:22,019 | INFO | [Kt/V GRAFCET] Transición: SET_STEP_CONDUCTIVITY → WAIT_CONDUCTIVITY_STEP
+2026-06-19 16:27:22,018 | INFO | [Kt/V GRAFCET] Transición: WAIT_CONDUCTIVITY_STEP → CAPTURE_T2
+2026-06-19 16:27:22,020 | INFO | [KtvController] T2 capturado: CdIn=14.034963907000078, CdOut=13.989565030281568, Temp=36.63642949081654
+2026-06-19 16:27:22,020 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T2 → RESTORE_CONDUCTIVITY
+2026-06-19 16:27:22,020 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 15.0 (G:0x4, ID:6)
+2026-06-19 16:27:22,020 | INFO | [KtvController] Conductivity setpoint restored to: 15.00 mS/cm
+2026-06-19 16:27:22,020 | INFO | [Kt/V GRAFCET] Transición: RESTORE_CONDUCTIVITY → WAIT_RESTORE
+2026-06-19 16:29:22,012 | INFO | [Kt/V GRAFCET] Transición: WAIT_RESTORE → CALCULATE_RESULT
+2026-06-19 16:29:22,012 | WARNING | [KTV_CALC] Delta de conductividad de entrada demasiado pequeño. Delta Cd_in = -0.001
+2026-06-19 16:29:22,012 | WARNING | [KTV_CALC] Delta de conductividad de entrada demasiado pequeño. Delta Cd_in = -0.001
+2026-06-19 16:29:22,012 | INFO | [KtvController] Cálculo final: Proyectado=0.00 | Acumulado=0.00
+2026-06-19 16:29:22,014 | INFO | [Kt/V GRAFCET] Transición: CALCULATE_RESULT → FINISHED
+2026-06-19 16:29:22,014 | INFO | [KtvController] Secuencia Kt/V finalizada correctamente.
+2026-06-19 16:29:22,014 | INFO | [Kt/V GRAFCET] Reseteando secuencia a IDLE.
+2026-06-19 16:29:22,014 | INFO | [Kt/V GRAFCET] Secuencia finalizada con éxito.
+2026-06-19 16:30:11,910 | INFO | [KtvController] Iniciando secuencia de medición Kt/V (MANUAL).
+2026-06-19 16:30:11,912 | INFO | [Kt/V GRAFCET] Inicio de secuencia
+2026-06-19 16:30:11,912 | INFO | [Kt/V GRAFCET] Transición: IDLE → START_BIOIMPEDANCE
+2026-06-19 16:30:11,912 | INFO | [Kt/V GRAFCET] Transición: START_BIOIMPEDANCE → WAIT_BIOIMPEDANCE
+2026-06-19 16:30:16,913 | INFO | [Kt/V GRAFCET] Transición: WAIT_BIOIMPEDANCE → START_UREA
+2026-06-19 16:30:16,913 | INFO | [Kt/V GRAFCET] Transición: START_UREA → WAIT_UREA
+2026-06-19 16:30:18,913 | INFO | [Kt/V GRAFCET] Transición: WAIT_UREA → CAPTURE_T1
+2026-06-19 16:30:18,913 | INFO | [KtvController] T1 capturado: CdIn=14.038352073276908, CdOut=14.032456923115248, Temp=37.03243172743679
+2026-06-19 16:30:18,913 | INFO | [KtvController] Original conductivity setpoint saved: 15.00 mS/cm
+2026-06-19 16:30:18,913 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T1 → SET_STEP_CONDUCTIVITY
+2026-06-19 16:30:18,913 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 16.0 (G:0x4, ID:6)
+2026-06-19 16:30:18,913 | INFO | [KtvController] Conductivity setpoint changed to: 16.00 mS/cm
+2026-06-19 16:30:18,913 | INFO | [Kt/V GRAFCET] Transición: SET_STEP_CONDUCTIVITY → WAIT_CONDUCTIVITY_STEP
+2026-06-19 16:30:19,788 | INFO | [BIOZ] Modo simplificado → Z = 206.68 Ω
+2026-06-19 16:32:18,914 | INFO | [Kt/V GRAFCET] Transición: WAIT_CONDUCTIVITY_STEP → CAPTURE_T2
+2026-06-19 16:32:18,914 | INFO | [KtvController] T2 capturado: CdIn=13.97444354665228, CdOut=13.987697507573516, Temp=36.64125426539555
+2026-06-19 16:32:18,915 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T2 → RESTORE_CONDUCTIVITY
+2026-06-19 16:32:18,915 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 15.0 (G:0x4, ID:6)
+2026-06-19 16:32:18,915 | INFO | [KtvController] Conductivity setpoint restored to: 15.00 mS/cm
+2026-06-19 16:32:18,915 | INFO | [Kt/V GRAFCET] Transición: RESTORE_CONDUCTIVITY → WAIT_RESTORE
+2026-06-19 16:34:18,916 | INFO | [Kt/V GRAFCET] Transición: WAIT_RESTORE → CALCULATE_RESULT
+2026-06-19 16:34:18,916 | WARNING | [KTV_CALC] Delta de conductividad de entrada demasiado pequeño. Delta Cd_in = -0.064
+2026-06-19 16:34:18,916 | WARNING | [KTV_CALC] Delta de conductividad de entrada demasiado pequeño. Delta Cd_in = -0.064
+2026-06-19 16:34:18,916 | INFO | [KtvController] Cálculo final: Proyectado=0.00 | Acumulado=0.00
+2026-06-19 16:34:18,922 | INFO | [Kt/V GRAFCET] Transición: CALCULATE_RESULT → FINISHED
+2026-06-19 16:34:18,922 | INFO | [KtvController] Secuencia Kt/V finalizada correctamente.
+2026-06-19 16:34:18,922 | INFO | [Kt/V GRAFCET] Reseteando secuencia a IDLE.
+2026-06-19 16:34:18,922 | INFO | [Kt/V GRAFCET] Secuencia finalizada con éxito.
+2026-06-19 16:37:00,782 | INFO | [KtvController] Iniciando secuencia de medición Kt/V (MANUAL).
+2026-06-19 16:37:00,782 | INFO | [Kt/V GRAFCET] Inicio de secuencia
+2026-06-19 16:37:00,782 | INFO | [Kt/V GRAFCET] Transición: IDLE → START_BIOIMPEDANCE
+2026-06-19 16:37:00,782 | INFO | [Kt/V GRAFCET] Transición: START_BIOIMPEDANCE → WAIT_BIOIMPEDANCE
+2026-06-19 16:37:05,779 | INFO | [Kt/V GRAFCET] Transición: WAIT_BIOIMPEDANCE → START_UREA
+2026-06-19 16:37:05,780 | INFO | [Kt/V GRAFCET] Transición: START_UREA → WAIT_UREA
+2026-06-19 16:37:07,782 | INFO | [Kt/V GRAFCET] Transición: WAIT_UREA → CAPTURE_T1
+2026-06-19 16:37:07,782 | INFO | [KtvController] T1 capturado: CdIn=13.977768361699102, CdOut=14.00740824284698, Temp=36.85443717225586
+2026-06-19 16:37:07,782 | INFO | [KtvController] Original conductivity setpoint saved: 15.00 mS/cm
+2026-06-19 16:37:07,782 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T1 → SET_STEP_CONDUCTIVITY
+2026-06-19 16:37:07,782 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 16.0 (G:0x4, ID:6)
+2026-06-19 16:37:07,782 | INFO | [KtvController] Conductivity setpoint changed to: 16.00 mS/cm
+2026-06-19 16:37:07,782 | INFO | [Kt/V GRAFCET] Transición: SET_STEP_CONDUCTIVITY → WAIT_CONDUCTIVITY_STEP
+2026-06-19 16:37:08,099 | INFO | [BIOZ] Modo simplificado → Z = 164.78 Ω
+2026-06-19 16:39:07,789 | INFO | [Kt/V GRAFCET] Transición: WAIT_CONDUCTIVITY_STEP → CAPTURE_T2
+2026-06-19 16:39:07,789 | INFO | [KtvController] T2 capturado: CdIn=14.011506239596892, CdOut=14.012606135714147, Temp=36.659329217013315
+2026-06-19 16:39:07,789 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T2 → RESTORE_CONDUCTIVITY
+2026-06-19 16:39:07,789 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 15.0 (G:0x4, ID:6)
+2026-06-19 16:39:07,789 | INFO | [KtvController] Conductivity setpoint restored to: 15.00 mS/cm
+2026-06-19 16:39:07,789 | INFO | [Kt/V GRAFCET] Transición: RESTORE_CONDUCTIVITY → WAIT_RESTORE
+2026-06-19 16:41:07,790 | INFO | [Kt/V GRAFCET] Transición: WAIT_RESTORE → CALCULATE_RESULT
+2026-06-19 16:41:07,790 | WARNING | [KTV_CALC] Delta de conductividad de entrada demasiado pequeño. Delta Cd_in = 0.034
+2026-06-19 16:41:07,790 | WARNING | [KTV_CALC] Delta de conductividad de entrada demasiado pequeño. Delta Cd_in = 0.034
+2026-06-19 16:41:07,790 | INFO | [KtvController] Cálculo final: Proyectado=0.00 | Acumulado=0.00
+2026-06-19 16:41:07,793 | INFO | [Kt/V GRAFCET] Transición: CALCULATE_RESULT → FINISHED
+2026-06-19 16:41:07,793 | INFO | [KtvController] Secuencia Kt/V finalizada correctamente.
+2026-06-19 16:41:07,793 | INFO | [Kt/V GRAFCET] Reseteando secuencia a IDLE.
+2026-06-19 16:41:07,793 | INFO | [Kt/V GRAFCET] Secuencia finalizada con éxito.
+2026-06-19 16:42:09,645 | INFO | COMANDO [BOOL]: dialyModeOperationStop = True (Addr: 54)
+2026-06-19 16:42:09,645 | INFO | COMANDO [BOOL]: dialyModeOperationStart = False (Addr: 53)
+2026-06-19 16:42:09,645 | INFO | COMANDO [BOOL]: dialyStopDialysisButt = True (Addr: 40)
+2026-06-19 16:42:09,645 | INFO | COMANDO [BOOL]: dialyStartDialysisButt = False (Addr: 39)
+2026-06-19 16:42:09,645 | INFO | Tratamiento detenido y registrado correctamente
+2026-06-19 16:42:17,204 | INFO | Cambio de estado hardware: 14 → 1
+2026-06-19 16:42:17,206 | INFO | [STATE CHANGE] RUNNING → IDLE | Hardware → ESPERA
+2026-06-19 16:42:17,206 | INFO | Tratamiento FINALIZADO
+2026-06-19 16:42:17,207 | INFO | Reporte Kt/V final guardado: logs/ktv_reports/ktv_20260619_164217.csv
+2026-06-19 16:42:17,209 | INFO | Estado: RUNNING → IDLE | Hardware → ESPERA
+2026-06-19 16:42:17,209 | INFO | Estado global cambiado: IDLE | Hardware → ESPERA
+2026-06-19 16:42:17,214 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:42:17,214 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:42:17,214 | INFO | Botón START: HABILITADO
+2026-06-19 16:42:17,216 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:42:17,216 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:42:17,216 | INFO | Hardware confirmó fin de tratamiento → Registrando historial
+2026-06-19 16:42:17,217 | INFO | ✅ Tratamiento registrado: 2026-06-19 16:10:02 (00:32)
+2026-06-19 16:42:17,217 | INFO | CSV Logger: Cerrando archivo 'logs/tratamiento_hemodialisis\hemodialysis_log_20260619_161002.csv'...
+2026-06-19 16:42:17,846 | INFO | CSV Logger: Archivo cerrado correctamente.
+2026-06-19 16:42:17,846 | INFO | Reset completo de timer de terapia (nueva sesión)
+2026-06-19 16:42:37,600 | INFO | CSV Logger: Cerrando archivo 'logs/hemodialysis_cebado\hemodialysis_log_20260619_160839.csv'...
+2026-06-19 16:42:38,175 | INFO | CSV Logger: Archivo cerrado correctamente.
+2026-06-19 16:42:38,175 | INFO | Sesión detenida - logger cerrado
+2026-06-19 16:42:38,176 | ERROR | [INFO] closeEvent → performing shutdown...
+2026-06-19 16:42:38,176 | INFO | [INFO] Iniciando secuencia de apagado controlado de periféricos.
+2026-06-19 16:42:38,176 | INFO | Timer Maestro detenido correctamente
+2026-06-19 16:42:38,284 | INFO | Iniciando apagado síncrono del módulo de comunicación serial...
+2026-06-19 16:42:38,284 | INFO | [CONTROLADOR PPAL] Puerto serial cerrado.
+2026-06-19 16:42:39,285 | INFO | [CONTROLADOR PPAL] Hilo de comunicación finalizado.
+2026-06-19 16:42:40,358 | INFO | [BIOZ/UREA] Hilo de comunicación detenido.
+2026-06-19 16:42:40,359 | INFO | [BIOZ/UREA] Puerto serial cerrado.
+2026-06-19 16:42:40,359 | INFO | [BIOZ/UREA] Controlador detenido.
+2026-06-19 16:42:40,359 | INFO | [INFO] Secuencia de apagado completo finalizada.
+2026-06-19 16:50:10,264 | INFO | Tema aplicado: Dark
+2026-06-19 16:50:10,264 | ERROR | Tema 'dark' no existe.
+2026-06-19 16:50:10,265 | INFO | Fuente aplicada: Arial Narrow (16 pt)
+2026-06-19 16:50:10,266 | INFO | TimerManager iniciado.
+2026-06-19 16:50:10,266 | INFO | KtvGrafcet inicializado.
+2026-06-19 16:50:10,267 | INFO | KtvController inicializado.
+2026-06-19 16:50:10,544 | INFO | MainScreen initialized successfully.
+2026-06-19 16:50:10,631 | WARNING | [BIOZ/UREA] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 16:50:10,631 | INFO | KtvController: Dependencias inyectadas.
+2026-06-19 16:50:10,631 | WARNING | [COND. PATRÓN] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 16:50:10,633 | INFO | LedBarController: Hilo de comunicación iniciado.
+2026-06-19 16:50:10,646 | INFO | AlarmsScreen: alarm_system found. Known alarm count: 4
+2026-06-19 16:50:10,864 | INFO | Reseteando UI a estado inicial.
+2026-06-19 16:50:10,867 | INFO | OptionsScreen UI setup complete with service options buttons.
+2026-06-19 16:50:10,890 | INFO | Manual mode module initialized (v1.0.0)
+2026-06-19 16:50:10,944 | INFO | Test panel module initialized (v1.0.0)
+2026-06-19 16:50:11,017 | INFO | Configuración cargada desde config\sensor_comm_config.json
+2026-06-19 16:50:11,031 | INFO | Se cargaron 4 pacientes desde config/patients.json
+2026-06-19 16:50:11,052 | INFO | Configuracion de terapia (V1.0.0)
+2026-06-19 16:50:11,273 | INFO | [CONTROLADOR PPAL] Configuración recibida: Puerto='COM13', Habilitado=True
+2026-06-19 16:50:11,273 | INFO | [CONTROLADOR PPAL] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 16:50:11,274 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 16:50:11,274 | INFO | [CONTROLADOR PPAL] Hilo de comunicación iniciado exitosamente.
+2026-06-19 16:50:11,274 | INFO | Controlador Principal: Puerto=COM13, Habilitado=True
+2026-06-19 16:50:11,274 | INFO | [COND. PATRÓN] Configuración recibida: Puerto='Auto' (interno: 'Auto'), Habilitado=False
+2026-06-19 16:50:11,274 | INFO | Sensor Conductividad: Puerto=Auto, Habilitado=False
+2026-06-19 16:50:11,275 | INFO | [BIOZ/UREA] Configuración recibida: Puerto='COM12' (internamente: 'COM12'), Habilitado=True
+2026-06-19 16:50:11,275 | INFO | [BIOZ/UREA] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 16:50:11,275 | INFO | [BIOZ/UREA] Hilo de comunicación iniciado.
+2026-06-19 16:50:11,275 | INFO | Sensor BioZ: Puerto=COM12, Habilitado=True
+2026-06-19 16:50:11,275 | INFO | Timer Maestro iniciado correctamente (intervalo 500ms)
+2026-06-19 16:50:11,276 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 16:50:11,311 | ERROR | [CONTROLADOR PPAL] Error de conexión en COM13: could not open port 'COM13': PermissionError(13, 'Access is denied.', None, 5)
+2026-06-19 16:50:11,311 | WARNING | Disabling UI elements for disconnected state.
+2026-06-19 16:50:11,312 | INFO | AlarmsScreen UI state reset.
+2026-06-19 16:50:11,719 | INFO | Scaled HMI: 1813×1020 (factor 0.94x) on 1920×1020
+2026-06-19 16:50:11,722 | INFO | ======================================================================
+2026-06-19 16:50:11,722 | INFO |    CIATEQ A.C. - HEMODIALYSIS MACHINE HMI
+2026-06-19 16:50:11,722 | INFO |    FULLSCREEN MODE WITH DYNAMIC SCALING
+2026-06-19 16:50:11,722 | INFO |    Applied scaling factor: 0.80x
+2026-06-19 16:50:11,722 | INFO | ======================================================================
+2026-06-19 16:50:12,089 | INFO | Sincronizando estado - Status: 0, Mode: 0
+2026-06-19 16:50:12,092 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:50:12,092 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:50:12,092 | INFO | Botón STOP: DESHABILITADO
+2026-06-19 16:50:12,807 | INFO | [CONNECTED PPAL] OS: Windows | Puerto: COM13
+2026-06-19 16:50:12,962 | INFO | Cambio de estado hardware: -1 → 1
+2026-06-19 16:50:13,267 | INFO | Sincronizando estado - Status: 1, Mode: 0
+2026-06-19 16:50:13,267 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 16:50:13,267 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 16:50:13,267 | INFO | Enabling UI elements for connected state.
+2026-06-19 16:50:13,267 | INFO | AlarmsScreen UI state reset.
+2026-06-19 16:50:13,478 | INFO | [BIOZ/UREA] Conectado exitosamente en puerto ESPECÍFICO: COM12
+2026-06-19 16:50:13,478 | INFO | [BIOZ] Conectado y en modo IDLE (esperando comandos)
+2026-06-19 16:50:15,182 | INFO | CSV Logger: Archivo 'logs/hemodialysis_cebado\hemodialysis_log_20260619_165015.csv' creado.
+2026-06-19 16:50:15,183 | INFO | Logger CSV iniciado correctamente para cebado
+2026-06-19 16:50:15,183 | INFO | COMANDO [BOOL]: dialyStartDialysisButt = True (Addr: 39)
+2026-06-19 16:50:15,183 | INFO | COMANDO [BOOL]: dialyStopDialysisButt = False (Addr: 40)
+2026-06-19 16:50:15,183 | INFO | Comandos de cebado enviados: Start=True, Stop=False
+2026-06-19 16:50:19,682 | INFO | Cambio de estado hardware: 1 → 14
+2026-06-19 16:50:19,682 | INFO | [STATE CHANGE] IDLE → RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:50:19,682 | INFO | Tratamiento INICIADO
+2026-06-19 16:50:19,682 | INFO | [KtvController] Reseteando estado para nuevo tratamiento.
+2026-06-19 16:50:19,682 | INFO | [Kt/V GRAFCET] Reseteando secuencia a IDLE.
+2026-06-19 16:50:19,684 | INFO | Estado: IDLE → RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:50:19,685 | INFO | Estado global cambiado: RUNNING | Hardware → TERAPIA EN CURSO
+2026-06-19 16:50:19,689 | INFO | Timer de terapia iniciado (hardware en RUNNING)
+2026-06-19 16:50:19,698 | INFO | CSV Logger: Archivo 'logs/tratamiento_hemodialisis\hemodialysis_log_20260619_165019.csv' creado.
+2026-06-19 16:50:19,698 | INFO | Nuevo logger creado: logs/tratamiento_hemodialisis
+2026-06-19 16:50:23,222 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:50:23,281 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:50:23,781 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:50:24,282 | INFO | El paciente está en tratamiento. Controles de la bomba deshabilitados.
+2026-06-19 16:50:29,259 | INFO | Pacientes guardados correctamente (4)
+2026-06-19 16:50:44,255 | INFO | [KtvController] Frecuencia automática de Kt/V establecida a 15 minutos.
+2026-06-19 16:50:44,255 | INFO | Frecuencia de cálculo automático de Kt/V cambiada a 15 minutos.
+2026-06-19 16:50:46,886 | INFO | [KtvController] Iniciando secuencia de medición Kt/V (MANUAL).
+2026-06-19 16:50:46,886 | INFO | [Kt/V GRAFCET] Inicio de secuencia
+2026-06-19 16:50:46,886 | INFO | [Kt/V GRAFCET] Transición: IDLE → START_BIOIMPEDANCE
+2026-06-19 16:50:46,886 | INFO | [Kt/V GRAFCET] Transición: START_BIOIMPEDANCE → WAIT_BIOIMPEDANCE
+2026-06-19 16:50:51,879 | INFO | [Kt/V GRAFCET] Transición: WAIT_BIOIMPEDANCE → START_UREA
+2026-06-19 16:50:51,880 | INFO | [Kt/V GRAFCET] Transición: START_UREA → WAIT_UREA
+2026-06-19 16:50:53,876 | INFO | [Kt/V GRAFCET] Transición: WAIT_UREA → CAPTURE_T1
+2026-06-19 16:50:53,876 | INFO | [KtvController] T1 capturado: CdIn=14.00392498023734, CdOut=14.017262437031585, Temp=36.51258954416181
+2026-06-19 16:50:53,876 | INFO | [KtvController] Original conductivity setpoint saved: 15.00 mS/cm
+2026-06-19 16:50:53,876 | INFO | [Kt/V GRAFCET] Transición: CAPTURE_T1 → SET_STEP_CONDUCTIVITY
+2026-06-19 16:50:53,876 | INFO | SETPOINT [DBL]: dialyCondControlSetPoint = 16.0 (G:0x4, ID:6)
+2026-06-19 16:50:53,876 | INFO | [KtvController] Conductivity setpoint changed to: 16.00 mS/cm
+2026-06-19 16:50:53,876 | INFO | [Kt/V GRAFCET] Transición: SET_STEP_CONDUCTIVITY → WAIT_CONDUCTIVITY_STEP
+2026-06-19 16:50:54,315 | INFO | [BIOZ] Modo simplificado → Z = 297.83 Ω
