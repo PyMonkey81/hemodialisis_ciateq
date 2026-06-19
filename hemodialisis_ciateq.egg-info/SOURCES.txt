@@ -1,0 +1,9 @@
+LICENSE.txt
+main.py
+pyproject.toml
+hemodialisis_ciateq.egg-info/PKG-INFO
+hemodialisis_ciateq.egg-info/SOURCES.txt
+hemodialisis_ciateq.egg-info/dependency_links.txt
+hemodialisis_ciateq.egg-info/top_level.txt
+tests/test.py
+tests/test_alarma_mod.py

@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hemodialisis-ciateq"
+version = "1.2.0"
+description = "Máquina de Hemodiálisis - CIATEQ"
+
+[tool.setuptools]
+py-modules = ["main"]

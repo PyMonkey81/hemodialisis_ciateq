@@ -103,6 +103,8 @@ from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screen import TherapyConfigScreen
+import sys
+from pathlib import Path
 
 from logic.ktv_calculator import CalculadoraKtV
 from logic.heitmann import heitmann
@@ -118,13 +120,26 @@ logger = logging.getLogger(__name__)
 #===============================================================================
 #======================CODIGO PARA ADJUNTAR LOGOS EN EJECUTABLE=================
 #===============================================================================
+# def resource_path(relative_path):
+#     """Get absolute path to resource, works for dev and for PyInstaller"""
+#     try:
+#         base_path = sys._MEIPASS
+#     except Exception:
+#         base_path = os.path.abspath(".")
+#     return os.path.join(base_path, relative_path)   
+
 def resource_path(relative_path):
-    """Get absolute path to resource, works for dev and for PyInstaller"""
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)   
+    """Obtiene la ruta absoluta al recurso usando pathlib."""
+    # Comprueba si estamos corriendo como un ejecutable de PyInstaller
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        base_path = Path(sys._MEIPASS)
+    else:
+        # Si estamos en desarrollo, usa el directorio de este archivo
+        base_path = Path(__file__).parent.parent 
+        # (ajusta los .parent dependiendo de dónde esté este script respecto a tus recursos)
+
+    return str(base_path / relative_path)
+
 
 class HemodialysisHMI(QMainWindow):
 
