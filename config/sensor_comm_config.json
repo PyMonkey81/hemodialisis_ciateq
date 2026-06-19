@@ -1,0 +1,14 @@
+{
+    "main_control": {
+        "port": "COM13",
+        "enabled": true
+    },
+    "conductivity_sensor": {
+        "port": "Auto",
+        "enabled": false
+    },
+    "bioz_urea_sensor": {
+        "port": "COM12",
+        "enabled": true
+    }
+}

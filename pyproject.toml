@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hemodialisis-ciateq"
+dynamic = ["version"]
+description = "Máquina de Hemodiálisis - CIATEQ"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Proprietary + LGPLv3"}
+authors = [{name = "Miguel Espinoza Calderón"}]
+
+[project.scripts]
+hemodialisis = "hemodialisis_ciateq.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["hemodialisis_ciateq*"]
+
+[tool.setuptools_scm]
+write_to = "src/hemodialisis_ciateq/_version.py"
+root = "."

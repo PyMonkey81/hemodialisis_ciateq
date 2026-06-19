@@ -1,0 +1,42 @@
+{
+    "P001": {
+        "patient_id": "P001",
+        "patient_name": "Juan Pérez López",
+        "patient_gender": 1,
+        "patient_age": 58,
+        "patient_height_cm": 170.0,
+        "patient_dry_weight_kg": 68.5,
+        "patient_pre_weight_kg": 73.2,
+        "uf_goal_liters": 4.7
+    },
+    "P002": {
+        "patient_id": "P002",
+        "patient_name": "María González Ramírez",
+        "patient_gender": 2,
+        "patient_age": 65,
+        "patient_height_cm": 158.0,
+        "patient_dry_weight_kg": 55.0,
+        "patient_pre_weight_kg": 59.8,
+        "uf_goal_liters": 4.8
+    },
+    "P003": {
+        "patient_id": "P003",
+        "patient_name": "Carlos Ramírez Torres",
+        "patient_gender": 1,
+        "patient_age": 42,
+        "patient_height_cm": 175.0,
+        "patient_dry_weight_kg": 82.0,
+        "patient_pre_weight_kg": 87.5,
+        "uf_goal_liters": 5.5
+    },
+    "P004": {
+        "patient_id": "P004",
+        "patient_name": "FER RODRIGUEZ LOJERO",
+        "patient_gender": 2,
+        "patient_age": 60,
+        "patient_height_cm": 170.0,
+        "patient_dry_weight_kg": 70.0,
+        "patient_pre_weight_kg": 73.0,
+        "uf_goal_liters": 3.0
+    }
+}

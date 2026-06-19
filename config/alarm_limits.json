@@ -1,0 +1,330 @@
+{
+  "dialyCondVariableData": [
+    12.5,
+    15.5
+  ],
+  "dialyTempVariableData": [
+    34.5,
+    39.5
+  ],
+  "bloodFlowVariableData": [
+    0.0,
+    600.0
+  ],
+  "arterPresProcessData": [
+    -100.0,
+    400.0
+  ],
+  "venouPresProcessData": [
+    -50.0,
+    300.0
+  ],
+  "interMembPresClinicData": [
+    1.0,
+    100.0
+  ],
+  "treatmentModeSelection": [
+    0.0,
+    100.0
+  ],
+  "primingProcessStatus": [
+    0.0,
+    100.0
+  ],
+  "availableClinicVariable4": [
+    0.0,
+    100.0
+  ],
+  "balanceChamberCycleSet": [
+    1.0,
+    100.0
+  ],
+  "heparineCurrentDosage": [
+    0.0,
+    100.0
+  ],
+  "balanceChamberCycleCount": [
+    0.0,
+    10000.0
+  ],
+  "ultraFilterPumpSpeed": [
+    0.0,
+    2.0
+  ],
+  "balanceChamberSetTiming": [
+    0.0,
+    100.0
+  ],
+  "heparineTherapyHours": [
+    0.0,
+    10.0
+  ],
+  "heparineTherapyMinutes": [
+    0.0,
+    59.0
+  ],
+  "heparineSyrinjeScaleSize": [
+    1.0,
+    10.0
+  ],
+  "heparineTherapyDosage": [
+    0.0,
+    50.0
+  ],
+  "heparineBolusQuantity": [
+    0.0,
+    10.0
+  ],
+  "bicarbonatePumpSpeed": [
+    0.0,
+    100.0
+  ],
+  "citricAcidPumpSpeed": [
+    0.0,
+    100.0
+  ],
+  "bloodFlowControlSetPoint": [
+    0.0,
+    600.0
+  ],
+  "bloodFlowControlOutput": [
+    0.0,
+    100.0
+  ],
+  "bloodFlowControlPropGain": [
+    0.0,
+    10.0
+  ],
+  "bloodFlowControlInteGain": [
+    0.0,
+    10.0
+  ],
+  "bloodFlowControlDeriGain": [
+    0.0,
+    10.0
+  ],
+  "dialyCondControlSetPoint": [
+    13.0,
+    15.0
+  ],
+  "dialyCondControlOutput": [
+    0.0,
+    100.0
+  ],
+  "dialyCondControlPropGain": [
+    0.0,
+    10.0
+  ],
+  "dialyCondControlInteGain": [
+    0.0,
+    10.0
+  ],
+  "dialyCondControlDeriGain": [
+    0.0,
+    10.0
+  ],
+  "dialyTempControlSetPoint": [
+    35.0,
+    39.0
+  ],
+  "dialyTempControlOutput": [
+    0.0,
+    100.0
+  ],
+  "dialyTempControlPropGain": [
+    0.0,
+    10.0
+  ],
+  "dialyTempControlInteGain": [
+    0.0,
+    10.0
+  ],
+  "dialyTempControlDeriGain": [
+    0.0,
+    10.0
+  ],
+  "bloodFlowFeedForwardGain": [
+    0.0,
+    5.0
+  ],
+  "bloodFlowFeedForwardLead": [
+    0.0,
+    10.0
+  ],
+  "dialyFlowControlOutput": [
+    300.0,
+    800.0
+  ],
+  "dialyDeaerControlOutput": [
+    0.0,
+    100.0
+  ],
+  "variableCtrlParamData1": [
+    0.0,
+    1000.0
+  ],
+  "variableCtrlParamData2": [
+    0.0,
+    1000.0
+  ],
+  "variableCtrlParamData3": [
+    0.0,
+    1000.0
+  ],
+  "variableCtrlParamData4": [
+    0.0,
+    1000.0
+  ],
+  "variableCtrlParamData5": [
+    0.0,
+    1000.0
+  ],
+  "bloodSpeedVariableData": [
+    0.0,
+    600.0
+  ],
+  "heparFlowProcessData": [
+    0.0,
+    50.0
+  ],
+  "dialyPresIFProcessData": [
+    -200.0,
+    600.0
+  ],
+  "dialyPresOFProcessData": [
+    -200.0,
+    600.0
+  ],
+  "dialyLineWaterPresData": [
+    0.0,
+    5.0
+  ],
+  "dialyTempIFProcessData": [
+    35.0,
+    39.0
+  ],
+  "dialyTempIOFProcessData": [
+    35.0,
+    39.0
+  ],
+  "subsLiqFlowProcessData": [
+    0.0,
+    5000.0
+  ],
+  "dialyConductIFProcessData": [
+    13.0,
+    15.0
+  ],
+  "dialyConductOFProcessData": [
+    13.0,
+    15.0
+  ],
+  "patHeartFreqProcessData": [
+    0.0,
+    1000.0
+  ],
+  "dialyTankPresProcessData": [
+    -100.0,
+    100.0
+  ],
+  "dialyLinePresProcessData": [
+    -200.0,
+    600.0
+  ],
+  "dialyPFilPmpPresProcessData": [
+    0.0,
+    500.0
+  ],
+  "heparCalibFactorData": [
+    0.0,
+    10.0
+  ],
+  "dialyUFilPresProcessData": [
+    -50.0,
+    500.0
+  ],
+  "dialyBChamPresProcessData": [
+    -100.0,
+    600.0
+  ],
+  "bloodArteryPressureData": [
+    -300.0,
+    600.0
+  ],
+  "bloodVenousPressureData": [
+    -100.0,
+    500.0
+  ],
+  "dialyCycleOperationCount": [
+    0.0,
+    100000.0
+  ],
+  "parameterCalFactData7": [
+    0.0,
+    100.0
+  ],
+  "parameterControlData8": [
+    0.0,
+    1000.0
+  ],
+  "parameterControlData9": [
+    0.0,
+    1000.0
+  ],
+  "parameterControlData10": [
+    0.0,
+    1000.0
+  ],
+  "parameterControlData11": [
+    0.0,
+    1000.0
+  ],
+  "parameterControlData12": [
+    0.0,
+    1000.0
+  ],
+  "bioz_resistance": [
+    0.0,
+    1000.0
+  ],
+  "bioz_phase": [
+    -180.0,
+    180.0
+  ],
+  "urea_adc1": [
+    0.0,
+    4095.0
+  ],
+  "urea_adc2": [
+    0.0,
+    4095.0
+  ],
+  "patient_height_cm": [
+    50.0,
+    250.0
+  ],
+  "patient_dry_weight_kg": [
+    20.0,
+    200.0
+  ],
+  "patient_pre_weight_kg": [
+    20.0,
+    200.0
+  ],
+  "uf_goal_liters": [
+    0.0,
+    10.0
+  ],
+  "patternCondSensor": [
+    0.0,
+    20.0
+  ],
+  "patternTempSensor": [
+    0.0,
+    100.0
+  ],
+  "patternCondRaw": [
+    0.0,
+    50.0
+  ]
+}

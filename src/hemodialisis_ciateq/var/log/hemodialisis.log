@@ -1,0 +1,238 @@
+2026-06-19 13:27:22,156 | INFO | Tema aplicado: Dark
+2026-06-19 13:27:22,156 | ERROR | Tema 'dark' no existe.
+2026-06-19 13:27:22,156 | INFO | Fuente aplicada: Arial Narrow (16 pt)
+2026-06-19 13:27:22,157 | INFO | TimerManager iniciado.
+2026-06-19 13:27:22,157 | INFO | KtvGrafcet inicializado.
+2026-06-19 13:27:22,158 | INFO | KtvController inicializado.
+2026-06-19 13:27:22,531 | INFO | MainScreen initialized successfully.
+2026-06-19 13:27:22,632 | WARNING | [BIOZ/UREA] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 13:27:22,632 | INFO | KtvController: Dependencias inyectadas.
+2026-06-19 13:27:22,633 | WARNING | [COND. PATRÓN] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 13:27:22,635 | INFO | LedBarController: Hilo de comunicación iniciado.
+2026-06-19 13:27:22,643 | INFO | AlarmsScreen: alarm_system found. Known alarm count: 4
+2026-06-19 13:27:22,890 | INFO | Archivo de configuración no encontrado en config\cleaning_config.json. Creando con valores por defecto.
+2026-06-19 13:27:22,894 | INFO | Reseteando UI a estado inicial.
+2026-06-19 13:27:22,900 | INFO | OptionsScreen UI setup complete with service options buttons.
+2026-06-19 13:27:22,936 | INFO | Manual mode module initialized (v1.0.0)
+2026-06-19 13:27:23,009 | INFO | Test panel module initialized (v1.0.0)
+2026-06-19 13:27:23,099 | WARNING | Usando configuración por defecto
+2026-06-19 13:27:23,114 | INFO | No se encontró archivo de pacientes. Se usarán datos de prueba.
+2026-06-19 13:27:23,137 | INFO | Configuracion de terapia (V1.0.0)
+2026-06-19 13:27:23,346 | INFO | [CONTROLADOR PPAL] Configuración recibida: Puerto='Auto', Habilitado=False
+2026-06-19 13:27:23,347 | INFO | Controlador Principal: Puerto=Auto, Habilitado=False
+2026-06-19 13:27:23,347 | INFO | [COND. PATRÓN] Configuración recibida: Puerto='Auto' (interno: 'Auto'), Habilitado=False
+2026-06-19 13:27:23,347 | INFO | Sensor Conductividad: Puerto=Auto, Habilitado=False
+2026-06-19 13:27:23,347 | INFO | [BIOZ/UREA] Configuración recibida: Puerto='Auto' (internamente: 'None'), Habilitado=False
+2026-06-19 13:27:23,347 | INFO | Sensor BioZ: Puerto=Auto, Habilitado=False
+2026-06-19 13:27:23,347 | INFO | Timer Maestro iniciado correctamente (intervalo 500ms)
+2026-06-19 13:27:23,392 | WARNING | [CONTROLADOR PPAL] No se encontró ningún dispositivo FTDI en los puertos del sistema.
+2026-06-19 13:27:23,392 | WARNING | [CONTROLADOR PPAL] Intento de arranque bloqueado: Comunicación deshabilitada.
+2026-06-19 13:27:23,392 | WARNING | Disabling UI elements for disconnected state.
+2026-06-19 13:27:23,393 | INFO | AlarmsScreen UI state reset.
+2026-06-19 13:27:23,813 | INFO | Scaled HMI: 1813×1020 (factor 0.94x) on 1920×1020
+2026-06-19 13:27:23,814 | INFO | ======================================================================
+2026-06-19 13:27:23,814 | INFO |    CIATEQ A.C. - HEMODIALYSIS MACHINE HMI
+2026-06-19 13:27:23,814 | INFO |    FULLSCREEN MODE WITH DYNAMIC SCALING
+2026-06-19 13:27:23,814 | INFO |    Applied scaling factor: 0.80x
+2026-06-19 13:27:23,815 | INFO | ======================================================================
+2026-06-19 13:27:24,159 | INFO | Sincronizando estado - Status: 0, Mode: 0
+2026-06-19 13:27:24,160 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 13:27:24,160 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 13:27:24,160 | INFO | Botón STOP: DESHABILITADO
+2026-06-19 13:27:42,419 | ERROR | [INFO] closeEvent → performing shutdown...
+2026-06-19 13:27:42,420 | INFO | [INFO] Iniciando secuencia de apagado controlado de periféricos.
+2026-06-19 13:27:42,420 | INFO | Timer Maestro detenido correctamente
+2026-06-19 13:27:43,857 | INFO | [INFO] Secuencia de apagado completo finalizada.
+2026-06-19 14:27:06,040 | INFO | Tema aplicado: Dark
+2026-06-19 14:27:06,040 | ERROR | Tema 'dark' no existe.
+2026-06-19 14:27:06,040 | INFO | Fuente aplicada: Arial Narrow (16 pt)
+2026-06-19 14:27:06,043 | INFO | TimerManager iniciado.
+2026-06-19 14:27:06,043 | INFO | KtvGrafcet inicializado.
+2026-06-19 14:27:06,043 | INFO | KtvController inicializado.
+2026-06-19 14:27:06,318 | INFO | MainScreen initialized successfully.
+2026-06-19 14:27:06,407 | WARNING | [BIOZ/UREA] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 14:27:06,407 | INFO | KtvController: Dependencias inyectadas.
+2026-06-19 14:27:06,407 | WARNING | [COND. PATRÓN] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 14:27:06,409 | INFO | LedBarController: Hilo de comunicación iniciado.
+2026-06-19 14:27:06,414 | INFO | AlarmsScreen: alarm_system found. Known alarm count: 4
+2026-06-19 14:27:06,614 | INFO | Reseteando UI a estado inicial.
+2026-06-19 14:27:06,617 | INFO | OptionsScreen UI setup complete with service options buttons.
+2026-06-19 14:27:06,645 | INFO | Manual mode module initialized (v1.0.0)
+2026-06-19 14:27:06,703 | INFO | Test panel module initialized (v1.0.0)
+2026-06-19 14:27:06,779 | INFO | Configuración cargada desde config\sensor_comm_config.json
+2026-06-19 14:27:06,794 | INFO | No se encontró archivo de pacientes. Se usarán datos de prueba.
+2026-06-19 14:27:06,816 | INFO | Configuracion de terapia (V1.0.0)
+2026-06-19 14:27:07,034 | INFO | [CONTROLADOR PPAL] Configuración recibida: Puerto='COM13', Habilitado=True
+2026-06-19 14:27:07,034 | INFO | [CONTROLADOR PPAL] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 14:27:07,035 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 14:27:07,035 | INFO | [CONTROLADOR PPAL] Hilo de comunicación iniciado exitosamente.
+2026-06-19 14:27:07,035 | INFO | Controlador Principal: Puerto=COM13, Habilitado=True
+2026-06-19 14:27:07,035 | INFO | [COND. PATRÓN] Configuración recibida: Puerto='Auto' (interno: 'Auto'), Habilitado=False
+2026-06-19 14:27:07,035 | INFO | Sensor Conductividad: Puerto=Auto, Habilitado=False
+2026-06-19 14:27:07,035 | INFO | [BIOZ/UREA] Configuración recibida: Puerto='COM12' (internamente: 'COM12'), Habilitado=True
+2026-06-19 14:27:07,036 | INFO | [BIOZ/UREA] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 14:27:07,036 | INFO | [BIOZ/UREA] Hilo de comunicación iniciado.
+2026-06-19 14:27:07,036 | INFO | Sensor BioZ: Puerto=COM12, Habilitado=True
+2026-06-19 14:27:07,037 | INFO | Timer Maestro iniciado correctamente (intervalo 500ms)
+2026-06-19 14:27:07,037 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 14:27:07,068 | ERROR | [CONTROLADOR PPAL] Error de conexión en COM13: could not open port 'COM13': PermissionError(13, 'Access is denied.', None, 5)
+2026-06-19 14:27:08,565 | INFO | [CONNECTED PPAL] OS: Windows | Puerto: COM13
+2026-06-19 14:27:08,565 | WARNING | Disabling UI elements for disconnected state.
+2026-06-19 14:27:08,565 | INFO | AlarmsScreen UI state reset.
+2026-06-19 14:27:08,959 | INFO | Scaled HMI: 1813×1020 (factor 0.94x) on 1920×1020
+2026-06-19 14:27:08,959 | INFO | ======================================================================
+2026-06-19 14:27:08,959 | INFO |    CIATEQ A.C. - HEMODIALYSIS MACHINE HMI
+2026-06-19 14:27:08,959 | INFO |    FULLSCREEN MODE WITH DYNAMIC SCALING
+2026-06-19 14:27:08,959 | INFO |    Applied scaling factor: 0.80x
+2026-06-19 14:27:08,959 | INFO | ======================================================================
+2026-06-19 14:27:09,034 | INFO | Sincronizando estado - Status: 0, Mode: 0
+2026-06-19 14:27:09,036 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 14:27:09,036 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 14:27:09,036 | INFO | Botón STOP: DESHABILITADO
+2026-06-19 14:27:09,036 | INFO | Enabling UI elements for connected state.
+2026-06-19 14:27:09,036 | INFO | AlarmsScreen UI state reset.
+2026-06-19 14:27:09,041 | INFO | Sincronizando estado - Status: 0, Mode: 0
+2026-06-19 14:27:09,042 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 14:27:09,043 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 14:27:09,104 | INFO | [BIOZ/UREA] Conectado exitosamente en puerto ESPECÍFICO: COM12
+2026-06-19 14:27:09,104 | INFO | [BIOZ] Conectado y en modo IDLE (esperando comandos)
+2026-06-19 14:27:09,217 | INFO | Cambio de estado hardware: -1 → 1
+2026-06-19 14:27:12,016 | ERROR | [INFO] closeEvent → performing shutdown...
+2026-06-19 14:27:12,017 | INFO | [INFO] Iniciando secuencia de apagado controlado de periféricos.
+2026-06-19 14:27:12,017 | INFO | Timer Maestro detenido correctamente
+2026-06-19 14:27:12,483 | INFO | Iniciando apagado síncrono del módulo de comunicación serial...
+2026-06-19 14:27:12,484 | INFO | [CONTROLADOR PPAL] Puerto serial cerrado.
+2026-06-19 14:27:13,485 | INFO | [CONTROLADOR PPAL] Hilo de comunicación finalizado.
+2026-06-19 14:27:14,708 | INFO | [BIOZ/UREA] Hilo de comunicación detenido.
+2026-06-19 14:27:14,709 | INFO | [BIOZ/UREA] Puerto serial cerrado.
+2026-06-19 14:27:14,709 | INFO | [BIOZ/UREA] Controlador detenido.
+2026-06-19 14:27:14,709 | INFO | [INFO] Secuencia de apagado completo finalizada.
+2026-06-19 14:27:29,777 | INFO | Tema aplicado: Dark
+2026-06-19 14:27:29,777 | ERROR | Tema 'dark' no existe.
+2026-06-19 14:27:29,777 | INFO | Fuente aplicada: Arial Narrow (16 pt)
+2026-06-19 14:27:29,778 | INFO | TimerManager iniciado.
+2026-06-19 14:27:29,778 | INFO | KtvGrafcet inicializado.
+2026-06-19 14:27:29,778 | INFO | KtvController inicializado.
+2026-06-19 14:27:30,056 | INFO | MainScreen initialized successfully.
+2026-06-19 14:27:30,152 | WARNING | [BIOZ/UREA] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 14:27:30,152 | INFO | KtvController: Dependencias inyectadas.
+2026-06-19 14:27:30,152 | WARNING | [COND. PATRÓN] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 14:27:30,154 | INFO | LedBarController: Hilo de comunicación iniciado.
+2026-06-19 14:27:30,162 | INFO | AlarmsScreen: alarm_system found. Known alarm count: 4
+2026-06-19 14:27:30,381 | INFO | Reseteando UI a estado inicial.
+2026-06-19 14:27:30,384 | INFO | OptionsScreen UI setup complete with service options buttons.
+2026-06-19 14:27:30,409 | INFO | Manual mode module initialized (v1.0.0)
+2026-06-19 14:27:30,462 | INFO | Test panel module initialized (v1.0.0)
+2026-06-19 14:27:30,535 | INFO | Configuración cargada desde config\sensor_comm_config.json
+2026-06-19 14:27:30,550 | INFO | No se encontró archivo de pacientes. Se usarán datos de prueba.
+2026-06-19 14:27:30,571 | INFO | Configuracion de terapia (V1.0.0)
+2026-06-19 14:27:30,772 | INFO | [CONTROLADOR PPAL] Configuración recibida: Puerto='COM13', Habilitado=True
+2026-06-19 14:27:30,772 | INFO | [CONTROLADOR PPAL] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 14:27:30,773 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 14:27:30,773 | INFO | [CONTROLADOR PPAL] Hilo de comunicación iniciado exitosamente.
+2026-06-19 14:27:30,773 | INFO | Controlador Principal: Puerto=COM13, Habilitado=True
+2026-06-19 14:27:30,773 | INFO | [COND. PATRÓN] Configuración recibida: Puerto='Auto' (interno: 'Auto'), Habilitado=False
+2026-06-19 14:27:30,774 | INFO | Sensor Conductividad: Puerto=Auto, Habilitado=False
+2026-06-19 14:27:30,774 | INFO | [BIOZ/UREA] Configuración recibida: Puerto='COM12' (internamente: 'COM12'), Habilitado=True
+2026-06-19 14:27:30,774 | INFO | [BIOZ/UREA] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 14:27:30,774 | INFO | [BIOZ/UREA] Hilo de comunicación iniciado.
+2026-06-19 14:27:30,774 | INFO | Sensor BioZ: Puerto=COM12, Habilitado=True
+2026-06-19 14:27:30,774 | INFO | Timer Maestro iniciado correctamente (intervalo 500ms)
+2026-06-19 14:27:30,775 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 14:27:30,796 | ERROR | [CONTROLADOR PPAL] Error de conexión en COM13: could not open port 'COM13': PermissionError(13, 'Access is denied.', None, 5)
+2026-06-19 14:27:32,297 | INFO | [CONNECTED PPAL] OS: Windows | Puerto: COM13
+2026-06-19 14:27:32,297 | WARNING | Disabling UI elements for disconnected state.
+2026-06-19 14:27:32,297 | INFO | AlarmsScreen UI state reset.
+2026-06-19 14:27:32,688 | INFO | Scaled HMI: 1813×1020 (factor 0.94x) on 1920×1020
+2026-06-19 14:27:32,688 | INFO | ======================================================================
+2026-06-19 14:27:32,688 | INFO |    CIATEQ A.C. - HEMODIALYSIS MACHINE HMI
+2026-06-19 14:27:32,688 | INFO |    FULLSCREEN MODE WITH DYNAMIC SCALING
+2026-06-19 14:27:32,688 | INFO |    Applied scaling factor: 0.80x
+2026-06-19 14:27:32,688 | INFO | ======================================================================
+2026-06-19 14:27:32,746 | INFO | Sincronizando estado - Status: 0, Mode: 0
+2026-06-19 14:27:32,748 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 14:27:32,748 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 14:27:32,748 | INFO | Botón STOP: DESHABILITADO
+2026-06-19 14:27:32,748 | INFO | Enabling UI elements for connected state.
+2026-06-19 14:27:32,748 | INFO | AlarmsScreen UI state reset.
+2026-06-19 14:27:32,749 | INFO | Sincronizando estado - Status: 0, Mode: 0
+2026-06-19 14:27:32,751 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 14:27:32,751 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 14:27:32,841 | INFO | [BIOZ/UREA] Conectado exitosamente en puerto ESPECÍFICO: COM12
+2026-06-19 14:27:32,841 | INFO | [BIOZ] Conectado y en modo IDLE (esperando comandos)
+2026-06-19 14:27:32,942 | INFO | Cambio de estado hardware: -1 → 1
+2026-06-19 14:29:21,333 | ERROR | [INFO] closeEvent → performing shutdown...
+2026-06-19 14:29:21,333 | INFO | [INFO] Iniciando secuencia de apagado controlado de periféricos.
+2026-06-19 14:29:21,333 | INFO | Timer Maestro detenido correctamente
+2026-06-19 14:29:21,474 | INFO | Iniciando apagado síncrono del módulo de comunicación serial...
+2026-06-19 14:29:21,474 | INFO | [CONTROLADOR PPAL] Puerto serial cerrado.
+2026-06-19 14:29:21,491 | INFO | [CONTROLADOR PPAL] Hilo de comunicación finalizado.
+2026-06-19 14:29:22,518 | INFO | [BIOZ/UREA] Hilo de comunicación detenido.
+2026-06-19 14:29:22,519 | INFO | [BIOZ/UREA] Puerto serial cerrado.
+2026-06-19 14:29:22,521 | INFO | [BIOZ/UREA] Controlador detenido.
+2026-06-19 14:29:22,521 | INFO | [INFO] Secuencia de apagado completo finalizada.
+2026-06-19 14:29:28,223 | INFO | Tema aplicado: Dark
+2026-06-19 14:29:28,224 | ERROR | Tema 'dark' no existe.
+2026-06-19 14:29:28,224 | INFO | Fuente aplicada: Arial Narrow (16 pt)
+2026-06-19 14:29:28,225 | INFO | TimerManager iniciado.
+2026-06-19 14:29:28,225 | INFO | KtvGrafcet inicializado.
+2026-06-19 14:29:28,225 | INFO | KtvController inicializado.
+2026-06-19 14:29:28,491 | INFO | MainScreen initialized successfully.
+2026-06-19 14:29:28,583 | WARNING | [BIOZ/UREA] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 14:29:28,583 | INFO | KtvController: Dependencias inyectadas.
+2026-06-19 14:29:28,583 | WARNING | [COND. PATRÓN] Intento de iniciar controlador deshabilitado. No se hará nada.
+2026-06-19 14:29:28,586 | INFO | LedBarController: Hilo de comunicación iniciado.
+2026-06-19 14:29:28,591 | INFO | AlarmsScreen: alarm_system found. Known alarm count: 4
+2026-06-19 14:29:28,796 | INFO | Reseteando UI a estado inicial.
+2026-06-19 14:29:28,800 | INFO | OptionsScreen UI setup complete with service options buttons.
+2026-06-19 14:29:28,825 | INFO | Manual mode module initialized (v1.0.0)
+2026-06-19 14:29:28,883 | INFO | Test panel module initialized (v1.0.0)
+2026-06-19 14:29:28,964 | INFO | Configuración cargada desde config\sensor_comm_config.json
+2026-06-19 14:29:28,979 | INFO | Se cargaron 4 pacientes desde config/patients.json
+2026-06-19 14:29:29,002 | INFO | Configuracion de terapia (V1.0.0)
+2026-06-19 14:29:29,210 | INFO | [CONTROLADOR PPAL] Configuración recibida: Puerto='COM13', Habilitado=True
+2026-06-19 14:29:29,210 | INFO | [CONTROLADOR PPAL] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 14:29:29,212 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 14:29:29,212 | INFO | [CONTROLADOR PPAL] Hilo de comunicación iniciado exitosamente.
+2026-06-19 14:29:29,212 | INFO | Controlador Principal: Puerto=COM13, Habilitado=True
+2026-06-19 14:29:29,212 | INFO | [COND. PATRÓN] Configuración recibida: Puerto='Auto' (interno: 'Auto'), Habilitado=False
+2026-06-19 14:29:29,212 | INFO | Sensor Conductividad: Puerto=Auto, Habilitado=False
+2026-06-19 14:29:29,212 | INFO | [BIOZ/UREA] Configuración recibida: Puerto='COM12' (internamente: 'COM12'), Habilitado=True
+2026-06-19 14:29:29,212 | INFO | [BIOZ/UREA] Se habilitó la comunicación. Iniciando controlador.
+2026-06-19 14:29:29,213 | INFO | [BIOZ/UREA] Hilo de comunicación iniciado.
+2026-06-19 14:29:29,213 | INFO | Sensor BioZ: Puerto=COM12, Habilitado=True
+2026-06-19 14:29:29,213 | INFO | Timer Maestro iniciado correctamente (intervalo 500ms)
+2026-06-19 14:29:29,213 | INFO | [CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: COM13
+2026-06-19 14:29:29,249 | ERROR | [CONTROLADOR PPAL] Error de conexión en COM13: could not open port 'COM13': PermissionError(13, 'Access is denied.', None, 5)
+2026-06-19 14:29:29,250 | WARNING | Disabling UI elements for disconnected state.
+2026-06-19 14:29:29,250 | INFO | AlarmsScreen UI state reset.
+2026-06-19 14:29:29,675 | INFO | Scaled HMI: 1813×1020 (factor 0.94x) on 1920×1020
+2026-06-19 14:29:29,676 | INFO | ======================================================================
+2026-06-19 14:29:29,676 | INFO |    CIATEQ A.C. - HEMODIALYSIS MACHINE HMI
+2026-06-19 14:29:29,676 | INFO |    FULLSCREEN MODE WITH DYNAMIC SCALING
+2026-06-19 14:29:29,676 | INFO |    Applied scaling factor: 0.80x
+2026-06-19 14:29:29,676 | INFO | ======================================================================
+2026-06-19 14:29:30,027 | INFO | Sincronizando estado - Status: 0, Mode: 0
+2026-06-19 14:29:30,028 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 14:29:30,028 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 14:29:30,028 | INFO | Botón STOP: DESHABILITADO
+2026-06-19 14:29:30,744 | INFO | [CONNECTED PPAL] OS: Windows | Puerto: COM13
+2026-06-19 14:29:30,900 | INFO | Cambio de estado hardware: -1 → 1
+2026-06-19 14:29:31,219 | INFO | [BIOZ/UREA] Conectado exitosamente en puerto ESPECÍFICO: COM12
+2026-06-19 14:29:31,219 | INFO | [BIOZ] Conectado y en modo IDLE (esperando comandos)
+2026-06-19 14:29:31,222 | INFO | Sincronizando estado - Status: 1, Mode: 0
+2026-06-19 14:29:31,224 | INFO |  Start: 0.0, Stop: 0.0 
+2026-06-19 14:29:31,224 | INFO | Estado de la bomba: INDETERMINADO o listo para arrancar (por defecto)
+2026-06-19 14:29:31,224 | INFO | Enabling UI elements for connected state.
+2026-06-19 14:29:31,224 | INFO | AlarmsScreen UI state reset.
+2026-06-19 14:29:46,564 | INFO | Pacientes guardados correctamente (4)
+2026-06-19 14:30:42,459 | ERROR | [INFO] closeEvent → performing shutdown...
+2026-06-19 14:30:42,459 | INFO | [INFO] Iniciando secuencia de apagado controlado de periféricos.
+2026-06-19 14:30:42,459 | INFO | Timer Maestro detenido correctamente
+2026-06-19 14:30:42,867 | INFO | Iniciando apagado síncrono del módulo de comunicación serial...
+2026-06-19 14:30:42,868 | INFO | [CONTROLADOR PPAL] Puerto serial cerrado.
+2026-06-19 14:30:42,890 | INFO | [CONTROLADOR PPAL] Hilo de comunicación finalizado.
+2026-06-19 14:30:44,072 | INFO | [BIOZ/UREA] Hilo de comunicación detenido.
+2026-06-19 14:30:44,074 | INFO | [BIOZ/UREA] Puerto serial cerrado.
+2026-06-19 14:30:44,074 | INFO | [BIOZ/UREA] Controlador detenido.
+2026-06-19 14:30:44,074 | INFO | [INFO] Secuencia de apagado completo finalizada.

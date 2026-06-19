@@ -1,0 +1,16 @@
+{
+    "modes": {
+        "0.0": {
+            "time_hours": 0,
+            "time_minutes": 15,
+            "mode_temp": 35.0,
+            "mode_flow": 100.0
+        },
+        "1.0": {
+            "time_hours": 0,
+            "time_minutes": 30,
+            "mode_temp": 40.0,
+            "mode_flow": 120.0
+        }
+    }
+}

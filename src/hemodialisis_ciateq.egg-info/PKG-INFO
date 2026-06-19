@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: hemodialisis-ciateq
+Version: 0.1.1.dev0+g9254b8e41.d20260619
+Summary: Máquina de Hemodiálisis - CIATEQ
+Author: Miguel Espinoza Calderón
+License: Proprietary + LGPLv3
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown

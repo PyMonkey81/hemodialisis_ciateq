@@ -1,0 +1,487 @@
+import logging
+from typing import Callable, Dict, Optional
+
+from PySide6.QtCore import QObject, QTimer, QDateTime, Signal # Import QObject, QTimer, QDateTime, Signal
+from hemodialisis_ciateq.core.ktv.ktv_grafcet import KtvGrafcet, KtvStep # Import KtvGrafcet and KtvStep
+from hemodialisis_ciateq.logic.ktv_calculator import CalculadoraKtV # Import CalculadoraKtV
+from hemodialisis_ciateq.core.state_manager import TreatmentPhase # Import TreatmentPhase
+from hemodialisis_ciateq.logic.heitmann import heitmann # Import heitmann
+
+
+logger = logging.getLogger(__name__)
+
+class KtvController(QObject): # KtvController ahora hereda de QObject
+    # Señales que el KtvController puede emitir a la interfaz principal o a la pantalla KTV
+    ktv_calculated = Signal(dict) # Emite un diccionario con los resultados Kt/V
+    schedule_info_updated = Signal(str) # Emite el texto para la próxima medición programada
+    
+    # Señales para solicitar acciones a la ventana principal (HemodialysisHMI)
+    request_setpoint_change = Signal(str, float) # Solicita al Main que cambie un setpoint
+    request_bioz_command = Signal(str) # Solicita al Main que envíe un comando a BioZ/Urea
+    show_message_signal = Signal(str, str, int) # Para mostrar mensajes al usuario (text, level, timeout)
+    
+    # Señales para notificar eventos del ciclo de vida de la medición
+    measurement_started = Signal() # Señal que indica que una medición Kt/V ha comenzado
+    measurement_aborted = Signal(str) # Señal que indica que una medición Kt/V ha sido abortada
+    measurement_finished = Signal() # Señal que indica que una medición Kt/V ha finalizado con éxito
+
+
+    def __init__(self, parent=None): # Changed parent_window to parent for QObject
+        super().__init__(parent)
+        self.main_window = parent # Referencia a la ventana principal (HemodialysisHMI), se asigna en set_dependencies
+
+        # Dependencias que serán inyectadas desde appMainHemodialysis
+        self._bioz_urea_controller = None
+        self._current_values_accessor: Optional[Callable[[], Dict]] = None # Callable para obtener el diccionario current_values
+        self._get_elapsed_therapy_minutes_accessor: Optional[Callable[[], float]] = None # Callable para obtener minutos de terapia
+        self._write_setpoint_callback: Optional[Callable[[str, float], None]] = None
+        self._write_bioz_command_callback: Optional[Callable[[str], None]] = None
+        self._show_message_callback: Optional[Callable[[str, str, int], None]] = None
+        
+        # Atributos internos para la lógica Kt/V
+        self.calculadora_ktv = CalculadoraKtV(parent=self) # Instancia de la calculadora
+        self._original_conductivity_setpoint: Optional[float] = None
+        self._automatic_frequency_minutes: int = 0 # Default: 0 (deshabilitado)
+        self._next_automatic_measurement_time_s: float = float('inf') # En segundos, tiempo absoluto de terapia para próxima medición
+
+        self.is_paused: bool = False # Controla si la secuencia de Kt/V está pausada (a nivel de KtvController)
+        self._grafcet_is_paused_internally: bool = False # Controla si el KtvGrafcet está en su estado PAUSED_SEQUENCE
+        self._suppress_measurement_popups: bool = True # Evita popups durante la secuencia Kt/V
+
+        # El GRAFCET de la secuencia de medición de Kt/V
+        # Le pasamos los callbacks que este KtvController implementa.
+        self.grafcet = KtvGrafcet(self._make_internal_callbacks(), parent=self)
+        
+        logger.info("KtvController inicializado.")
+
+    def _notify_user(self, text: str, level: str, timeout: int, force: bool = False) -> None:
+        """Envía mensajes al operador; puede silenciarse durante la medición Kt/V."""
+        if not self._show_message_callback:
+            return
+
+        measurement_active = self.grafcet.is_running() or self._grafcet_is_paused_internally
+        if self._suppress_measurement_popups and measurement_active and not force:
+            return
+
+        self._show_message_callback(text, level, timeout)
+
+    def set_dependencies(self, main_window: QObject, bioz_urea_controller: QObject,
+                         current_values_accessor: Callable[[], Dict],
+                         get_elapsed_therapy_minutes_accessor: Callable[[], float],
+                         write_setpoint_callback: Callable[[str, float], None],
+                         write_bioz_command_callback: Callable[[str], None],
+                         show_message_callback: Callable[[str, str, int], None]):
+        """
+        Inyecta las dependencias necesarias de la ventana principal.
+        Esto permite que el KtvController acceda a recursos sin una referencia directa y fuerte.
+        """
+        self.main_window = main_window # La ventana principal (HMI)
+        self._bioz_urea_controller = bioz_urea_controller
+        self._current_values_accessor = current_values_accessor
+        self._get_elapsed_therapy_minutes_accessor = get_elapsed_therapy_minutes_accessor
+        self._write_setpoint_callback = write_setpoint_callback
+        self._write_bioz_command_callback = write_bioz_command_callback
+        self._show_message_callback = show_message_callback
+        
+        # Después de setear las dependencias, aseguramos que los callbacks del grafcet estén correctos
+        self.grafcet.callbacks = self._make_internal_callbacks()
+        logger.info("KtvController: Dependencias inyectadas.")
+
+    def update_current_values(self, new_values: dict):
+        """
+        Actualiza el diccionario de valores actuales que KtvController utiliza.
+        Es importante que este controlador siempre tenga acceso a los datos más recientes.
+        """
+        # El accessor se encarga de que KtvController siempre tenga acceso a los current_values más recientes
+        pass 
+
+    def on_master_tick(self):
+        """
+        Gestiona la lógica de programación automática de Kt/V.
+        Se llama desde el master_timer de HemodialysisHMI.
+        """
+        # Si el Grafcet está pausado internamente, no hacer nada más que actualizar la UI
+        if self._grafcet_is_paused_internally:
+            # Podríamos actualizar el tiempo restante para la próxima medición en la UI aquí si queremos
+            self._update_schedule_display_text(self._get_elapsed_therapy_seconds())
+            return
+
+        # Si el tratamiento no está corriendo, o está pausado globalmente
+        if not self.is_therapy_running() or self.is_paused:
+            # Si el grafcet está corriendo y la terapia se pausó/detuvo, abortar la medición en curso
+            if self.grafcet.is_running():
+                self.abort("Terapia pausada/detenida durante medición.")
+            self.schedule_info_updated.emit("Terapia no activa") # Informar a la UI
+            return 
+
+        # Si hay una medición manual o automática en curso, no iniciar una nueva automática.
+        if self.grafcet.is_running():
+            self.schedule_info_updated.emit("Medición en curso...") # Indicar a la UI que hay una medición activa
+            return
+
+        elapsed_seconds = self._get_elapsed_therapy_seconds()
+
+        # Calcular la próxima medición solo cuando no exista programación activa.
+        # Recalcular en cada tick puede adelantar el objetivo y perder disparos automáticos.
+        if self._automatic_frequency_minutes > 0 and (
+            self._next_automatic_measurement_time_s == 0 or
+            self._next_automatic_measurement_time_s == float('inf')
+        ):
+            self._update_next_scheduled_time(elapsed_seconds)
+
+        self._update_schedule_display_text(elapsed_seconds) # Actualizar el texto en la pantalla
+
+        if self._automatic_frequency_minutes > 0 and \
+           self._next_automatic_measurement_time_s != float('inf') and \
+           elapsed_seconds >= self._next_automatic_measurement_time_s:
+            
+            logger.info(f"[KtvController] Iniciando medición automática de Kt/V. Tiempo de terapia: {elapsed_seconds // 60} min.")
+            self.start_manual_measurement(is_automatic=True) # Reutilizar la lógica de inicio
+            if self.grafcet.is_running():
+                # Evita un segundo intento del mismo slot mientras la secuencia está activa.
+                self._next_automatic_measurement_time_s = float('inf')
+            # Una vez que se inicia la medición, recalcula la próxima para el siguiente ciclo
+            # (El grafcet se encargará de resetear self._next_automatic_measurement_time_s a inf si termina)
+            # o se recalculará automáticamente al final del grafcet cuando no haya medición en curso.
+
+
+
+    # Calcula el próximo slot automático como múltiplo de frecuencia,
+    # respetando un buffer al final de la terapia.
+
+    def _update_next_scheduled_time(self, current_elapsed_seconds: int):
+        """Calcula el próximo tiempo de medición automática."""
+        if self._automatic_frequency_minutes <= 0:
+            self._next_automatic_measurement_time_s = float('inf')
+            return
+
+        total_therapy_seconds = int(self.main_window.treatment_controller.total_therapy_seconds)
+        if total_therapy_seconds <= 0:
+            self._next_automatic_measurement_time_s = float('inf')
+            return
+
+        freq_s = self._automatic_frequency_minutes * 60
+        if freq_s <= 0:
+            self._next_automatic_measurement_time_s = float('inf')
+            return
+
+        # Smallest multiple of freq_s that is >= current_elapsed_seconds
+        next_schedule_s = ((current_elapsed_seconds + freq_s - 1) // freq_s) * freq_s
+        if next_schedule_s == 0:
+            next_schedule_s = freq_s
+
+        # Buffer para no programar muy cerca del final de la terapia
+        measurement_duration_buffer_s = 250
+        last_allowed_s = max(0, total_therapy_seconds - measurement_duration_buffer_s)
+
+        if next_schedule_s > last_allowed_s:
+            self._next_automatic_measurement_time_s = float('inf')
+        else:
+            self._next_automatic_measurement_time_s = next_schedule_s
+
+        logger.debug(f"Próxima medición automática calculada para {self._next_automatic_measurement_time_s / 60:.0f} minutos.")
+
+    def _update_schedule_display_text(self, current_elapsed_seconds: int):
+        """Emite la señal para actualizar el texto de la próxima medición."""
+        if self._automatic_frequency_minutes <= 0:
+            self.schedule_info_updated.emit("Deshabilitado")
+        elif self._next_automatic_measurement_time_s == float('inf'):
+            self.schedule_info_updated.emit("No hay más mediciones programadas")
+        else:
+            remaining_s = max(0, int(self._next_automatic_measurement_time_s - current_elapsed_seconds))
+            remaining_min = remaining_s // 60
+            self.schedule_info_updated.emit(f"en {remaining_min} minutos")
+
+
+    def start_manual_measurement(self, is_automatic: bool = False) -> None:
+        """Arranca la secuencia de medición Kt/V, con validaciones iniciales."""
+        if not self.is_therapy_running():
+            self._notify_user("El tratamiento debe estar en curso para iniciar una medición Kt/V.", "warning", 3000)
+            return
+
+        if self.grafcet.is_running():
+            self._notify_user("Ya hay una medición de Kt/V en curso.", "warning", 3000)
+            return
+
+        if not self._bioz_urea_controller or not self._bioz_urea_controller.is_enabled(): # Asumiendo .is_enabled()
+            self._notify_user("Controlador de Bioimpedancia/Urea no disponible o deshabilitado.", "error", 5000)
+            logger.warning("Intento de iniciar Kt/V sin controlador BioZ/Urea disponible.")
+            return
+        
+        # Configurar la bandera para que el grafcet sepa si es auto o manual
+        self.grafcet.is_auto_trigger = is_automatic
+
+        logger.info(f"[KtvController] Iniciando secuencia de medición Kt/V {'(AUTOMÁTICA)' if is_automatic else '(MANUAL)'}.")
+        self.grafcet.start()
+        self.measurement_started.emit()
+
+
+    def abort(self, reason: str = "Abortado por usuario") -> None:
+        """Aborta la secuencia de medición Kt/V y emite una señal."""
+        if self.grafcet.step not in (KtvStep.IDLE, KtvStep.FINISHED, KtvStep.ERROR):
+            self.grafcet.abort(reason)
+            self._notify_user(f"Medición Kt/V abortada: {reason}", "error", 4000)
+            self.measurement_aborted.emit(reason) # Notificar a la UI
+        # Asegurarse de restaurar setpoint de conductividad si se aborta en medio
+        if self._original_conductivity_setpoint is not None:
+            self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
+            self._original_conductivity_setpoint = None # Limpiar después de restaurar
+        self._grafcet_is_paused_internally = False # Asegurarse de que no quede en estado de pausa interna
+
+    def pause_measurement(self):
+        """Pausa la secuencia del Grafcet si es posible."""
+        if self.grafcet.is_running():
+            self.grafcet.pause_sequence()
+            self.is_paused = True # Bandera de pausa global
+            self._grafcet_is_paused_internally = True # Bandera de pausa del grafcet
+            logger.info("[KtvController] Medición Kt/V pausada.")
+
+    def resume_measurement(self):
+        """Reanuda la secuencia del Grafcet."""
+        if self.is_paused and self.grafcet.step == KtvStep.PAUSED_SEQUENCE:
+            self.grafcet.resume_sequence()
+            self.is_paused = False
+            self._grafcet_is_paused_internally = False
+            logger.info("[KtvController] Medición Kt/V reanudada.")
+
+    def set_automatic_frequency(self, minutes: int):
+        """Establece la frecuencia de las mediciones automáticas (0 para deshabilitar)."""
+        self._automatic_frequency_minutes = minutes
+        self._next_automatic_measurement_time_s = 0 # Forzar recálculo en el próximo tick
+        self.schedule_info_updated.emit("Recalculando...")
+        logger.info(f"[KtvController] Frecuencia automática de Kt/V establecida a {minutes} minutos.")
+
+    def get_calculadora_ktv(self) -> CalculadoraKtV:
+        """Devuelve la instancia de CalculadoraKtV."""
+        return self.calculadora_ktv
+
+    def get_original_conductivity_setpoint(self) -> Optional[float]:
+        """Devuelve el setpoint de conductividad original guardado."""
+        return self._original_conductivity_setpoint
+
+    def set_original_conductivity_setpoint(self, value: float):
+        """Guarda el setpoint de conductividad original."""
+        self._original_conductivity_setpoint = value
+
+    def is_therapy_running(self) -> bool:
+        """Verifica si la terapia está en estado RUNNING en el main HMI."""
+        if not self.main_window: return False
+        return self.main_window.state.current_phase == TreatmentPhase.RUNNING
+    
+    def _get_elapsed_therapy_minutes(self) -> float:
+        """Obtiene el tiempo total de terapia transcurrido en minutos."""
+        if self._get_elapsed_therapy_minutes_accessor:
+            return self._get_elapsed_therapy_minutes_accessor()
+        return 0.0
+
+    def _get_elapsed_therapy_seconds(self) -> int:
+        """Obtiene el tiempo total de terapia transcurrido en segundos."""
+        return int(self._get_elapsed_therapy_minutes() * 60)
+
+    def reset_on_treatment_start(self):
+        """Resetea el estado del controlador Kt/V para un nuevo tratamiento."""
+        logger.info("[KtvController] Reseteando estado para nuevo tratamiento.")
+        self.grafcet.reset() # Pone el grafcet en IDLE
+        self.calculadora_ktv.reset()
+        self._original_conductivity_setpoint = None
+        self._next_automatic_measurement_time_s = 0 # Recalculará al inicio del primer tick
+        self.is_paused = False
+        self._grafcet_is_paused_internally = False
+        self.schedule_info_updated.emit("No programado") # Limpiar la etiqueta de programación
+
+
+    # ==================== Métodos internos (callbacks del Grafcet) ====================
+    # Estos métodos son llamados por el KtvGrafcet para ejecutar las acciones.
+
+    def _perform_send_bioz_command(self, command: str) -> None:
+        """Callback: Envía un comando al controlador de BioZ/Urea."""
+        if self._write_bioz_command_callback and self._bioz_urea_controller and self._bioz_urea_controller.is_enabled():
+            self._write_bioz_command_callback(command)
+            logger.debug(f"[KtvController] Enviando comando '{command}' a BioZ/Urea.")
+        else:
+            self._notify_user("Controlador BioZ/Urea no disponible o deshabilitado.", "error", 5000)
+            self.grafcet.abort("BioZ/Urea no disponible")
+
+
+    def _perform_capture_t1(self) -> None:
+        """Callback: Captura conductividades T1 y guarda el setpoint original."""
+        current_values = self._current_values_accessor()
+        cd_in_t1 = current_values.get("dialyConductIFProcessData", 0.0)
+        cd_out_t1 = current_values.get("dialyConductOFProcessData", 0.0)
+        temp_t1 = current_values.get("dialyTempIFProcessData", 25.0)
+        self.calculadora_ktv.store_conductivity_t1(cd_in_t1, cd_out_t1, temp_t1)
+        logger.info(f"[KtvController] T1 capturado: CdIn={cd_in_t1}, CdOut={cd_out_t1}, Temp={temp_t1}")
+
+        # Guardar el setpoint original de conductividad antes de modificarlo
+        self._original_conductivity_setpoint = current_values.get("dialyCondControlSetPoint", 13.5)
+        logger.info(f"[KtvController] Original conductivity setpoint saved: {self._original_conductivity_setpoint:.2f} mS/cm")
+
+    def _perform_set_step_conductivity(self) -> None:
+        """Callback: Calcula y envía el nuevo setpoint de conductividad escalado."""
+        if self._original_conductivity_setpoint is None:
+            logger.error("[KtvController] Error: original_conductivity_setpoint no definido al intentar cambiar setpoint.")
+            self.grafcet.abort("Error interno: SP original no guardado.")
+            return
+
+        step_value = 1.0 # Puedes hacer esto configurable
+        new_conductivity_target = self._original_conductivity_setpoint + step_value
+        if self._write_setpoint_callback:
+            self._write_setpoint_callback("dialyCondControlSetPoint", new_conductivity_target)
+            logger.info(f"[KtvController] Conductivity setpoint changed to: {new_conductivity_target:.2f} mS/cm")
+        else:
+            logger.error("[KtvController] Error: write_setpoint_callback no definido.")
+            self.grafcet.abort("Error interno: Callback de escritura no disponible.")
+
+
+    def _perform_capture_t2(self) -> None:
+        """Callback: Captura conductividades T2."""
+        current_values = self._current_values_accessor()
+        cd_in_t2 = current_values.get("dialyConductIFProcessData", 0.0)
+        cd_out_t2 = current_values.get("dialyConductOFProcessData", 0.0)
+        temp_t2 = current_values.get("dialyTempIFProcessData", 25.0)
+        self.calculadora_ktv.store_conductivity_t2(cd_in_t2, cd_out_t2, temp_t2)
+        logger.info(f"[KtvController] T2 capturado: CdIn={cd_in_t2}, CdOut={cd_out_t2}, Temp={temp_t2}")
+
+    def _perform_restore_conductivity(self) -> None:
+        """Callback: Restaura el setpoint de conductividad original."""
+        if self._original_conductivity_setpoint is None:
+            logger.error("[KtvController] Error: original_conductivity_setpoint no definido al intentar restaurar setpoint.")
+            self.grafcet.abort("Error interno: SP original no disponible.")
+            return
+        if self._write_setpoint_callback:
+            self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
+            logger.info(f"[KtvController] Conductivity setpoint restored to: {self._original_conductivity_setpoint:.2f} mS/cm")
+        else:
+            logger.error("[KtvController] Error: write_setpoint_callback no definido.")
+            self.grafcet.abort("Error interno: Callback de escritura no disponible.")
+
+    def _perform_calculate_ktv(self) -> None:
+        """Callback: Realiza el cálculo final de Kt/V."""
+        current_values = self._current_values_accessor()
+        
+        qd = current_values.get("balanceChamberSetTiming", 500) # ml/min
+        qf = current_values.get("ultraFilterPumpSpeed", 10) # L/h
+        qb = current_values.get("bloodFlowVariableData", 300) # ml/min
+
+        z_resistencia = current_values.get("bioz_resistance", 0.0)
+        
+        patient_data = {
+            "patient_pre_weight_kg": current_values.get("patient_pre_weight_kg", 70),
+            "patient_height_cm": current_values.get("patient_height_cm", 170),
+            "patient_age": current_values.get("patient_age", 40),
+            "patient_gender": current_values.get("patient_gender", 1), # 1=Masculino, 2=Femenino
+        }
+
+        peso = patient_data["patient_pre_weight_kg"]
+        altura = patient_data["patient_height_cm"]
+        edad = patient_data["patient_age"]
+        genero = patient_data["patient_gender"]
+
+        genero_heitmann = 0 if genero == 2 else 1 # 1 = Hombre, 0 = Mujer para Heitmann
+        v_bis_litros = heitmann(z_resistencia, altura, peso, genero_heitmann, edad) 
+        
+        # Almacenar el volumen Heitmann calculado en el diccionario global para la UI
+        # Esto es importante para que la KTVScreen tenga acceso a estos valores
+        current_values["heitmann_value"] = v_bis_litros 
+        
+        if v_bis_litros and v_bis_litros > 0:
+            self.calculadora_ktv.set_volumen_bioimpedancia(v_bis_litros)
+        else:
+            self.calculadora_ktv.config_paciente(peso, altura, edad, genero) # Fallback a Watson
+
+        # tiempo total programado y tiempo transcurrido para cálculos
+        t_programmed_min = (current_values.get("heparineTherapyHours", 0) * 60 + 
+                            current_values.get("heparineTherapyMinutes", 0))
+        t_elapsed_min = self._get_elapsed_therapy_minutes()
+
+        ktv_projected = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_programmed_min)
+        ktv_accumulated = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_elapsed_min)
+
+        # Emitir y persistir el evento para que KTVScreen pueda consumirlo
+        # aunque el cálculo automático ocurra fuera de la pantalla activa.
+        results_dict = {
+            "ktv_acumulado": ktv_accumulated,
+            "ktv_projectado": ktv_projected,
+            "heitmann_value": v_bis_litros,
+            "bioz_resistance": z_resistencia,
+            "type": "Automatic" if self.grafcet.is_auto_trigger else "Manual", # Pasar si fue automático o manual
+            "therapy_minutes": t_elapsed_min, # Incluir los minutos de terapia para la gráfica
+            "calculation_event": True,
+            "event_id": f"{QDateTime.currentMSecsSinceEpoch()}_{'A' if self.grafcet.is_auto_trigger else 'M'}",
+        }
+
+        # Actualizar los valores en el diccionario global para la UI
+        current_values["ktv_projectado"] = ktv_projected
+        current_values["ktv_acumulado"] = ktv_accumulated
+        current_values["heitmann_value"] = v_bis_litros
+        current_values["bioz_resistance"] = z_resistencia
+        current_values["type"] = results_dict["type"]
+        current_values["therapy_minutes"] = t_elapsed_min
+        current_values["calculation_event"] = True
+        current_values["event_id"] = results_dict["event_id"]
+
+        logger.info(f"[KtvController] Cálculo final: Proyectado={ktv_projected:.2f} | Acumulado={ktv_accumulated:.2f}")
+
+        self.ktv_calculated.emit(results_dict)
+
+
+    def _on_grafcet_finish(self) -> None:
+        """Callback: La secuencia del Grafcet ha finalizado correctamente."""
+        logger.info("[KtvController] Secuencia Kt/V finalizada correctamente.")
+        self.measurement_finished.emit() # Notificar a la UI
+        # Resetear setpoint original, ya no es necesario
+        self._original_conductivity_setpoint = None
+        self.grafcet.reset() # Resetear el Grafcet a IDLE
+        # Recalcular el tiempo de la próxima medición automática si el modo es auto
+        self._update_next_scheduled_time(self._get_elapsed_therapy_seconds())
+
+
+    def _on_grafcet_error(self) -> None:
+        """Callback: La secuencia del Grafcet ha terminado con un error."""
+        logger.error("[KtvController] Secuencia Kt/V terminada con error.")
+        self._notify_user("Error durante la medición de Kt/V. Verifique logs.", "error", 5000)
+        self.measurement_aborted.emit("Error interno")
+        # Asegurarse de restaurar setpoint de conductividad si se aborta en medio
+        if self._original_conductivity_setpoint is not None:
+            self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
+            self._original_conductivity_setpoint = None # Limpiar después de restaurar
+        self.grafcet.reset() # Resetear el Grafcet a IDLE
+        self._update_next_scheduled_time(self._get_elapsed_therapy_seconds()) # Recalcular próxima medición
+
+    def _make_internal_callbacks(self) -> Dict[str, Callable]:
+        """
+        Crea un diccionario de callbacks que KtvGrafcet usará para interactuar
+        con el sistema a través de los métodos de este KtvController.
+        """
+        return {
+            "send_bioz_command": self._perform_send_bioz_command,
+            "show_info": lambda text, timeout: self._notify_user(text, "info", timeout),
+            "show_warning": lambda text, timeout: self._notify_user(text, "warning", timeout),
+            "show_error": lambda text, timeout: self._notify_user(text, "error", timeout),
+            "capture_t1": self._perform_capture_t1,
+            "set_step_conductivity": self._perform_set_step_conductivity,
+            "capture_t2": self._perform_capture_t2,
+            "restore_conductivity": self._perform_restore_conductivity,
+            "calculate_ktv": self._perform_calculate_ktv,
+            # Métodos para que el grafcet pueda obtener información del estado de la app
+            "is_therapy_running": self.is_therapy_running, 
+            # El grafcet ya no necesita current_values directamente, KtvController los obtiene
+            # "get_current_values": lambda: self._current_values_accessor(), 
+            # "get_elapsed_therapy_minutes": self._get_elapsed_therapy_minutes,
+            "on_finish": self._on_grafcet_finish,
+            "on_error": self._on_grafcet_error,
+        }
+
+    def update_app_state(self, phase: TreatmentPhase):
+        """
+        Método para informar al KtvController de cambios de fase globales en la aplicación.
+        Utilizado para pausar/reanudar o abortar mediciones de Kt/V si el estado de la terapia cambia.
+        """
+        if phase == TreatmentPhase.PAUSED:
+            self.pause_measurement()
+        elif phase == TreatmentPhase.RUNNING:
+            self.resume_measurement()
+        elif phase == TreatmentPhase.IDLE or phase == TreatmentPhase.CLEANING:
+            if self.grafcet.step not in (KtvStep.IDLE, KtvStep.FINISHED, KtvStep.ERROR):
+                self.abort(f"Terapia finalizada/cambio de fase a {phase.name}")
+

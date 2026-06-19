@@ -1,0 +1,2 @@
+[console_scripts]
+hemodialisis = hemodialisis_ciateq.main:main
