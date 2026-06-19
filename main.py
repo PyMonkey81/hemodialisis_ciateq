@@ -13,6 +13,7 @@ from PySide6.QtGui import QGuiApplication, QFont, QScreen
 from gui import theme_manager
 from gui.appMainHemodialysis import HemodialysisHMI
 from gui.theme_manager import ThemeManager
+from version import __version__
 
 
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'var', 'log')

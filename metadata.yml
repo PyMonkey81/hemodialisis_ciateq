@@ -1,0 +1,17 @@
+version: 1.0.0
+description: "Sistema de monitoreo y control para máquinas de hemodiálisis"
+author: "Miguel Espinoza"
+license: "MIT"
+repository: "https://github.com/PyMonkey81/hemodialisis_ciateq"
+dependencies:
+  - PySide6
+  - pyqtgraph
+  - numpy
+  - matplotlib
+  - pyserial
+  - crcmod
+  - PySide6_Addons
+internalName: "HemodialisisApp"
+LegalCopyright: "© 2026 CIATEQ A.C. All rights reserved."
+OriginalFilename: "HemodialisisApp.exe"
+ProductName: "HemodialisisApp"

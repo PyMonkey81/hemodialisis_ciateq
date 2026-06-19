@@ -132,7 +132,7 @@ class AppStateManager(QObject):
     def _is_valid_transition(self, current: TreatmentPhase, new: TreatmentPhase) -> bool:
         """Define reglas de transición seguras"""
         allowed = {
-            TreatmentPhase.IDLE: [TreatmentPhase.PREPARING, TreatmentPhase.CLEANING, TreatmentPhase.READY, TreatmentPhase.ERROR],
+            TreatmentPhase.IDLE: [TreatmentPhase.PREPARING, TreatmentPhase.CLEANING, TreatmentPhase.READY, TreatmentPhase.ERROR, TreatmentPhase.RUNNING],
             TreatmentPhase.PREPARING: [TreatmentPhase.READY, TreatmentPhase.IDLE, TreatmentPhase.ERROR, TreatmentPhase.CLEANING],
             TreatmentPhase.READY: [TreatmentPhase.RUNNING, TreatmentPhase.IDLE, TreatmentPhase.ERROR, TreatmentPhase.CLEANING],            
             TreatmentPhase.RUNNING: [TreatmentPhase.PAUSED, TreatmentPhase.FINISHING, TreatmentPhase.ERROR, TreatmentPhase.IDLE],

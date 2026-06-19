@@ -17,6 +17,14 @@ from core.state_manager import TreatmentPhase
 logger = logging.getLogger(__name__)
 
 
+def _safe_float(value, default=0.0):
+    """Convierte a float evitando excepciones por valores nulos o inválidos."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 class KTVScreen(QWidget):
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
@@ -329,10 +337,10 @@ class KTVScreen(QWidget):
             return
 
         # HEITMANN y Kt/V se obtienen del diccionario ktv_data
-        heit_val = ktv_data.get("heitmann_value", 0.0)
-        ktv_val = ktv_data.get("ktv_acumulado", 0.0)
+        heit_val = _safe_float(ktv_data.get("heitmann_value", 0.0), 0.0)
+        ktv_val = _safe_float(ktv_data.get("ktv_acumulado", 0.0), 0.0)
         measurement_type = ktv_data.get("type", "Auto")
-        minutes_total = float(ktv_data.get("therapy_minutes", 0.0)) # El KtvController debe proporcionar esto
+        minutes_total = _safe_float(ktv_data.get("therapy_minutes", 0.0), 0.0) # El KtvController debe proporcionar esto
         is_calc_event = bool(ktv_data.get("calculation_event", False))
         event_signature = str(ktv_data.get("event_id", ""))
 
