@@ -213,6 +213,8 @@ class HemodialysisHMI(QMainWindow):
             "dialyTempIOFProcessData": "Temperatura SF",
             "dialyTempVariableData": "Temperatura Tanque",
             "dialyCondControlSetPoint": "Setpoint Conductividad",
+            "dialyConductIFProcessData": "Conductividad EF",
+            "dialyConductOFProcessData": "Conductividad SF",
             "dialyCondControlOutput": "Salida Conductividad",
             "dialyTempControlSetPoint": "Setpoint Temperatura",
             "CALC_PTM": "Presión Transmembrana",
