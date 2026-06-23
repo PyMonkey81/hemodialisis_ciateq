@@ -1139,6 +1139,15 @@ class HemodialysisHMI(QMainWindow):
         if not self.serial_comm or not self.serial_comm.is_connected:
             self._handle_disconnected_state()
             return
+        # status_code = int(self.current_values.get("primingProcessStatus", 0))
+        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)     # dialyTempVariableData anterior
+        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)   # Setpoint de temperatura
+        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)      # conductividad actual   
+        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)   # Setpoint de conductividad
+              
+        # 2. Lógica de validación (Tolerancias)
+        temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
+        cond_ok = abs(cond_actual - cond_set) <= 2.0
 
         phase = self.state.current_phase
         status_code = int(self.current_values.get("primingProcessStatus", 0))
@@ -1169,13 +1178,17 @@ class HemodialysisHMI(QMainWindow):
                 enabled = (treatment_mode == 3)
 
             elif text == "Tipo de\nTratamiento":
+               
                 enabled = phase in (TreatmentPhase.IDLE, TreatmentPhase.PREPARING)
+           
 
             elif text == "Inicio":
                 enabled = phase in (TreatmentPhase.IDLE, TreatmentPhase.PREPARING)
 
             elif text == "Iniciar\nTratamiento":
                 enabled = phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED)
+            
+           
 
             # ==================== RESTRICCIONES POR ESTADO ====================
             if phase == TreatmentPhase.CLEANING:
@@ -1191,6 +1204,8 @@ class HemodialysisHMI(QMainWindow):
             elif phase == TreatmentPhase.READY:
                 enabled = text in ["Diálisis", "Iniciar\nTratamiento", "Servicio", 
                              "Alarmas", "Historial"]
+                if text == "Iniciar\nTratamiento":
+                    enabled = temp_ok and cond_ok
                 # Deshabilitamos explícitamente estos
                 if text in ["Inicio", "Tipo de\nTratamiento", "Limpieza"]:
                     enabled = False
@@ -1269,7 +1284,13 @@ class HemodialysisHMI(QMainWindow):
             btn.setEnabled(True)
         elif phase == TreatmentPhase.READY:
             btn.setText("Iniciar\nTratamiento")
-            btn.setEnabled(True)
+            temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+            temp_set = self.current_values.get("dialyTempControlSetPoint", 0.0)
+            cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+            cond_set = self.current_values.get("dialyCondControlSetPoint", 0.0)
+            temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
+            cond_ok = abs(cond_actual - cond_set) <= 2.0
+            btn.setEnabled(temp_ok and cond_ok)
         else:
             btn.setText("Iniciar\nTratamiento")
             btn.setEnabled(False)

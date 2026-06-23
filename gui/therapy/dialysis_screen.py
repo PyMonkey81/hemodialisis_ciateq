@@ -227,7 +227,7 @@ class DialysisScreen(QWidget):
         self.elapsed_time_display      = SimpleValueDisplay("T. Terapia", "00:00", "h:min")  
         self.uf_target_display         = SimpleValueDisplay("UF Objetivo", "0.00", "L")
         self.uf_total_display          = SimpleValueDisplay("UF Total", "0.00", "L")
-        self.uf_rate_display           = SimpleValueDisplay("Tasa UF", "0", "mL/h")
+        self.uf_rate_display           = SimpleValueDisplay("Tasa UF", "0", "L/h")
         self.conductivity_display      = SimpleValueDisplay("Cond.", "0.0", "mS/cm")
         self.blood_flow_display        = SimpleValueDisplay("Qb", "0", "mL/min")
         self.dialysate_flow_display    = SimpleValueDisplay("Qd", "0", "mL/min")

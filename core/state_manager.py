@@ -135,7 +135,7 @@ class AppStateManager(QObject):
             TreatmentPhase.IDLE: [TreatmentPhase.PREPARING, TreatmentPhase.CLEANING, TreatmentPhase.READY, TreatmentPhase.ERROR, TreatmentPhase.RUNNING],
             TreatmentPhase.PREPARING: [TreatmentPhase.READY, TreatmentPhase.IDLE, TreatmentPhase.ERROR, TreatmentPhase.CLEANING],
             TreatmentPhase.READY: [TreatmentPhase.RUNNING, TreatmentPhase.IDLE, TreatmentPhase.ERROR, TreatmentPhase.CLEANING],            
-            TreatmentPhase.RUNNING: [TreatmentPhase.PAUSED, TreatmentPhase.FINISHING, TreatmentPhase.ERROR, TreatmentPhase.IDLE],
+            TreatmentPhase.RUNNING: [TreatmentPhase.PAUSED, TreatmentPhase.FINISHING, TreatmentPhase.ERROR, TreatmentPhase.IDLE,TreatmentPhase.PREPARING],
             TreatmentPhase.PAUSED: [TreatmentPhase.RUNNING, TreatmentPhase.FINISHING, TreatmentPhase.IDLE],
             TreatmentPhase.FINISHING: [TreatmentPhase.IDLE],
             TreatmentPhase.CLEANING: [TreatmentPhase.IDLE],

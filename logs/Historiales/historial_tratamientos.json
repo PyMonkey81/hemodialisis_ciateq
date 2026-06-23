@@ -592,5 +592,32 @@
         "duracion_minutos": 64,
         "duracion_hhmm": "01:04",
         "timestamp_registro": "2026-06-22 10:44:26"
+    },
+    {
+        "fecha": "2026-06-23",
+        "hora_inicio": "10:00:19",
+        "hora_fin": "10:04:32",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 4,
+        "duracion_hhmm": "00:04",
+        "timestamp_registro": "2026-06-23 10:04:32"
+    },
+    {
+        "fecha": "2026-06-23",
+        "hora_inicio": "10:04:55",
+        "hora_fin": "10:06:54",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 2,
+        "duracion_hhmm": "00:02",
+        "timestamp_registro": "2026-06-23 10:06:54"
+    },
+    {
+        "fecha": "2026-06-23",
+        "hora_inicio": "10:07:04",
+        "hora_fin": "10:12:06",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 5,
+        "duracion_hhmm": "00:05",
+        "timestamp_registro": "2026-06-23 10:12:06"
     }
 ]
