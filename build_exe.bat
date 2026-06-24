@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 
 echo ===============================================
-echo       COMPILANDO HEMODIALISIS HD-2000 EXE
+echo       COMPILANDO HEMODIALISIS HD-2026 EXE
 echo ===============================================
 
 :: Activar entorno virtual local del proyecto

@@ -53,13 +53,12 @@ import os
 import sys
 import time
 import logging
-import csv
 import json
 from typing import List, Tuple
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtGui import QPixmap
 
 # === MODULES ===
 from core.alarms import AlarmSystem
@@ -90,7 +89,6 @@ from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
 from gui.components.floating_message import FloatingMessage
 
-from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.configuration.alarm_screen_config import AlarmScreenConfig 
 from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
 from gui.configuration.cleanning_config_screen import CleanningConfigScreen
@@ -103,15 +101,11 @@ from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screen import TherapyConfigScreen
-import sys
 from pathlib import Path
 
-from logic.ktv_calculator import CalculadoraKtV
-from logic.heitmann import heitmann
 from logic.calculos import (
-    convertir_flujo_a_ciclos, convertir_ciclos_a_flujo,
-    convertir_litros_h_a_ml_min, convertir_ml_min_a_litros_h,
-    calculo_ptm
+    convertir_ciclos_a_flujo,
+    convertir_ml_min_a_litros_h,
 )
 from utilities.csv_logger import CsvLogger
 
@@ -120,13 +114,7 @@ logger = logging.getLogger(__name__)
 #===============================================================================
 #======================CODIGO PARA ADJUNTAR LOGOS EN EJECUTABLE=================
 #===============================================================================
-# def resource_path(relative_path):
-#     """Get absolute path to resource, works for dev and for PyInstaller"""
-#     try:
-#         base_path = sys._MEIPASS
-#     except Exception:
-#         base_path = os.path.abspath(".")
-#     return os.path.join(base_path, relative_path)   
+
 
 def resource_path(relative_path):
     """Obtiene la ruta absoluta al recurso usando pathlib."""
@@ -478,7 +466,6 @@ class HemodialysisHMI(QMainWindow):
             lambda _reason: self.KTVScreen.reset_screen_data(preserve_frequency=True)
         ) # Limpiar UI si se aborta medición sin perder frecuencia seleccionada
 
-        self.master_timer.timeout.connect(self.ktv_controller.on_master_tick) # MODIFICADO: KtvController gestiona la programación de Kt/V
         self.master_timer.timeout.connect(lambda: self.KTVScreen.update_patient_data(self.current_values))
 
         self.comm_port_screen.emit_current_configurations() # carga la configuracion de las puertos COM
@@ -1361,9 +1348,9 @@ class HemodialysisHMI(QMainWindow):
 
         if is_cleaning_active:
             self.state.set_phase(TreatmentPhase.CLEANING, "Inicio de limpieza")
-            # --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-            self.cleaning_start_time = QDateTime.currentDateTime() # <--- Establecer la hora de inicio de la limpieza
-            # -----------------------------------
+            # La hora de inicio de historial debe fijarse en el primer tramo ACTIVO real
+            # (cuando CleaningScreen emite cleaning_started_counting al entrar a estado 6).
+            self.cleaning_start_time = None
             self._start_cleaning_logger()
         else:
             self.state.set_phase(TreatmentPhase.IDLE, "Fin de limpieza")
@@ -1372,19 +1359,15 @@ class HemodialysisHMI(QMainWindow):
                                            # Sin embargo, lo mantendremos para el registro en el historial
                                            # y luego lo estableceremos a None en el método de registro.
 
-    def _handle_cleaning_status_change(self, is_cleaning_active: bool):
-        if is_cleaning_active:
-            self.state.set_phase(TreatmentPhase.CLEANING, "Inicio de limpieza")
-            # self.cleaning_start_time = QDateTime.currentDateTime() <-- QUITA ESTO DE AQUÍ
-            self._start_cleaning_logger()
-        else:
-            self.state.set_phase(TreatmentPhase.IDLE, "Fin de limpieza")
-            self._stop_cleaning_logger()
-
     def _set_cleaning_start_time(self):
         """Se llama exactamente cuando el cronómetro entra al estado 6"""
-        self.cleaning_start_time = QDateTime.currentDateTime()
-        logger.info("Hora de inicio de limpieza (infusión) registrada para el historial.")
+        if self.cleaning_start_time is None:
+            self.cleaning_start_time = QDateTime.currentDateTime()
+            logger.info("Hora de inicio de limpieza (primer tramo activo) registrada para el historial.")
+        else:
+            logger.debug(
+                "Se ignoró una nueva marca de inicio de limpieza para conservar la hora original de la sesión."
+            )
 
 
 

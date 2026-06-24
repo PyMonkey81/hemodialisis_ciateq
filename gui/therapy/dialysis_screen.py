@@ -441,6 +441,10 @@ class DialysisScreen(QWidget):
             elif phase == TreatmentPhase.IDLE: 
                 self.set_priming_buttons_state(True, False)
                 self.set_start_stop_buttons_state(False, False, False)
+        else:
+            # En modo limpieza, esta pantalla no debe habilitar controles de cebado/tratamiento.
+            self.set_priming_buttons_state(False, False)
+            self.set_start_stop_buttons_state(False, False, False)
 
     
 
