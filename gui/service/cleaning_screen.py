@@ -331,6 +331,12 @@ class CleaningScreen(QWidget):
         # Asegura que la configuración para el modo seleccionado esté cargada
         self._load_mode_specific_configuration(self.selected_mode)
 
+        # Protección: evita iniciar un ciclo que terminaría de inmediato.
+        if self.total_time_seconds <= 0:
+            self.parent_window.show_warning_message("El tiempo configurado de limpieza es 0. Ajuste la configuración.", 3500)
+            logger.warning("Intento de iniciar limpieza con duración 0 segundos.")
+            return
+
         # ET2: Preparación (antes de que la infusión del hardware comience)
         self.cleaning_phase = "PREPARING"
         self.cleaning_in_progress = True
@@ -667,6 +673,32 @@ class CleaningScreen(QWidget):
             
             logger.info(f"Detectado primingProcessStatus=6 y cleaning_phase='PREPARING'. Transicionando a ACTIVE.")
             self._start_real_cleaning_timer()
+
+        # Blindaje: si estábamos activos y el hardware sale de infusión,
+        # se detiene el conteo para no correr desacoplado del estado real.
+        if self.cleaning_in_progress and self.cleaning_phase == "ACTIVE" and priming_status != 6:
+            logger.warning(
+                f"Hardware salió de estado 6 durante limpieza ACTIVE (status={priming_status}). "
+                "Pausando conteo hasta nueva confirmación."
+            )
+            self._accumulate_active_time()
+            if self.progress_timer.isActive():
+                self.progress_timer.stop()
+            self.cleaning_stopped_counting.emit()
+
+            # Si el hardware cayó a espera/fin, cerrar ciclo de limpieza.
+            if priming_status in (1, 16):
+                self.parent_window.show_warning_message(
+                    "Limpieza interrumpida: el hardware salió de infusión.",
+                    4000
+                )
+                self._stop_cleaning()
+                return
+
+            # Para estados intermedios (p.ej. 10), volver a PREPARING y esperar reingreso a 6.
+            self.cleaning_phase = "PREPARING"
+            self.phase_label.setText("Esperando regreso a infusión (estado 6)...")
+            self.phase_label.setStyleSheet("color: #facc15; font-size: 32px; font-weight: bold;")
             
         # Asegurar que los estados de los botones de la UI sean consistentes
         # con el progreso general de la limpieza.

@@ -29,6 +29,27 @@ class TreatmentController:
         self.therapy_start_time = None        # Para esta sesión de terapia
         self.accumulated_therapy_seconds = 0  # Tiempo acumulado (pausas)
 
+    def _get_programmed_total_seconds(self) -> int:
+        """Obtiene la duración programada desde los setpoints actuales."""
+        hours = int(self.main.current_values.get("heparineTherapyHours", 0))
+        minutes = int(self.main.current_values.get("heparineTherapyMinutes", 0))
+        return (hours * 3600) + (minutes * 60)
+
+    def _reset_session_counters(self, reset_total: bool = False):
+        """Limpia acumuladores de la sesión actual sin cerrar reportes/KTV."""
+        self.current_elapsed = 0
+        self.remaining = 0
+        self.accumulated_therapy_seconds = 0
+        self.last_resume_time = None
+        self.therapy_start_time = None
+        if reset_total:
+            self.total_therapy_seconds = 0
+
+    def prepare_new_treatment_session(self):
+        """Prepara una sesión nueva (no reanudación) desde estado listo."""
+        self._reset_session_counters(reset_total=False)
+        self.total_therapy_seconds = self._get_programmed_total_seconds()
+
     # ====================== START TREATMENT ======================
 
     def start_treatment(self):
@@ -36,10 +57,15 @@ class TreatmentController:
         logger.info("=== INTENTO DE INICIO DE TRATAMIENTO ===")
         
         try:
+            # Si NO viene de pausa, debe arrancar una sesión limpia.
+            if self.state.current_phase != TreatmentPhase.PAUSED:
+                self.prepare_new_treatment_session()
+
             # Comandos al hardware
             self.main._write_boolean_command("dialyModeOperationStart", True)
             self.main._write_boolean_command("dialyModeOperationStop", False)
 
+            self.main.show_info_message("Terapia iniciada correctamente")
             # BiozUrea
             if self.bioz_urea_controller:
                 try:
@@ -81,7 +107,7 @@ class TreatmentController:
             seconds_passed = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
             self.accumulated_therapy_seconds += seconds_passed
             self.therapy_start_time = None
-
+        self.main.show_info_message("Terapia en pausa")
         if self.state.current_phase != TreatmentPhase.RUNNING:
             return False
         try:
@@ -105,7 +131,11 @@ class TreatmentController:
             if self.bioz_urea_controller:
                 self.bioz_urea_controller.send_command("STOP")            
 
-            
+            # Evita arrastre de tiempo entre terapias cuando el hardware
+            # tarda en confirmar el cambio de estado.
+            self._reset_session_counters(reset_total=True)
+
+            self.main.show_info_message("Terapia detenida...")
             logger.info("Tratamiento detenido y registrado correctamente")          
             return True
 
@@ -135,10 +165,7 @@ class TreatmentController:
         """Resetea completamente el timer de sesión cuando se detiene la terapia"""
         logger.info("Reset completo de timer de terapia (nueva sesión)")
         
-        self.accumulated_therapy_seconds = 0
-        self.last_resume_time = None
-        self.therapy_start_time = None
-        self.total_therapy_seconds = 0   # ← Muy importante
+        self._reset_session_counters(reset_total=True)
 
         # Limpiar KTV también
         if hasattr(self.main, 'KTVScreen') and self.main.KTVScreen:
@@ -175,7 +202,7 @@ class TreatmentController:
         if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
             hours = int(self.main.current_values.get("heparineTherapyHours", 0))
             minutes = int(self.main.current_values.get("heparineTherapyMinutes", 0))
-            self.total_therapy_seconds = (hours * 3600) + (minutes * 60)
+            self.total_therapy_seconds = self._get_programmed_total_seconds()
             
             remaining_str = f"{hours:02d}:{minutes:02d}:00"
             if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:
@@ -183,10 +210,13 @@ class TreatmentController:
             return
 
         # Terapia activa
+        if self.total_therapy_seconds <= 0:
+            self.total_therapy_seconds = self._get_programmed_total_seconds()
+
         current_elapsed = self.get_elapsed_seconds()
         remaining = max(0, self.total_therapy_seconds - current_elapsed)
 
-        if remaining <= 0 and phase == TreatmentPhase.RUNNING and status_code == 14:
+        if self.total_therapy_seconds > 0 and remaining <= 0 and phase == TreatmentPhase.RUNNING and status_code == 14:
             logger.info("Tiempo de terapia completado")
             self.stop_treatment()
             self.main.stop_priming()

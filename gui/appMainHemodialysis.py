@@ -49,6 +49,8 @@ Version: 2.18.5
 """
 
 
+from cmath import phase
+from cmath import phase
 import os
 import sys
 import time
@@ -218,6 +220,12 @@ class HemodialysisHMI(QMainWindow):
             "patternCondRaw": "Cond. Sensor raw", 
         }
 
+        # Control de llenado de filtro + delay de 90 segundos
+        self.filter_fill_start_time = None
+        self.filter_fill_waiting = False
+        self.MIN_FILTER_FILL_WAIT_SECONDS = 90
+
+
         #======================= GESTOR DE ESTADOS ==========================
 
         self.state = AppStateManager()
@@ -305,6 +313,8 @@ class HemodialysisHMI(QMainWindow):
         self._load_histories()     
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setStyleSheet("background: #FCFCFC;")
+
+
 
         # Serial communication
         self.current_values.clear()
@@ -775,6 +785,8 @@ class HemodialysisHMI(QMainWindow):
             if success:
                 self._update_therapy_time_displays()
                 self._refresh_navigation_bar()
+                self._reset_filter_fill_flags()
+                
         finally:
             self._start_treatment_locked = False
 
@@ -791,6 +803,7 @@ class HemodialysisHMI(QMainWindow):
         if success:
             self._update_therapy_time_displays()
             self._refresh_navigation_bar()
+            self._reset_filter_fill_flags()
 
     def _update_therapy_time_displays(self):
         """Actualiza displays de tiempo (delegado)"""
@@ -1192,19 +1205,14 @@ class HemodialysisHMI(QMainWindow):
                 enabled = text in ["Diálisis", "Iniciar\nTratamiento", "Servicio", 
                              "Alarmas", "Historial"]
                 if text == "Iniciar\nTratamiento":
-                    enabled = temp_ok and cond_ok
+                    # enabled = temp_ok and cond_ok
+                    enabled = self._can_start_treatment()
                 # Deshabilitamos explícitamente estos
                 if text in ["Inicio", "Tipo de\nTratamiento", "Limpieza"]:
                     enabled = False
 
             elif phase == TreatmentPhase.PREPARING:
-                # Según tu descripción: más restringido
-                # if status_code in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
-                #     enabled = text in ["Diálisis", "Alarmas", "Historial", "Servicio"]
-                # else:
-                #     # Si está en preparing pero status == 1 o 13, comportarse más como IDLE
-                #     enabled = text in ["Diálisis", "Tipo de\nTratamiento", "Inicio", 
-                #                  "Servicio", "Alarmas", "Historial"]
+            
                 status = int(self.current_values.get("primingProcessStatus", 0))
                 if self.hardware_mapper.is_preparing(status):
                     # Durante cebado normal
@@ -1271,16 +1279,97 @@ class HemodialysisHMI(QMainWindow):
             btn.setEnabled(True)
         elif phase == TreatmentPhase.READY:
             btn.setText("Iniciar\nTratamiento")
-            temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
-            temp_set = self.current_values.get("dialyTempControlSetPoint", 0.0)
-            cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
-            cond_set = self.current_values.get("dialyCondControlSetPoint", 0.0)
-            temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
-            cond_ok = abs(cond_actual - cond_set) <= 2.0
-            btn.setEnabled(temp_ok and cond_ok)
+            btn.setEnabled(self._can_start_treatment())
         else:
             btn.setText("Iniciar\nTratamiento")
             btn.setEnabled(False)
+    
+    
+    # def _can_start_treatment(self) -> bool:
+    #     """Lógica centralizada de condiciones para habilitar Iniciar/Reanudar"""
+    #     if self.state.current_phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
+    #         return False        
+        
+    #     # ==================== DELAY DE 90 SEGUNDOS (SOLO EN READY) ====================
+    #     if (self.state.current_phase == TreatmentPhase.READY and 
+    #         self.filter_fill_waiting and 
+    #         self.filter_fill_start_time is not None):
+            
+    #         elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
+    #         print(f"[FILTER] Tiempo transcurrido: {elapsed} segundos | Esperando: {self.MIN_FILTER_FILL_WAIT_SECONDS}s")
+
+    #         if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
+    #             print(f"[FILTER] → BLOQUEADO por delay. Faltan {self.MIN_FILTER_FILL_WAIT_SECONDS - elapsed} segundos")
+    #             return False
+    #         else:
+    #             print("[FILTER] → Delay completado ✓")
+        
+    #             temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+    #             temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+    #             cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+    #             cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+    
+    #             temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
+    #             cond_ok = abs(cond_actual - cond_set) <= 2.0    
+    #             return temp_ok and cond_ok
+
+
+    def _can_start_treatment(self) -> bool:
+        """Lógica centralizada de condiciones para habilitar Iniciar/Reanudar"""
+        if self.state.current_phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
+            return False
+        
+        # 1. Evaluamos las condiciones de temperatura y conductividad siempre
+        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+
+        temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
+        cond_ok = abs(cond_actual - cond_set) <= 2.0    
+        
+        condiciones_optimas = temp_ok and cond_ok
+
+        # 2. Si está en PAUSA, solo evaluamos las condiciones físicas (sin delay)
+        if self.state.current_phase == TreatmentPhase.PAUSED:
+            return condiciones_optimas
+        
+        # 3. ==================== DELAY DE 90 SEGUNDOS (SOLO EN READY) ====================
+        if self.state.current_phase == TreatmentPhase.READY:
+            
+            # Verificamos si el temporizador del filtro fue iniciado
+            if self.filter_fill_waiting and self.filter_fill_start_time is not None:
+                elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
+                
+                # debuguear, pero cuidado si se llama muchas veces por segundo:
+                # print(f"[FILTER] Tiempo transcurrido: {elapsed}s | Esperando: {self.MIN_FILTER_FILL_WAIT_SECONDS}s")
+
+                if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
+                    # Aunque la temp y cond estén bien, BLOQUEAMOS porque no han pasado los 90s
+                    return False
+                else:
+                    # Pasaron los 90 segundos. Ahora sí, habilitamos SOLO SI temp y cond están OK
+                    return condiciones_optimas
+            
+            # Si self.filter_fill_waiting es False (no se ha llamado a _start_filter), 
+            # mantenemos bloqueado el botón para forzar que pase por el delay de 90s.
+            return False
+
+    
+    def _start_filter(self):
+        """Solo inicia el conteo de 90 segundos (NO verifica)"""
+        try:                    
+            self.filter_fill_start_time = QDateTime.currentDateTime()
+            self.filter_fill_waiting = True
+            print(f"[FILTER] Conteo de llenado de filtro iniciado a las {self.filter_fill_start_time.toString('HH:mm:ss')}")
+        except Exception as e:
+            logger.error(f"Error en _start_filter: {e}", exc_info=True)
+
+    def _reset_filter_fill_flags(self):
+        """Reinicia las banderas del llenado de filtro"""
+        self.filter_fill_start_time = None
+        self.filter_fill_waiting = False
+        logger.info("Flags de llenado de filtro reiniciados")
 
     def _set_button_style(self, button: QPushButton, style_type: str):
         """Aplica estilos predefinidos a los botones"""
@@ -1467,11 +1556,16 @@ class HemodialysisHMI(QMainWindow):
                                 
                             elif new_phase == TreatmentPhase.PAUSED:
                                 self.treatment_controller.pause_therapy_timer()
+                            elif new_phase == TreatmentPhase.READY and old_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+                                # Si el hardware vuelve a READY sin pasar por IDLE,
+                                # se limpia la sesión previa para evitar arrastre de tiempo.
+                                self.treatment_controller.prepare_new_treatment_session()
+                                self.current_treatment_start = None
 
                             
 
                 # === REGISTRO DE HISTORIAL AL FINALIZAR TRATAMIENTO ===
-                if new_phase == TreatmentPhase.IDLE and old_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY):
+                if new_phase == TreatmentPhase.IDLE and old_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY, TreatmentPhase.PREPARING):
                     logger.info("Hardware confirmó fin de tratamiento → Registrando historial")
                     if hasattr(self, 'register_treatment_session'):
                         self.register_treatment_session()

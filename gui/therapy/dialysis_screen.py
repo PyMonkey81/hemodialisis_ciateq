@@ -409,42 +409,47 @@ class DialysisScreen(QWidget):
     
     def update_state(self, phase: TreatmentPhase):
         """Actualiza el estado visual de esta pantalla"""
-
-        # status_code = int(self.current_values.get("primingProcessStatus", 0))
-        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)     # dialyTempVariableData anterior
-        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)   # Setpoint de temperatura
-        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)      # conductividad actual   
-        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)   # Setpoint de conductividad
-              
-        # 2. Lógica de validación (Tolerancias)
-        temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
-        cond_ok = abs(cond_actual - cond_set) <= 2.0
-        
-        treatment_mode_selection = int(self.current_values.get("treatmentModeSelection", 0))
-        if treatment_mode_selection != 3.0:
-            if phase == TreatmentPhase.RUNNING:   # Estado 14
-                self.set_priming_buttons_state(False, False)
-                self.set_start_stop_buttons_state(False, True, True)
-            elif phase == TreatmentPhase.PAUSED: # Estado 15
-                self.set_priming_buttons_state(False, False)
-                if temp_ok and cond_ok: # si se cumplen las condiciones 
-                    self.set_start_stop_buttons_state(True, True, False)
-                else:
-                    self.set_start_stop_buttons_state(False, True, True)
-            elif phase == TreatmentPhase.READY: # estado 13
-                self.set_priming_buttons_state(False, True)
-                start_ok = temp_ok and cond_ok
-                self.set_start_stop_buttons_state(start_ok, False, False)
-            elif phase == TreatmentPhase.PREPARING:
-                self.set_priming_buttons_state(False, True)
-                self.set_start_stop_buttons_state(False, False, False)
-            elif phase == TreatmentPhase.IDLE: 
-                self.set_priming_buttons_state(True, False)
-                self.set_start_stop_buttons_state(False, False, False)
-        else:
-            # En modo limpieza, esta pantalla no debe habilitar controles de cebado/tratamiento.
+        treatment_mode_selection = self.current_values.get("treatmentModeSelection", 0.0)        
+        if int(treatment_mode_selection) == 3:
             self.set_priming_buttons_state(False, False)
             self.set_start_stop_buttons_state(False, False, False)
+            return
+
+        # === LÓGICA CENTRALIZADA DE CONDICIONES ===
+        if hasattr(self.parent_window, '_can_start_treatment'):
+            can_start = self.parent_window._can_start_treatment()
+        else:
+            # Fallback (mientras implementas el helper en el main)
+            temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+            temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+            cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+            cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+            
+            temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
+            cond_ok = abs(cond_actual - cond_set) <= 2.0
+            can_start = temp_ok and cond_ok   # ← Aquí estaba bien, pero mejor dejarlo claro
+
+        # === ACTUALIZACIÓN DE BOTONES ===
+        if phase == TreatmentPhase.RUNNING:   # Estado 14
+            self.set_priming_buttons_state(False, False)
+            self.set_start_stop_buttons_state(False, True, True)
+        elif phase == TreatmentPhase.PAUSED: # Estado 15
+            self.set_priming_buttons_state(False, False)
+            self.set_start_stop_buttons_state(can_start, True, False)
+        elif phase == TreatmentPhase.READY: # estado 13
+            self.set_priming_buttons_state(False, True)
+            self.set_start_stop_buttons_state(can_start, False, False)
+        elif phase == TreatmentPhase.PREPARING:
+            self.set_priming_buttons_state(False, True)
+            self.set_start_stop_buttons_state(False, False, False)
+        elif phase == TreatmentPhase.IDLE: 
+            self.set_priming_buttons_state(True, False)
+            self.set_start_stop_buttons_state(False, False, False)
+        else:
+            # Seguridad: deshabilitar todo en estados desconocidos
+            self.set_priming_buttons_state(False, False)
+            self.set_start_stop_buttons_state(False, False, False)
+        
 
     
 

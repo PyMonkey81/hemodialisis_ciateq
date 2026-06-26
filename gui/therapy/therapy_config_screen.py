@@ -406,6 +406,8 @@ class TherapyConfigScreen(QWidget):
         try:
             logger.info("Comando Start de llenado de filtro")
             self.on_user_boolean_command("dialyFilterFillButton",True)
+            if hasattr(self.parent_window, '_start_filter'):
+                self.parent_window._start_filter()
             self.setFocus()
         except Exception as e:
             logger.error(f"Error en _start_filter_fill: {e}",exc_info=True)
