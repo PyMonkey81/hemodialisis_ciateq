@@ -122,20 +122,6 @@ class TherapyConfigScreen(QWidget):
         # COLUMNA 1: CONFIGURACIÓN Y OPERACIÓN DE BOMBAS
         # =====================================================================
         
-        # 1. Configuración Bomba de Heparina
-        hep_config_frame = QFrame()    
-        hep_config_frame.setStyleSheet("""
-                QFrame {
-                    border: 2px solid #5c5c5c;
-                    border-radius: 8px;
-                    background-color: transparent;
-                }
-                QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
-        """)
-        hep_frame_layout = QHBoxLayout(hep_config_frame)
-        hep_frame_layout.setContentsMargins(15, 15, 15, 15)
-        hep_frame_layout.setSpacing(15)
-
         # label_style = "color: #000000; font-size: 22px; font-weight: bold;"
         label_style = "color: #000000; font-size: 22px; font-weight: bold; min-height: 50px;"
         input_style = """
@@ -154,47 +140,6 @@ class TherapyConfigScreen(QWidget):
                 background: #ffffff;
             }
         """
-
-        bolus_layout = QHBoxLayout()
-        bolus_layout.setContentsMargins(0, 0, 0, 0)
-        bolus_layout.setSpacing(5)
-        
-        lbl_bolus = QLabel("Bolo (ml):")       
-        lbl_bolus.setStyleSheet(label_style) 
-        lbl_bolus.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        bolus_layout.addWidget(lbl_bolus)
-        self.input_bolus = ClickableLineEdit("0.0")
-        self.input_bolus.setFixedSize(120, 50)
-        self.input_bolus.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.input_bolus.setStyleSheet(input_style)
-        self.input_bolus.setReadOnly(True)
-        self.input_bolus.clicked.connect(
-            lambda: self.open_numpad("heparineBolusQuantity", self.input_bolus, "bolo (ml)")
-        )
-        bolus_layout.addWidget(self.input_bolus)
-        hep_frame_layout.addLayout(bolus_layout)
-        hep_frame_layout.addStretch() 
-
-        btn_heparin_home = PushbuttonEvent("HOME", self)
-        btn_heparin_home.setFixedSize(120, 80)
-        btn_heparin_home.setStyleSheet(button_style)
-        btn_heparin_home.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", True))
-        btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
-        hep_frame_layout.addWidget(btn_heparin_home)
-
-        btn_rev_hep = PushbuttonEvent("REV", self)
-        btn_rev_hep.setFixedSize(120 ,80)
-        btn_rev_hep.setStyleSheet(button_style)
-        btn_rev_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", True))
-        btn_rev_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", False))
-        hep_frame_layout.addWidget(btn_rev_hep)
-
-        btn_fwd_hep = PushbuttonEvent("FWD", self)
-        btn_fwd_hep.setFixedSize(120, 80)
-        btn_fwd_hep.setStyleSheet(button_style)
-        btn_fwd_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", True))
-        btn_fwd_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", False))
-        hep_frame_layout.addWidget(btn_fwd_hep)
 
         # 2. Bomba de Sangre
         blood_operation_frame = QFrame()
@@ -255,7 +200,6 @@ class TherapyConfigScreen(QWidget):
         filter_fill_layout.addWidget(self.btn_filter_fill)
 
         # Agregamos los frames a la Columna 1
-        col1_layout.addWidget(hep_config_frame)
         col1_layout.addWidget(blood_operation_frame)
         col1_layout.addWidget(filter_fill_frame)
         col1_layout.addStretch(1)
@@ -273,21 +217,6 @@ class TherapyConfigScreen(QWidget):
         # params_layout.setColumnStretch(1, 0) # Los inputs se quedan con su tamaño fijo
 
 
-        # Heparina
-        lbl_heparin = QLabel("Dosis Heparina (ml):")
-        lbl_heparin.setStyleSheet(label_style)
-        lbl_heparin.setAlignment(Qt.AlignRight)         
-        self.input_heparin = ClickableLineEdit("0.0")
-        self.input_heparin.setFixedSize(120, 50)
-        self.input_heparin.setAlignment(Qt.AlignCenter)
-        self.input_heparin.setStyleSheet(input_style)
-        self.input_heparin.setReadOnly(True)
-        self.input_heparin.clicked.connect(
-            lambda: self.open_numpad("heparineTherapyDosage", self.input_heparin, "Dosis Heparina")
-        )
-        params_layout.addWidget(lbl_heparin, 0, 0, Qt.AlignVCenter)
-        params_layout.addWidget(self.input_heparin, 0, 1)
-
         # Flujo de Sangre (Qb)
         lbl_blood_flow = QLabel("Flujo de Sangre (Qb, mL/min):")
         lbl_blood_flow.setStyleSheet(label_style)
@@ -300,8 +229,8 @@ class TherapyConfigScreen(QWidget):
         self.input_blood_flow.clicked.connect(
             lambda: self.open_numpad("bloodFlowControlSetPoint", self.input_blood_flow, "Flujo de Sangre (Qb)")
         )
-        params_layout.addWidget(lbl_blood_flow, 1, 0, Qt.AlignVCenter)
-        params_layout.addWidget(self.input_blood_flow, 1, 1)
+        params_layout.addWidget(lbl_blood_flow, 0, 0, Qt.AlignVCenter)
+        params_layout.addWidget(self.input_blood_flow, 0, 1)
 
         # Flujo Dializante (Qd)
         lbl_dialysate_flow = QLabel("Flujo Dializante (Qd, mL/min):")
@@ -313,8 +242,8 @@ class TherapyConfigScreen(QWidget):
         self.input_dialysate_flow.setStyleSheet(input_style)
         self.input_dialysate_flow.setReadOnly(True)
         self.input_dialysate_flow.clicked.connect(self._handle_cb_flow_input)
-        params_layout.addWidget(lbl_dialysate_flow, 2, 0, Qt.AlignVCenter)
-        params_layout.addWidget(self.input_dialysate_flow, 2, 1)
+        params_layout.addWidget(lbl_dialysate_flow, 1, 0, Qt.AlignVCenter)
+        params_layout.addWidget(self.input_dialysate_flow, 1, 1)
 
         # Flujo de ultrafiltración
         lbl_uf_flow = QLabel("Flujo UF (L/h):")
@@ -326,8 +255,8 @@ class TherapyConfigScreen(QWidget):
         self.lbl_input_UF.setStyleSheet(input_style)
         self.lbl_input_UF.setReadOnly(True)
         self.lbl_input_UF.clicked.connect(self._handle_uf_flow_input)
-        params_layout.addWidget(lbl_uf_flow, 3, 0, Qt.AlignVCenter)
-        params_layout.addWidget(self.lbl_input_UF, 3, 1)
+        params_layout.addWidget(lbl_uf_flow, 2, 0, Qt.AlignVCenter)
+        params_layout.addWidget(self.lbl_input_UF, 2, 1)
 
         # Temperatura
         lbl_temperature = QLabel("Temperatura (°C):")
@@ -341,8 +270,8 @@ class TherapyConfigScreen(QWidget):
         self.input_temperature.clicked.connect(
             lambda: self.open_numpad("dialyTempControlSetPoint", self.input_temperature, "Temperatura")
         )
-        params_layout.addWidget(lbl_temperature, 4, 0, Qt.AlignVCenter)
-        params_layout.addWidget(self.input_temperature, 4, 1)
+        params_layout.addWidget(lbl_temperature, 3, 0, Qt.AlignVCenter)
+        params_layout.addWidget(self.input_temperature, 3, 1)
 
         # Conductividad
         lbl_conductivity = QLabel("Conductividad (mS/cm):")
@@ -356,8 +285,8 @@ class TherapyConfigScreen(QWidget):
         self.input_conductivity.clicked.connect(
             lambda: self.open_numpad("dialyCondControlSetPoint", self.input_conductivity, "Conductividad")
         )
-        params_layout.addWidget(lbl_conductivity, 5, 0, Qt.AlignVCenter)
-        params_layout.addWidget(self.input_conductivity, 5, 1)
+        params_layout.addWidget(lbl_conductivity, 4, 0, Qt.AlignVCenter)
+        params_layout.addWidget(self.input_conductivity, 4, 1)
 
         # Duración de Terapia (hh:mm)
         lbl_duration = QLabel("T. Terapia (hh:mm)")
@@ -376,8 +305,8 @@ class TherapyConfigScreen(QWidget):
                 title="Tiempo de terapia"
             )
         )
-        params_layout.addWidget(lbl_duration, 6, 0, Qt.AlignVCenter)
-        params_layout.addWidget(self.input_duration, 6, 1)
+        params_layout.addWidget(lbl_duration, 5, 0, Qt.AlignVCenter)
+        params_layout.addWidget(self.input_duration, 5, 1)
 
         # Agregamos los parámetros a la Columna 2
         col2_layout.addWidget(params_frame)
@@ -440,21 +369,12 @@ class TherapyConfigScreen(QWidget):
             self.btn_filter_fill.setStyleSheet(self.style_disabled)
             logger.debug("Botón Llenado de Filtro → DESHABILITADO")
 
+       
 
-
-        
-
-
+    # quitar para que se puedan mover parametros en tratamiento
     def _update_bloop_pump_controls_state(self):   
         # ctrl_loop_state = self.current_values.get("bloodControlLoopEnable", 0)
         status_code = int(self.current_values.get("primingProcessStatus", 0))
-        if status_code == 14: #tratamiento corriendo
-            logger.info("El paciente está en tratamiento. Controles de la bomba deshabilitados.")
-            self.btn_start_blood_pump.setEnabled(False)
-            self.btn_stop_blood_pump.setEnabled(False)
-            self.btn_start_blood_pump.setStyleSheet(self.style_disabled)
-            self.btn_stop_blood_pump.setStyleSheet(self.style_disabled)
-            return
         
         pump_start_state = self.current_values.get("bloodPumpStartButton", 0)         
         pump_stop_state = self.current_values.get("bloodPumpStopButton", 0)
@@ -584,11 +504,9 @@ class TherapyConfigScreen(QWidget):
         self.current_values.get("dialyFilterFillButton", 0.0)
         self.current_values.get("bloodPumpStartButton", 0.0)
         self.current_values.get("bloodPumpStopButton", 0.0)
-        self._update_input_display(self.input_heparin, "heparineTherapyDosage")
         self._update_input_display(self.input_blood_flow, "bloodFlowControlSetPoint")
         self._update_input_display(self.input_temperature, "dialyTempControlSetPoint")
         self._update_input_display(self.input_conductivity, "dialyCondControlSetPoint")
-        self._update_input_display(self.input_bolus, "heparineBolusQuantity")
         self._update_input_display(self.input_dialysate_flow, self.current_values.get("balanceChamberSetTiming", 0.0)) 
         self._update_input_display(self.lbl_input_UF, self.current_values.get("ultraFilterPumpSpeed", 0.0))
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
@@ -700,14 +618,8 @@ class TherapyConfigScreen(QWidget):
             self._update_filter_fill_button_state(False)
 
         # ==================== BOTONES BOMBA DE SANGRE ====================
-        if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
-            # Durante tratamiento activo → deshabilitar controles manuales de bomba
-            self.btn_start_blood_pump.setEnabled(False)
-            self.btn_stop_blood_pump.setEnabled(False)
-            self.btn_start_blood_pump.setStyleSheet(self.style_disabled)
-            self.btn_stop_blood_pump.setStyleSheet(self.style_disabled)
-            
-        elif phase in (TreatmentPhase.IDLE, TreatmentPhase.READY, TreatmentPhase.PREPARING):
+        if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED,
+                     TreatmentPhase.IDLE, TreatmentPhase.READY, TreatmentPhase.PREPARING):
             # Fuera de tratamiento → actualizar según estado real de la bomba
             self._update_bloop_pump_controls_state()
         else:
@@ -718,18 +630,14 @@ class TherapyConfigScreen(QWidget):
             self.btn_stop_blood_pump.setStyleSheet(self.style_disabled)
 
         # ==================== OTROS BOTONES / CONTROLES ====================
-        # Deshabilitar inputs numéricos durante tratamiento activo
-        enabled_inputs = (phase != TreatmentPhase.RUNNING)
+        # Mantener inputs habilitados incluso durante terapia activa (RUNNING/PAUSED)
+        enabled_inputs = phase not in (TreatmentPhase.CLEANING, TreatmentPhase.ERROR)
 
-        for widget in [self.input_heparin, self.input_blood_flow, self.input_dialysate_flow,
+        for widget in [self.input_blood_flow, self.input_dialysate_flow,
                        self.lbl_input_UF, self.input_temperature, self.input_conductivity,
-                       self.input_duration, self.input_bolus]:
+                       self.input_duration]:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(enabled_inputs)
-
-        # Opcional: deshabilitar botón de bolo durante tratamiento
-        if hasattr(self, 'input_bolus'):
-            self.input_bolus.setEnabled(phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED))
 
    
 

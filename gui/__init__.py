@@ -2,6 +2,7 @@
 from .therapy.main_screen import MainScreen
 from .therapy.dialysis_screen import DialysisScreen
 from .therapy.patient_config_screen import PatientConfigScreen
+from .therapy.heparin_config_screen import HeparinConfigScreen
 from .therapy.therapy_config_screen import TherapyConfigScreen
 from .therapy.treatment_mode_screen import TreatmentModeScreen
 

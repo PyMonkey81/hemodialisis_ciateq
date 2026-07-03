@@ -103,6 +103,7 @@ from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screen import TherapyConfigScreen
+from gui.therapy.heparin_config_screen import HeparinConfigScreen
 from pathlib import Path
 
 from logic.calculos import (
@@ -442,6 +443,11 @@ class HemodialysisHMI(QMainWindow):
         self.therapy_config_screen.request_boolean_change.connect(self._write_boolean_command)     
         self.therapy_config_screen.valueChanged.connect(self.handleGlobalValueChange) # Actualizar UI localmente
 
+        self.heparin_config_screen = HeparinConfigScreen(parent=self, values_dict=self.current_values)
+        self.heparin_config_screen.request_setpoint_change.connect(self._write_setpoint)
+        self.heparin_config_screen.request_boolean_change.connect(self._write_boolean_command)
+        self.heparin_config_screen.valueChanged.connect(self.handleGlobalValueChange)
+
         self.history_screen = HistoryScreen(parent=self)
 
         self.KTVScreen = KTVScreen(parent=self, values_dict=self.current_values) # Pantalla de cálculo de Kt/V en tiempo real, con gráficos y todo el rollo.
@@ -460,6 +466,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.real_time_var)                # 10
         self.screen_stack.addWidget(self.patient_config_screen)        # 11
         self.screen_stack.addWidget(self.therapy_config_screen)        # 12
+        self.screen_stack.addWidget(self.heparin_config_screen)        # 13
         self.screen_stack.addWidget(self.comm_port_screen)             # 13 
         self.screen_stack.addWidget(self.maintenance_screen)            # 14
         self.screen_stack.addWidget(self.alarm_config_limits_screen)          # 15  se accede desde el menu de alarmas para configurar los limites de cada variable y su severidad. Esta pantalla reemplaza a la antigua AlarmLimitsConfigDialog, integrando la configuración de alarmas dentro del flujo principal de la aplicación.
@@ -994,6 +1001,14 @@ class HemodialysisHMI(QMainWindow):
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Diálisis")
+
+    def show_heparin_config_screen(self):
+        self.screen_stack.setCurrentWidget(self.heparin_config_screen)
+        if hasattr(self.heparin_config_screen, "update_values"):
+            self.heparin_config_screen.update_values(self.current_values)
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Diálisis")
     
     def show_config_comm_screen(self):
         self.screen_stack.setCurrentWidget(self.comm_port_screen)
@@ -1102,6 +1117,7 @@ class HemodialysisHMI(QMainWindow):
             self.KTVScreen: "Diálisis",                    # ← Importante
             self.patient_config_screen: "Diálisis",
             self.therapy_config_screen: "Diálisis",
+            self.heparin_config_screen: "Diálisis",
         }
 
         # Pantallas de servicio
@@ -1284,34 +1300,7 @@ class HemodialysisHMI(QMainWindow):
             btn.setText("Iniciar\nTratamiento")
             btn.setEnabled(False)
     
-    
-    # def _can_start_treatment(self) -> bool:
-    #     """Lógica centralizada de condiciones para habilitar Iniciar/Reanudar"""
-    #     if self.state.current_phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
-    #         return False        
-        
-    #     # ==================== DELAY DE 90 SEGUNDOS (SOLO EN READY) ====================
-    #     if (self.state.current_phase == TreatmentPhase.READY and 
-    #         self.filter_fill_waiting and 
-    #         self.filter_fill_start_time is not None):
-            
-    #         elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
-    #         print(f"[FILTER] Tiempo transcurrido: {elapsed} segundos | Esperando: {self.MIN_FILTER_FILL_WAIT_SECONDS}s")
-
-    #         if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
-    #             print(f"[FILTER] → BLOQUEADO por delay. Faltan {self.MIN_FILTER_FILL_WAIT_SECONDS - elapsed} segundos")
-    #             return False
-    #         else:
-    #             print("[FILTER] → Delay completado ✓")
-        
-    #             temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
-    #             temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
-    #             cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
-    #             cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
-    
-    #             temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
-    #             cond_ok = abs(cond_actual - cond_set) <= 2.0    
-    #             return temp_ok and cond_ok
+ 
 
 
     def _can_start_treatment(self) -> bool:
@@ -1354,7 +1343,45 @@ class HemodialysisHMI(QMainWindow):
             # Si self.filter_fill_waiting es False (no se ha llamado a _start_filter), 
             # mantenemos bloqueado el botón para forzar que pase por el delay de 90s.
             return False
+    
+    
+    # NUEVA VERSION  POR PROBAR
+    # def _can_start_treatment(self) -> bool:
+    #     """Lógica centralizada para habilitar Iniciar / Reanudar"""
+    #     phase = self.state.current_phase
+        
+    #     if phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
+    #         return False
 
+    #     # Condiciones físicas (siempre requeridas)
+    #     temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+    #     temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+    #     cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+    #     cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+
+    #     temp_ok = (temp_set - 1.5 <= temp_actual <= temp_set + 3.0)
+    #     cond_ok = abs(cond_actual - cond_set) <= 2.0
+
+    #     # ==================== CASO PAUSA ====================
+    #     if phase == TreatmentPhase.PAUSED:
+    #         return temp_ok and cond_ok
+
+    #     # ==================== CASO READY (con delay) ====================
+    #     if phase == TreatmentPhase.READY:
+    #         if self.filter_fill_waiting and self.filter_fill_start_time is not None:
+    #             elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
+
+    #             if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
+    #                 # print(f"[FILTER] Bloqueado: {elapsed}s / 90s")  # descomentar solo para debug
+    #                 return False
+                
+    #             # Ya pasaron los 90s → solo dependemos de las condiciones físicas
+    #             return temp_ok and cond_ok
+
+    #         # Si no hay registro de llenado de filtro → bloquear (forzar paso por llenado)
+    #         return False
+
+    #     return False
     
     def _start_filter(self):
         """Solo inicia el conteo de 90 segundos (NO verifica)"""
@@ -1477,7 +1504,7 @@ class HemodialysisHMI(QMainWindow):
         
         # Opcional: Notifica a las pantallas para que se actualicen
         # for screen in [self.therapy_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var]:  # Agrega todas las pantallas
-        for screen in [self.therapy_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var, self.cleaning_screen, self._cleanning_config_screen,
+        for screen in [self.therapy_config_screen, self.heparin_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var, self.cleaning_screen, self._cleanning_config_screen,
                        self.patient_config_screen, self.therapy_config_screen, self.maintenance_screen, self.dialysis_screen, self.treatment_history,self.treatment_mode_screen]:  # Agrega todas las pantallas relevantes
             if hasattr(screen, 'update_values'):
                 screen.update_values(self.current_values)  # Llama al update en cada pantalla

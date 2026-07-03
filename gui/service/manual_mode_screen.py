@@ -287,11 +287,42 @@ class ManualModeScreen(QWidget):
         self.control_area.setStyleSheet("background: #fcfcfc; border: None;")
         self.control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         grid = QGridLayout(self.control_area)
-        grid.setSpacing(10)
-        grid.setContentsMargins(5, 5, 5, 5)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(10)
+        grid.setContentsMargins(8, 8, 8, 8)
 
-       
-        grid.setColumnStretch(4, 1) 
+        # Afinar distribución manteniendo posiciones actuales de controles.
+        # Bloque izquierdo (0-3), separador (4), bloque derecho (5-12).
+        grid.setColumnMinimumWidth(0, 170)
+        grid.setColumnMinimumWidth(1, 70)
+        grid.setColumnMinimumWidth(2, 170)
+        grid.setColumnMinimumWidth(3, 70)
+        grid.setColumnMinimumWidth(4, 42)
+        grid.setColumnMinimumWidth(5, 80)
+        grid.setColumnMinimumWidth(6, 88)
+        grid.setColumnMinimumWidth(7, 92)
+        grid.setColumnMinimumWidth(8, 92)
+        grid.setColumnMinimumWidth(9, 125)
+        grid.setColumnMinimumWidth(10, 125)
+        grid.setColumnMinimumWidth(11, 125)
+        grid.setColumnMinimumWidth(12, 125)
+
+        grid.setColumnStretch(0, 2)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(2, 2)
+        grid.setColumnStretch(3, 1)
+        grid.setColumnStretch(4, 1)
+        grid.setColumnStretch(5, 1)
+        grid.setColumnStretch(6, 1)
+        grid.setColumnStretch(7, 1)
+        grid.setColumnStretch(8, 1)
+        grid.setColumnStretch(9, 2)
+        grid.setColumnStretch(10, 2)
+        grid.setColumnStretch(11, 2)
+        grid.setColumnStretch(12, 2)
+
+        for r in (0, 1, 2, 4, 5, 6, 8):
+            grid.setRowMinimumHeight(r, 84)
 
         # ==============================================================================
         # --- FILA 0: Dosis Heparina(1), Bolo(2) | Sangre(3,4,5,6,7) ---
@@ -722,9 +753,8 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.test_parameter_configuration, 8, 9, 1, 3)
 
 
-        grid.setColumnStretch(0, 1)
         grid.setColumnMinimumWidth(3, 70)
-        grid.setColumnMinimumWidth(13, 110)
+        grid.setColumnMinimumWidth(12, 110)
 
         
 
@@ -819,6 +849,12 @@ class ManualModeScreen(QWidget):
         layout.addWidget(self.control_area, 0, 0, 2, 2) 
         layout.addWidget(valves_container, 0, 2, 1, 1) 
         layout.addWidget(indicators_area, 1, 2, 1, 1)
+
+        layout.setColumnStretch(0, 4)
+        layout.setColumnStretch(1, 4)
+        layout.setColumnStretch(2, 3)
+        layout.setRowStretch(0, 1)
+        layout.setRowStretch(1, 1)
 
     # ────────────────────────────────────────────────
     # Métodos Lógicos

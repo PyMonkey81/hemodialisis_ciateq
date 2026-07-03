@@ -1,8 +1,8 @@
 # UTF-8
 VSVersionInfo(
     ffi=FixedFileInfo(
-        filevers=(2, 19, 2, 0),
-        prodvers=(2, 19, 2, 0),
+        filevers=(2, 19, 3, 0),
+        prodvers=(2, 19, 3, 0),
         mask=0x3f,
         flags=0x0,
         OS=0x4,
@@ -17,12 +17,12 @@ VSVersionInfo(
                     '040904B0',
                     [StringStruct('CompanyName', 'CIATEQ A.C.'),
                      StringStruct('FileDescription', 'HemodialisisApp'),
-                     StringStruct('FileVersion', '2.19.2'),
+                     StringStruct('FileVersion', '2.19.3'),
                      StringStruct('InternalName', 'HemodialisisApp'),
                      StringStruct('LegalCopyright', '© 2026 CIATEQ A.C. All rights reserved.'),
-                     StringStruct('OriginalFilename', 'HemodialisisApp_v2.19.2_b20260625_121746.exe'),
+                     StringStruct('OriginalFilename', 'HemodialisisApp_v2.19.3_b20260626_174652.exe'),
                      StringStruct('ProductName', 'HemodialisisApp'),
-                     StringStruct('ProductVersion', '2.19.2')])
+                     StringStruct('ProductVersion', '2.19.3')])
                 ]
             ),
         VarFileInfo([VarStruct('Translation', [1033, 1200])])

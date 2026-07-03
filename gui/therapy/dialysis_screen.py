@@ -197,7 +197,7 @@ class DialysisScreen(QWidget):
             ("DETENER", "#DD2911", self.parent_window.stop_treatment),
             ("MENÚ TERAPIA", "#0f172a", self.show_therapy_config),
             ("MENÚ PACIENTE", "#0f172a", self.show_patient_config),
-            ("APLICAR BOLO", "#0f172a", self.bolus_apply_dosage),
+            ("HEPARINA", "#0f172a", self.show_heparin_config_screen),
             ("INICIAR CEBADO", "#0f172a", self.parent_window.start_priming),
             ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming),  
             ("Kt/V", "#0f172a", self.parent_window.show_ktv_screen),       
@@ -310,12 +310,9 @@ class DialysisScreen(QWidget):
             self.update_state(self.parent_window.state.current_phase)#
 
 
-    def bolus_apply_dosage(self):
-        try:
-            self.on_user_boolean_command("heparinApplyBolusDose",True)
-            self.on_user_boolean_command("heparinApplyBolusDose",False)
-        except Exception as e:
-            pass 
+    def show_heparin_config_screen(self):
+        if self.parent_window and hasattr(self.parent_window, "show_heparin_config_screen"):
+            self.parent_window.show_heparin_config_screen()
 
     def on_user_boolean_command(self, tag, state):
         self.request_boolean_change.emit(tag, state)
