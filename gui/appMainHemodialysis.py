@@ -792,7 +792,7 @@ class HemodialysisHMI(QMainWindow):
             if success:
                 self._update_therapy_time_displays()
                 self._refresh_navigation_bar()
-                self._reset_filter_fill_flags()
+                self.screen_state_manager.update_all_screens(self.state.current_phase)
                 
         finally:
             self._start_treatment_locked = False
@@ -1303,85 +1303,87 @@ class HemodialysisHMI(QMainWindow):
  
 
 
-    def _can_start_treatment(self) -> bool:
-        """Lógica centralizada de condiciones para habilitar Iniciar/Reanudar"""
-        if self.state.current_phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
-            return False
-        
-        # 1. Evaluamos las condiciones de temperatura y conductividad siempre
-        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
-        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
-        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
-        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
-
-        temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
-        cond_ok = abs(cond_actual - cond_set) <= 2.0    
-        
-        condiciones_optimas = temp_ok and cond_ok
-
-        # 2. Si está en PAUSA, solo evaluamos las condiciones físicas (sin delay)
-        if self.state.current_phase == TreatmentPhase.PAUSED:
-            return condiciones_optimas
-        
-        # 3. ==================== DELAY DE 90 SEGUNDOS (SOLO EN READY) ====================
-        if self.state.current_phase == TreatmentPhase.READY:
-            
-            # Verificamos si el temporizador del filtro fue iniciado
-            if self.filter_fill_waiting and self.filter_fill_start_time is not None:
-                elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
-                
-                # debuguear, pero cuidado si se llama muchas veces por segundo:
-                # print(f"[FILTER] Tiempo transcurrido: {elapsed}s | Esperando: {self.MIN_FILTER_FILL_WAIT_SECONDS}s")
-
-                if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
-                    # Aunque la temp y cond estén bien, BLOQUEAMOS porque no han pasado los 90s
-                    return False
-                else:
-                    # Pasaron los 90 segundos. Ahora sí, habilitamos SOLO SI temp y cond están OK
-                    return condiciones_optimas
-            
-            # Si self.filter_fill_waiting es False (no se ha llamado a _start_filter), 
-            # mantenemos bloqueado el botón para forzar que pase por el delay de 90s.
-            return False
-    
-    
-    # NUEVA VERSION  POR PROBAR
     # def _can_start_treatment(self) -> bool:
-    #     """Lógica centralizada para habilitar Iniciar / Reanudar"""
-    #     phase = self.state.current_phase
-        
-    #     if phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
+    #     """Lógica centralizada de condiciones para habilitar Iniciar/Reanudar"""
+    #     if self.state.current_phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
     #         return False
-
-    #     # Condiciones físicas (siempre requeridas)
+        
+    #     # 1. Evaluamos las condiciones de temperatura y conductividad siempre
     #     temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
     #     temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
     #     cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
     #     cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
 
-    #     temp_ok = (temp_set - 1.5 <= temp_actual <= temp_set + 3.0)
-    #     cond_ok = abs(cond_actual - cond_set) <= 2.0
+    #     temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
+    #     cond_ok = abs(cond_actual - cond_set) <= 2.0    
+        
+    #     condiciones_optimas = temp_ok and cond_ok
 
-    #     # ==================== CASO PAUSA ====================
-    #     if phase == TreatmentPhase.PAUSED:
-    #         return temp_ok and cond_ok
-
-    #     # ==================== CASO READY (con delay) ====================
-    #     if phase == TreatmentPhase.READY:
+    #     # 2. Si está en PAUSA, solo evaluamos las condiciones físicas (sin delay)
+    #     if self.state.current_phase == TreatmentPhase.PAUSED:
+    #         return condiciones_optimas
+        
+    #     # 3. ==================== DELAY DE 90 SEGUNDOS (SOLO EN READY) ====================
+    #     if self.state.current_phase == TreatmentPhase.READY:
+            
+    #         # Verificamos si el temporizador del filtro fue iniciado
     #         if self.filter_fill_waiting and self.filter_fill_start_time is not None:
     #             elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
+                
+    #             # debuguear, pero cuidado si se llama muchas veces por segundo:
+    #             # print(f"[FILTER] Tiempo transcurrido: {elapsed}s | Esperando: {self.MIN_FILTER_FILL_WAIT_SECONDS}s")
 
     #             if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
-    #                 # print(f"[FILTER] Bloqueado: {elapsed}s / 90s")  # descomentar solo para debug
+    #                 # Aunque la temp y cond estén bien, BLOQUEAMOS porque no han pasado los 90s
     #                 return False
-                
-    #             # Ya pasaron los 90s → solo dependemos de las condiciones físicas
-    #             return temp_ok and cond_ok
-
-    #         # Si no hay registro de llenado de filtro → bloquear (forzar paso por llenado)
+    #             else:
+    #                 # Pasaron los 90 segundos. Ahora sí, habilitamos SOLO SI temp y cond están OK
+    #                 return condiciones_optimas
+            
+    #         # Si self.filter_fill_waiting es False (no se ha llamado a _start_filter), 
+    #         # mantenemos bloqueado el botón para forzar que pase por el delay de 90s.
     #         return False
+    
+    
+    # NUEVA VERSION  POR PROBAR
+    def _can_start_treatment(self) -> bool:
+        """Lógica centralizada para habilitar Iniciar / Reanudar"""
+        phase = self.state.current_phase
+    
+        # 1. Filtro rápido de fase
+        if phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
+            return False
 
-    #     return False
+        # 2. Verificación de condiciones físicas (necesarias para ambos estados)
+        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+
+        # Rango: Setpoint -1.5 hasta +3.0
+        temp_ok = (temp_set - 5 <= temp_actual <= temp_set + 3.0)
+        cond_ok = abs(cond_actual - cond_set) <= 2.0
+        fisica_ok = temp_ok and cond_ok
+
+        # 3. Lógica según fase
+        if phase == TreatmentPhase.PAUSED:
+            return fisica_ok
+
+        if phase == TreatmentPhase.READY:
+            # Si no se ha iniciado el proceso de llenado, bloqueamos
+            if not self.filter_fill_waiting or self.filter_fill_start_time is None:
+                return False
+            
+            # Verificar tiempo transcurrido
+            elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
+            if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
+                return False
+        
+            # Si pasó el tiempo y la física está OK, permitimos iniciar
+            return fisica_ok
+
+        return False
+
     
     def _start_filter(self):
         """Solo inicia el conteo de 90 segundos (NO verifica)"""

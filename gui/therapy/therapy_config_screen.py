@@ -369,12 +369,21 @@ class TherapyConfigScreen(QWidget):
             self.btn_filter_fill.setStyleSheet(self.style_disabled)
             logger.debug("Botón Llenado de Filtro → DESHABILITADO")
 
-       
-
-    # quitar para que se puedan mover parametros en tratamiento
     def _update_bloop_pump_controls_state(self):   
-        # ctrl_loop_state = self.current_values.get("bloodControlLoopEnable", 0)
+        current_phase = None
+        if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'state'):
+            current_phase = self.parent_window.state.current_phase
         status_code = int(self.current_values.get("primingProcessStatus", 0))
+
+        # Restricción aplicada solo a botones de bomba de sangre.
+        # Se bloquean en RUNNING o en estado 14 de priming.
+        if current_phase == TreatmentPhase.RUNNING or status_code == 14:
+            self.btn_start_blood_pump.setEnabled(False)
+            self.btn_stop_blood_pump.setEnabled(False)
+            self.btn_start_blood_pump.setStyleSheet(self.style_disabled)
+            self.btn_stop_blood_pump.setStyleSheet(self.style_disabled)
+            logger.debug(f"Bomba de sangre bloqueada (phase={current_phase}, priming={status_code})")
+            return
         
         pump_start_state = self.current_values.get("bloodPumpStartButton", 0)         
         pump_stop_state = self.current_values.get("bloodPumpStopButton", 0)
@@ -605,7 +614,7 @@ class TherapyConfigScreen(QWidget):
         print("confirmado")
 
     def update_state(self, phase: TreatmentPhase):
-        """Actualiza el estado de los botones según fase global + estado del hardware"""
+        """Actualiza el estado de botones de bomba de sangre y deja el resto habilitado."""
         treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
         status_code = int(self.current_values.get("primingProcessStatus", 0))
 
@@ -618,16 +627,7 @@ class TherapyConfigScreen(QWidget):
             self._update_filter_fill_button_state(False)
 
         # ==================== BOTONES BOMBA DE SANGRE ====================
-        if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED,
-                     TreatmentPhase.IDLE, TreatmentPhase.READY, TreatmentPhase.PREPARING):
-            # Fuera de tratamiento → actualizar según estado real de la bomba
-            self._update_bloop_pump_controls_state()
-        else:
-            # Estados de error o limpieza
-            self.btn_start_blood_pump.setEnabled(False)
-            self.btn_stop_blood_pump.setEnabled(False)
-            self.btn_start_blood_pump.setStyleSheet(self.style_disabled)
-            self.btn_stop_blood_pump.setStyleSheet(self.style_disabled)
+        self._update_bloop_pump_controls_state()
 
         # ==================== OTROS BOTONES / CONTROLES ====================
         # Mantener inputs habilitados incluso durante terapia activa (RUNNING/PAUSED)

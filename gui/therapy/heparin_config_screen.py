@@ -48,7 +48,7 @@ class HeparinConfigScreen(QWidget):
 
     def setup_ui(self):
         self.style_enabled = """
-            QPushButton { background: #39ec21; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton { background: #0f172a<; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
             QPushButton:pressed { background: #334155; }
         """
 
@@ -89,7 +89,7 @@ class HeparinConfigScreen(QWidget):
         sep1.setStyleSheet("background: #fcfcfc; max-height: 2px;")
         main_layout.addWidget(sep1)
 
-        content_layout = QHBoxLayout()
+        content_layout = QGridLayout()
         content_layout.setSpacing(30)
         main_layout.addLayout(content_layout)
 
@@ -103,24 +103,15 @@ class HeparinConfigScreen(QWidget):
             }
             QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
         """)
+
+        
         hep_frame_layout = QHBoxLayout(hep_frame)
         hep_frame_layout.setContentsMargins(15, 15, 15, 15)
         hep_frame_layout.setSpacing(15)       
 
-        lbl_bolus = QLabel("Bolo (ml):")
-        lbl_bolus.setStyleSheet(label_style)
-        lbl_bolus.setAlignment(Qt.AlignRight)
-        self.input_bolus = ClickableLineEdit("0.0")
-        self.input_bolus.setFixedSize(120, 50)
-        self.input_bolus.setAlignment(Qt.AlignCenter)
-        self.input_bolus.setStyleSheet(input_style)
-        self.input_bolus.setReadOnly(True)
-        self.input_bolus.clicked.connect(
-            lambda: self.open_numpad("heparineBolusQuantity", self.input_bolus, "Bolo (ml)")
-        )
-        hep_frame_layout.addWidget(lbl_bolus)
-        hep_frame_layout.addWidget(self.input_bolus)
-
+        lbl_hep_controls = QLabel("Controles Heparina:")
+        lbl_hep_controls.setStyleSheet(label_style)
+        hep_frame_layout.addWidget(lbl_hep_controls)
         btn_heparin_home = PushbuttonEvent("HOME", self)
         btn_heparin_home.setFixedSize(120, 80)
         btn_heparin_home.setStyleSheet(button_style)
@@ -142,14 +133,42 @@ class HeparinConfigScreen(QWidget):
         btn_fwd_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", False))
         hep_frame_layout.addWidget(btn_fwd_hep)
 
-        btn_apply_bolus = QPushButton("APLICAR BOLO")
+
+        # Controles de bolo de heparina
+        bolo_frame = QFrame()
+        bolo_frame.setStyleSheet("""
+            QFrame {
+                border: 2px solid #5c5c5c;
+                border-radius: 8px;
+                background-color: transparent;
+            }
+            QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
+        """)
+        bolo_frame_layout = QHBoxLayout(bolo_frame)
+        bolo_frame_layout.setContentsMargins(15, 15, 15, 15)
+        bolo_frame_layout.setSpacing(15)
+
+        lbl_bolus = QLabel("Vol. Bolo Heparina (ml):")
+        lbl_bolus.setStyleSheet(label_style)
+        lbl_bolus.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.input_bolus = ClickableLineEdit("0.0")
+        self.input_bolus.setFixedSize(120, 50)
+        self.input_bolus.setAlignment(Qt.AlignCenter)
+        self.input_bolus.setStyleSheet(input_style)
+        self.input_bolus.setReadOnly(True)
+        self.input_bolus.clicked.connect(
+            lambda: self.open_numpad("heparineBolusQuantity", self.input_bolus, "Bolo (ml)")
+        )
+        bolo_frame_layout.addWidget(lbl_bolus)
+        bolo_frame_layout.addWidget(self.input_bolus)
+
+        btn_apply_bolus = QPushButton("APLICAR\n BOLO")
         btn_apply_bolus.setFixedHeight(80)
-        btn_apply_bolus.setStyleSheet(self.style_enabled)
+        btn_apply_bolus.setStyleSheet(button_style)
         btn_apply_bolus.clicked.connect(self.apply_bolus)
-        hep_frame_layout.addWidget(btn_apply_bolus)
+        bolo_frame_layout.addWidget(btn_apply_bolus)
 
-
-        content_layout.addWidget(hep_frame)
+        
 
         # Parametros de heparina y bolo
         params_frame = QFrame()
@@ -171,7 +190,12 @@ class HeparinConfigScreen(QWidget):
         params_layout.addWidget(lbl_heparin, 0, 0, Qt.AlignVCenter)
         params_layout.addWidget(self.input_heparin, 0, 1)
 
-        content_layout.addWidget(params_frame)
+        content_layout.addWidget(bolo_frame, 0, 0)   # Arriba Izquierda
+        content_layout.addWidget(params_frame, 0, 1) # Arriba Derecha
+
+        # Fila 1
+        content_layout.addWidget(hep_frame, 1, 0) 
+
         main_layout.addStretch(1)
 
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
@@ -218,3 +242,15 @@ class HeparinConfigScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.setFocus()
+
+
+        
+        # Fila 0
+           # Abajo Izquierda (debajo de bolo)
+        
+        # Aquí puedes poner un placeholder para tus futuros controles
+        # future_frame = QFrame()
+        # # future_frame.setStyleSheet(...)
+        # content_layout.addWidget(future_frame, 1, 1) # Abajo Derecha (debajo de params)
+
+   

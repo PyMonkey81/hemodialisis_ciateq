@@ -177,6 +177,7 @@ class ManualModeScreen(QWidget):
         super().__init__(parent)
         self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}
+        self.heparin_pause_latched = False
 
         self.write_hold_off = {}
         self.toggle_hold_off = {}
@@ -490,12 +491,11 @@ class ManualModeScreen(QWidget):
         grid.addWidget(btn_rev_hep, 2, 8, 1, 1)
 
         # 16. Btn PAUSE heparina
-        btn_pause_hep = PushbuttonEvent("PAUSE", self.control_area)
-        btn_pause_hep.setFixedSize(80, 70)
-        btn_pause_hep.setStyleSheet(button_style)
-        btn_pause_hep.pressed.connect(lambda: self.on_user_boolean_command("heparineOperPauseResume", True))
-        btn_pause_hep.released.connect(lambda: self.on_user_boolean_command("heparineOperPauseResume", False))
-        grid.addWidget(btn_pause_hep, 2, 9, 1, 1)
+        self.btn_pause_hep = PushbuttonEvent("PAUSE", self.control_area)
+        self.btn_pause_hep.setFixedSize(80, 70)
+        self.btn_pause_hep.setStyleSheet(button_style)
+        self.btn_pause_hep.clicked.connect(self._toggle_heparin_pause_resume)
+        grid.addWidget(self.btn_pause_hep, 2, 9, 1, 1)
 
         # 17. Btn FWD heparina
         btn_fwd_hep = PushbuttonEvent("FWD", self.control_area)
@@ -1250,6 +1250,18 @@ class ManualModeScreen(QWidget):
                         m = (state["duration_ms"] % 3600000) // 60000
                         state["remaining_lbl"].setText(f"{h:02d}:{m:02d}")
                     logger.info(f"Timer '{timer_id}' stopped")
+
+    def _toggle_heparin_pause_resume(self):
+        """Alterna PAUSE/CONTINUAR para la bomba de heparina con comando latch."""
+        self.heparin_pause_latched = not self.heparin_pause_latched
+        self.on_user_boolean_command("heparineOperPauseResume", self.heparin_pause_latched)
+
+        if hasattr(self, "btn_pause_hep") and self.btn_pause_hep is not None:
+            self.btn_pause_hep.setText("CONT.." if self.heparin_pause_latched else "PAUSE")
+
+        logger.info(
+            f"Heparina pause/resume latch -> {self.heparin_pause_latched}"
+        )
 
 
     def open_numpad(self, tag: str, input_widget, title: str = "Ingrese valor"):
