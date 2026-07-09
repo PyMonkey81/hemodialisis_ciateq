@@ -138,9 +138,24 @@ class SerialCommunication(QObject):
             logger.info(f"[CONNECTED PPAL] OS: {current_os} | Puerto: {port_name}")
             return True
         except Exception as e:
+            self._log_linux_permission_hint(port_name, e)
             logger.error(f"[CONTROLADOR PPAL] Error de conexión en {port_name}: {e}")
             self.is_connected = False
             return False
+
+    def _log_linux_permission_hint(self, port_name: str, error: Exception):
+        """Muestra recomendación operativa cuando Linux rechaza acceso al puerto serial."""
+        if platform.system() == "Windows":
+            return
+
+        error_text = str(error).lower()
+        if "permission" in error_text or "denied" in error_text or "errno 13" in error_text:
+            logger.warning(
+                "[CONTROLADOR PPAL] Permiso denegado en %s. "
+                "En Linux agrega el usuario al grupo de puertos seriales (dialout/uucp) "
+                "y verifica reglas udev para el dispositivo.",
+                port_name,
+            )
 
     def _find_and_connect_auto(self) -> bool:
         """Algoritmo de detección automática original filtrando por fabricante FTDI."""
@@ -193,7 +208,7 @@ class SerialCommunication(QObject):
                 try:
                     command = self.command_queue.get_nowait()
                     is_write = True
-                    print(f"[DEBUG] Enviando comando de ESCRITURA: {command.hex()}")
+                    logger.debug("[CONTROLADOR PPAL] Enviando comando de ESCRITURA: %s", command.hex())
                 except Empty:
                     command = self.next_read_command
                     is_write = False

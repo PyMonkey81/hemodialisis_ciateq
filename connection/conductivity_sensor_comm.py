@@ -66,6 +66,7 @@ import serial.tools.list_ports
 import threading
 import time
 import re # Usaremos regex también aquí por si acaso, aunque el parseo es más simple
+import platform
 import logging
 logger = logging.getLogger(__name__)
 
@@ -197,11 +198,27 @@ class PatternConductivity(QObject):
             self.last_successful_comm = time.time() # Resetear contador de comunicación
             return True
         except serial.SerialException as e:
+            self._log_linux_permission_hint(port_name, e)
             logger.warning(f"[COND. PATRÓN] Error al intentar conectar a {port_name} (específico): {e}")
             return False
         except Exception as e:
+            self._log_linux_permission_hint(port_name, e)
             logger.error(f"[COND. PATRÓN] Error inesperado al conectar a {port_name} (específico): {e}")
             return False
+
+    def _log_linux_permission_hint(self, port_name: str, error: Exception):
+        """Muestra recomendación operativa cuando Linux rechaza acceso al puerto serial."""
+        if platform.system() == "Windows":
+            return
+
+        error_text = str(error).lower()
+        if "permission" in error_text or "denied" in error_text or "errno 13" in error_text:
+            logger.warning(
+                "[COND. PATRÓN] Permiso denegado en %s. "
+                "En Linux agrega el usuario al grupo de puertos seriales (dialout/uucp) "
+                "y verifica reglas udev para este sensor.",
+                port_name,
+            )
 
     def _find_and_connect_auto(self) -> bool:
         """

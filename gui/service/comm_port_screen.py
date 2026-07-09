@@ -5,6 +5,8 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboB
 from PySide6.QtCore import Signal, Qt
 import json
 import os 
+import platform
+import re
 from gui.components.floating_message import FloatingMessage
 import logging
 logger = logging.getLogger(__name__)
@@ -12,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 CONFIG_DIR = "config"
 CONFIG_FILE = os.path.join(CONFIG_DIR, "sensor_comm_config.json")
+COM_PORT_PATTERN = re.compile(r"^COM\d+$", re.IGNORECASE)
 
 class CommPortScreen(QWidget):
     config_changed = Signal(str, str, bool)  # id_sensor/controlador, puerto, habilitado
@@ -284,11 +287,28 @@ class CommPortScreen(QWidget):
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     settings = json.load(f)
                 logger.info(f"Configuración cargada desde {CONFIG_FILE}")
-                return {**default, **settings}
+                merged = {**default, **settings}
+                self._sanitize_platform_ports(merged)
+                return merged
             except Exception as e:
                 logger.error(f"Error cargando configuración: {e}")
         logger.warning("Usando configuración por defecto")
         return default
+
+    def _sanitize_platform_ports(self, settings: dict):
+        """Normaliza puertos guardados para evitar valores COMx inválidos en Linux."""
+        if platform.system() == "Windows":
+            return
+
+        for sensor_key in ("main_control", "conductivity_sensor", "bioz_urea_sensor"):
+            sensor_cfg = settings.get(sensor_key, {})
+            port_value = str(sensor_cfg.get("port", "Auto")).strip()
+            if COM_PORT_PATTERN.match(port_value):
+                sensor_cfg["port"] = "Auto"
+                settings[sensor_key] = sensor_cfg
+                logger.warning(
+                    f"[{sensor_key}] Puerto guardado '{port_value}' no es válido en Linux. Se cambia a 'Auto'."
+                )
 
     def _save_settings(self):
         settings = {

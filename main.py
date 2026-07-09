@@ -40,25 +40,12 @@ logger = logging.getLogger(__name__)
 
 
 def detect_screen_size() -> tuple[int, int]:
-    """Detecta resolucion de pantalla sin depender de APIs exclusivas de Windows."""
+    """Detecta resolucion usando Qt; si no está disponible usa una resolución segura."""
     try:
         screen_instance = QGuiApplication.primaryScreen()
         if screen_instance is not None:
             geometry = screen_instance.availableGeometry()
             return geometry.width(), geometry.height()
-    except Exception:
-        pass
-
-    # Fallback cross-platform cuando Qt aun no expone la pantalla principal.
-    try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.withdraw()
-        width = int(root.winfo_screenwidth())
-        height = int(root.winfo_screenheight())
-        root.destroy()
-        if width > 0 and height > 0:
-            return width, height
     except Exception:
         pass
 

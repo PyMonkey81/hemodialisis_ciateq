@@ -1502,7 +1502,7 @@ class HemodialysisHMI(QMainWindow):
     def handleGlobalValueChange(self, tag: str, value: float):
        
         self.current_values[tag] = value  # Actualiza el valor global
-        print(f"[GLOBAL] Valor actualizado: {tag} = {value}")  # Log para depuración
+        logger.debug("[GLOBAL] Valor actualizado: %s = %s", tag, value)
         
         # Opcional: Notifica a las pantallas para que se actualicen
         # for screen in [self.therapy_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var]:  # Agrega todas las pantallas
@@ -1533,6 +1533,11 @@ class HemodialysisHMI(QMainWindow):
                 value = convertir_ciclos_a_flujo(value)                                
             except Exception as e:
                 logger.error(f"Error converting CB flow: {e}")
+
+        # Evita trabajo redundante cuando el valor entrante no cambia.
+        previous_value = self.current_values.get(tag)
+        if previous_value == value:
+            return
 
         # 2. Actualizar el valor centralizado (Ya convertido de manera segura)
         self.current_values[tag] = value
@@ -2459,7 +2464,7 @@ class HemodialysisHMI(QMainWindow):
         self.end_dialysis_session() # Cierra los loggers
         logger.error("[INFO] closeEvent → performing shutdown...")
         self.shutdown() # shutdown ya guarda las horas
-        time.sleep(1.0) 
+        # time.sleep(1.0) 
         event.accept()
         QApplication.quit()
 

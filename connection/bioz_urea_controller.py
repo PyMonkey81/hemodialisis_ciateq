@@ -83,6 +83,7 @@ import serial.tools.list_ports
 import threading
 import time
 import re
+import platform
 import logging
 from core.state_manager import TreatmentPhase
 logger = logging.getLogger(__name__)
@@ -239,11 +240,27 @@ class BiozUreaController(QObject):
             print(f"[BIOZ/UREA] Conectado exitosamente en puerto ESPECÍFICO: {port_name}")
             return True
         except serial.SerialException as e:
+            self._log_linux_permission_hint(port_name, e)
             logger.warning(f"[BIOZ/UREA] Error al intentar conectar a {port_name} (específico): {e}")
             return False
         except Exception as e:
+            self._log_linux_permission_hint(port_name, e)
             logger.error(f"[BIOZ/UREA] Error inesperado al conectar a {port_name} (específico): {e}")
             return False
+
+    def _log_linux_permission_hint(self, port_name: str, error: Exception):
+        """Muestra recomendación operativa cuando Linux rechaza acceso al puerto serial."""
+        if platform.system() == "Windows":
+            return
+
+        error_text = str(error).lower()
+        if "permission" in error_text or "denied" in error_text or "errno 13" in error_text:
+            logger.warning(
+                "[BIOZ/UREA] Permiso denegado en %s. "
+                "En Linux agrega el usuario al grupo de puertos seriales (dialout/uucp) "
+                "y verifica reglas udev para el adaptador USB-serial.",
+                port_name,
+            )
 
     def _find_and_connect_auto(self) -> bool:
         """

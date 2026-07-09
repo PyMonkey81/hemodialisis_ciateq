@@ -1,8 +1,6 @@
 # gui/therapy/therapy_config_screen.py
 # Pantalla de configuración de parámetros de terapia (sin selección de modo)
 
-from tkinter import dialog
-
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QGridLayout, QFrame, QSizePolicy
