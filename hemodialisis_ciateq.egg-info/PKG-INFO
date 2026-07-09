@@ -3,4 +3,13 @@ Name: hemodialisis-ciateq
 Version: 1.2.0
 Summary: Máquina de Hemodiálisis - CIATEQ
 License-File: LICENSE.txt
+Requires-Dist: crcmod==1.7
+Requires-Dist: numpy==2.4.1
+Requires-Dist: pandas==3.0.0
+Requires-Dist: pyqtgraph==0.14.0
+Requires-Dist: pyserial==3.5
+Requires-Dist: PySide6==6.10.1
+Requires-Dist: python-dateutil==2.9.0.post0
+Requires-Dist: pefile==2024.8.26; platform_system == "Windows"
+Requires-Dist: pywin32-ctypes==0.2.3; platform_system == "Windows"
 Dynamic: license-file

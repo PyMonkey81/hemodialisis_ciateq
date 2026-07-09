@@ -75,6 +75,7 @@ from queue import Queue, Empty
 from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
+from utilities.platform_runtime import sanitize_port_for_platform
 
 
 
@@ -121,14 +122,15 @@ class PatternConductivity(QObject):
             is_enabled (bool): Si la comunicación con este sensor debe estar activa.
         """
         # Comparar con la configuración actual para decidir acciones
-        port_changed = (self._user_selected_port != port_name and not (self._user_selected_port is None and port_name == "Auto"))
+        sanitized_port = sanitize_port_for_platform(port_name)
+        port_changed = (self._user_selected_port != sanitized_port and not (self._user_selected_port is None and sanitized_port == "Auto"))
         enabled_changed = (self._is_enabled != is_enabled)
         
         # Almacenar la nueva configuración
-        self._user_selected_port = port_name if port_name != "Auto" else None
+        self._user_selected_port = sanitized_port if sanitized_port != "Auto" else None
         self._is_enabled = is_enabled
         
-        logger.info(f"[COND. PATRÓN] Configuración recibida: Puerto='{port_name}' (interno: '{self._user_selected_port if port_name != 'Auto' else 'Auto'}'), Habilitado={is_enabled}")
+        logger.info(f"[COND. PATRÓN] Configuración recibida: Puerto='{sanitized_port}' (interno: '{self._user_selected_port if sanitized_port != 'Auto' else 'Auto'}'), Habilitado={is_enabled}")
 
         # Lógica de acción basada en el cambio de configuración
         if not self._is_enabled and self.running:
@@ -138,7 +140,7 @@ class PatternConductivity(QObject):
             logger.info("[COND. PATRÓN] Se habilitó la comunicación. Iniciando controlador.")
             self.start()
         elif self._is_enabled and port_changed and self.running:
-            logger.info(f"[COND. PATRÓN] El puerto seleccionado ha cambiado a '{port_name}'. Forzando reconexión.")
+            logger.info(f"[COND. PATRÓN] El puerto seleccionado ha cambiado a '{sanitized_port}'. Forzando reconexión.")
             # Cerrar el puerto actual para que el _communication_loop intente una nueva conexión
             self._close_port()
 

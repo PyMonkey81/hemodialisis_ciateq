@@ -18,6 +18,7 @@ from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 from core.variables_map import VARIABLES, ANALOG_MAP
+from utilities.platform_runtime import sanitize_port_for_platform
 import logging
 logger = logging.getLogger(__name__)
 
@@ -72,14 +73,15 @@ class SerialCommunication(QObject):
             port_name (str): Nombre del puerto ("COMx", "/dev/ttyUSBx") o "Auto".
             is_enabled (bool): Flag de activación del controlador principal.
         """
-        port_changed = (self._user_selected_port != port_name and not (self._user_selected_port is None and port_name == "Auto"))
+        sanitized_port = sanitize_port_for_platform(port_name)
+        port_changed = (self._user_selected_port != sanitized_port and not (self._user_selected_port is None and sanitized_port == "Auto"))
         enabled_changed = (self._is_enabled != is_enabled)
         
         # Guardar configuraciones mapeando "Auto" a None
-        self._user_selected_port = port_name if port_name != "Auto" else None
+        self._user_selected_port = sanitized_port if sanitized_port != "Auto" else None
         self._is_enabled = is_enabled
         
-        logger.info(f"[CONTROLADOR PPAL] Configuración recibida: Puerto='{port_name}', Habilitado={is_enabled}")
+        logger.info(f"[CONTROLADOR PPAL] Configuración recibida: Puerto='{sanitized_port}', Habilitado={is_enabled}")
 
         # Lógica de estados del hilo basados en cambios de la UI
         if not self._is_enabled and self.running:
@@ -89,7 +91,7 @@ class SerialCommunication(QObject):
             logger.info("[CONTROLADOR PPAL] Se habilitó la comunicación. Iniciando controlador.")
             self.start_reading()
         elif self._is_enabled and port_changed and self.running:
-            logger.info(f"[CONTROLADOR PPAL] Puerto cambiado a '{port_name}'. Forzando reconexión física.")
+            logger.info(f"[CONTROLADOR PPAL] Puerto cambiado a '{sanitized_port}'. Forzando reconexión física.")
             self._close_port_resource()
 
     def connect(self) -> bool:
@@ -356,4 +358,4 @@ class SerialCommunication(QObject):
             if self.reader_thread.is_alive():
                 logger.warning("El hilo serial no respondió al join a tiempo.")
 
-        print("[INFO] Serial communication stopped clean")
+        logger.info("[CONTROLADOR PPAL] Comunicación serial detenida limpiamente.")

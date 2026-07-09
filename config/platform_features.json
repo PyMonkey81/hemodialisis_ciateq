@@ -1,0 +1,5 @@
+{
+  "enable_linux_platform_layer": true,
+  "enable_windows_legacy_prescale": true,
+  "sanitize_linux_com_ports": true
+}

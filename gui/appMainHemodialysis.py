@@ -511,7 +511,7 @@ class HemodialysisHMI(QMainWindow):
     def _on_state_changed(self, phase: TreatmentPhase, reason: str):
         """Callback principal de cambio de estado"""
         logger.info(f"Estado global cambiado: {phase.name} | {reason}")
-        print(f" {phase.name}")
+        logger.debug("Fase actual: %s", phase.name)
         self._update_buttons_state()
         self._refresh_navigation_bar()
         self.screen_state_manager.update_all_screens(phase) # MODIFICADO: Esto llamará a KTVScreen.update_state
@@ -1071,11 +1071,9 @@ class HemodialysisHMI(QMainWindow):
             return
         self._timer_lock = True
         try:
-            self.update_connection_status()
-            self.update_date_time() 
-
-            if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
-                self.treatment_controller.update_therapy_times()
+            now = QDateTime.currentDateTime()
+            second_elapsed = self.last_second_update.msecsTo(now) >= 1000
+            minute_elapsed = self.last_minute_update.secsTo(now) >= 60
 
             self.ktv_controller.on_master_tick()
 
@@ -1089,11 +1087,23 @@ class HemodialysisHMI(QMainWindow):
             elif self.state.current_phase == TreatmentPhase.PREPARING:
                 self._log_current_data()                  # Cebado / Priming (el general)
 
-            if self.screen_stack.currentWidget() == self.maintenance_screen:
-                self.timer_manager._update_maintenance_screen()
-
             self._update_gauges()
-            self._refresh_navigation_bar()       
+
+            if second_elapsed:
+                self.update_connection_status()
+                self.update_date_time()
+
+                if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
+                    self.treatment_controller.update_therapy_times()
+
+                if self.screen_stack.currentWidget() == self.maintenance_screen:
+                    self.timer_manager._update_maintenance_screen()
+
+                self._refresh_navigation_bar()
+                self.last_second_update = now
+
+            if minute_elapsed:
+                self.last_minute_update = now
 
         finally:
             self._timer_lock = False
@@ -1390,7 +1400,10 @@ class HemodialysisHMI(QMainWindow):
         try:                    
             self.filter_fill_start_time = QDateTime.currentDateTime()
             self.filter_fill_waiting = True
-            print(f"[FILTER] Conteo de llenado de filtro iniciado a las {self.filter_fill_start_time.toString('HH:mm:ss')}")
+            logger.info(
+                "[FILTER] Conteo de llenado iniciado a las %s",
+                self.filter_fill_start_time.toString("HH:mm:ss"),
+            )
         except Exception as e:
             logger.error(f"Error en _start_filter: {e}", exc_info=True)
 
@@ -1503,13 +1516,10 @@ class HemodialysisHMI(QMainWindow):
        
         self.current_values[tag] = value  # Actualiza el valor global
         logger.debug("[GLOBAL] Valor actualizado: %s = %s", tag, value)
-        
-        # Opcional: Notifica a las pantallas para que se actualicen
-        # for screen in [self.therapy_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var]:  # Agrega todas las pantallas
-        for screen in [self.therapy_config_screen, self.heparin_config_screen, self.calibration_screen, self.test_panel_screen, self.manual_mode_screen,self.alarms_screen,self.real_time_var, self.cleaning_screen, self._cleanning_config_screen,
-                       self.patient_config_screen, self.therapy_config_screen, self.maintenance_screen, self.dialysis_screen, self.treatment_history,self.treatment_mode_screen]:  # Agrega todas las pantallas relevantes
-            if hasattr(screen, 'update_values'):
-                screen.update_values(self.current_values)  # Llama al update en cada pantalla
+
+        current_widget = self.screen_stack.currentWidget()
+        if hasattr(current_widget, "update_values"):
+            current_widget.update_values(self.current_values)
 
     def update_date_time(self):
         from datetime import datetime
@@ -1603,7 +1613,7 @@ class HemodialysisHMI(QMainWindow):
                     logger.info("Hardware confirmó fin de tratamiento → Registrando historial")
                     if hasattr(self, 'register_treatment_session'):
                         self.register_treatment_session()
-                        print("Llama a registar sesion")
+                        logger.debug("Historial de tratamiento registrado")
                     
                     # Cerrar logger
                     if hasattr(self, 'treatment_logger') and self.treatment_logger:
@@ -1612,7 +1622,7 @@ class HemodialysisHMI(QMainWindow):
                     
                     if hasattr(self, 'treatment_controller'):
                         self.treatment_controller.stop_therapy_timer()
-                        print("se ejecuto en main")
+                        logger.debug("Timer de terapia detenido tras transición a IDLE")
                         
 
                 # Sincronizar timers del TimerManager
@@ -2335,7 +2345,7 @@ class HemodialysisHMI(QMainWindow):
         # Validación de fechas
         if not self._validate_session(self.current_treatment_start, end_time):
             self.current_treatment_start = None
-            print("no se esta registrando ")
+            logger.debug("Sesión de tratamiento descartada por validación")
             return
 
         duration_seconds = self.current_treatment_start.secsTo(end_time)

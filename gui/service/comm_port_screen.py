@@ -5,16 +5,14 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboB
 from PySide6.QtCore import Signal, Qt
 import json
 import os 
-import platform
-import re
 from gui.components.floating_message import FloatingMessage
+from utilities.platform_runtime import sanitize_port_for_platform
 import logging
 logger = logging.getLogger(__name__)
 
 
 CONFIG_DIR = "config"
 CONFIG_FILE = os.path.join(CONFIG_DIR, "sensor_comm_config.json")
-COM_PORT_PATTERN = re.compile(r"^COM\d+$", re.IGNORECASE)
 
 class CommPortScreen(QWidget):
     config_changed = Signal(str, str, bool)  # id_sensor/controlador, puerto, habilitado
@@ -297,13 +295,11 @@ class CommPortScreen(QWidget):
 
     def _sanitize_platform_ports(self, settings: dict):
         """Normaliza puertos guardados para evitar valores COMx inválidos en Linux."""
-        if platform.system() == "Windows":
-            return
-
         for sensor_key in ("main_control", "conductivity_sensor", "bioz_urea_sensor"):
             sensor_cfg = settings.get(sensor_key, {})
             port_value = str(sensor_cfg.get("port", "Auto")).strip()
-            if COM_PORT_PATTERN.match(port_value):
+            sanitized = sanitize_port_for_platform(port_value)
+            if sanitized != port_value:
                 sensor_cfg["port"] = "Auto"
                 settings[sensor_key] = sensor_cfg
                 logger.warning(

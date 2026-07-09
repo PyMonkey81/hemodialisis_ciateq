@@ -1,0 +1,11 @@
+crcmod==1.7
+numpy==2.4.1
+pandas==3.0.0
+pyqtgraph==0.14.0
+pyserial==3.5
+PySide6==6.10.1
+python-dateutil==2.9.0.post0
+
+[:platform_system == "Windows"]
+pefile==2024.8.26
+pywin32-ctypes==0.2.3

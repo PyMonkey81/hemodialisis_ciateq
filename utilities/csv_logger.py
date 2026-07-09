@@ -43,6 +43,7 @@ import csv
 import os
 from datetime import datetime
 import logging
+import time
 logger = logging.getLogger(__name__)
 
 import os
@@ -59,9 +60,11 @@ class CsvLogger:
     Clase para registrar datos de monitorización en un archivo CSV.
     Optimizada con un hilo en segundo plano (Thread) para evitar congelamientos en la GUI.
     """
-    def __init__(self, log_directory: str, parameter_key_map: dict):
+    def __init__(self, log_directory: str, parameter_key_map: dict, flush_every_rows: int = 10, flush_interval_sec: float = 1.0):
         self.log_directory = log_directory
         self.parameter_key_map = parameter_key_map
+        self.flush_every_rows = max(1, int(flush_every_rows))
+        self.flush_interval_sec = max(0.2, float(flush_interval_sec))
 
         os.makedirs(self.log_directory, exist_ok=True)
 
@@ -75,8 +78,11 @@ class CsvLogger:
         self.csv_writer = None
         
         # 1. Creamos una cola para comunicación segura entre hilos
-        self.data_queue = queue.Queue()
+        self.data_queue = queue.Queue(maxsize=2000)
         self.is_running = True
+        self._rows_since_flush = 0
+        self._last_flush_time = time.monotonic()
+        self._dropped_rows = 0
 
         self._open_file_and_write_header()
 
@@ -109,8 +115,13 @@ class CsvLogger:
                 value = current_values.get(cv_key, 'N/A')
                 row_data.append(value)
             
-            # 3. Metemos los datos en la cola al instante (sin bloquear la interfaz)
-            self.data_queue.put(row_data)
+            # 3. Metemos los datos en la cola sin bloquear la interfaz.
+            try:
+                self.data_queue.put_nowait(row_data)
+            except queue.Full:
+                self._dropped_rows += 1
+                if self._dropped_rows % 100 == 1:
+                    logger.warning("CSV Logger: cola llena, filas descartadas=%d", self._dropped_rows)
         except Exception as e:
             logger.error(f"CSV Logger Error al encolar datos: {e}")
 
@@ -125,7 +136,12 @@ class CsvLogger:
                 
                 if self.csv_writer and self.file:
                     self.csv_writer.writerow(row_data)
-                    self.file.flush() # Seguro hacerlo aquí porque estamos en otro hilo
+                    self._rows_since_flush += 1
+                    now = time.monotonic()
+                    if self._rows_since_flush >= self.flush_every_rows or (now - self._last_flush_time) >= self.flush_interval_sec:
+                        self.file.flush()
+                        self._rows_since_flush = 0
+                        self._last_flush_time = now
                 
                 self.data_queue.task_done()
             except queue.Empty:
@@ -146,6 +162,10 @@ class CsvLogger:
             self.writer_thread.join(timeout=3.0)
 
         if self.file and not self.file.closed:
+            try:
+                self.file.flush()
+            except Exception:
+                pass
             self.file.close()
             logger.info("CSV Logger: Archivo cerrado correctamente.")
 

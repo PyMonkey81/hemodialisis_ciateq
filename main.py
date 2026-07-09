@@ -13,6 +13,7 @@ from gui import theme_manager
 from gui.appMainHemodialysis import HemodialysisHMI
 from gui.theme_manager import ThemeManager
 from version import __version__
+from utilities.platform_runtime import is_windows, load_platform_features
 
 
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'var', 'log')
@@ -127,16 +128,23 @@ class ScaledHemodialysisHMI(QMainWindow):
 if __name__ == "__main__":
     sys.excepthook = unhandled_exception_handler
 
+    platform_features = load_platform_features()
+    logger.info("Platform: %s | Features: %s", sys.platform, platform_features)
+
     # ────────────────────────────────────────────────
     # HiDPI Configuration BEFORE QApplication creation
     # ────────────────────────────────────────────────
     QApplication.setAttribute(Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
 
-    screen_width, screen_height = detect_screen_size()
-
-    # Calculate scale factor for global QT_SCALE_FACTOR
-    global_scale_factor = min(screen_width / 1920, screen_height / 1080)
-    os.environ["QT_SCALE_FACTOR"] = f"{global_scale_factor:.2f}"
+    # Mantiene compatibilidad histórica de Windows; en Linux evita acoplar el prearranque a Qt.
+    global_scale_factor = 1.0
+    use_windows_legacy_prescale = is_windows() and platform_features.get("enable_windows_legacy_prescale", True)
+    if use_windows_legacy_prescale:
+        screen_width, screen_height = detect_screen_size()
+        global_scale_factor = min(screen_width / 1920, screen_height / 1080)
+        os.environ["QT_SCALE_FACTOR"] = f"{global_scale_factor:.2f}"
+    else:
+        os.environ.pop("QT_SCALE_FACTOR", None)
 
     # Only keep the rounding policy (this IS still valid)
     if hasattr(Qt, 'HighDpiScaleFactorRoundingPolicy'):
@@ -171,6 +179,12 @@ if __name__ == "__main__":
     try:
         main_window = ScaledHemodialysisHMI()
         main_window.showFullScreen()
+
+        if not use_windows_legacy_prescale:
+            screen = QGuiApplication.primaryScreen()
+            if screen is not None:
+                geometry = screen.availableGeometry()
+                global_scale_factor = min(geometry.width() / 1920, geometry.height() / 1080)
         
         logger.info("=" * 70)
         logger.info("   CIATEQ A.C. - HEMODIALYSIS MACHINE HMI")

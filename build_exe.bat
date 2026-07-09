@@ -1,6 +1,11 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+set "SKIP_SMOKE=%SKIP_SMOKE%"
+if "%SKIP_SMOKE%"=="" set "SKIP_SMOKE=0"
+set "CI_MODE=%CI%"
+if "%CI_MODE%"=="" set "CI_MODE=0"
+
 echo ===============================================
 echo COMPILANDO HEMODIALISIS HD-2026 EXE
 echo ===============================================
@@ -19,7 +24,20 @@ rmdir /s /q "%LOCALAPPDATA%\pyinstaller" 2>nul
 
 echo.
 echo Instalando/actualizando PyInstaller...
+pip install -r requirements.txt
 pip install --upgrade pyinstaller
+
+if "%SKIP_SMOKE%"=="0" (
+    echo.
+    echo Ejecutando smoke test de arranque/cierre...
+    set "CIATEQ_SMOKE_TEST_SECONDS=2"
+    set "QT_QPA_PLATFORM=offscreen"
+    ".venv\Scripts\python.exe" tests\smoke_startup.py
+    if errorlevel 1 (
+        echo Smoke test falló. Cancelando build.
+        exit /b 1
+    )
+)
 
 echo.
 echo Compilando ejecutable LIMPIO...
@@ -42,5 +60,5 @@ if exist "build\build_history.csv" (
 )
 
 echo.
-pause
+if "%CI_MODE%"=="0" pause
 

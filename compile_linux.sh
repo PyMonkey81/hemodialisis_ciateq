@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+SKIP_SMOKE="${SKIP_SMOKE:-0}"
+
 echo "==============================================="
 echo "COMPILANDO HEMODIALISIS HD-2026 (LINUX)"
 echo "==============================================="
@@ -21,6 +23,13 @@ rm -rf ~/.cache/pyinstaller
 echo -e "\nInstalando/actualizando PyInstaller..."
 pip install -r requirements.txt
 pip install --upgrade pyinstaller
+
+if [[ "$SKIP_SMOKE" == "0" ]]; then
+    echo -e "\nEjecutando smoke test de arranque/cierre..."
+    export CIATEQ_SMOKE_TEST_SECONDS="2"
+    export QT_QPA_PLATFORM="offscreen"
+    .venv/bin/python tests/smoke_startup.py
+fi
 
 echo -e "\nCompilando ejecutable LIMPIO..."
 # Usamos el archivo .spec que ya tienes

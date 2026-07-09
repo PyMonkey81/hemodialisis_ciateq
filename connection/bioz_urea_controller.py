@@ -92,6 +92,7 @@ from queue import Queue, Empty
 from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
+from utilities.platform_runtime import sanitize_port_for_platform
 
 
 
@@ -146,13 +147,14 @@ class BiozUreaController(QObject):
             is_enabled (bool): Si la comunicación con este sensor debe estar activa.
         """
         # Comparar con la configuración actual
-        port_changed = (self._user_selected_port != port_name and not (self._user_selected_port is None and port_name == "Auto"))
+        sanitized_port = sanitize_port_for_platform(port_name)
+        port_changed = (self._user_selected_port != sanitized_port and not (self._user_selected_port is None and sanitized_port == "Auto"))
         enabled_changed = (self._is_enabled != is_enabled)
         
-        self._user_selected_port = port_name if port_name != "Auto" else None
+        self._user_selected_port = sanitized_port if sanitized_port != "Auto" else None
         self._is_enabled = is_enabled
         
-        logger.info(f"[BIOZ/UREA] Configuración recibida: Puerto='{port_name}' (internamente: '{self._user_selected_port}'), Habilitado={is_enabled}")
+        logger.info(f"[BIOZ/UREA] Configuración recibida: Puerto='{sanitized_port}' (internamente: '{self._user_selected_port}'), Habilitado={is_enabled}")
 
         # Si el estado de habilitación cambia a deshabilitado, forzar parada y cierre
         if not self._is_enabled and self.running:
@@ -164,7 +166,7 @@ class BiozUreaController(QObject):
             self.start()
         # Si ya estaba habilitado y el puerto cambió, forzar reconexión
         elif self._is_enabled and port_changed and self.running:
-            logger.info(f"[BIOZ/UREA] El puerto seleccionado ha cambiado a '{port_name}'. Forzando reconexión.")
+            logger.info(f"[BIOZ/UREA] El puerto seleccionado ha cambiado a '{sanitized_port}'. Forzando reconexión.")
             # Cerrar el puerto actual para que el _communication_loop intente una nueva conexión
             self._close_port()
 
@@ -237,7 +239,6 @@ class BiozUreaController(QObject):
             self.serial_port = serial.Serial(port_name, self.baudrate, timeout=1, write_timeout=1)
             time.sleep(2) # Dar tiempo al ESP32 para que se reinicie
             logger.info(f"[BIOZ/UREA] Conectado exitosamente en puerto ESPECÍFICO: {port_name}")
-            print(f"[BIOZ/UREA] Conectado exitosamente en puerto ESPECÍFICO: {port_name}")
             return True
         except serial.SerialException as e:
             self._log_linux_permission_hint(port_name, e)

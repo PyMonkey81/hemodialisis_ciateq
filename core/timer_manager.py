@@ -166,7 +166,15 @@ class TimerManager(QObject):
     def _update_maintenance_screen(self):
         """Actualiza la pantalla de mantenimiento con los valores de horas."""
         try:
-            if hasattr(self.main, 'maintenance_screen') and self.main.maintenance_screen:
+            current_widget = None
+            if hasattr(self.main, "screen_stack") and self.main.screen_stack:
+                current_widget = self.main.screen_stack.currentWidget()
+
+            if (
+                hasattr(self.main, 'maintenance_screen')
+                and self.main.maintenance_screen
+                and current_widget == self.main.maintenance_screen
+            ):
                 hours_info = self.get_hours_info()
                 self.main.maintenance_screen.update_hours_display(
                     hours_info["power_on"],
