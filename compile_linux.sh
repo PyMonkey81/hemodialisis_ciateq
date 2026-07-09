@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 echo "==============================================="
 echo "COMPILANDO HEMODIALISIS HD-2026 (LINUX)"
@@ -18,6 +19,7 @@ rm -rf dist build __pycache__
 rm -rf ~/.cache/pyinstaller
 
 echo -e "\nInstalando/actualizando PyInstaller..."
+pip install -r requirements.txt
 pip install --upgrade pyinstaller
 
 echo -e "\nCompilando ejecutable LIMPIO..."
@@ -42,7 +44,4 @@ fi
 if [ -f "build/build_history.csv" ]; then
     echo "Registro actualizado en: build/build_history.csv"
 fi
-
-echo -e "\nPresiona Enter para salir..."
-read
     

@@ -6,7 +6,6 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler  
 import datetime
-import ctypes
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QFont, QScreen
@@ -38,6 +37,32 @@ root_logger.setLevel(logging.INFO)
 root_logger.addHandler(handler)
 
 logger = logging.getLogger(__name__)
+
+
+def detect_screen_size() -> tuple[int, int]:
+    """Detecta resolucion de pantalla sin depender de APIs exclusivas de Windows."""
+    try:
+        screen_instance = QGuiApplication.primaryScreen()
+        if screen_instance is not None:
+            geometry = screen_instance.availableGeometry()
+            return geometry.width(), geometry.height()
+    except Exception:
+        pass
+
+    # Fallback cross-platform cuando Qt aun no expone la pantalla principal.
+    try:
+        import tkinter as tk
+        root = tk.Tk()
+        root.withdraw()
+        width = int(root.winfo_screenwidth())
+        height = int(root.winfo_screenheight())
+        root.destroy()
+        if width > 0 and height > 0:
+            return width, height
+    except Exception:
+        pass
+
+    return 1920, 1080
 
 def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
     """
@@ -120,23 +145,7 @@ if __name__ == "__main__":
     # ────────────────────────────────────────────────
     QApplication.setAttribute(Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
 
-    # Resolution fallback
-    try:
-        screen_instance = QGuiApplication.primaryScreen()
-        if screen_instance is not None:
-            geometry = screen_instance.availableGeometry()
-            screen_width = geometry.width()
-            screen_height = geometry.height()
-        else:
-            raise AttributeError
-    except Exception:
-        try:
-            # Fallback for Windows-specific resolution detection
-            user32 = ctypes.windll.user32
-            screen_width = user32.GetSystemMetrics(0)
-            screen_height = user32.GetSystemMetrics(1)
-        except:
-            screen_width, screen_height = 1920, 1080
+    screen_width, screen_height = detect_screen_size()
 
     # Calculate scale factor for global QT_SCALE_FACTOR
     global_scale_factor = min(screen_width / 1920, screen_height / 1080)
