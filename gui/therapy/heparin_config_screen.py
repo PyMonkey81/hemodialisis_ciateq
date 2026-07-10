@@ -357,7 +357,7 @@ class HeparinConfigScreen(QWidget):
 
     def apply_bolus(self):
         self.on_user_boolean_command("heparinApplyBolusDose", True)
-        self.on_user_boolean_command("heparinApplyBolusDose", False)
+        
 
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)

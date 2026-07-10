@@ -120,8 +120,8 @@ logger = logging.getLogger(__name__)
 
 
 LOCAL_SETPOINT_TAGS = {
-    HEPARIN_AUTO_STOP_HOURS_TAG,
-    HEPARIN_AUTO_STOP_MINUTES_TAG,
+    "heparineTherapyHours",
+    "heparineTherapyMinutes",
 }
 
 #===============================================================================
@@ -337,8 +337,8 @@ class HemodialysisHMI(QMainWindow):
                         self.current_values[info["tag"]] = 0.0 # Inicializar todos a 0.0
 
         # Tags locales (no se escriben al controlador)
-        self.current_values.setdefault(HEPARIN_AUTO_STOP_HOURS_TAG, 0.0)
-        self.current_values.setdefault(HEPARIN_AUTO_STOP_MINUTES_TAG, 0.0)
+        self.current_values.setdefault("heparineTherapyHours", 0.0)
+        self.current_values.setdefault("heparineTherapyMinutes", 0.0)
 
         self.serial_comm = SerialCommunication()
         self.serial_comm.data_received.connect(self.update_value)
