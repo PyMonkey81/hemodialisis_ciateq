@@ -207,8 +207,8 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x13: {"name": "Tiempo adelanto Feedforward flujo", "label": "T. ADELANTO FF", "type": "double", "rw": True, "unit": "s", "limites": (0, 10), "tag": "bloodFlowFeedForwardLead", "nivel": "cian"},     # 35
         0x14: {"name": "Setpoint flujo dializante", "label": "SP FLUJO DIAL", "type": "double", "rw": True, "unit": "ml/min", "limites": (300, 800), "tag": "dialyFlowControlOutput", "nivel": "cian"},       # 36
         0x15: {"name": "Salida bomba de purga", "label": "OUT B.PURGA", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyDeaerControlOutput", "nivel": "cian"},                # 37
-        0x16: {"name": "Parámetro control variable 1", "label": "PARAM VAR 1", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData1", "nivel": "cian"},           # 38
-        0x17: {"name": "Parámetro control variable 2", "label": "PARAM VAR 2", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData2", "nivel": "cian"},           # 39
+        0x16: {"name": "Selector de flujo de heparina", "label": "BOLUS_FLOW", "type": "double", "rw": True, "unit": "", "limites": (0,4), "tag": "dialyHeparineBolusFlow", "nivel": "cian"},           # 38
+        0x17: {"name": "Flujo de sangre priming", "label": "PRIMING_FLOW", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "dialyBloodPrimingValue", "nivel": "cian"},           # 39
         0x18: {"name": "Parámetro control variable 3", "label": "PARAM VAR 3", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData3", "nivel": "cian"},           # 40
         0x19: {"name": "Parámetro control variable 4", "label": "PARAM VAR 4", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData4", "nivel": "cian"},           # 41
         0x1A: {"name": "Parámetro control variable 5", "label": "PARAM VAR 5", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData5", "nivel": "cian"},           # 42
@@ -286,6 +286,10 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x02: {"name": "Desinfection mode 1 time minuts", "label": "DT_MIN", "type": "int", "rw": True, "unit": None, "tag": "desinfection1TimeMin", "nivel": "cian"},
         0x03: {"name": "Desinfection mode 2 time hours", "label": "DT_HOURS", "type": "int", "rw":True, "unit": None, "tag": "desinfection2TimeHours", "nivel": "cian"},
         0x04: {"name": "Desinfection mofr 2 time minuts", "label": "DT_MIN", "type": "int", "rw": True, "unit": None, "tag": "desinfection2TimeMin",("name"): ("value")},
+    },
+    0x0B: {
+        0x00: {"name": "Horas de aplicacion de bolo", "label": "BOLUS_HOURS", "type": "int", "rw": True, "unit": None, "limites": (0, 24), "tag": "heparinApplyHours", "nivel": "cian"},
+        0x01: {"name": "Minutos de aplicacion de bolo", "label": "BOLUS_MIN", "type": "int", "rw": True, "unit": None, "limites": (0, 59), "tag": "heparinApplyMinutes", "nivel": "cian"}, 
     }
 }
 
@@ -318,7 +322,8 @@ TVAR_TO_GROUP = {
     0x07: "Bioimpedancia y Urea",
     0x08: "Datos del paciente",
     0x09: "Sensor patron de conductividad",
-    0x0A: "Modo de desinfección"
+    0x0A: "Modo de desinfección",
+    0x0B: "Tiempo de aplicación de bolo"
 }
 
 

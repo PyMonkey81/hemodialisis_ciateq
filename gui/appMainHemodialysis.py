@@ -103,7 +103,11 @@ from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screen import TherapyConfigScreen
-from gui.therapy.heparin_config_screen import HeparinConfigScreen
+from gui.therapy.heparin_config_screen import (
+    HeparinConfigScreen,
+    HEPARIN_AUTO_STOP_HOURS_TAG,
+    HEPARIN_AUTO_STOP_MINUTES_TAG,
+)
 from pathlib import Path
 
 from logic.calculos import (
@@ -113,6 +117,12 @@ from logic.calculos import (
 from utilities.csv_logger import CsvLogger
 
 logger = logging.getLogger(__name__)
+
+
+LOCAL_SETPOINT_TAGS = {
+    HEPARIN_AUTO_STOP_HOURS_TAG,
+    HEPARIN_AUTO_STOP_MINUTES_TAG,
+}
 
 #===============================================================================
 #======================CODIGO PARA ADJUNTAR LOGOS EN EJECUTABLE=================
@@ -310,6 +320,7 @@ class HemodialysisHMI(QMainWindow):
 
         self.current_treatment_start_date_time = None # Variable para reporte de inicio/tratamiento
         self.navigation_buttons = {} # nuevo
+        self._heparin_auto_stop_latched = False
         self.setup_ui()           
         self._load_histories()     
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -324,6 +335,10 @@ class HemodialysisHMI(QMainWindow):
                 for var_id, info in vars_group.items():
                     if "tag" in info:
                         self.current_values[info["tag"]] = 0.0 # Inicializar todos a 0.0
+
+        # Tags locales (no se escriben al controlador)
+        self.current_values.setdefault(HEPARIN_AUTO_STOP_HOURS_TAG, 0.0)
+        self.current_values.setdefault(HEPARIN_AUTO_STOP_MINUTES_TAG, 0.0)
 
         self.serial_comm = SerialCommunication()
         self.serial_comm.data_received.connect(self.update_value)
@@ -521,6 +536,7 @@ class HemodialysisHMI(QMainWindow):
         logger.info("Tratamiento INICIADO")
         self.is_treatment_running = True
         self.therapy_start_time = start_time
+        self._heparin_auto_stop_latched = False
          # Iniciar logger, bioz, etc. (ya lo tenés en start_treatment)
         self.ktv_controller.reset_on_treatment_start() # Reiniciar estado del KtvController
         self.KTVScreen.reset_screen_data() # Limpiar la pantalla KTV para el nuevo tratamiento
@@ -539,6 +555,7 @@ class HemodialysisHMI(QMainWindow):
         logger.info("Tratamiento FINALIZADO")
         self.is_treatment_running = False
         self.therapy_start_time = None
+        self._heparin_auto_stop_latched = False
         # 1. Guardar reporte Kt/V PRIMERO, antes de abortar (abort → reset_screen_data limpia ktv_records)
         self.KTVScreen.save_final_report()
         # 2. Abortar medición en curso (puede disparar reset_screen_data, ya sin datos)
@@ -1096,6 +1113,8 @@ class HemodialysisHMI(QMainWindow):
                 if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
                     self.treatment_controller.update_therapy_times()
 
+                self._update_heparin_auto_stop_timer()
+
                 if self.screen_stack.currentWidget() == self.maintenance_screen:
                     self.timer_manager._update_maintenance_screen()
 
@@ -1107,6 +1126,53 @@ class HemodialysisHMI(QMainWindow):
 
         finally:
             self._timer_lock = False
+
+    def _coerce_heparin_auto_stop_seconds(self) -> int:
+        cfg_hours = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
+        cfg_minutes = int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0) or 0)
+        requested_seconds = max(0, (cfg_hours * 3600) + (cfg_minutes * 60))
+
+        therapy_hours = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+        therapy_minutes = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+        therapy_seconds = max(0, (therapy_hours * 3600) + (therapy_minutes * 60))
+
+        # La heparina debe parar, como máximo, cuando falten 30 minutos de terapia.
+        max_allowed_seconds = max(0, therapy_seconds - 1800)
+        effective_seconds = min(requested_seconds, max_allowed_seconds)
+
+        if effective_seconds != requested_seconds:
+            eff_h = effective_seconds // 3600
+            eff_m = (effective_seconds % 3600) // 60
+            self.current_values[HEPARIN_AUTO_STOP_HOURS_TAG] = float(eff_h)
+            self.current_values[HEPARIN_AUTO_STOP_MINUTES_TAG] = float(eff_m)
+
+        return effective_seconds
+
+    def _update_heparin_auto_stop_timer(self):
+        phase = self.state.current_phase
+
+        if phase in (TreatmentPhase.IDLE, TreatmentPhase.READY, TreatmentPhase.PREPARING):
+            self._heparin_auto_stop_latched = False
+            return
+
+        if phase != TreatmentPhase.RUNNING:
+            return
+
+        auto_stop_seconds = self._coerce_heparin_auto_stop_seconds()
+        if auto_stop_seconds <= 0:
+            return
+
+        elapsed_seconds = int(self.treatment_controller.get_elapsed_seconds())
+
+        if elapsed_seconds >= auto_stop_seconds and not self._heparin_auto_stop_latched:
+            logger.info(
+                "Auto-paro de heparina por tiempo alcanzado (%ss >= %ss)",
+                elapsed_seconds,
+                auto_stop_seconds,
+            )
+            self._write_boolean_command("heparinePumpsStopButton", True)
+            self._heparin_auto_stop_latched = True
+            self.show_warning_message("Paro automático de bomba de heparina por temporizador", 4500)
 
     # ============================================================
     # MÉTODOS DE NAVEGACIÓN MEJORADOS
@@ -2085,16 +2151,31 @@ class HemodialysisHMI(QMainWindow):
         logger.error(f"[EVENT] {timestamp} → {event}")
 
     def __del__(self):
-        logger.error("[INFO] Destructor called → stopping threads...")        
-        self.shutdown()
+        logger.error("[INFO] Destructor called  stopping threads...")
+        try:
+            self.shutdown()
+        except RuntimeError:
+            # En destruccion de Qt, algunos objetos C++ ya no existen.
+            pass
+        except Exception as e:
+            logger.error(f"[ERROR] shutdown() during __del__ failed: {e}")
 
 
     def shutdown(self):        
         """Detención de hilos de comunicación de hardware con logs corregidos."""
+        if getattr(self, "_shutdown_done", False) or getattr(self, "_shutting_down", False):
+            return
+
+        self._shutting_down = True
         logger.info("[INFO] Iniciando secuencia de apagado controlado de periféricos.")
-        if hasattr(self, 'master_timer') and self.master_timer.isActive():
-            self.master_timer.stop()
-            logger.info("Timer Maestro detenido correctamente")
+        timer = getattr(self, 'master_timer', None)
+        if timer is not None:
+            try:
+                if timer.isActive():
+                    timer.stop()
+                    logger.info("Timer Maestro detenido correctamente")
+            except RuntimeError:
+                logger.info("Timer Maestro ya destruido por Qt; se omite stop().")
 
         # SOLO GUARDAR 
         self.timer_manager._save_power_on_hours()
@@ -2138,6 +2219,8 @@ class HemodialysisHMI(QMainWindow):
                 logger.error(f"Error deteniendo sensor patrón: {e}")
                 
         logger.info("[INFO] Secuencia de apagado completo finalizada.")
+        self._shutdown_done = True
+        self._shutting_down = False
 
     # ====================== MÉTODOS DE LOGGING ======================
 
@@ -2197,6 +2280,11 @@ class HemodialysisHMI(QMainWindow):
     # ====================== ESCRITURA HACIA HARDWARE ======================
 
     def _write_setpoint(self, tag: str, value: float):
+        if tag in LOCAL_SETPOINT_TAGS:
+            self.current_values[tag] = float(value)
+            logger.info(f"SETPOINT [LOCAL]: {tag} = {value}")
+            return
+
         if not self.serial_comm or not self.serial_comm.is_connected:
             logger.warning(f"No se puede escribir setpoint '{tag}': serial desconectado")
             return

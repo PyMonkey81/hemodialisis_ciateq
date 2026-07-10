@@ -1,17 +1,22 @@
 # gui/therapy/heparin_config_screen.py
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QComboBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGridLayout, QFrame, QSizePolicy
 )
 from PySide6.QtCore import Qt, Signal, QDateTime, QEvent
 
 from gui.components.numpad_modal import NumpadDialog
+from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit
 from core.state_manager import TreatmentPhase
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+HEPARIN_AUTO_STOP_HOURS_TAG = "heparineAutoStopHours"
+HEPARIN_AUTO_STOP_MINUTES_TAG = "heparineAutoStopMinutes"
 
 
 class PushbuttonEvent(QPushButton):
@@ -44,6 +49,8 @@ class HeparinConfigScreen(QWidget):
         self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.heparin_pause_latched = False
+        self._selected_flujo_index = 1
         self.setup_ui()
 
     def setup_ui(self):
@@ -72,6 +79,18 @@ class HeparinConfigScreen(QWidget):
             ClickableLineEdit:focus {
                 border: 2px solid #3b82f6;
                 background: #ffffff;
+            }
+        """
+
+        combo_style = """
+            QComboBox {
+                color: #1f2937; font-size: 22px; font-weight: bold;
+                background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; padding: 8px 12px;
+            }
+            QComboBox:hover { border-color: #3b82f6; }
+            QComboBox QAbstractItemView {
+                background: #f8fafc; color: #1f2937; font-size: 20px; font-weight: bold;
+                border: 2px solid #64748b; selection-background-color: #3b82f6;
             }
         """
 
@@ -116,7 +135,7 @@ class HeparinConfigScreen(QWidget):
         btn_heparin_home.setFixedSize(120, 80)
         btn_heparin_home.setStyleSheet(button_style)
         btn_heparin_home.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", True))
-        btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
+        # btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
         hep_frame_layout.addWidget(btn_heparin_home)
 
         btn_rev_hep = PushbuttonEvent("REV", self)
@@ -125,6 +144,12 @@ class HeparinConfigScreen(QWidget):
         btn_rev_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", True))
         btn_rev_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", False))
         hep_frame_layout.addWidget(btn_rev_hep)
+
+        self.btn_pause_hep = PushbuttonEvent("PAUSE", self)
+        self.btn_pause_hep.setFixedSize(120, 80)
+        self.btn_pause_hep.setStyleSheet(button_style)
+        self.btn_pause_hep.pressed.connect(self._toggle_heparin_pause_resume)
+        hep_frame_layout.addWidget(self.btn_pause_hep)
 
         btn_fwd_hep = PushbuttonEvent("FWD", self)
         btn_fwd_hep.setFixedSize(120, 80)
@@ -144,8 +169,7 @@ class HeparinConfigScreen(QWidget):
             }
             QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
         """)
-        bolo_frame_layout = QHBoxLayout(bolo_frame)
-        bolo_frame_layout.setContentsMargins(15, 15, 15, 15)
+        bolo_frame_layout = QGridLayout(bolo_frame)
         bolo_frame_layout.setSpacing(15)
 
         lbl_bolus = QLabel("Vol. Bolo Heparina (ml):")
@@ -159,16 +183,25 @@ class HeparinConfigScreen(QWidget):
         self.input_bolus.clicked.connect(
             lambda: self.open_numpad("heparineBolusQuantity", self.input_bolus, "Bolo (ml)")
         )
-        bolo_frame_layout.addWidget(lbl_bolus)
-        bolo_frame_layout.addWidget(self.input_bolus)
+        bolo_frame_layout.addWidget(lbl_bolus, 0, 0, Qt.AlignVCenter)
+        bolo_frame_layout.addWidget(self.input_bolus, 0, 1)
 
         btn_apply_bolus = QPushButton("APLICAR\n BOLO")
         btn_apply_bolus.setFixedHeight(80)
         btn_apply_bolus.setStyleSheet(button_style)
         btn_apply_bolus.clicked.connect(self.apply_bolus)
-        bolo_frame_layout.addWidget(btn_apply_bolus)
+        bolo_frame_layout.addWidget(btn_apply_bolus, 0, 2)
 
-        
+        lbl_flujo = QLabel("Flujo Heparina (ml/h):")
+        lbl_flujo.setStyleSheet(label_style)
+        self.combo_flujo = QComboBox()
+        self.combo_flujo.addItems(["1.0", "2.0", "3.0", "4.0"])
+        self.combo_flujo.setStyleSheet(combo_style)
+        self.combo_flujo.setCurrentIndex(0)
+        self._selected_flujo_index = self.combo_flujo.currentIndex()
+        self.combo_flujo.currentIndexChanged.connect(self._on_flujo_changed)
+        bolo_frame_layout.addWidget(lbl_flujo,1, 0, Qt.AlignVCenter)
+        bolo_frame_layout.addWidget(self.combo_flujo, 1, 1, Qt.AlignVCenter)        
 
         # Parametros de heparina y bolo
         params_frame = QFrame()
@@ -190,6 +223,26 @@ class HeparinConfigScreen(QWidget):
         params_layout.addWidget(lbl_heparin, 0, 0, Qt.AlignVCenter)
         params_layout.addWidget(self.input_heparin, 0, 1)
 
+
+        lbl_hep_stop_time = QLabel("Paro heparina (hh:mm):")
+        lbl_hep_stop_time.setStyleSheet(label_style)
+        lbl_hep_stop_time.setAlignment(Qt.AlignRight)
+        self.input_heparin_auto_stop = ClickableLineEdit("00:00")
+        self.input_heparin_auto_stop.setFixedSize(120, 50)
+        self.input_heparin_auto_stop.setAlignment(Qt.AlignCenter)
+        self.input_heparin_auto_stop.setStyleSheet(input_style)
+        self.input_heparin_auto_stop.setReadOnly(True)
+        self.input_heparin_auto_stop.clicked.connect(
+            lambda: self.open_time_numpad(
+                self.input_heparin_auto_stop,
+                HEPARIN_AUTO_STOP_HOURS_TAG,
+                HEPARIN_AUTO_STOP_MINUTES_TAG,
+                "Paro automático heparina"
+            )
+        )
+        params_layout.addWidget(lbl_hep_stop_time, 1, 0, Qt.AlignVCenter)
+        params_layout.addWidget(self.input_heparin_auto_stop, 1, 1)
+
         content_layout.addWidget(bolo_frame, 0, 0)   # Arriba Izquierda
         content_layout.addWidget(params_frame, 0, 1) # Arriba Derecha
 
@@ -197,6 +250,18 @@ class HeparinConfigScreen(QWidget):
         content_layout.addWidget(hep_frame, 1, 0) 
 
         main_layout.addStretch(1)
+
+
+    def _on_flujo_changed(self, index):
+
+        self._selected_flujo_index = index
+
+        if hasattr(self, "combo_flujo") and self.combo_flujo is not None:
+            flujo_value = float(self.combo_flujo.currentText())
+            self.current_values["dialyHeparineBolusFlow"] = flujo_value
+            if self.parent_window and hasattr(self.parent_window, "current_values"):
+                self.parent_window.current_values["dialyHeparineBolusFlow"] = flujo_value
+            self.on_user_input_setpoint("dialyHeparineBolusFlow", flujo_value)
 
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
         dialog = NumpadDialog(self, initial_value="", title=title)
@@ -213,6 +278,69 @@ class HeparinConfigScreen(QWidget):
                     input_widget.clearFocus()
                 self.setFocus()
 
+    def open_time_numpad(self, input_widget: ClickableLineEdit,
+                         tag_hours: str = None, tag_minutes: str = None,
+                         title: str = "Config. Tiempo"):
+        dialog = TimeNumpadDialog(self, initial_hh_mm="", title=title)
+
+        if dialog.exec():
+            hours, minutes = dialog.get_hours_minutes()
+            if hours is not None and minutes is not None:
+                if (
+                    tag_hours == HEPARIN_AUTO_STOP_HOURS_TAG
+                    and tag_minutes == HEPARIN_AUTO_STOP_MINUTES_TAG
+                ):
+                    hours, minutes = self._coerce_heparin_auto_stop_time(hours, minutes)
+
+                input_widget.setText(f"{hours:02d}:{minutes:02d}")
+                input_widget.clearFocus()  
+                if tag_hours:
+                    self.current_values[tag_hours] = float(hours)
+                    if self.parent_window and hasattr(self.parent_window, "current_values"):
+                        self.parent_window.current_values[tag_hours] = float(hours)
+                if tag_minutes:
+                    self.current_values[tag_minutes] = float(minutes)
+                    if self.parent_window and hasattr(self.parent_window, "current_values"):
+                        self.parent_window.current_values[tag_minutes] = float(minutes)
+                if tag_hours and tag_minutes:
+                    self.on_user_input_setpoint(tag_hours, float(hours))
+                    self.on_user_input_setpoint(tag_minutes, float(minutes))
+
+    def _coerce_heparin_auto_stop_time(self, hours: int, minutes: int) -> tuple[int, int]:
+        requested_minutes = max(0, (int(hours) * 60) + int(minutes))
+
+        therapy_hours = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+        therapy_minutes = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+        therapy_total_minutes = (therapy_hours * 60) + therapy_minutes
+        max_allowed_minutes = max(0, therapy_total_minutes - 30)
+
+        clamped_minutes = min(requested_minutes, max_allowed_minutes)
+        if requested_minutes != clamped_minutes:
+            max_h = max_allowed_minutes // 60
+            max_m = max_allowed_minutes % 60
+            msg = (
+                f"Tiempo de heparina limitado a {max_h:02d}:{max_m:02d} "
+                "(terapia menos 30 minutos)."
+            )
+            logger.warning(msg)
+            if self.parent_window and hasattr(self.parent_window, "show_warning_message"):
+                self.parent_window.show_warning_message(msg, 4000)
+
+        return clamped_minutes // 60, clamped_minutes % 60
+
+    def _toggle_heparin_pause_resume(self):
+        """Alterna PAUSE/CONTINUAR para la bomba de heparina con comando latch."""
+        self.heparin_pause_latched = not self.heparin_pause_latched
+        self.on_user_boolean_command("heparineOperPauseResume", self.heparin_pause_latched)
+
+        if hasattr(self, "btn_pause_hep") and self.btn_pause_hep is not None:
+            self.btn_pause_hep.setText("CONT.." if self.heparin_pause_latched else "PAUSE")
+
+        logger.info(
+            f"Heparina pause/resume latch -> {self.heparin_pause_latched}"
+        )
+
+    
     def _update_input_display(self, widget: ClickableLineEdit, tag: str, precision: int = 1):
         if widget.hasFocus():
             return
@@ -223,6 +351,9 @@ class HeparinConfigScreen(QWidget):
         self.current_values = new_values
         self._update_input_display(self.input_heparin, "heparineTherapyDosage")
         self._update_input_display(self.input_bolus, "heparineBolusQuantity")
+        auto_h = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
+        auto_m = int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0) or 0)
+        self.input_heparin_auto_stop.setText(f"{auto_h:02d}:{auto_m:02d}")
 
     def apply_bolus(self):
         self.on_user_boolean_command("heparinApplyBolusDose", True)

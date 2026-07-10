@@ -411,7 +411,7 @@ class ManualModeScreen(QWidget):
         btn_bolus_apply.setFixedSize(120, 70)
         btn_bolus_apply.setStyleSheet(button_style)
         btn_bolus_apply.pressed.connect(lambda: self.on_user_boolean_command("heparinApplyBolusDose", True))
-        btn_bolus_apply.released.connect(lambda: self.on_user_boolean_command("heparinApplyBolusDose", False))
+        # btn_bolus_apply.released.connect(lambda: self.on_user_boolean_command("heparinApplyBolusDose", False))
         grid.addWidget(btn_bolus_apply, 1, 2, 1, 2, alignment=Qt.AlignCenter)
 
         # 10. Tiempo operación b. sangre (Der)
@@ -479,7 +479,7 @@ class ManualModeScreen(QWidget):
         btn_heparin_home.setFixedSize(80, 70)
         btn_heparin_home.setStyleSheet(button_style)
         btn_heparin_home.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", True))
-        btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
+        # btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
         grid.addWidget(btn_heparin_home, 2, 7, 1, 1)
 
         # 15. Btn REV heparina
@@ -1105,12 +1105,13 @@ class ManualModeScreen(QWidget):
 
         logger.debug("Manual mode values updated from machine")
 
-    def _sync_toggle(self, toggle_widget, value: float):
-        new_state = value > 0
-        if toggle_widget.is_checked() != new_state:
-            toggle_widget.blockSignals(True)
-            toggle_widget.setChecked(new_state)
-            toggle_widget.blockSignals(False)
+    # verificcar cual es la buena
+    # def _sync_toggle(self, toggle_widget, value: float):
+    #     new_state = value > 0
+    #     if toggle_widget.is_checked() != new_state:
+    #         toggle_widget.blockSignals(True)
+    #         toggle_widget.setChecked(new_state)
+    #         toggle_widget.blockSignals(False)
 
     def _sync_toggle(self, toggle_widget, value: float):
         """Sincroniza el toggle solo si NO está en hold-off"""    
@@ -1215,12 +1216,14 @@ class ManualModeScreen(QWidget):
         elif hasattr(label, 'setText'):
             label.setText(f"{value:.{precision}f}")
 
+
+        #dialiserBalChambStrButt", "dialiserBalChambStpButt"
     def _handle_dual_pump_toggle(self, start_tag: str, stop_tag: str, enabled: bool, timer_id: str = None):
         """Handle dual start/stop pump control (REQ-SW-005)."""
         if enabled:
             logger.info(f"Starting pump: {start_tag}")
             self.on_user_boolean_command(start_tag, True)
-            self.on_user_boolean_command(stop_tag, False)
+            # self.on_user_boolean_command(stop_tag, False)
             self.toggle_hold_off[start_tag] = QDateTime.currentMSecsSinceEpoch() + 3000
             if timer_id and timer_id in self.local_timer_states:
                 state = self.local_timer_states[timer_id]
@@ -1234,7 +1237,7 @@ class ManualModeScreen(QWidget):
         else:
             logger.info(f"Stopping pump: {start_tag}")
             self.on_user_boolean_command(stop_tag, True)
-            self.on_user_boolean_command(start_tag, False)
+            # self.on_user_boolean_command(start_tag, False)
             self.toggle_hold_off[start_tag] = QDateTime.currentMSecsSinceEpoch() + 3000
             if timer_id and timer_id in self.local_timer_states:
                 state = self.local_timer_states[timer_id]
