@@ -8,7 +8,7 @@ from logging.handlers import RotatingFileHandler
 import datetime
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication, QFont, QScreen
+from PySide6.QtGui import QGuiApplication
 from gui import theme_manager
 from gui.appMainHemodialysis import HemodialysisHMI
 from gui.theme_manager import ThemeManager
@@ -80,50 +80,53 @@ def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
         )
     sys.exit(1)
 
-
 class ScaledHemodialysisHMI(QMainWindow):
-    """
-    Adapta el tamaño de su widgwt central (HMI) a la resolución de la pantalla 
-    mientras mantiene la relación de aspecto original del diseño
-
-    QMainWindow that scales its central widget (the HMI) to fit the screen resolution
-    while maintaining the original design aspect ratio.
-    """
     def __init__(self):
         super().__init__()
+        
+        self.DESIGN_WIDTH = 1920
+        self.DESIGN_HEIGHT = 1080
+        
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setStyleSheet("background: #000000;")  # Base black background
-
-        # Monitor resolution
-        screen = QGuiApplication.primaryScreen()
-        if screen is None:
-            screen_width, screen_height = 1920, 1080  
-        else:
-            geometry = screen.availableGeometry()
-            screen_width = geometry.width()
-            screen_height = geometry.height()
-
-        DESIGN_WIDTH = 1920
-        DESIGN_HEIGHT = 1080
-
-        # Calculate scaling factor
-        scale_factor = min(screen_width / DESIGN_WIDTH, screen_height / DESIGN_HEIGHT)
-
-        # Create the main content widget (the Hemodialysis HMI)
+        self.setStyleSheet("background: #000000;")
+        
+        # Widget principal del HMI
         self.dialysis_hmi = HemodialysisHMI()
-        self.dialysis_hmi.setFixedSize(DESIGN_WIDTH, DESIGN_HEIGHT)
-
-        # Center the HMI on the screen
-        self.dialysis_hmi.move(
-            (screen_width - int(DESIGN_WIDTH * scale_factor)) // 2,
-            (screen_height - int(DESIGN_HEIGHT * scale_factor)) // 2
-        )
-
+        # IMPORTANTE: No fijar el tamaño aquí si queremos que sea flexible, 
+        # o manejarlo en el resizeEvent.
+        
         self.setCentralWidget(self.dialysis_hmi)
         self.showFullScreen()
 
-        logger.info(f"Scaled HMI: {int(DESIGN_WIDTH * scale_factor)}×{int(DESIGN_HEIGHT * scale_factor)} "
-            f"(factor {scale_factor:.2f}x) on {screen_width}×{screen_height}")
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.apply_scaling()
+
+    def apply_scaling(self):
+        # Obtener el tamaño actual de la ventana (pantalla completa)
+        screen_w = self.width()
+        screen_h = self.height()
+
+        # Calcular factor de escala manteniendo relación de aspecto
+        scale_w = screen_w / self.DESIGN_WIDTH
+        scale_h = screen_h / self.DESIGN_HEIGHT
+        scale = min(scale_w, scale_h)
+
+        new_width = int(self.DESIGN_WIDTH * scale)
+        new_height = int(self.DESIGN_HEIGHT * scale)
+
+        # Calcular márgenes para centrar el HMI si la pantalla no es 16:9
+        margin_x = (screen_w - new_width) // 2
+        margin_y = (screen_h - new_height) // 2
+
+        # Ajustar el HMI (esto asume que dialysis_hmi es el widget central)
+        # Si dialysis_hmi usa Layouts internos, se ajustará solo.
+        self.dialysis_hmi.setFixedSize(new_width, new_height)
+        self.dialysis_hmi.move(margin_x, margin_y)
+        
+        # Log para depuración
+        logger.info(f"Escalado aplicado: {new_width}x{new_height} en pantalla {screen_w}x{screen_h}")
+
 
 if __name__ == "__main__":
     sys.excepthook = unhandled_exception_handler
@@ -131,33 +134,33 @@ if __name__ == "__main__":
     platform_features = load_platform_features()
     logger.info("Platform: %s | Features: %s", sys.platform, platform_features)
 
-    # ────────────────────────────────────────────────
-    # HiDPI Configuration BEFORE QApplication creation
-    # ────────────────────────────────────────────────
-    QApplication.setAttribute(Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
-
-    # Mantiene compatibilidad histórica de Windows; en Linux evita acoplar el prearranque a Qt.
-    global_scale_factor = 1.0
+    # Configuración HiDPI por plataforma.
+    # En Windows mantenemos comportamiento legado para estabilidad de HMI fija.
+    # En Linux dejamos que Qt/desktop gestionen HiDPI de forma nativa.
     use_windows_legacy_prescale = is_windows() and platform_features.get("enable_windows_legacy_prescale", True)
     if use_windows_legacy_prescale:
-        screen_width, screen_height = detect_screen_size()
-        global_scale_factor = min(screen_width / 1920, screen_height / 1080)
-        os.environ["QT_SCALE_FACTOR"] = f"{global_scale_factor:.2f}"
+        os.environ["QT_SCALE_FACTOR"] = "1.0"
+        os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"
+        os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
+        logger.info("HiDPI mode: Windows legacy prescale activo")
     else:
         os.environ.pop("QT_SCALE_FACTOR", None)
+        os.environ.pop("QT_AUTO_SCREEN_SCALE_FACTOR", None)
+        os.environ.pop("QT_ENABLE_HIGHDPI_SCALING", None)
+        logger.info("HiDPI mode: nativo de Qt/desktop")
 
-    # Only keep the rounding policy (this IS still valid)
+    QApplication.setAttribute(Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
+    
     if hasattr(Qt, 'HighDpiScaleFactorRoundingPolicy'):
         QApplication.setHighDpiScaleFactorRoundingPolicy(
-            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough   # or .Round if preferred
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
         )
 
     app = QApplication(sys.argv)
-    
     app.setStyle("Fusion")
-    # Justo después de app = QApplication(sys.argv)
-    from PySide6.QtGui import QPalette, QColor
 
+    # Palette oscura
+    from PySide6.QtGui import QPalette, QColor
     dark_palette = QPalette()
     dark_palette.setColor(QPalette.Window, QColor("#1e1e1e"))
     dark_palette.setColor(QPalette.WindowText, Qt.white)
@@ -170,42 +173,110 @@ if __name__ == "__main__":
     dark_palette.setColor(QPalette.ButtonText, Qt.white)
     app.setPalette(dark_palette)
 
+    # Theme
     theme_manager = ThemeManager(app)
-    # Puedes cambiar fuente global y tema aquí:
-    # theme_manager.apply_font("Arial Narrow", 16)
-    theme_manager.apply_theme("dark")  # o "dark"
+    theme_manager.apply_theme("dark")
     theme_manager.apply_font(theme_manager.current_font_family, 16)
 
+    # ==================== USAR LA CLASE CON ESCALADO ====================
     try:
         main_window = ScaledHemodialysisHMI()
         main_window.showFullScreen()
 
-        if not use_windows_legacy_prescale:
-            screen = QGuiApplication.primaryScreen()
-            if screen is not None:
-                geometry = screen.availableGeometry()
-                global_scale_factor = min(geometry.width() / 1920, geometry.height() / 1080)
-        
-        logger.info("=" * 70)
-        logger.info("   CIATEQ A.C. - HEMODIALYSIS MACHINE HMI")
-        logger.info("   FULLSCREEN MODE WITH DYNAMIC SCALING")
-        logger.info(f"   Applied scaling factor: {global_scale_factor:.2f}x")
-        logger.info("=" * 70)
-        
-        
-        try:
-            sys.exit(app.exec())
-        except KeyboardInterrupt:
-            logger.info("Application interrupted by user (KeyboardInterrupt). Exiting gracefully.")
-            print("Application interrupted by user. Exiting gracefully.")
-            app.quit()
+        logger.info("=" * 80)
+        logger.info("   CIATEQ A.C. - HEMODIALYSIS HMI STARTED")
+        logger.info(f"   Platform: {sys.platform} | Resolution: 1920x1080 (design)")
+        logger.info(f"   Windows legacy prescale: {use_windows_legacy_prescale}")
+        logger.info("=" * 80)
+
+        sys.exit(app.exec())
 
     except Exception as e:
-        logger.critical(f"Unhandled exception: {e}")
-        QMessageBox.critical(
-            None,
-            "Fatal Application Error",
-            f"Could not start the application:\n\n{e}\n\n"
-            "Contacte al soporte técnico de CIATEQ A.C." 
-        )
+        logger.critical(f"Fatal error: {e}", exc_info=True)
+        QMessageBox.critical(None, "Error Fatal", str(e))
         sys.exit(1)
+
+# if __name__ == "__main__":
+#     sys.excepthook = unhandled_exception_handler
+
+#     platform_features = load_platform_features()
+#     logger.info("Platform: %s | Features: %s", sys.platform, platform_features)
+
+#     # ────────────────────────────────────────────────
+#     # HiDPI Configuration BEFORE QApplication creation
+#     # ────────────────────────────────────────────────
+#     QApplication.setAttribute(Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
+
+#     # Mantiene compatibilidad histórica de Windows; en Linux evita acoplar el prearranque a Qt.
+#     global_scale_factor = 1.0
+#     use_windows_legacy_prescale = is_windows() and platform_features.get("enable_windows_legacy_prescale", True)
+#     if use_windows_legacy_prescale:
+#         screen_width, screen_height = detect_screen_size()
+#         global_scale_factor = min(screen_width / 1920, screen_height / 1080)
+#         os.environ["QT_SCALE_FACTOR"] = f"{global_scale_factor:.2f}"
+#     else:
+#         os.environ.pop("QT_SCALE_FACTOR", None)
+
+#     # Only keep the rounding policy (this IS still valid)
+#     if hasattr(Qt, 'HighDpiScaleFactorRoundingPolicy'):
+#         QApplication.setHighDpiScaleFactorRoundingPolicy(
+#             Qt.HighDpiScaleFactorRoundingPolicy.PassThrough   # or .Round if preferred
+#         )
+
+#     app = QApplication(sys.argv)
+    
+#     app.setStyle("Fusion")
+#     # Justo después de app = QApplication(sys.argv)
+#     from PySide6.QtGui import QPalette, QColor
+
+#     dark_palette = QPalette()
+#     dark_palette.setColor(QPalette.Window, QColor("#1e1e1e"))
+#     dark_palette.setColor(QPalette.WindowText, Qt.white)
+#     dark_palette.setColor(QPalette.Base, QColor("#2b2b2b"))
+#     dark_palette.setColor(QPalette.AlternateBase, QColor("#353535"))
+#     dark_palette.setColor(QPalette.ToolTipBase, QColor("#2b2b2b"))
+#     dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+#     dark_palette.setColor(QPalette.Text, Qt.white)
+#     dark_palette.setColor(QPalette.Button, QColor("#4CAF50"))
+#     dark_palette.setColor(QPalette.ButtonText, Qt.white)
+#     app.setPalette(dark_palette)
+
+#     theme_manager = ThemeManager(app)
+#     # Puedes cambiar fuente global y tema aquí:
+#     # theme_manager.apply_font("Arial Narrow", 16)
+#     theme_manager.apply_theme("dark")  # o "dark"
+#     theme_manager.apply_font(theme_manager.current_font_family, 16)
+
+#     try:
+#         main_window = ScaledHemodialysisHMI()
+#         main_window.showFullScreen()
+
+#         if not use_windows_legacy_prescale:
+#             screen = QGuiApplication.primaryScreen()
+#             if screen is not None:
+#                 geometry = screen.availableGeometry()
+#                 global_scale_factor = min(geometry.width() / 1920, geometry.height() / 1080)
+        
+#         logger.info("=" * 70)
+#         logger.info("   CIATEQ A.C. - HEMODIALYSIS MACHINE HMI")
+#         logger.info("   FULLSCREEN MODE WITH DYNAMIC SCALING")
+#         logger.info(f"   Applied scaling factor: {global_scale_factor:.2f}x")
+#         logger.info("=" * 70)
+        
+        
+#         try:
+#             sys.exit(app.exec())
+#         except KeyboardInterrupt:
+#             logger.info("Application interrupted by user (KeyboardInterrupt). Exiting gracefully.")
+#             print("Application interrupted by user. Exiting gracefully.")
+#             app.quit()
+
+#     except Exception as e:
+#         logger.critical(f"Unhandled exception: {e}")
+#         QMessageBox.critical(
+#             None,
+#             "Fatal Application Error",
+#             f"Could not start the application:\n\n{e}\n\n"
+#             "Contacte al soporte técnico de CIATEQ A.C." 
+#         )
+#         sys.exit(1)

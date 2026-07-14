@@ -159,6 +159,8 @@ class AlarmScreenConfig(QWidget):
 
                     min_edit = ClickableLineEdit(f"{min_val:.1f}")
                     max_edit = ClickableLineEdit(f"{max_val:.1f}")
+                    min_edit.setStyleSheet("color: #0f172a; font-size: 23px;")
+                    max_edit.setStyleSheet("color: #0f172a; font-size: 23px;")
                     min_edit.setFixedWidth(100)
                     max_edit.setFixedWidth(100)
 

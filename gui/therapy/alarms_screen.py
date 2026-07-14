@@ -362,6 +362,7 @@ class AlarmsScreen(QWidget):
             if name in self.active_alarms:
                 
                 self.active_alarms[name]['value'] = value
+                self.active_alarms[name]['level'] = level
                 self.active_alarms[name]['time'] = current_time
                 self.active_alarms[name]['acked'] = False # IMPORTANTE: Resetea a NO reconocida
             else:

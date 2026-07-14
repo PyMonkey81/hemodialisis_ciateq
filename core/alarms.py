@@ -43,6 +43,7 @@ class AlarmSystem(QObject):
         self.types: List[str] = []              # "double" o "bool"
         self.boolean_triggers: List[bool] = []  # True = alarm on value != 0, False = alarm on value == 0
         self.severity_levels: List[str] = []
+        self.previous_emitted_levels: List[str] = []
         self.alarm_count = 0
 
         # Atributos para el estado en tiempo de ejecución
@@ -101,6 +102,9 @@ class AlarmSystem(QObject):
             # La severidad siempre se obtiene del config_manager (que ya usa defaults de VARIABLES_MAP)
             self.severity_levels.append(self.config_manager.get_severity(tag))
 
+        # Trackea el último nivel emitido para poder refrescar UI si cambia en caliente.
+        self.previous_emitted_levels = list(self.severity_levels)
+
         # Reiniciar el estado de valores y estados previos para la nueva configuración
         self.current_values = [0.0] * self.alarm_count
         self.previous_states = [False] * self.alarm_count
@@ -142,6 +146,7 @@ class AlarmSystem(QObject):
                 # Obtener configuración actual (siempre fresca desde QSettings/VARIABLES_MAP)
                 min_val, max_val = self.config_manager.get_limits(tag)
                 level = self.config_manager.get_severity(tag)
+                self.severity_levels[i] = level
 
                 is_active = False # Inicializar
 
@@ -156,6 +161,7 @@ class AlarmSystem(QObject):
                 # Detectar cambio de estado
                 if is_active != self.previous_states[i]:
                     self.previous_states[i] = is_active
+                    self.previous_emitted_levels[i] = level
 
                     current_time = time.strftime("%H:%M:%S")
                     status_text = "ACTIVADA" if is_active else "DESACTIVADA"
@@ -174,6 +180,21 @@ class AlarmSystem(QObject):
                         level,
                         (min_val, max_val)
                     )
+                elif is_active and level != self.previous_emitted_levels[i]:
+                    # Permite refrescar el color/prioridad en UI cuando cambia la severidad
+                    # sin esperar a que la alarma se active/desactive físicamente.
+                    self.previous_emitted_levels[i] = level
+                    self.alarm_changed.emit(
+                        i,
+                        True,
+                        value,
+                        self.display_names[i],
+                        level,
+                        (min_val, max_val)
+                    )
+                elif not is_active:
+                    # Mantener el baseline coherente para futuros cambios de severidad.
+                    self.previous_emitted_levels[i] = level
 
             time.sleep(0.5)  # Intervalo de chequeo (puedes hacerlo configurable)
 

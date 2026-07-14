@@ -1720,5 +1720,173 @@
         "text": "NORMALIZADA: Detector Burbuja Aire en Sangre",
         "value": 0.0,
         "level": "info"
+    },
+    {
+        "time": "13:18:28",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:29",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:21:47",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:21:47",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:21:49",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:21:49",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:23:30",
+        "text": "ACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "info"
+    },
+    {
+        "time": "13:23:30",
+        "text": "ACTIVADA: Detector Burbuja Aire en Sangre",
+        "value": 1.0,
+        "level": "rojo"
+    },
+    {
+        "time": "13:23:32",
+        "text": "DESACTIVADA - Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:23:32",
+        "text": "NORMALIZADA: Detector Burbuja Aire en Sangre",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:25:49",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:25:49",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "amarillo"
+    },
+    {
+        "time": "13:32:13",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:13",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:32:15",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:15",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:32:54",
+        "text": "Operador reconoci\u00f3 alarmas activas y silenci\u00f3 buzzer",
+        "value": null,
+        "level": "info"
+    },
+    {
+        "time": "13:33:14",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "naranja"
+    },
+    {
+        "time": "13:33:18",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "amarillo"
+    },
+    {
+        "time": "13:33:24",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:37:41",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:37:41",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:37:41",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "13:37:41",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "13:37:43",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:37:43",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:37:43",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "13:37:43",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
     }
 ]

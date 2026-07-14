@@ -38,5 +38,15 @@
         "patient_dry_weight_kg": 70.0,
         "patient_pre_weight_kg": 73.0,
         "uf_goal_liters": 3.0
+    },
+    "P005": {
+        "patient_id": "P005",
+        "patient_name": "NAYE",
+        "patient_gender": 2,
+        "patient_age": 36,
+        "patient_height_cm": 170.0,
+        "patient_dry_weight_kg": 56.0,
+        "patient_pre_weight_kg": 60.0,
+        "uf_goal_liters": 4.0
     }
 }

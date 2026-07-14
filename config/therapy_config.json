@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "local": {
+    "heparineTherapyHours": 3.0,
+    "heparineTherapyMinutes": 0.0
+  },
+  "firmware": {
+    "balanceChamberSetTiming": 300.0,
+    "bloodFlowControlSetPoint": 500.0,
+    "dialyCondControlSetPoint": 14.0,
+    "dialyHeparineBolusFlow": 0.0,
+    "dialyTempControlSetPoint": 36.0,
+    "heparineAutoStopHours": 0.0,
+    "heparineAutoStopMinutes": 0.0,
+    "heparineBolusQuantity": 0.0,
+    "heparineTherapyDosage": 0.0,
+    "ultraFilterPumpSpeed": 0.12
+  }
+}

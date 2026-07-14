@@ -206,7 +206,7 @@ class TreatmentController:
             
             remaining_str = f"{hours:02d}:{minutes:02d}:00"
             if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:
-                self.main.dialysis_screen.update_therapy_times(remaining_str, "00:00:00")
+                self.main.dialysis_screen.update_therapy_times("00:00:00", remaining_str)
             return
 
         # Terapia activa

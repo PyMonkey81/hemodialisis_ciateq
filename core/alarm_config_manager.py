@@ -111,7 +111,7 @@ class AlarmConfigManager:
 
         severity_dict[tag] = level
         self.settings.setValue(self.KEY_SEVERITY, severity_dict)
-        self.settings.sync
+        self.settings.sync()
 
     # ====================== UTILIDADES ======================
     

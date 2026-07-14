@@ -112,6 +112,8 @@ from pathlib import Path
 
 from logic.calculos import (
     convertir_ciclos_a_flujo,
+    convertir_flujo_a_ciclos,
+    convertir_litros_h_a_ml_min,
     convertir_ml_min_a_litros_h,
 )
 from utilities.csv_logger import CsvLogger
@@ -122,6 +124,24 @@ logger = logging.getLogger(__name__)
 LOCAL_SETPOINT_TAGS = {
     "heparineTherapyHours",
     "heparineTherapyMinutes",
+}
+
+THERAPY_CONFIG_PATH = Path(__file__).parent.parent / "config" / "therapy_config.json"
+THERAPY_LOCAL_TAGS = {
+    "heparineTherapyHours",
+    "heparineTherapyMinutes",
+}
+THERAPY_FIRMWARE_TAGS = {
+    "heparineBolusQuantity",      # Vol. bolo heparina
+    "dialyHeparineBolusFlow",     # Flujo heparina
+    "heparineTherapyDosage",      # Dosis heparina
+    "heparineAutoStopHours",      # Paro heparina (hh:mm)
+    "heparineAutoStopMinutes",
+    "dialyCondControlSetPoint",   # Conductividad
+    "dialyTempControlSetPoint",   # Temperatura
+    "balanceChamberSetTiming",    # Flujo dializante (UI en ml/min)
+    "bloodFlowControlSetPoint",   # Flujo de sangre
+    "ultraFilterPumpSpeed",       # Flujo UF (UI en L/h)
 }
 
 #===============================================================================
@@ -339,6 +359,10 @@ class HemodialysisHMI(QMainWindow):
         # Tags locales (no se escriben al controlador)
         self.current_values.setdefault("heparineTherapyHours", 0.0)
         self.current_values.setdefault("heparineTherapyMinutes", 0.0)
+
+        self._therapy_config_loaded = False
+        self._therapy_config_applied_to_firmware = False
+        self._load_therapy_config_json()
 
         self.serial_comm = SerialCommunication()
         self.serial_comm.data_received.connect(self.update_value)
@@ -1092,6 +1116,9 @@ class HemodialysisHMI(QMainWindow):
             second_elapsed = self.last_second_update.msecsTo(now) >= 1000
             minute_elapsed = self.last_minute_update.secsTo(now) >= 60
 
+            # Mantener vivo el monitoreo de alarmas aunque no lleguen tramas nuevas.
+            self._sync_alarm_values_from_current_state()
+
             self.ktv_controller.on_master_tick()
 
             # ==================== LOGGERS ====================
@@ -1505,6 +1532,9 @@ class HemodialysisHMI(QMainWindow):
 
         if is_connected:
             logger.info("Enabling UI elements for connected state.")
+
+            # Reaplica configuración persistida al reconectar firmware.
+            self._apply_therapy_config_to_firmware(force=True)
             
             if hasattr(self, 'alarm_system') and self.alarm_system:
                 self.alarm_system.reset()
@@ -1583,15 +1613,37 @@ class HemodialysisHMI(QMainWindow):
         self.current_values[tag] = value  # Actualiza el valor global
         logger.debug("[GLOBAL] Valor actualizado: %s = %s", tag, value)
 
+        # Sincroniza cambios locales (pantallas de configuración) con alarmas.
+        if self.alarm_system:
+            self.alarm_system.update_value_by_tag(tag, value)
+
         current_widget = self.screen_stack.currentWidget()
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
+
+    def _sync_alarm_values_from_current_state(self):
+        """
+        Empuja periódicamente al AlarmSystem los valores actuales para todos los
+        tags de alarma habilitados. Esto desacopla el monitoreo del ritmo serial.
+        """
+        if not self.alarm_system:
+            return
+
+        for tag in self.alarm_system.tags:
+            if tag in self.current_values:
+                self.alarm_system.update_value_by_tag(tag, self.current_values.get(tag, 0.0))
 
     def update_date_time(self):
         from datetime import datetime
         self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))    
 
     def update_value(self, tag: str, value: float):        
+        # Estos setpoints son locales de UI y no deben ser pisados por telemetría.
+        # Solo deben cambiar por acción explícita del usuario.
+        if tag in LOCAL_SETPOINT_TAGS:
+            logger.debug("Ignorando actualización externa de setpoint local: %s=%s", tag, value)
+            return
+
         # 1. Pre-procesamiento y conversión de unidades ANTES de guardar o enviar a alarmas
         if tag == "dialyCondControlOutput":
             value = value / 5.0
@@ -2282,6 +2334,7 @@ class HemodialysisHMI(QMainWindow):
     def _write_setpoint(self, tag: str, value: float):
         if tag in LOCAL_SETPOINT_TAGS:
             self.current_values[tag] = float(value)
+            self._persist_therapy_config_tag(tag, float(value))
             logger.info(f"SETPOINT [LOCAL]: {tag} = {value}")
             return
 
@@ -2301,10 +2354,108 @@ class HemodialysisHMI(QMainWindow):
                 return
 
             self.serial_comm.write_double(group, address, value)
+
+            # Persistir en unidades de UI para mantener consistencia visual/configuración.
+            persist_value = float(value)
+            if tag == "balanceChamberSetTiming":
+                persist_value = float(convertir_ciclos_a_flujo(value))
+            elif tag == "ultraFilterPumpSpeed":
+                persist_value = float(convertir_ml_min_a_litros_h(value))
+
+            self._persist_therapy_config_tag(tag, persist_value)
             logger.info(f"SETPOINT [DBL]: {tag} = {value} (G:{hex(group)}, ID:{address})")
 
         except Exception as e:
             logger.error(f"Error escribiendo setpoint '{tag}': {e}")
+
+    def _build_therapy_config_payload(self) -> dict:
+        local_cfg = {
+            tag: float(self.current_values.get(tag, 0.0) or 0.0)
+            for tag in sorted(THERAPY_LOCAL_TAGS)
+        }
+        firmware_cfg = {
+            tag: float(self.current_values.get(tag, 0.0) or 0.0)
+            for tag in sorted(THERAPY_FIRMWARE_TAGS)
+        }
+        return {
+            "schema_version": 1,
+            "local": local_cfg,
+            "firmware": firmware_cfg,
+        }
+
+    def _save_therapy_config_json(self):
+        try:
+            payload = self._build_therapy_config_payload()
+            THERAPY_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            THERAPY_CONFIG_PATH.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except Exception as exc:
+            logger.error("No se pudo guardar config de terapia JSON: %s", exc)
+
+    def _persist_therapy_config_tag(self, tag: str, value: float):
+        if tag not in THERAPY_LOCAL_TAGS and tag not in THERAPY_FIRMWARE_TAGS:
+            return
+        self.current_values[tag] = float(value)
+        self._save_therapy_config_json()
+
+    def _load_therapy_config_json(self):
+        payload = None
+        try:
+            if THERAPY_CONFIG_PATH.exists():
+                payload = json.loads(THERAPY_CONFIG_PATH.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("No se pudo leer %s: %s", THERAPY_CONFIG_PATH, exc)
+
+        if not isinstance(payload, dict):
+            # Crea el archivo con el estado actual (defaults) si no existe o está corrupto.
+            self._save_therapy_config_json()
+            self._therapy_config_loaded = True
+            return
+
+        local_cfg = payload.get("local", {}) if isinstance(payload.get("local"), dict) else {}
+        firmware_cfg = payload.get("firmware", {}) if isinstance(payload.get("firmware"), dict) else {}
+
+        for tag in THERAPY_LOCAL_TAGS:
+            if tag in local_cfg:
+                self.current_values[tag] = float(local_cfg[tag] or 0.0)
+
+        for tag in THERAPY_FIRMWARE_TAGS:
+            if tag in firmware_cfg:
+                self.current_values[tag] = float(firmware_cfg[tag] or 0.0)
+
+        self._therapy_config_loaded = True
+        logger.info("Configuración de terapia cargada desde %s", THERAPY_CONFIG_PATH)
+
+    def _to_firmware_setpoint_value(self, tag: str, user_value: float) -> float:
+        """Convierte valor persistido (UI) al formato esperado por firmware."""
+        if tag == "balanceChamberSetTiming":
+            return float(convertir_flujo_a_ciclos(user_value))
+        if tag == "ultraFilterPumpSpeed":
+            return float(convertir_litros_h_a_ml_min(user_value))
+        return float(user_value)
+
+    def _apply_therapy_config_to_firmware(self, force: bool = False):
+        if not self._therapy_config_loaded:
+            return
+
+        if self._therapy_config_applied_to_firmware and not force:
+            return
+
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            return
+
+        for tag in sorted(THERAPY_FIRMWARE_TAGS):
+            try:
+                value = float(self.current_values.get(tag, 0.0) or 0.0)
+                fw_value = self._to_firmware_setpoint_value(tag, value)
+                self._write_setpoint(tag, fw_value)
+            except Exception as exc:
+                logger.warning("No se pudo aplicar setpoint de terapia %s: %s", tag, exc)
+
+        self._therapy_config_applied_to_firmware = True
+        logger.info("Configuración de terapia aplicada al firmware")
 
 
     def _write_boolean_command(self, tag: str, state: bool):
