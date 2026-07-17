@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt, Signal, QDateTime, QEvent
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit
+from gui.theme_manager import ThemeManager
 from logic.calculos import convertir_flujo_a_ciclos, convertir_litros_h_a_ml_min
 from core.state_manager import TreatmentPhase
 
@@ -72,45 +73,80 @@ class TherapyConfigScreen(QWidget):
         #     color: #f8fafc;
         # """)
 
-        button_style = """
-            QPushButton { background: #0f172a; color: #ffffff; border-radius: 20px; font-weight: bold; }
-            QPushButton:pressed { background: #1e40af; }
-        """
+        baseline = ThemeManager.get_therapy_config_baseline() or {}
+        colors = baseline.get("colors", {})
+        dims = baseline.get("dimensions", {})
+        typo = baseline.get("typography", {})
+        layout_cfg = baseline.get("layout", {})
+
+        btn_w, btn_h = dims.get("pump_button", [120, 80])
+        input_w, input_h = dims.get("input_field", [120, 50])
+
+        label_font_size = typo.get("section_label", {}).get("size", 22)
+        label_min_height = typo.get("section_label", {}).get("min_height", 50)
+        frame_label_font_size = typo.get("frame_label", {}).get("size", 18)
+        input_font_size = typo.get("input", {}).get("size", 24)
+        input_font_family = typo.get("input", {}).get("family", 'Consolas, "Courier New", monospace')
+        button_font_size = typo.get("button", {}).get("size", 20)
+        title_font_size = typo.get("title", {}).get("size", 42)
 
         self.style_enabled = """
-            QPushButton { background: #39ec21; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
-            QPushButton:pressed { background: #334155; }
+            QPushButton {{ background: {enabled_bg}; color: {button_text}; font-weight: bold; font-size: {button_size}px; border-radius: 15px; border: 3px solid {button_border}; }}
+            QPushButton:pressed {{ background: {pressed_bg}; }}
         """
+        self.style_enabled = self.style_enabled.format(
+            enabled_bg=colors.get("button_enabled_bg", "#39ec21"),
+            button_text=colors.get("button_text", "#ffffff"),
+            button_size=button_font_size,
+            button_border=colors.get("button_border", "#1e293b"),
+            pressed_bg=colors.get("button_pressed_bg", "#334155"),
+        )
         self.style_disabled = """
-            QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
+            QPushButton {{ background: {disabled_bg}; color: {disabled_text}; font-weight: bold; font-size: {button_size}px; border-radius: 15px; border: 3px solid {button_border}; }}
         """
+        self.style_disabled = self.style_disabled.format(
+            disabled_bg=colors.get("button_disabled_bg", "#334155"),
+            disabled_text=colors.get("button_disabled_text", "#94a3b8"),
+            button_size=button_font_size,
+            button_border=colors.get("button_border", "#1e293b"),
+        )
         self.style_stop_enabled = """
-             QPushButton { background: #DD2911; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 15px; border: 3px solid #1e293b; }
-             QPushButton:pressed { background: #334155; }
+             QPushButton {{ background: {stop_bg}; color: {button_text}; font-weight: bold; font-size: {button_size}px; border-radius: 15px; border: 3px solid {button_border}; }}
+             QPushButton:pressed {{ background: {pressed_bg}; }}
         """
+        self.style_stop_enabled = self.style_stop_enabled.format(
+            stop_bg=colors.get("button_stop_bg", "#DD2911"),
+            button_text=colors.get("button_text", "#ffffff"),
+            button_size=button_font_size,
+            button_border=colors.get("button_border", "#1e293b"),
+            pressed_bg=colors.get("button_pressed_bg", "#334155"),
+        )
 
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(40, 30, 40, 30)
-        main_layout.setSpacing(20)
+        margins = layout_cfg.get("main_margins", [40, 30, 40, 30])
+        main_layout.setContentsMargins(*margins)
+        main_layout.setSpacing(layout_cfg.get("main_spacing", 20))
         logger.info("Configuracion de terapia (V1.0.0)")
         
         # Título
         title = QLabel("Configuración de Terapia")
-        title.setStyleSheet("font-size: 42px; font-weight: bold; color: #60a5fa;")
+        title.setStyleSheet(
+            f"font-size: {title_font_size}px; font-weight: bold; color: {colors.get('title', '#60a5fa')};"
+        )
         title.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(title)
 
         sep1 = QFrame()
         sep1.setFrameShape(QFrame.HLine)
-        sep1.setStyleSheet("background: #fcfcfc; max-height: 2px;")
+        sep1.setStyleSheet(f"background: {colors.get('separator', '#fcfcfc')}; max-height: 2px;")
         main_layout.addWidget(sep1)
 
         # ─── LAYOUT PRINCIPAL DE DOS COLUMNAS ────────────────────────────────
         columns_layout = QHBoxLayout()
-        columns_layout.setSpacing(30)
+        columns_layout.setSpacing(layout_cfg.get("columns_spacing", 30))
         
         col1_layout = QVBoxLayout() # Columna 1: Bombas y Filtro
-        col1_layout.setSpacing(120)
+        col1_layout.setSpacing(layout_cfg.get("col1_spacing", 120))
         
         col2_layout = QVBoxLayout() # Columna 2: Parámetros
         
@@ -121,34 +157,50 @@ class TherapyConfigScreen(QWidget):
         # =====================================================================
         
         # label_style = "color: #000000; font-size: 22px; font-weight: bold;"
-        label_style = "color: #000000; font-size: 22px; font-weight: bold; min-height: 50px;"
+        label_style = (
+            f"color: {colors.get('label_text', '#000000')}; "
+            f"font-size: {label_font_size}px; font-weight: bold; min-height: {label_min_height}px;"
+        )
         input_style = """
-            ClickableLineEdit {
-                font-family: Consolas, "Courier New", monospace;
-                font-size: 24px;
-                color: #000000;
-                background: #e2e8f0;
-                border: 2px solid #64748b;
+            ClickableLineEdit {{
+                font-family: {font_family};
+                font-size: {font_size}px;
+                color: {label_text};
+                background: {input_bg};
+                border: 2px solid {input_border};
                 border-radius: 8px;
                 padding: 5px;
                 min-width: 110px;
-            }
-            ClickableLineEdit:focus {
-                border: 2px solid #3b82f6;
-                background: #ffffff;
-            }
+            }}
+            ClickableLineEdit:focus {{
+                border: 2px solid {input_focus_border};
+                background: {input_focus_bg};
+            }}
         """
+        input_style = input_style.format(
+            font_family=input_font_family,
+            font_size=input_font_size,
+            label_text=colors.get("label_text", "#000000"),
+            input_bg=colors.get("input_bg", "#e2e8f0"),
+            input_border=colors.get("input_border", "#64748b"),
+            input_focus_border=colors.get("input_focus_border", "#3b82f6"),
+            input_focus_bg=colors.get("input_focus_bg", "#ffffff"),
+        )
 
         # 2. Bomba de Sangre
         blood_operation_frame = QFrame()
         blood_operation_frame.setStyleSheet("""
-                QFrame {
-                    border: 2px solid #5c5c5c;
+            QFrame {{
+                    border: 2px solid {frame_border};
                     border-radius: 8px;                
                     background-color: transparent;
-                }
-                QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
-        """)      
+            }}
+                QLabel {{ border: none; color: {frame_label_text}; font-size: {frame_label_size}px; font-weight: bold; }}
+        """.format(
+            frame_border=colors.get("frame_border", "#5c5c5c"),
+            frame_label_text=colors.get("frame_label_text", "#2b2b2b"),
+            frame_label_size=frame_label_font_size,
+        ))      
         blood_layout = QHBoxLayout(blood_operation_frame)
         blood_layout.setContentsMargins(15, 15, 15, 15)
         blood_layout.setSpacing(15)
@@ -160,13 +212,13 @@ class TherapyConfigScreen(QWidget):
         blood_layout.addStretch()
 
         self.btn_start_blood_pump = PushbuttonEvent("START", self)
-        self.btn_start_blood_pump.setFixedSize(120, 80)
+        self.btn_start_blood_pump.setFixedSize(btn_w, btn_h)
         self.btn_start_blood_pump.setStyleSheet(self.style_enabled)
         self.btn_start_blood_pump.pressed.connect(self._start_blood_pump)
         blood_layout.addWidget(self.btn_start_blood_pump)
 
         self.btn_stop_blood_pump = PushbuttonEvent("STOP", self)
-        self.btn_stop_blood_pump.setFixedSize(120, 80)
+        self.btn_stop_blood_pump.setFixedSize(btn_w, btn_h)
         self.btn_stop_blood_pump.setStyleSheet(self.style_stop_enabled)
         self.btn_stop_blood_pump.pressed.connect(self._stop_blood_pump)
         blood_layout.addWidget(self.btn_stop_blood_pump)
@@ -174,13 +226,17 @@ class TherapyConfigScreen(QWidget):
         # 3. Llenado de filtro
         filter_fill_frame = QFrame()
         filter_fill_frame.setStyleSheet("""
-                QFrame {
-                    border: 2px solid #5c5c5c;
+            QFrame {{
+                    border: 2px solid {frame_border};
                     border-radius: 8px;                
                     background-color: transparent;
-                }
-                QLabel { border: none; color: #2b2b2b; font-size: 18px; font-weight: bold; }
-        """)
+            }}
+                QLabel {{ border: none; color: {frame_label_text}; font-size: {frame_label_size}px; font-weight: bold; }}
+        """.format(
+            frame_border=colors.get("frame_border", "#5c5c5c"),
+            frame_label_text=colors.get("frame_label_text", "#2b2b2b"),
+            frame_label_size=frame_label_font_size,
+        ))
         filter_fill_layout = QHBoxLayout(filter_fill_frame)
         filter_fill_layout.setContentsMargins(15, 15, 15, 15)
         filter_fill_layout.setSpacing(15)
@@ -192,7 +248,7 @@ class TherapyConfigScreen(QWidget):
         filter_fill_layout.addStretch()
 
         self.btn_filter_fill = PushbuttonEvent("START",self)
-        self.btn_filter_fill.setFixedSize(120, 80)
+        self.btn_filter_fill.setFixedSize(btn_w, btn_h)
         self.btn_filter_fill.setStyleSheet(self.style_enabled)
         self.btn_filter_fill.pressed.connect(self._start_filter_fill)
         filter_fill_layout.addWidget(self.btn_filter_fill)
@@ -209,7 +265,7 @@ class TherapyConfigScreen(QWidget):
         params_frame = QFrame()
         params_frame.setStyleSheet("background: transparent; border-radius: 10px; padding: 25px;")
         params_layout = QGridLayout(params_frame)
-        params_layout.setSpacing(20)
+        params_layout.setSpacing(layout_cfg.get("params_grid_spacing", 20))
 
         # params_layout.setColumnStretch(0, 1) # Las etiquetas toman todo el espacio posible
         # params_layout.setColumnStretch(1, 0) # Los inputs se quedan con su tamaño fijo
@@ -220,7 +276,7 @@ class TherapyConfigScreen(QWidget):
         lbl_blood_flow.setStyleSheet(label_style)
         lbl_blood_flow.setAlignment(Qt.AlignRight)
         self.input_blood_flow = ClickableLineEdit("0.0")
-        self.input_blood_flow.setFixedSize(120, 50)
+        self.input_blood_flow.setFixedSize(input_w, input_h)
         self.input_blood_flow.setAlignment(Qt.AlignCenter)
         self.input_blood_flow.setStyleSheet(input_style)
         self.input_blood_flow.setReadOnly(True)
@@ -235,7 +291,7 @@ class TherapyConfigScreen(QWidget):
         lbl_dialysate_flow.setStyleSheet(label_style)
         lbl_dialysate_flow.setAlignment(Qt.AlignRight)
         self.input_dialysate_flow = ClickableLineEdit("0.0")
-        self.input_dialysate_flow.setFixedSize(120, 50)
+        self.input_dialysate_flow.setFixedSize(input_w, input_h)
         self.input_dialysate_flow.setAlignment(Qt.AlignCenter)
         self.input_dialysate_flow.setStyleSheet(input_style)
         self.input_dialysate_flow.setReadOnly(True)
@@ -248,7 +304,7 @@ class TherapyConfigScreen(QWidget):
         lbl_uf_flow.setStyleSheet(label_style)
         lbl_uf_flow.setAlignment(Qt.AlignRight)
         self.lbl_input_UF = ClickableLineEdit("0.0")
-        self.lbl_input_UF.setFixedSize(120, 50)
+        self.lbl_input_UF.setFixedSize(input_w, input_h)
         self.lbl_input_UF.setAlignment(Qt.AlignCenter)
         self.lbl_input_UF.setStyleSheet(input_style)
         self.lbl_input_UF.setReadOnly(True)
@@ -261,7 +317,7 @@ class TherapyConfigScreen(QWidget):
         lbl_temperature.setStyleSheet(label_style)
         lbl_temperature.setAlignment(Qt.AlignRight)
         self.input_temperature = ClickableLineEdit("0.0")
-        self.input_temperature.setFixedSize(120, 50)
+        self.input_temperature.setFixedSize(input_w, input_h)
         self.input_temperature.setAlignment(Qt.AlignCenter)
         self.input_temperature.setStyleSheet(input_style)
         self.input_temperature.setReadOnly(True)
@@ -276,7 +332,7 @@ class TherapyConfigScreen(QWidget):
         lbl_conductivity.setStyleSheet(label_style)
         lbl_conductivity.setAlignment(Qt.AlignRight)
         self.input_conductivity = ClickableLineEdit("0.0")
-        self.input_conductivity.setFixedSize(120, 50)
+        self.input_conductivity.setFixedSize(input_w, input_h)
         self.input_conductivity.setAlignment(Qt.AlignCenter)
         self.input_conductivity.setStyleSheet(input_style)
         self.input_conductivity.setReadOnly(True)
@@ -291,7 +347,7 @@ class TherapyConfigScreen(QWidget):
         lbl_duration.setStyleSheet(label_style)
         lbl_duration.setAlignment(Qt.AlignRight)
         self.input_duration = ClickableLineEdit("00:00")
-        self.input_duration.setFixedSize(120, 50)
+        self.input_duration.setFixedSize(input_w, input_h)
         self.input_duration.setAlignment(Qt.AlignCenter)
         self.input_duration.setStyleSheet(input_style)
         self.input_duration.setReadOnly(True)

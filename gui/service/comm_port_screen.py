@@ -4,15 +4,13 @@ import serial.tools.list_ports
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QCheckBox, QPushButton, QGroupBox, QMessageBox
 from PySide6.QtCore import Signal, Qt
 import json
-import os 
 from gui.components.floating_message import FloatingMessage
-from utilities.platform_runtime import sanitize_port_for_platform
+from utilities.platform_runtime import sanitize_port_for_platform, get_runtime_config_path
 import logging
 logger = logging.getLogger(__name__)
 
 
-CONFIG_DIR = "config"
-CONFIG_FILE = os.path.join(CONFIG_DIR, "sensor_comm_config.json")
+CONFIG_FILE = get_runtime_config_path("sensor_comm_config.json")
 
 class CommPortScreen(QWidget):
     config_changed = Signal(str, str, bool)  # id_sensor/controlador, puerto, habilitado
@@ -280,9 +278,9 @@ class CommPortScreen(QWidget):
             "conductivity_sensor": {"port": "Auto", "enabled": False},
             "bioz_urea_sensor": {"port": "Auto", "enabled": False},
         }
-        if os.path.exists(CONFIG_FILE):
+        if CONFIG_FILE.exists():
             try:
-                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                with CONFIG_FILE.open('r', encoding='utf-8') as f:
                     settings = json.load(f)
                 logger.info(f"Configuración cargada desde {CONFIG_FILE}")
                 merged = {**default, **settings}
@@ -312,9 +310,9 @@ class CommPortScreen(QWidget):
             "conductivity_sensor": {"port": self.cmb_cond_port.currentText(), "enabled": self.chk_cond.isChecked()},
             "bioz_urea_sensor": {"port": self.cmb_bioz_port.currentText(), "enabled": self.chk_bioz.isChecked()}
         }
-        os.makedirs(CONFIG_DIR, exist_ok=True)
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            with CONFIG_FILE.open('w', encoding='utf-8') as f:
                 json.dump(settings, f, indent=4, ensure_ascii=False)
             logger.info(f"Configuración guardada en {CONFIG_FILE}")
         except Exception as e:

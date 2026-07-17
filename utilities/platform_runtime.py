@@ -7,12 +7,35 @@ import logging
 import os
 import platform
 import re
+import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 COM_PORT_PATTERN = re.compile(r"^COM\d+$", re.IGNORECASE)
-DEFAULT_FEATURES_PATH = Path(__file__).resolve().parent.parent / "config" / "platform_features.json"
+
+
+def get_runtime_config_dir() -> Path:
+    """
+    Devuelve un directorio de configuración escribible en runtime.
+    Prioridad:
+    1) CIATEQ_CONFIG_DIR (si existe)
+    2) <dir_del_exe>/config cuando corre congelado
+    3) <repo>/config en desarrollo
+    """
+    env_dir = os.environ.get("CIATEQ_CONFIG_DIR", "").strip()
+    if env_dir:
+        return Path(env_dir)
+
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "config"
+
+    return Path(__file__).resolve().parent.parent / "config"
+
+
+def get_runtime_config_path(file_name: str) -> Path:
+    """Construye la ruta absoluta para un archivo dentro de config."""
+    return get_runtime_config_dir() / file_name
 
 
 def platform_name() -> str:
@@ -29,7 +52,8 @@ def is_linux() -> bool:
 
 def load_platform_features() -> dict:
     """Carga feature flags desde config, con fallback seguro si falta/está corrupto."""
-    config_path = Path(os.environ.get("CIATEQ_PLATFORM_FEATURES", str(DEFAULT_FEATURES_PATH)))
+    default_features_path = get_runtime_config_path("platform_features.json")
+    config_path = Path(os.environ.get("CIATEQ_PLATFORM_FEATURES", str(default_features_path)))
     defaults = {
         "enable_linux_platform_layer": True,
         "enable_windows_legacy_prescale": True,

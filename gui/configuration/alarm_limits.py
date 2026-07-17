@@ -48,13 +48,14 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 
 from core.variables_map import VARIABLES
+from utilities.platform_runtime import get_runtime_config_path
 import logging
 logger = logging.getLogger(__name__)
 
 
 class AlarmLimitsManager:
-    def __init__(self, config_path: str = "config/alarm_limits.json"):
-        self.config_path = Path(config_path)
+    def __init__(self, config_path: str = None):
+        self.config_path = Path(config_path) if config_path else get_runtime_config_path("alarm_limits.json")
         self.limits: Dict[str, Tuple[float, float]] = {}  
         self.defaults: Dict[str, Tuple[float, float]] = {}
         

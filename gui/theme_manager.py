@@ -8,6 +8,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Marca / Modelo,Tipo de letra principal,Características
+# Fresenius 5008 / 6008,Segoe UI o Arial,"Negrita, sans-serif"
+# Baxter / Gambro,Helvetica Neue o Arial,Muy limpia
+# Braun Dialog+ / Adimea,Tahoma / Verdana,Buena legibilidad
+# Nikkiso / Bellco,Arial Bold,Estilo industrial
+# Estándar recomendado,Segoe UI / Arial / Helvetica,Mejor opción actual
+
 class ThemeManager(QObject):
     theme_changed = Signal(str)  # Señal para notificar cuando el tema ha cambiado
     font_changed = Signal(str)   # Señal para notificar cuando cambia la fuente global
@@ -21,6 +28,66 @@ class ThemeManager(QObject):
     SETTINGS_THEME_KEY = "AppTheme/CurrentTheme"
     SETTINGS_FONT_FAMILY_KEY = "AppTheme/FontFamily"
     SETTINGS_FONT_SIZE_KEY = "AppTheme/FontSize"
+
+    # Baseline de estilos por pantalla para migracion gradual.
+    # Esta seccion documenta el estado visual actual sin alterar la UI.
+    SCREEN_BASELINES = {
+        "therapy_config_screen": {
+            "meta": {
+                "version": "baseline-v1",
+                "description": "Registro visual actual de TherapyConfigScreen para homologacion",
+            },
+            "layout": {
+                "main_margins": [40, 30, 40, 30],
+                "main_spacing": 20,
+                "columns_spacing": 30,
+                "col1_spacing": 120,
+                "params_grid_spacing": 20,
+            },
+            "typography": {
+                "title": {"size": 42, "weight": "bold"},
+                "section_label": {"size": 22, "weight": "bold", "min_height": 50},
+                "frame_label": {"size": 18, "weight": "bold"},
+                "input": {"size": 24, "family": 'Consolas, "Courier New", monospace'},
+                "button": {"size": 20, "weight": "bold"},
+            },
+            "colors": {
+                "title": "#60a5fa",
+                "separator": "#fcfcfc",
+                "label_text": "#000000",
+                "frame_border": "#5c5c5c",
+                "frame_label_text": "#2b2b2b",
+                "input_bg": "#e2e8f0",
+                "input_border": "#64748b",
+                "input_focus_border": "#3b82f6",
+                "input_focus_bg": "#ffffff",
+                "button_enabled_bg": "#39ec21",
+                "button_stop_bg": "#DD2911",
+                "button_disabled_bg": "#334155",
+                "button_disabled_text": "#94a3b8",
+                "button_text": "#ffffff",
+                "button_border": "#1e293b",
+                "button_pressed_bg": "#334155",
+            },
+            "dimensions": {
+                "pump_button": [120, 80],
+                "input_field": [120, 50],
+            },
+            "labels": {
+                "title": "Configuracion de Terapia",
+                "frames": ["Bomba de Sangre", "Llenado de filtro"],
+                "buttons": ["START", "STOP", "START"],
+                "parameter_labels": [
+                    "Flujo de Sangre (Qb, mL/min):",
+                    "Flujo Dializante (Qd, mL/min):",
+                    "Flujo UF (L/h):",
+                    "Temperatura (C):",
+                    "Conductividad (mS/cm):",
+                    "T. Terapia (hh:mm)",
+                ],
+            },
+        }
+    }
 
     # Definiciones de estilos QSS para cada tema
     # Puedes externalizar estos a archivos .qss y cargarlos
@@ -301,6 +368,16 @@ class ThemeManager(QObject):
         logger.info(f"Tema aplicado: {theme_name}")
         self.theme_changed.emit(theme_name)
 
+    @classmethod
+    def get_screen_baseline(cls, screen_key: str) -> dict:
+        """Devuelve el baseline visual registrado para una pantalla."""
+        return cls.SCREEN_BASELINES.get(screen_key, {})
+
+    @classmethod
+    def get_therapy_config_baseline(cls) -> dict:
+        """Atajo para baseline de la pantalla de configuracion de terapia."""
+        return cls.get_screen_baseline("therapy_config_screen")
+
     def apply_font(self, font_family: str, font_size: int | None = None):
         self._current_font_family = font_family
         if font_size is not None:
@@ -329,4 +406,5 @@ class ThemeManager(QObject):
     @property
     def current_font_size(self) -> int:
         return self._current_font_size
+
 

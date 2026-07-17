@@ -10,7 +10,7 @@
     "dialyCondControlSetPoint": 14.0,
     "dialyHeparineBolusFlow": 0.0,
     "dialyTempControlSetPoint": 36.0,
-    "heparineAutoStopHours": 0.0,
+    "heparineAutoStopHours": 1.0,
     "heparineAutoStopMinutes": 0.0,
     "heparineBolusQuantity": 0.0,
     "heparineTherapyDosage": 0.0,

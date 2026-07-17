@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, QTimer, Signal, QElapsedTimer
 import logging
 import json
 import os
+from utilities.platform_runtime import get_runtime_config_path
 
 # Suponiendo que estos módulos existen en tu estructura de proyecto
 from logic.calculos import convertir_flujo_a_ciclos
@@ -15,11 +16,10 @@ from gui.components.floating_confirm import FloatingConfirmDialog
 logger = logging.getLogger(__name__)
 
 # Define constantes para las rutas de archivo y configuración
-CONFIG_DIR = "config"
-CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "cleaning_config.json")
+CONFIG_FILE_PATH = get_runtime_config_path("cleaning_config.json")
 
 # Asegura que el directorio de configuración exista
-os.makedirs(CONFIG_DIR, exist_ok=True)
+CONFIG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # Estructura de configuración por defecto
 DEFAULT_CONFIG = {

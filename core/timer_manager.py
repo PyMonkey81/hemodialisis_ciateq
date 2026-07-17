@@ -1,11 +1,15 @@
 import logging
 import json
-import os
 from PySide6.QtCore import QObject, QTimer, QDateTime, QElapsedTimer # Import QElapsedTimer
 from core.state_manager import TreatmentPhase
 from core.hardware_state_mapper import HardwareStateMapper
+from utilities.platform_runtime import get_runtime_config_path
 
 logger = logging.getLogger(__name__)
+
+POWER_ON_HOURS_PATH = get_runtime_config_path("power_on_hours.json")
+OPERATION_HOURS_PATH = get_runtime_config_path("operation_hours.json")
+CLEANING_HOURS_PATH = get_runtime_config_path("cleaning_hours.json")
 
 class TimerManager(QObject):
     def __init__(self, main_window):
@@ -205,9 +209,8 @@ class TimerManager(QObject):
 
     def _load_power_on_hours(self):
         try:
-            path = "config/power_on_hours.json"
-            if os.path.exists(path):
-                with open(path, 'r') as f:
+            if POWER_ON_HOURS_PATH.exists():
+                with POWER_ON_HOURS_PATH.open('r', encoding='utf-8') as f:
                     data = json.load(f)
                     self.power_on_hours = data.get("power_on_hours", 0.0)
         except Exception as e:
@@ -215,8 +218,8 @@ class TimerManager(QObject):
 
     def _save_power_on_hours(self):
         try:
-            os.makedirs("config", exist_ok=True)
-            with open("config/power_on_hours.json", 'w') as f:
+            POWER_ON_HOURS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with POWER_ON_HOURS_PATH.open('w', encoding='utf-8') as f:
                 json.dump({
                     "power_on_hours": round(self.power_on_hours, 6),
                     "last_update": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
@@ -226,9 +229,8 @@ class TimerManager(QObject):
 
     def _load_operation_hours(self):
         try:
-            path = "config/operation_hours.json"
-            if os.path.exists(path):
-                with open(path, 'r') as f:
+            if OPERATION_HOURS_PATH.exists():
+                with OPERATION_HOURS_PATH.open('r', encoding='utf-8') as f:
                     data = json.load(f)
                     self.total_operation_hours = data.get("total_operation_hours", 0.0)
         except Exception as e:
@@ -236,8 +238,8 @@ class TimerManager(QObject):
 
     def _save_operation_hours(self):
         try:
-            os.makedirs("config", exist_ok=True)
-            with open("config/operation_hours.json", 'w') as f:
+            OPERATION_HOURS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with OPERATION_HOURS_PATH.open('w', encoding='utf-8') as f:
                 json.dump({
                     "total_operation_hours": round(self.total_operation_hours, 6),
                     "last_update": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
@@ -247,9 +249,8 @@ class TimerManager(QObject):
 
     def _load_cleaning_hours(self):
         try:
-            path = "config/cleaning_hours.json"
-            if os.path.exists(path):
-                with open(path, 'r') as f:
+            if CLEANING_HOURS_PATH.exists():
+                with CLEANING_HOURS_PATH.open('r', encoding='utf-8') as f:
                     data = json.load(f)
                     self.cleaning_hours = data.get("cleaning_hours", 0.0)
         except Exception as e:
@@ -257,8 +258,8 @@ class TimerManager(QObject):
 
     def _save_cleaning_hours(self):
         try:
-            os.makedirs("config", exist_ok=True)
-            with open("config/cleaning_hours.json", 'w') as f:
+            CLEANING_HOURS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with CLEANING_HOURS_PATH.open('w', encoding='utf-8') as f:
                 json.dump({
                     "cleaning_hours": round(self.cleaning_hours, 6),
                     "last_update": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")

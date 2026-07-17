@@ -19,11 +19,12 @@ from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.components.floating_message import FloatingMessage
 from core.variables_map import VARIABLES
 import json
-import os
+from pathlib import Path
+from utilities.platform_runtime import get_runtime_config_path
 import logging
 logger = logging.getLogger(__name__)
 
-PATIENTS_CONFIG_FILE = "config/patients.json"
+PATIENTS_CONFIG_FILE = get_runtime_config_path("patients.json")
 
 class PatientConfigScreen(QWidget):
     """
@@ -52,13 +53,13 @@ class PatientConfigScreen(QWidget):
 
     def _load_patients_from_file(self):
         """Carga pacientes desde archivo JSON"""
-        if not os.path.exists(PATIENTS_CONFIG_FILE):
+        if not PATIENTS_CONFIG_FILE.exists():
             logger.info("No se encontró archivo de pacientes. Se usarán datos de prueba.")
             print("No se encontró archivo de pacientes. Se usarán datos de prueba.")
             return
 
         try:
-            with open(PATIENTS_CONFIG_FILE, 'r', encoding='utf-8') as f:
+            with PATIENTS_CONFIG_FILE.open('r', encoding='utf-8') as f:
                 data = json.load(f)
                 self.patients_db = data
             logger.info(f"Se cargaron {len(self.patients_db)} pacientes desde {PATIENTS_CONFIG_FILE}")
@@ -69,8 +70,8 @@ class PatientConfigScreen(QWidget):
     def _save_patients_to_file(self):
         """Guarda todos los pacientes en JSON"""
         try:
-            os.makedirs(os.path.dirname(PATIENTS_CONFIG_FILE), exist_ok=True)
-            with open(PATIENTS_CONFIG_FILE, 'w', encoding='utf-8') as f:
+            PATIENTS_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with PATIENTS_CONFIG_FILE.open('w', encoding='utf-8') as f:
                 json.dump(self.patients_db, f, indent=4, ensure_ascii=False)
             logger.info(f"Pacientes guardados correctamente ({len(self.patients_db)})")
         except Exception as e:

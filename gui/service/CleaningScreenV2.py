@@ -2,6 +2,7 @@ from enum import Enum, auto
 import logging
 import json
 import os
+from utilities.platform_runtime import get_runtime_config_path
 
 from PySide6.QtWidgets import (
     QWidget, QLabel, QPushButton, QProgressBar, QVBoxLayout, QHBoxLayout,
@@ -15,8 +16,7 @@ from core.state_manager import TreatmentPhase
 
 logger = logging.getLogger(__name__)
 
-CONFIG_DIR = "config"
-CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, "cleaning_config.json")
+CONFIG_FILE_PATH = get_runtime_config_path("cleaning_config.json")
 
 DEFAULT_CONFIG = {
     "modes": {
@@ -57,7 +57,7 @@ class CleaningScreenV2(QWidget):
         self.parent_window = parent
         self.current_values = values_dict or {}
 
-        os.makedirs(CONFIG_DIR, exist_ok=True)
+        CONFIG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
         self.config_data = self._load_config()
 
         self.step = CleaningStep.IDLE

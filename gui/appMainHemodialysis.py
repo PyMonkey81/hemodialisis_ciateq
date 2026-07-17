@@ -117,6 +117,7 @@ from logic.calculos import (
     convertir_ml_min_a_litros_h,
 )
 from utilities.csv_logger import CsvLogger
+from utilities.platform_runtime import get_runtime_config_path
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +127,7 @@ LOCAL_SETPOINT_TAGS = {
     "heparineTherapyMinutes",
 }
 
-THERAPY_CONFIG_PATH = Path(__file__).parent.parent / "config" / "therapy_config.json"
+THERAPY_CONFIG_PATH = get_runtime_config_path("therapy_config.json")
 THERAPY_LOCAL_TAGS = {
     "heparineTherapyHours",
     "heparineTherapyMinutes",

@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, Signal
 import time
 import logging
 import json
-import os
+from utilities.platform_runtime import get_runtime_config_path
 
 from gui.components.floating_message import FloatingMessage # Asumo que esta clase está disponible
 from gui.components.time_numpad_modal import TimeNumpadDialog
@@ -20,7 +20,7 @@ from gui.components.numpad_modal import NumpadDialog # Asegúrate que NumpadDial
 logger = logging.getLogger(__name__)
 
 # Definimos la ruta del archivo de configuración
-CONFIG_FILE_PATH = "config/cleaning_config.json" # Recomiendo usar una subcarpeta 'config'
+CONFIG_FILE_PATH = get_runtime_config_path("cleaning_config.json")
 
 class CleanningConfigScreen(QWidget):
     request_setpoint_change = Signal(str, float)
@@ -183,9 +183,9 @@ class CleanningConfigScreen(QWidget):
         Se llama al iniciar la pantalla de configuración.
         """
         config_data = {}
-        if os.path.exists(CONFIG_FILE_PATH):
+        if CONFIG_FILE_PATH.exists():
             try:
-                with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
+                with CONFIG_FILE_PATH.open('r', encoding='utf-8') as f:
                     config_data = json.load(f)
             except json.JSONDecodeError:
                 logger.error(f"Archivo JSON de configuración corrupto: {CONFIG_FILE_PATH}. Se usará configuración por defecto.")
@@ -217,9 +217,9 @@ class CleanningConfigScreen(QWidget):
     def _display_mode_parameters(self, mode_value: float):
         """Carga el tiempo y temperatura guardados para el mode_value y los muestra en los ClickableLineEdit."""
         config_data = {}
-        if os.path.exists(CONFIG_FILE_PATH):
+        if CONFIG_FILE_PATH.exists():
             try:
-                with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
+                with CONFIG_FILE_PATH.open('r', encoding='utf-8') as f:
                     config_data = json.load(f)
             except json.JSONDecodeError:
                 logger.error(f"Archivo JSON de configuración corrupto: {CONFIG_FILE_PATH}. Usando valores por defecto para mostrar tiempo y temperatura.")
@@ -285,9 +285,9 @@ class CleanningConfigScreen(QWidget):
             "last_active_mode_tag": "DesinftectionMode"
         }
         
-        if os.path.exists(CONFIG_FILE_PATH):
+        if CONFIG_FILE_PATH.exists():
             try:
-                with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
+                with CONFIG_FILE_PATH.open('r', encoding='utf-8') as f:
                     loaded_data = json.load(f)
                     current_config.update(loaded_data)
                     
@@ -317,11 +317,9 @@ class CleanningConfigScreen(QWidget):
 
         # 7. Guardar la configuración completa en el archivo JSON
         try:
-            config_dir = os.path.dirname(CONFIG_FILE_PATH)
-            if config_dir and not os.path.exists(config_dir):
-                os.makedirs(config_dir, exist_ok=True)
+            CONFIG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(CONFIG_FILE_PATH, 'w', encoding='utf-8') as json_file:
+            with CONFIG_FILE_PATH.open('w', encoding='utf-8') as json_file:
                 json.dump(current_config, json_file, indent=4, ensure_ascii=False)
             logger.info(f"Configuración guardada en JSON: {current_config}")
             self.show_success_message("Configuración guardada exitosamente", 2000)
