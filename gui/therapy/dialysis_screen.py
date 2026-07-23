@@ -39,7 +39,7 @@ Dependencias:
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QDateTime, QTimer, Signal
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPainterPath
 import pyqtgraph as pg
 import numpy as np
 from collections import deque
@@ -61,6 +61,98 @@ except ImportError:
     VARIABLES = {0x01: {}, 0x02: {}}
 
 
+class PressureWaveformWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.max_points = 300
+        self.arterial_history = deque([-120.0] * self.max_points, maxlen=self.max_points)
+        self.venous_history = deque([110.0] * self.max_points, maxlen=self.max_points)
+        
+        # Colores idénticos al primer código
+        self.bg_color = QColor("#e1e7ee")    # Fondo azul/negro profundo
+        self.grid_color = QColor("#1e293b")  # Rejilla
+        self.art_color = QColor("#0059ff")   # Cyan brillante (Arterial)
+        self.ven_color = QColor("#ef4444")   # Rojo brillante (Venosa)
+        self.panel_bg = QColor("#2d3e58")    # Fondo del panel de valores
+        
+    def add_values(self, arterial, venous):
+        self.arterial_history.append(arterial)
+        self.venous_history.append(venous)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        width = self.width()
+        height = self.height()
+        
+        # 1. Dibujar fondo total
+        painter.fillRect(0, 0, width, height, self.bg_color)
+        
+        # 2. Dibujar rejilla (Grid)
+        grid_pen = QPen(self.grid_color, 1, Qt.DashLine)
+        painter.setPen(grid_pen)
+        
+        def to_y(val):
+            # Mapeo de presión [-300, 300] mmHg a coordenadas del widget
+            val_clamped = max(-300.0, min(300.0, val))
+            percentage = (val_clamped + 300.0) / 600.0
+            return int(height - 15 - percentage * (height - 30))
+
+        # Líneas de presión de referencia
+        for val in [-200, -100, 0, 100, 200]:
+            y_pos = to_y(val)
+            painter.drawLine(0, y_pos, width, y_pos)
+            painter.setPen(QPen(QColor("#64748b"), 1))
+            painter.drawText(8, y_pos - 4, f"{val} mmHg")
+            painter.setPen(grid_pen)
+            
+        # 3. Dibujar las trayectoria de las ondas
+        # Espacio reservado para el panel derecho (75px)
+        graph_width = width - 85 
+
+        # Onda Arterial (Cyan)
+        art_path = QPainterPath()
+        if len(self.arterial_history) > 1:
+            art_path.moveTo(0, to_y(self.arterial_history[0]))
+            for i, val in enumerate(self.arterial_history):
+                x = int((i / (self.max_points - 1)) * graph_width)
+                art_path.lineTo(x, to_y(val))
+        painter.setPen(QPen(self.art_color, 2))
+        painter.drawPath(art_path)
+        
+        # Onda Venosa (Roja)
+        ven_path = QPainterPath()
+        if len(self.venous_history) > 1:
+            ven_path.moveTo(0, to_y(self.venous_history[0]))
+            for i, val in enumerate(self.venous_history):
+                x = int((i / (self.max_points - 1)) * graph_width)
+                ven_path.lineTo(x, to_y(val))
+        painter.setPen(QPen(self.ven_color, 2))
+        painter.drawPath(ven_path)
+
+        # 4. PANEL DE LEYENDAS DERECHO 
+        right_panel_x = width - 160
+        # painter.fillRect(right_panel_x, 5, 150, height - 20, self.panel_bg)
+        # painter.setPen(QPen(QColor("#8DA0B9"), 1))
+        # painter.drawRect(right_panel_x, 5, 150, height - 20)
+        
+        # Texto de la leyenda - Arterial
+        curr_art = self.arterial_history[-1]
+        painter.setFont(QFont("Consolas", 16, QFont.Bold))
+        painter.setPen(QPen(self.art_color))
+        painter.drawText(right_panel_x + 5, 25, "ART (mmHg)")
+        painter.setFont(QFont("Consolas", 16, QFont.Bold))
+        painter.drawText(right_panel_x + 5, 45, f"{int(curr_art):+4d}")
+        
+        # Texto de la leyenda - Venoso
+        curr_ven = self.venous_history[-1]
+        painter.setFont(QFont("Consolas", 16, QFont.Bold))
+        painter.setPen(QPen(self.ven_color))
+        painter.drawText(right_panel_x + 5, height // 2 + 10, "VEN (mmHg)")
+        painter.setFont(QFont("Consolas", 16, QFont.Bold))
+        painter.drawText(right_panel_x + 5, height // 2 + 30, f"{int(curr_ven):+4d}")
 
 class SimpleValueDisplay(QWidget):
     """
@@ -155,30 +247,32 @@ class DialysisScreen(QWidget):
         layout.setContentsMargins(20, 15, 20, 15)
 
         # ── Área Gráfica ──
-        graphics_container = QWidget()
-        graphics_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        graphics_layout = QGridLayout(graphics_container)
-        graphics_layout.setSpacing(15)
-        graphics_layout.setContentsMargins(5, 5, 5, 5)
+        # graphics_container = QWidget()
+        # graphics_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # graphics_layout = QGridLayout(graphics_container)
+        # graphics_layout.setSpacing(15)
+        # graphics_layout.setContentsMargins(5, 5, 5, 5)
 
-        tick_font = QFont()
-        tick_font.setPixelSize(12)
+        # tick_font = QFont()
+        # tick_font.setPixelSize(12)
 
-        self.pressure_plot = pg.PlotWidget()
-        self.pressure_plot.setBackground("#E0E0E0")
-        self.pressure_plot.setTitle('<span style="font-size: 20pt; color: #020C4B;">Presión Ven vs. Art</span>')
-        self.pressure_plot.setLabel('left', '<span style="font-size: 16pt; color: #020c4b;">Presión (mmHg)</span>')
-        self.pressure_plot.setLabel('bottom', '<span style="font-size: 12pt; color: #000000;">Tiempo (s)</span>')
-        self.pressure_plot.addLegend()
+        # self.pressure_plot = pg.PlotWidget()
+        # self.pressure_plot.setBackground("#E0E0E0")
+        # self.pressure_plot.setTitle('<span style="font-size: 20pt; color: #020C4B;">Presión Ven vs. Art</span>')
+        # self.pressure_plot.setLabel('left', '<span style="font-size: 16pt; color: #020c4b;">Presión (mmHg)</span>')
+        # self.pressure_plot.setLabel('bottom', '<span style="font-size: 12pt; color: #000000;">Tiempo (s)</span>')
+        # self.pressure_plot.addLegend()
 
-        self.curve_venous = self.pressure_plot.plot(pen=pg.mkPen(color=(0, 0, 255), width=2), name="Presión Venosa")
-        self.curve_arterial = self.pressure_plot.plot(pen=pg.mkPen(color=(0, 150, 0), width=2), name="Presión Arterial")
+        # self.curve_venous = self.pressure_plot.plot(pen=pg.mkPen(color=(0, 0, 255), width=2), name="Presión Venosa")
+        # self.curve_arterial = self.pressure_plot.plot(pen=pg.mkPen(color=(0, 150, 0), width=2), name="Presión Arterial")
 
-        self.pressure_plot.getAxis('bottom').setStyle(tickFont=tick_font)
-        self.pressure_plot.getAxis('left').setStyle(tickFont=tick_font)
+        # self.pressure_plot.getAxis('bottom').setStyle(tickFont=tick_font)
+        # self.pressure_plot.getAxis('left').setStyle(tickFont=tick_font)
+        self.pressure_plot = PressureWaveformWidget()
+        layout.addWidget(self.pressure_plot, 0, 0, 4, 4)
 
-        graphics_layout.addWidget(self.pressure_plot, 0, 0, 1, 1)
-        layout.addWidget(graphics_container, 0, 0, 4, 1)
+        # graphics_layout.addWidget(self.pressure_plot, 0, 0, 1, 1)
+        # layout.addWidget(graphics_container, 0, 0, 4, 1)
 
         # ── Botones de Control ──
         buttons_container = QFrame()
@@ -217,7 +311,7 @@ class DialysisScreen(QWidget):
             col = i % 3
             buttons_layout.addWidget(btn, row, col)            
      
-        layout.addWidget(buttons_container, 4, 0, 4, 1)
+        layout.addWidget(buttons_container, 4, 0, 4, 4)
 
         # ── Displays de Parámetros ──
         self.arterial_pressure_display = SimpleValueDisplay("Art", "0", "mmHg", is_critical=True)
@@ -240,23 +334,23 @@ class DialysisScreen(QWidget):
         
 
         # Grid placement
-        layout.addWidget(self.arterial_pressure_display, 0, 1)
-        layout.addWidget(self.remaining_time_display,    0, 2)
-        layout.addWidget(self.venous_pressure_display,   1, 1)
-        layout.addWidget(self.elapsed_time_display,      1, 2)
-        layout.addWidget(self.ptm_display,               2, 1)
-        layout.addWidget(self.uf_target_display,         2, 2)
-        layout.addWidget(self.conductivity_display,      3, 1)
-        layout.addWidget(self.uf_total_display,          3, 2)
-        layout.addWidget(self.blood_flow_display,        4, 1)
-        layout.addWidget(self.uf_rate_display,           4, 2)
-        layout.addWidget(self.dialysate_flow_display,    5, 1)
-        layout.addWidget(self.bolus_display,             5, 2)
-        layout.addWidget(self.temperature_display,       6, 1)
-        layout.addWidget(self.ktv_display,               6, 2)
-        layout.addWidget(self.pt_3_display,             7, 1)
-        layout.addWidget(self.pt_7_display,             7, 2)
-        layout.addWidget(QWidget(), 8, 1)
+        layout.addWidget(self.arterial_pressure_display, 0, 4)
+        layout.addWidget(self.remaining_time_display,    0, 5)
+        layout.addWidget(self.venous_pressure_display,   1, 4)
+        layout.addWidget(self.elapsed_time_display,      1, 5)
+        layout.addWidget(self.ptm_display,               2, 4)
+        layout.addWidget(self.uf_target_display,         2, 5)
+        layout.addWidget(self.conductivity_display,      3, 4)
+        layout.addWidget(self.uf_total_display,          3, 5)
+        layout.addWidget(self.blood_flow_display,        4, 4)
+        layout.addWidget(self.uf_rate_display,           4, 5)
+        layout.addWidget(self.dialysate_flow_display,    5, 4)
+        layout.addWidget(self.bolus_display,             5, 5)
+        layout.addWidget(self.temperature_display,       6, 4)
+        layout.addWidget(self.ktv_display,               6, 5)
+        layout.addWidget(self.pt_3_display,             7, 4)
+        layout.addWidget(self.pt_7_display,             7, 5)
+        layout.addWidget(QWidget(), 8, 4)
 
     def update_values(self, new_values: dict):
         """Update all displayed values."""
@@ -265,13 +359,15 @@ class DialysisScreen(QWidget):
         # Actualizar gráfico
         venous_pressure = self.current_values.get("bloodVenousPressureData", 0.0)
         arterial_pressure = self.current_values.get("bloodArteryPressureData", 0.0)
-        self.venous_pressure_history.append(venous_pressure)
-        self.arterial_pressure_history.append(arterial_pressure)
-        self.curve_venous.setData(self.time_axis, list(self.venous_pressure_history))
-        self.curve_arterial.setData(self.time_axis, list(self.arterial_pressure_history))
-        self.pressure_plot.setXRange(-self.history_length + 1, 0)
+        
+        # self.venous_pressure_history.append(venous_pressure)
+        # self.arterial_pressure_history.append(arterial_pressure)
+        # self.curve_venous.setData(self.time_axis, list(self.venous_pressure_history))
+        # self.curve_arterial.setData(self.time_axis, list(self.arterial_pressure_history))
+        # self.pressure_plot.setXRange(-self.history_length + 1, 0)
 
         
+        self.pressure_plot.add_values(arterial_pressure, venous_pressure)
         # Calculo PTM
         pd_in = self.current_values.get("dialyPresIFProcessData", 0.0)
         pd_out = self.current_values.get("dialyPresOFProcessData", 0.0)
@@ -449,8 +545,5 @@ class DialysisScreen(QWidget):
         
 
     
-
-
-
 
 

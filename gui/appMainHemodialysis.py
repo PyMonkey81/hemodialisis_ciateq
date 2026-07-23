@@ -79,7 +79,7 @@ from connection.conductivity_sensor_comm import PatternConductivity
 from gui.screen_state_manager import ScreenStateManager
 from gui.therapy.main_screen import MainScreen
 from gui.therapy.alarms_screen import AlarmsScreen
-from gui.therapy.dialysis_screen import DialysisScreen
+from gui.therapy.dialysis_screenV2 import DialysisScreen
 from gui.therapy.treatment_mode_screen import TreatmentModeScreen
 from gui.therapy.ktv_screen import KTVScreen
 from gui.service.options_screen import OptionsScreen
@@ -102,8 +102,8 @@ from gui.service.network_config_screen import NetworkConfigScreen
 from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
-from gui.therapy.therapy_config_screen import TherapyConfigScreen
-from gui.therapy.heparin_config_screen import (
+from gui.therapy.therapy_config_screenV2 import TherapyConfigScreen
+from gui.therapy.heparin_config_screenV2 import (
     HeparinConfigScreen,
     HEPARIN_AUTO_STOP_HOURS_TAG,
     HEPARIN_AUTO_STOP_MINUTES_TAG,
@@ -169,22 +169,22 @@ class HemodialysisHMI(QMainWindow):
     INDEX_HOME = 0
 
     BTN_ENABLED_DEFAULT_STYLE = """
-        QPushButton { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 10px; }
+        QPushButton { background: #0f172a; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
         QPushButton:pressed { background: #334155; }
     """
     BTN_ENABLED_START_TREATMENT_STYLE = """
-        QPushButton { background: #39ec21; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 30px;}
+        QPushButton { background: #39ec21; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 8px; font-weight: bold; font-size: 30px;}
         QPushButton:pressed { background: #1e40af; }
     """
     BTN_ENABLED_EXIT_STYLE = """
-        QPushButton { background: #dc2626; color: #ffffff; font-weight: bold; font-size: 30px; border-radius: 10px; }
+        QPushButton { background: #dc2626; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
         QPushButton:pressed { background: #b91c1c; }
     """
     BTN_DISABLED_STYLE = """
-        QPushButton { background: #334155; color: #94a3b8; font-weight: bold; font-size: 30px; border-radius: 10px; }
+        QPushButton { background: #334155; color: #94a3b8; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
     """
     BTN_ACTIVE_STYLE = """
-        QPushButton { background: #3b82f6; color: white; font-weight: bold; font-size: 30px; border-radius: 10px; border: 2px solid #60a5fa;}
+        QPushButton { background: #3b82f6; color: white; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; border: 2px solid #60a5fa;}
         QPushButton:pressed { background: #1e40af; }
     """
     QMESSAGEBOX_GLOBAL_STYLE = """
