@@ -1,3 +1,4 @@
+from packaging.tags import logger
 import serial
 import serial.tools.list_ports
 import threading
@@ -152,6 +153,9 @@ class BiozTester:
                 self.running = False
                 break
 
+
+
+        
     def _parse_line(self, line: str):
         """
         Analiza las líneas recibidas del dispositivo.

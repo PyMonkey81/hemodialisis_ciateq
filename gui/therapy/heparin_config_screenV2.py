@@ -182,16 +182,16 @@ class HeparinConfigScreen(QWidget):
         bolus_layout.addLayout(h)
 
         # Flujo bolo
-        h = QHBoxLayout()
-        flujo_label = QLabel("Flujo Bolo Heparina (ml/h):")
-        flujo_label.setStyleSheet(label_style)
-        h.addWidget(flujo_label)
-        self.flow_combo = QComboBox()
-        self.flow_combo.addItems(["1.0", "2.0", "3.0", "4.0"])
-        self.flow_combo.setStyleSheet(combo_style)
-        self.flow_combo.currentIndexChanged.connect(self._on_flujo_changed)
-        h.addWidget(self.flow_combo)
-        bolus_layout.addLayout(h)
+        # h = QHBoxLayout()
+        # flujo_label = QLabel("Flujo Bolo Heparina (ml/h):")
+        # flujo_label.setStyleSheet(label_style)
+        # h.addWidget(flujo_label)
+        # self.flow_combo = QComboBox()
+        # self.flow_combo.addItems(["1.0", "2.0", "3.0", "4.0"])
+        # self.flow_combo.setStyleSheet(combo_style)
+        # self.flow_combo.currentIndexChanged.connect(self._on_flujo_changed)
+        # h.addWidget(self.flow_combo)
+        # bolus_layout.addLayout(h)
         bolus_layout.addStretch(1)  # para centrar verticalmente los campos
 
         layout.addWidget(bolus_card, 0, 0)
@@ -264,6 +264,8 @@ class HeparinConfigScreen(QWidget):
             lbl.setMinimumHeight(50)   # consistencia
             h.addWidget(lbl)
 
+
+
             if "input_" in widget_name:
                 w = ClickableLineEdit("0.0" if "auto_stop" not in widget_name else "00:00")
                 w.setFixedSize(130, 52)
@@ -273,8 +275,8 @@ class HeparinConfigScreen(QWidget):
                 
                 if "auto_stop" in widget_name:
                     w.clicked.connect(
-                        lambda w=w: self.open_time_numpad(
-                            w, HEPARIN_AUTO_STOP_HOURS_TAG, 
+                        lambda wd=w: self.open_time_numpad(
+                            wd, HEPARIN_AUTO_STOP_HOURS_TAG, 
                             HEPARIN_AUTO_STOP_MINUTES_TAG, "Paro automático heparina"
                         )
                     )
@@ -327,7 +329,7 @@ class HeparinConfigScreen(QWidget):
                 self.parent_window.current_values["dialyHeparineBolusFlow"] = flujo_value
             self.on_user_input_setpoint("dialyHeparineBolusFlow", flujo_value)
 
-    def _on_flow_hep_changed(self, index):  #validar el tag correcto para el flujo de heparina
+    def _on_flow_hep_changed(self, index):  #validar el tag correcto para el flujo de heparina NO EXISTE AUN 
         self._selected_heparin_flow_index = index
         if hasattr(self, "heparin_flow_combo") and self.heparin_flow_combo is not None:
             flujo_value = float(self.heparin_flow_combo.currentText())
@@ -335,15 +337,6 @@ class HeparinConfigScreen(QWidget):
             if self.parent_window and hasattr(self.parent_window, "current_values"):
                 self.parent_window.current_values["heparineTherapyFlow"] = flujo_value
             self.on_user_input_setpoint("heparineTherapyFlow", flujo_value)
-
-    # def _on_syringe_changed(self, index):
-    #     self._selected_syringe_index = index
-    #     if hasattr(self, "syringe_combo") and self.syringe_combo is not None:
-    #         syringe_value = self.syringe_combo.currentText()
-    #         self.current_values["heparineSyringeSize"] = syringe_value
-    #         if self.parent_window and hasattr(self.parent_window, "current_values"):
-    #             self.parent_window.current_values["heparineSyringeSize"] = syringe_value
-    #         self.on_user_input_setpoint("heparineSyringeSize", syringe_value)  # agregar tag correcto para el tamaño de 
 
 
     def _on_syringe_changed(self, index):
@@ -398,18 +391,11 @@ class HeparinConfigScreen(QWidget):
                         syringe_text = self.syringe_combo.currentText() # "10 ml"
                         syringe_max_vol = float(syringe_text.split()[0]) # Tomar el número "10"
                         
-                        # 2. Calcular la resta: Capacidad - Valor escrito
-                        # Si jeringa es 10 y escribo 7, el resultado es 3.
-                        calculated_val = syringe_max_vol - float_val
-                        
-                        # Evitar valores negativos por error de usuario
-                        if calculated_val < 0:
-                            calculated_val = 0.0
-                            
-                        float_val = calculated_val
-                        logger.info(f"Cálculo Jeringa: {syringe_max_vol} - {new_value} = {float_val}")
+                        # 2. Enviar primero tamaño de jeringa 
+                        self.on_user_input_setpoint("heparineSyringeSize", syringe_max_vol)                        
+                        logger.info(f"Tamaño de jeringa seleccionado: {syringe_max_vol} ml")
                     except Exception as e:
-                        logger.error(f"Error calculando volumen de jeringa: {e}")
+                        logger.error(f"Error leyendo tamaño de jeringa: {e}")
 
                 # Actualizar UI y Diccionarios
                 input_widget.setText(f"{float_val:.1f}")
@@ -508,6 +494,22 @@ class HeparinConfigScreen(QWidget):
         auto_h = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
         auto_m = int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0) or 0)
         self.input_heparin_auto_stop.setText(f"{auto_h:02d}:{auto_m:02d}")
+
+        variables_to_update = {
+            "heparineSyringeSize": self.syringe_combo,
+            "heparineSyringeVolume": self.input_vol_hep
+        }
+
+        for tag, widget in variables_to_update.items():
+            if tag in new_values:
+                value = new_values[tag]
+                if isinstance(widget, QComboBox):
+                    # Para combobox, buscar el índice que coincide con el valor
+                    index = widget.findText(f"{value:.1f}")
+                    if index != -1:
+                        widget.setCurrentIndex(index)
+                elif isinstance(widget, ClickableLineEdit):
+                    widget.setText(f"{value:.1f}")
 
     def apply_bolus(self):
         self.on_user_boolean_command("heparinApplyBolusDose", True)

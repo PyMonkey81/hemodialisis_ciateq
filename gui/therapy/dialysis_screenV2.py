@@ -356,7 +356,7 @@ class DialysisScreen(QWidget):
 
         # Presion arterial 
         art_p_layout = QHBoxLayout()
-        art_p_label = QLabel("Presión Arterial (AP):")
+        art_p_label = QLabel("ART:")
         art_p_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         art_p_layout.addWidget(art_p_label)
         self.art_p_value = QLabel("-120 mmHg")
@@ -367,7 +367,7 @@ class DialysisScreen(QWidget):
 
         #presion venosa
         ven_p_layout = QHBoxLayout()
-        ven_p_label = QLabel("Presión Venosa (VP):")
+        ven_p_label = QLabel("VEN:")
         ven_p_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         ven_p_layout.addWidget(ven_p_label)
         self.ven_p_value = QLabel("-80 mmHg")
@@ -432,7 +432,7 @@ class DialysisScreen(QWidget):
 
         # Flujo de Dializado (DFR)
         dfr_layout = QHBoxLayout()
-        dfr_label = QLabel("Flujo Dializado (DFR):")
+        dfr_label = QLabel("Flujo Dializado:")
         dfr_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         dfr_layout.addWidget(dfr_label)
         self.dfr_val_label = QLabel("500 mL/min")
@@ -443,7 +443,7 @@ class DialysisScreen(QWidget):
 
         # Presión Transmembrana (TMP)
         tmp_layout = QHBoxLayout()
-        tmp_label = QLabel("P. Transmembrana (TMP):")
+        tmp_label = QLabel("P. Transmembrana:")
         tmp_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         tmp_layout.addWidget(tmp_label)
         self.tmp_val = QLabel("85 mmHg")

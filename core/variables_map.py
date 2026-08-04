@@ -174,7 +174,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x01: {"name": "Ajuste de tiempo de ciclo de cámara de balance", "label": "TIEMPO CICLO", "type": "double", "rw": True, "unit": "s", "limites": (0, 100), "tag": "balanceChamberSetTiming", "nivel": "cian"}, # 8
         0x02: {"name": "Tiempo auto-paro heparina: horas", "label": "T. HEP (H)", "type": "double", "rw": True, "unit": "h", "limites": (0, 10), "tag": "heparineAutoStopHours", "nivel": "cian"},         # 9
         0x03: {"name": "Tiempo auto-paro heparina: minutos", "label": "T. HEP (M)", "type": "double", "rw": True, "unit": "m", "limites": (0, 59), "tag": "heparineAutoStopMinutes", "nivel": "cian"},    # 10
-        0x04: {"name": "Tamaño de escala de jeringa", "label": "ESC. JERINGA", "type": "double", "rw": True, "unit": "mm/ml", "limites": (1, 10), "tag": "heparineSyrinjeScaleSize", "nivel": "cian"},      # 11
+        0x04: {"name": "Tamaño de escala de jeringa", "label": "ESC. JERINGA", "type": "double", "rw": True, "unit": "mm/ml", "limites": (1, 10), "tag": "heparineSyringeSize", "nivel": "cian"},      # 11
         0x05: {"name": "Dosis de heparina por terapia ml/h", "label": "DOSIS HEPAR", "type": "double", "rw": True, "unit": "ml/h", "limites": (0, 50), "tag": "heparineTherapyDosage", "nivel": "cian"},   # 12
         0x06: {"name": "Cantidad de bolo", "label": "CANT. BOLO", "type": "double", "rw": True, "unit": "ml", "limites": (0, 10), "tag": "heparineBolusQuantity", "nivel": "cian"},                       # 13
         0x07: {"name": "Ajuste de velocidad de bomba bicarbonato", "label": "VEL BICARB", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "bicarbonatePumpSpeed", "nivel": "cian"},# 14
@@ -207,8 +207,8 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x13: {"name": "Tiempo adelanto Feedforward flujo", "label": "T. ADELANTO FF", "type": "double", "rw": True, "unit": "s", "limites": (0, 10), "tag": "bloodFlowFeedForwardLead", "nivel": "cian"},     # 35
         0x14: {"name": "Setpoint flujo dializante", "label": "SP FLUJO DIAL", "type": "double", "rw": True, "unit": "ml/min", "limites": (300, 800), "tag": "dialyFlowControlOutput", "nivel": "cian"},       # 36
         0x15: {"name": "Salida bomba de purga", "label": "OUT B.PURGA", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyDeaerControlOutput", "nivel": "cian"},                # 37
-        0x16: {"name": "Selector de flujo de heparina", "label": "BOLUS_FLOW", "type": "double", "rw": True, "unit": "", "limites": (0,4), "tag": "dialyHeparineBolusFlow", "nivel": "cian"},           # 38
-        0x17: {"name": "Posición inicial de jeringa", "label": "POS. INI. JER.", "type": "double", "rw": True, "unit": "", "limites": (0, 30), "tag": "heparineSyringeVolume", "nivel": "cian"},           # 39
+        0x16: {"name": "Posición inicial de jeringa", "label": "POS. INI. JER.", "type": "double", "rw": True, "unit": "", "limites": (0,4), "tag": "heparineSyringeVolume", "nivel": "cian"},           # 38
+        0x17: {"name": "Parámetro control variable 2", "label": "PARAM VAR 2", "type": "double", "rw": True, "unit": "", "limites": (0, 30), "tag": "variableCtrlParamData2", "nivel": "cian"},           # 39
         0x18: {"name": "Parámetro control variable 3", "label": "PARAM VAR 3", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData3", "nivel": "cian"},           # 40
         0x19: {"name": "Parámetro control variable 4", "label": "PARAM VAR 4", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData4", "nivel": "cian"},           # 41
         0x1A: {"name": "Parámetro control variable 5", "label": "PARAM VAR 5", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData5", "nivel": "cian"},           # 42
@@ -290,6 +290,10 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     0x0B: {
         0x00: {"name": "Horas de aplicacion de bolo", "label": "BOLUS_HOURS", "type": "int", "rw": True, "unit": None, "limites": (0, 24), "tag": "heparinApplyHours", "nivel": "cian"},
         0x01: {"name": "Minutos de aplicacion de bolo", "label": "BOLUS_MIN", "type": "int", "rw": True, "unit": None, "limites": (0, 59), "tag": "heparinApplyMinutes", "nivel": "cian"}, 
+    },
+    0x0C: {
+        0x00: {"name": "Mega conductivity sensor", "label": "MEGA_CONDUCTIVITY", "type": "double", "rw": True, "unit": "mS/cm","limites": (0, 20), "tag": "megaCondSensor", "nivel":"cian"},
+        0x01: {"name": "Mega temperature sensor", "label": "MEGA_TEMPERATURE", "type": "double", "rw": True, "unit": "°C","limites": (0, 100), "tag": "megaTempSensor", "nivel":"cian"},
     }
 }
 

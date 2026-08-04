@@ -185,7 +185,7 @@ class ConductivityBar(QWidget):
         # === Título ===
         painter.setPen(QPen(QColor("#141313")))
         painter.setFont(QFont("Segoe UI", 16, QFont.Bold))
-        painter.drawText(0, 30, w, 30, Qt.AlignCenter, "Conductividad")
+        painter.drawText(0, 30, w, 30, Qt.AlignCenter, "Cond.")
         
         painter.end()
 

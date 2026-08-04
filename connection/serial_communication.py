@@ -256,7 +256,7 @@ class SerialCommunication(QObject):
                     self._close_port_resource()
                     continue
 
-                time.sleep(0.05)  # Prevent CPU overload
+                time.sleep(0.25)  # Prevent CPU overload
 
             except Exception as e:
                 if self.running:

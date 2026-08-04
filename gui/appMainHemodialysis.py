@@ -63,6 +63,7 @@ from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCur
 from PySide6.QtGui import QPixmap
 
 # === MODULES ===
+from connection.mega_conductivity_sensor import MegaConductivitySensor
 from core.alarms import AlarmSystem
 from core.alarm_config_manager import AlarmConfigManager
 from core.state_manager import AppStateManager, TreatmentPhase
@@ -75,6 +76,7 @@ from connection.serial_communication import SerialCommunication
 from connection.led_bar_controller import LedBarController
 from connection.bioz_urea_controller import BiozUreaController
 from connection.conductivity_sensor_comm import PatternConductivity
+
 
 from gui.screen_state_manager import ScreenStateManager
 from gui.therapy.main_screen import MainScreen
@@ -390,6 +392,12 @@ class HemodialysisHMI(QMainWindow):
         self.pattern_sensor = PatternConductivity()
         self.pattern_sensor.data_received.connect(self.on_pattern_data)
         self.pattern_sensor.start()
+
+
+        # Sensor de conductividad vía Arduino Mega
+        self.mega_cond_sensor = MegaConductivitySensor()
+        self.mega_cond_sensor.data_received.connect(self.on_mega_cond_data)
+        self.mega_cond_sensor.start_reading()
      
         # ====================== CONFIGURACIÓN DE ALARMAS (Nueva Arquitectura) ======================
         
@@ -621,22 +629,6 @@ class HemodialysisHMI(QMainWindow):
             else:
                 self.state.reset_to_idle(reason)
             return        
-        
-        # if status_code == 13:
-        #     self.state.set_phase(TreatmentPhase.READY, reason)
-        #     self.screen_state_manager.update_all_screens(TreatmentPhase.READY)
-        # elif status_code == 14:
-        #     self.state.set_phase(TreatmentPhase.RUNNING, reason)
-        #     self.screen_state_manager.update_all_screens(TreatmentPhase.RUNNING)
-        # elif status_code == 15:
-        #     self.state.set_phase(TreatmentPhase.PAUSED, reason)
-        #     self.screen_state_manager.update_all_screens(TreatmentPhase.PAUSED)
-        # elif status_code in [2, 3, 4, 5, 6, 7,8,9,10,11,12]:
-        #     self.state.set_phase(TreatmentPhase.PREPARING, reason)
-        #     self.screen_state_manager.update_all_screens(TreatmentPhase.PREPARING)
-        # else:
-        #     self.state.set_phase(TreatmentPhase.IDLE, "Sincronización inicial - Sin actividad")
-        #     self.screen_state_manager.update_all_screens(TreatmentPhase.IDLE)
         if status_code == 13:
              self.state.set_phase(TreatmentPhase.READY, reason)
              self.screen_state_manager.update_all_screens(TreatmentPhase.READY)
@@ -766,7 +758,7 @@ class HemodialysisHMI(QMainWindow):
         right_inner_layout.setContentsMargins(0, 0, 0, 0)
         right_inner_layout.setSpacing(0)
 
-        self.dialysate_temp_gauge = TankGauge("Temp.\nDial", 0, 50, "°C", "#A31A1A")
+        self.dialysate_temp_gauge = TankGauge("Temp.", 0, 50, "°C", "#A31A1A")
         self.conductivity_bar = ConductivityBar()
 
         self.dialysate_temp_gauge.setFixedWidth(180)
@@ -2024,149 +2016,6 @@ class HemodialysisHMI(QMainWindow):
     def show_error_message(self, text: str, timeout_ms: int = 5000):
         self._get_or_create_floating_msg().show_error_message(text, timeout_ms)
     
-    #====================== Calculo de KTV ============================
-    # def ktv_meassurement(self):
-    #     if hasattr(self, "ktv_controller"):
-    #         self.ktv_controller.start()    
-            
-    # # def ktv_meassurement(self):
-    # #     """
-    # #     Secuencia completa para medir Kt/V:
-    # #     1. Leer Bioimpedancia (SRTB)
-    # #     2. Capturar conductividades t1
-    # #     3. Cambiar conductividad de la máquina
-    # #     4. Capturar conductividades t2
-    # #     5. Calcular Kt/V con fórmula de Heitmann
-    # #     """      
-    # #     if not hasattr(self, 'bioz_urea_controller') or not self.bioz_urea_controller:
-    # #         logger.warning("Controlador BioZ/Urea no disponible, omitiendo medición Kt/V")
-    # #         return
-    # #     if not self.bioz_urea_controller._is_enabled: # Usar la variable interna _is_enabled
-    # #         logger.warning("Controlador BioZ/Urea deshabilitado, omitiendo medición Kt/V")
-    # #         return
-
-    # #     logger.info("[Kt/V] Iniciando ciclo completo de medición...")
-    # #     self.current_values["ktv_projectado"] = 0.0
-    # #     self.calculadora_ktv.reset() # Limpiar cualquier dato de medición anterior
-
-    # #     # NO resetear ktv_acumulado si ya existe un valor (tratamiento en curso)
-    # #     if "ktv_acumulado" not in self.current_values or self.current_values["ktv_acumulado"] == 0.0:
-    # #         self.current_values["ktv_acumulado"] = 0.0
-
-    # #     # 0. Guardar la conductividad inicial actual de la máquina
-    # #     self._original_conductivity_setpoint = self.current_values.get("dialyCondControlSetPoint", 13.5)
-    # #     logger.info(f"[Kt/V] Conductividad inicial de la máquina guardada: {self._original_conductivity_setpoint:.2f} mS/cm")
-
-    # #     # 1. Enviar comando de Bioimpedancia
-    # #     self.bioz_urea_controller.send_command("SRTB")
-    # #     logger.info("[Kt/V] Comando 'SRTB' enviado. Esperando datos de Bioimpedancia...")
-
-        
-    # #     self.show_info_message("iniciando medición de Kt/V...", timeout_ms=2000 )        
-    # #     # Programar el siguiente paso después de un tiempo para que BIA se complete
-    # #     QTimer.singleShot(5000, self._urea_measurement)
-
-
-    # def _urea_measurement(self):
-    #     """Paso 1: Medición de Urea después de BIA."""
-    #     logger.info("[Kt/V] Paso 1: Enviando comando 'SRTU' para Urea...")
-    #     self.bioz_urea_controller.send_command("SRTU")        
-    #     QTimer.singleShot(2000, self._measure_conductivity_t1) # Dar 2 segundos para Urea
-
-    # def _capture_t1_values(self):
-    #     """Paso 2: Capturar conductividades en tiempo 1 (Cd_inicial)."""
-    #     logger.info("[Kt/V] Paso 2: Capturando conductividades T1 (iniciales)...")
-    #     cd_in_t1 = self.current_values.get("dialyConductIFProcessData", 0.0) # Conductividad EF
-    #     cd_out_t1 = self.current_values.get("dialyConductOFProcessData", 0.0) # Conductividad SF
-    #     temp_t1 = self.current_values.get("dialyTempIFProcessData", 25.0) # Tempetura EF
-    #     self.calculadora_ktv.store_conductivity_t1(cd_in_t1, cd_out_t1, temp_t1)
-
-    #     # 3. Cambiar la conductividad del dializado
-    #     self._original_conductivity_setpoint = self.current_values.get("dialyCondControlSetPoint", 13.5) # Guardar el valor original para restaurar después
-    #     self._step_conductivity_value = 1.0
-    #     new_conductivity_target =  self._original_conductivity_setpoint + self._step_conductivity_value
-    #     self._write_setpoint("dialyCondControlSetPoint", new_conductivity_target)
-    #     logger.info(f"[Kt/V] Conductividad de la máquina cambiada a {new_conductivity_target:.2f} mS/cm. Esperando estabilización...")
-    #     self._conductivity_stabilization_time = 120000
-        
-    #     # Programar la segunda medición (t2) después de un tiempo de estabilización
-    #     QTimer.singleShot(self._conductivity_stabilization_time, self._measure_conductivity_t2)
-
-
-    # def _capture_t2_values(self):
-    #     """Paso 3: Capturar conductividades en tiempo 2 (Cd_paso)."""
-    #     logger.info("[Kt/V] Paso 3: Capturando conductividades T2 (con paso)...")
-    #     cd_in_t2 = self.current_values.get("dialyConductIFProcessData", 0.0)
-    #     cd_out_t2 = self.current_values.get("dialyConductOFProcessData", 0.0)
-    #     temp_t2 = self.current_values.get("dialyTempIFProcessData", 25.0)
-    #     self.calculadora_ktv.store_conductivity_t2(cd_in_t2, cd_out_t2, temp_t2)
-
-    #     # CRUCIAL: 4. Restaurar la conductividad del dializado a su valor original
-    #     self._write_setpoint("dialyCondControlSetPoint", self._original_conductivity_setpoint)
-    #     logger.info(f"[Kt/V] Restaurando conductividad de la máquina a {self._original_conductivity_setpoint:.2f} mS/cm. Esperando estabilización...")
-    #     self._conductivity_stabilization_time = 120000
-    #     # Programar el cálculo final de Kt/V después de que el sistema se haya restaurado
-    #     # El cálculo no necesita esperar, pero es buena práctica darle tiempo a la máquina.
-    #     QTimer.singleShot(self._conductivity_stabilization_time, self._calculate_ktv)
-
-
-    # def _calculate_ktv(self):
-    #     """Paso 4: Realizar el cálculo final de Kt/V y procesar resultados."""
-    #     logger.info("[Kt/V] Paso 4: Realizando cálculo final de Kt/V...")
-
-   
-    #     # Obtener valores necesarios para la fórmula de Kt/V (Qd, Qf, Qb, t_min, etc.)
-    #     qd = self.current_values.get("balanceChamberSetTiming", 500) # revisar las varaibles 
-    #     qf = self.current_values.get("ultraFilterPumpSpeed", 10)
-    #     qb = self.current_values.get("bloodFlowVariableData", 300) # flujo de sangre
-    #     t_min = self.current_values.get("heparineTherapyHours", 4) * 60 + \
-    #             self.current_values.get("heparineTherapyMinutes", 0) # Tiempo transcurrido en minutos
-    #     # Obtener el volumen (V)
-    #     z_resistencia = self.current_values.get("bioz_resistance", 0.0)
-    #     print(f"Valor de resistencia (Z) para cálculo de V: {z_resistencia:.2f} Ohmios")
-        
-    #     # Por ahora, un placeholder. Deberías calcular V con z_resistencia.
-    #     self.peso = self.current_values.get("patient_pre_weight_kg", 70)
-    #     self.altura = self.current_values.get("patient_height_cm", 170)
-    #     self.edad = self.current_values.get("patient_age", 40)
-    #     self.genero = self.current_values.get("patient_gender", 1) # "M" o "F"
-
-    #      # Variable temporal exclusiva para Heitmann (1 = Hombre, 0 = Mujer)
-    #     genero_heitmann = 0 if self.genero == 2 else 1
-
-    #     # v_bis_litros = self._calculate_heitmann_volume(z_resistencia, self.altura, self.peso, genero_heitmann, self.edad) 
-    #     v_bis_litros = heitmann(z_resistencia, self.altura, self.peso, genero_heitmann, self.edad) 
-    #     print(f"litros: {v_bis_litros}")
-    #     self.current_values["heitmann_value"] = v_bis_litros
-
-    #     if v_bis_litros and v_bis_litros > 0:
-    #         self.calculadora_ktv.set_volumen_bioimpedancia(v_bis_litros)
-    #     else:
-    #         # Fallback a fórmula antropométrica (Watson) si la bioimpedancia falló o no dio un valor válido
-    #         self.calculadora_ktv.config_paciente(self.peso, self.altura, self.edad, self.genero)
-
-    #     print(f"peso={self.peso} kg, altura={self.altura} cm, edad={self.edad} años, genero={self.genero} → V = {self.calculadora_ktv.volumen_distribucion_v/1000:.2f} L")
-        
-
-    #     #tiempo total programado para calculo de kt/v proyectado
-    #     t_programmed_min = (self.current_values.get("heparineTherapyHours", 0) * 60 + 
-    #                         self.current_values.get("heparineTherapyMinutes", 0))
-    #     t_elapsed_min = self._current_elapsed_therapy_min
-
-        
-    #     # Cálculo de Kt/V Proyectado (usando el tiempo total programado)
-    #     ktv_projected = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_programmed_min)
-    #     ktv_accumulated = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_elapsed_min)
-
-    #     # Persistencia centralizada de datos calculados
-    #     self.current_values["ktv_projectado"] = ktv_projected
-    #     self.current_values["ktv_acumulado"] = ktv_accumulated
-
-    #     logger.info(f"[Kt/V Finalizado] Proyectado: {ktv_projected:.2f} | Acumulado: {ktv_accumulated:.2f}")
-    #     self.show_success_message(f"Kt/V Acumulado: {ktv_accumulated:.3f}", 2500)
-
-
-    #========================= Fin de calculo de ktv===============================
 
     def update_connection_status(self):
         """
@@ -2270,6 +2119,12 @@ class HemodialysisHMI(QMainWindow):
                 self.pattern_sensor.stop()
             except Exception as e:
                 logger.error(f"Error deteniendo sensor patrón: {e}")
+
+        if hasattr(self, 'mega_cond_sensor') and self.mega_cond_sensor:
+            try:
+                self.mega_cond_sensor.stop()
+            except Exception as e:
+                logger.error(f"Error deteniendo sensor Mega: {e}")
                 
         logger.info("[INFO] Secuencia de apagado completo finalizada.")
         self._shutdown_done = True
@@ -2512,6 +2367,24 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
 
+    # Código de prueba para el sensor de Conductividad (MegaCond)
+    def on_mega_cond_data(self, tag: str, value: float):
+        """Recibe datos del sensor de conductividad vía Arduino Mega."""
+        mapping = {
+            "megaCondSensor": (0x0C, 0x00),
+            "megaTempSensor": (0x0C, 0x01),
+        }
+
+        if tag in mapping:
+            g, id_ = mapping[tag]
+            VARIABLES[g][id_]["value"] = value
+
+        self.current_values[tag] = value
+
+        current_widget = self.screen_stack.currentWidget()
+        if hasattr(current_widget, "update_values"):
+            current_widget.update_values(self.current_values)
+
     def handle_comm_config_change(self, sensor_id, port, is_enabled):
         if sensor_id == "MAIN_CONTROL":
             self.serial_comm.update_config(port, is_enabled)
@@ -2520,7 +2393,9 @@ class HemodialysisHMI(QMainWindow):
         elif sensor_id == "CONDUCTIVITY":
             self.pattern_sensor.update_config(port, is_enabled)
             logger.info(f"Sensor Conductividad: Puerto={port}, Habilitado={is_enabled}")
-            
+        elif sensor_id == "MEGA_CONDUCTIVITY":
+            self.mega_cond_sensor.update_config(port, is_enabled)
+            logger.info(f"Sensor Conductividad MEGA: Puerto={port}, Habilitado={is_enabled}")
         elif sensor_id == "BIOZ":
             self.bioz_urea_controller.update_config(port, is_enabled)
             logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}")

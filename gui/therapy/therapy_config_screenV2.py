@@ -277,19 +277,19 @@ class TherapyConfigScreen(QWidget):
 
             # Conexiones
             if widget == self.input_blood_flow:
-                widget.clicked.connect(lambda: self.open_numpad(tag, widget, numpad_title))
-            elif widget == self.input_temperature:
-                widget.clicked.connect(lambda: self.open_numpad(tag, widget, numpad_title))
-            elif widget == self.input_conductivity:
-                widget.clicked.connect(lambda: self.open_numpad(tag, widget, numpad_title))
+                widget.clicked.connect(lambda t=tag, w=widget, n=numpad_title: self.open_numpad(t, w, n))            
             elif widget == self.input_dialysate_flow:
                 widget.clicked.connect(self._handle_cb_flow_input)
             elif widget == self.lbl_input_UF:
                 widget.clicked.connect(self._handle_uf_flow_input)
+            elif widget == self.input_temperature:
+                widget.clicked.connect(lambda t=tag, w=widget, n=numpad_title: self.open_numpad(t, w, n))
+            elif widget == self.input_conductivity:
+                widget.clicked.connect(lambda t=tag, w=widget, n=numpad_title: self.open_numpad(t, w, n))
             elif widget == self.input_duration:
                 widget.clicked.connect(
                     lambda w=widget: self.open_time_numpad(
-                        w, "heparineTherapyHours", "heparineTherapyMinutes", "Tiempo de terapia"
+                        w, "heparineTherapyHours", "heparineTherapyMinutes", "Tiempo de Terapia (hh:mm)"
                     )
                 )
 
