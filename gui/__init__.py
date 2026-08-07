@@ -1,9 +1,11 @@
 # gui/__init__.py
 from .therapy.main_screen import MainScreen
-from .therapy.dialysis_screen import DialysisScreen
+from .therapy.dialysis_screenV2 import DialysisScreen
 from .therapy.patient_config_screen import PatientConfigScreen
-from .therapy.heparin_config_screen import HeparinConfigScreen
-from .therapy.therapy_config_screen import TherapyConfigScreen
+
+from .therapy.heparin_config_screenV2 import HeparinConfigScreen
+
+from .therapy.therapy_config_screenV2 import TherapyConfigScreen
 from .therapy.treatment_mode_screen import TreatmentModeScreen
 
 from .service.options_screen import OptionsScreen

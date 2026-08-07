@@ -276,9 +276,9 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x08: {"name": "patient_heitmann", "label": "VOLUMEN DE AGUA", "type": "double","rw": True,"unit": "ml","limites": (0.0, 10.0),"tag": "heitmann_value","nivel": "cian"},
     },
     0x09: {
-        0x00: {"name": "pattern conductivity sensor", "label": "PATTERN_CONDUCTIVITY", "type": "double", "rw": True, "unit": "mS/cm","limites": (0, 20), "tag": "patternCondSensor", "nivel":"cian"},
+        0x00: {"name": "pattern conductivity sensor", "label": "PATTERN_CONDUCTIVITY", "type": "double", "rw": True, "unit": "mS/cm","limites": (0, 20), "tag": "patternCondRaw", "nivel":"cian"},
         0x01: {"name": "pattern temperature sensor", "label": "PATTERN_TEMPERATURE", "type": "double", "rw": True, "unit": "°C","limites": (0, 100), "tag": "patternTempSensor", "nivel":"cian"},
-        0x02: {"name": "pattern conductivity raw","label": "PATTERN_CONDUCTIVITY_RAW","type": "double","rw": True,"unit": "mS/cm","limites": (0, 50), "tag": "patternCondRaw","nivel": "cian","value": 0.0,"description": "Conductividad sin compensación de temperatura (debug/calibración)" },
+        0x02: {"name": "pattern conductivity raw","label": "PATTERN_CONDUCTIVITY_RAW","type": "double","rw": True,"unit": "mS/cm","limites": (0, 50), "tag": "patternCondSensor","nivel": "cian","value": 0.0,"description": "Conductividad sin compensación de temperatura (debug/calibración)" },
     },
     0x0A: {
         0x00: {"name": "Desinfection Mode", "label": "DESINFECTION_MODE", "type": "int", "rw": True, "unit": "", "limites": None, "tag": "DesinftectionMode", "nivel": "cian"},

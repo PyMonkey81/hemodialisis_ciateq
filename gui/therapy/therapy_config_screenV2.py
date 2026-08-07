@@ -180,6 +180,37 @@ class TherapyConfigScreen(QWidget):
             }}
         """
 
+        self.profile_btn_style = """
+            QPushButton {
+                background: #0f172a;
+                color: #ffffff;
+                font-weight: bold;
+                font-size: 20px;
+                border-radius: 12px;
+                border: 2px solid #1e293b;
+                min-height: 48px;
+                padding: 4px 12px;
+            }
+            QPushButton:pressed {
+                background: #334155;
+            }
+        """
+        self.profile_btn_active_style = """
+            QPushButton {
+                background: #16a34a;
+                color: #ffffff;
+                font-weight: bold;
+                font-size: 20px;
+                border-radius: 12px;
+                border: 2px solid #14532d;
+                min-height: 48px;
+                padding: 4px 12px;
+            }
+            QPushButton:pressed {
+                background: #15803d;
+            }
+        """
+
         # ===================== CARD 1: Bomba de Sangre =====================
         blood_card = QFrame()
         blood_card.setObjectName("card")
@@ -300,6 +331,16 @@ class TherapyConfigScreen(QWidget):
 
             row.addWidget(widget)
             params_layout.addLayout(row)
+
+            if widget == self.input_conductivity:
+                profile_row = QHBoxLayout()
+                profile_row.addStretch(1)
+                self.btn_conductivity_profile = PushbuttonEvent("Perfil de Conductividad", self)
+                self.btn_conductivity_profile.setFixedWidth(320)
+                self.btn_conductivity_profile.setStyleSheet(self.profile_btn_style)
+                self.btn_conductivity_profile.pressed.connect(self._on_open_conductivity_profile)
+                profile_row.addWidget(self.btn_conductivity_profile)
+                params_layout.addLayout(profile_row)
 
         params_layout.addStretch(1)
 
@@ -534,6 +575,7 @@ class TherapyConfigScreen(QWidget):
         self._update_input_display(self.lbl_input_UF, self.current_values.get("ultraFilterPumpSpeed", 0.0))
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
         self._update_bloop_pump_controls_state()
+        self._refresh_conductivity_profile_button()
         
         if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'state'):
             self.update_state(self.parent_window.state.current_phase)
@@ -627,6 +669,38 @@ class TherapyConfigScreen(QWidget):
         self.request_boolean_change.emit(tag, state)
         print("confirmado")
 
+    def _on_open_conductivity_profile(self):
+        if not self.parent_window:
+            return
+
+        if (
+            hasattr(self.parent_window, "can_configure_conductivity_profile")
+            and hasattr(self.parent_window, "is_conductivity_profile_active")
+            and hasattr(self.parent_window, "disable_conductivity_profile")
+        ):
+            can_open, _msg = self.parent_window.can_configure_conductivity_profile()
+            if not can_open and self.parent_window.is_conductivity_profile_active():
+                self.parent_window.disable_conductivity_profile(show_message=True)
+                return
+
+        if hasattr(self.parent_window, "show_conductivity_profile_screen"):
+            self.parent_window.show_conductivity_profile_screen()
+
+    def _refresh_conductivity_profile_button(self):
+        if not hasattr(self, "btn_conductivity_profile"):
+            return
+
+        is_active = False
+        if self.parent_window and hasattr(self.parent_window, "is_conductivity_profile_active"):
+            is_active = bool(self.parent_window.is_conductivity_profile_active())
+
+        if is_active:
+            self.btn_conductivity_profile.setText("Perfil ACTIVO")
+            self.btn_conductivity_profile.setStyleSheet(self.profile_btn_active_style)
+        else:
+            self.btn_conductivity_profile.setText("Perfil de Conductividad")
+            self.btn_conductivity_profile.setStyleSheet(self.profile_btn_style)
+
     def update_state(self, phase: TreatmentPhase):
         """Actualiza el estado de botones de bomba de sangre y deja el resto habilitado."""
         treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
@@ -652,6 +726,9 @@ class TherapyConfigScreen(QWidget):
                        self.input_duration]:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(enabled_inputs)
+
+        if hasattr(self, "btn_conductivity_profile"):
+            self.btn_conductivity_profile.setEnabled(enabled_inputs)
 
    
 

@@ -105,6 +105,7 @@ from gui.service.maintenance_screen import MaintenanceScreen
 
 from gui.therapy.patient_config_screen import PatientConfigScreen
 from gui.therapy.therapy_config_screenV2 import TherapyConfigScreen
+from gui.therapy.conductivity_profile_screen import ConductivityProfileScreen
 from gui.therapy.heparin_config_screenV2 import (
     HeparinConfigScreen,
     HEPARIN_AUTO_STOP_HOURS_TAG,
@@ -117,6 +118,15 @@ from logic.calculos import (
     convertir_flujo_a_ciclos,
     convertir_litros_h_a_ml_min,
     convertir_ml_min_a_litros_h,
+)
+from logic.conductivity_profile import (
+    EPSILON,
+    ConductivityProfile,
+    ProfileType,
+    calculate_target_conductivity,
+    load_profile,
+    save_profile,
+    validate_profile,
 )
 from utilities.csv_logger import CsvLogger
 from utilities.platform_runtime import get_runtime_config_path
@@ -251,7 +261,7 @@ class HemodialysisHMI(QMainWindow):
             "dialyPurgePumpStartButt": "Purga de aire",
             "patternCondSensor": "Cond. Sensor patrón",
             "patternTempSensor": "Temp. Sensor patrón",
-            "patternCondRaw": "Cond. Sensor raw", 
+            "patternCondRaw": "Cond. Sensor raw",             
         }
 
         # Control de llenado de filtro + delay de 90 segundos
@@ -335,6 +345,9 @@ class HemodialysisHMI(QMainWindow):
 
         self._current_elapsed_therapy_min = 0.0 # Variable para cálculo de Kt/V acumulado en tiempo real        
         self._original_conductivity_setpoint = None # Para almacenar el setpoint original de conductividad antes de cualquier ajuste por terapia    
+        self.conductivity_profile: ConductivityProfile = load_profile()
+        self._last_profile_target = None
+        self._last_profile_log_second = -1
         
         # Control de tiempo de terapia (global)
         self.therapy_start_time = None
@@ -491,6 +504,8 @@ class HemodialysisHMI(QMainWindow):
         self.therapy_config_screen.request_boolean_change.connect(self._write_boolean_command)     
         self.therapy_config_screen.valueChanged.connect(self.handleGlobalValueChange) # Actualizar UI localmente
 
+        self.conductivity_profile_screen = ConductivityProfileScreen(parent=self, values_dict=self.current_values)
+
         self.heparin_config_screen = HeparinConfigScreen(parent=self, values_dict=self.current_values)
         self.heparin_config_screen.request_setpoint_change.connect(self._write_setpoint)
         self.heparin_config_screen.request_boolean_change.connect(self._write_boolean_command)
@@ -515,13 +530,14 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.patient_config_screen)        # 11
         self.screen_stack.addWidget(self.therapy_config_screen)        # 12
         self.screen_stack.addWidget(self.heparin_config_screen)        # 13
-        self.screen_stack.addWidget(self.comm_port_screen)             # 13 
-        self.screen_stack.addWidget(self.maintenance_screen)            # 14
-        self.screen_stack.addWidget(self.alarm_config_limits_screen)          # 15  se accede desde el menu de alarmas para configurar los limites de cada variable y su severidad. Esta pantalla reemplaza a la antigua AlarmLimitsConfigDialog, integrando la configuración de alarmas dentro del flujo principal de la aplicación.
-        self.screen_stack.addWidget(self.alarm_service_screen_config)          # 16  se accede desde el menu de servicio técnico para configurar los limites de cada variable y su severidad. Esta pantalla es similar a la de configuración de alarmas pero con un enfoque específico para el servicio técnico, permitiendo ajustes avanzados que no están disponibles para el operador.
-        self.screen_stack.addWidget(self._cleanning_config_screen)             # 17 configuración de modos de limpieza/desinfeccion      
-        self.screen_stack.addWidget(self.history_screen)              # 18 pantalla de historial de tratamientos y mantenimientos realizados, con opción de exportar a PDF o CSV.
-        self.screen_stack.addWidget(self.KTVScreen)                   # 19 pantalla de cálculo de Kt/V en tiempo real, con gráficos y todo el rollo. Se accede desde el menú de Tipo de Tratamiento.
+        self.screen_stack.addWidget(self.conductivity_profile_screen) # 14
+        self.screen_stack.addWidget(self.comm_port_screen)             # 15 
+        self.screen_stack.addWidget(self.maintenance_screen)           # 16
+        self.screen_stack.addWidget(self.alarm_config_limits_screen)   # 17
+        self.screen_stack.addWidget(self.alarm_service_screen_config)  # 18
+        self.screen_stack.addWidget(self._cleanning_config_screen)     # 19      
+        self.screen_stack.addWidget(self.history_screen)               # 20
+        self.screen_stack.addWidget(self.KTVScreen)                    # 21
 
 
         # self.master_timer.timeout.connect(self.KTVScreen.on_master_tick)
@@ -1036,6 +1052,21 @@ class HemodialysisHMI(QMainWindow):
         self.right_content.show()
         self._highlight_active_nav_button("Diálisis")
 
+    def show_conductivity_profile_screen(self):
+        can_open, msg = self.can_configure_conductivity_profile()
+        if not can_open:
+            self.show_warning_message(msg, 4500)
+            return
+
+        self.screen_stack.setCurrentWidget(self.conductivity_profile_screen)
+        if hasattr(self.conductivity_profile_screen, "update_values"):
+            self.conductivity_profile_screen.update_values(self.current_values)
+        if hasattr(self.conductivity_profile_screen, "refresh_from_parent"):
+            self.conductivity_profile_screen.refresh_from_parent()
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Diálisis")
+
     def show_heparin_config_screen(self):
         self.screen_stack.setCurrentWidget(self.heparin_config_screen)
         if hasattr(self.heparin_config_screen, "update_values"):
@@ -1096,6 +1127,144 @@ class HemodialysisHMI(QMainWindow):
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Diálisis")
+
+    def get_therapy_duration_minutes(self) -> int:
+        hours = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+        minutes = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+        return max(0, (hours * 60) + minutes)
+
+    def get_remaining_therapy_minutes(self) -> float:
+        total_seconds = self.get_therapy_duration_minutes() * 60
+        if total_seconds <= 0:
+            return 0.0
+
+        elapsed_seconds = int(self.treatment_controller.get_elapsed_seconds())
+        return max(0.0, (total_seconds - elapsed_seconds) / 60.0)
+
+    def can_configure_conductivity_profile(self, allow_disable: bool = False) -> tuple[bool, str]:
+        phase = self.state.current_phase
+        if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            return True, ""
+
+        remaining_min = self.get_remaining_therapy_minutes()
+        if remaining_min < 30.0 and not allow_disable:
+            return (
+                False,
+                "No se puede configurar el perfil de conductividad cuando faltan menos de 30 minutos de terapia.",
+            )
+
+        return True, ""
+
+    def is_conductivity_profile_active(self) -> bool:
+        return bool(
+            self.conductivity_profile.enabled
+            and self.conductivity_profile.profile_type != ProfileType.NONE
+        )
+
+    def set_conductivity_profile(self, profile: ConductivityProfile, show_message: bool = False) -> bool:
+        profile.therapy_duration_min = max(1, self.get_therapy_duration_minutes())
+
+        if profile.enabled:
+            can_change, msg = self.can_configure_conductivity_profile(allow_disable=False)
+            if not can_change:
+                if show_message:
+                    self.show_warning_message(msg, 4500)
+                return False
+
+        ok, msg = validate_profile(profile)
+        if not ok:
+            if show_message:
+                self.show_warning_message(msg, 4500)
+            return False
+
+        if not save_profile(profile):
+            if show_message:
+                self.show_error_message("No se pudo guardar el perfil de conductividad", 5000)
+            return False
+
+        self.conductivity_profile = profile
+        self._last_profile_target = None
+
+        if show_message:
+            if self.is_conductivity_profile_active():
+                self.show_success_message("Perfil de conductividad activado", 3500)
+            else:
+                self.show_info_message("Perfil de conductividad desactivado", 3500)
+
+        if hasattr(self.therapy_config_screen, "_refresh_conductivity_profile_button"):
+            self.therapy_config_screen._refresh_conductivity_profile_button()
+
+        self._apply_conductivity_profile_from_state(log_forced=True)
+        return True
+
+    def disable_conductivity_profile(self, show_message: bool = False) -> bool:
+        can_disable, msg = self.can_configure_conductivity_profile(allow_disable=True)
+        if not can_disable:
+            if show_message:
+                self.show_warning_message(msg, 4500)
+            return False
+
+        disabled = ConductivityProfile.from_dict(self.conductivity_profile.to_dict())
+        disabled.enabled = False
+        disabled.profile_type = ProfileType.NONE
+
+        if not save_profile(disabled):
+            if show_message:
+                self.show_error_message("No se pudo desactivar el perfil de conductividad", 5000)
+            return False
+
+        self.conductivity_profile = disabled
+        self._last_profile_target = None
+
+        if hasattr(self.therapy_config_screen, "_refresh_conductivity_profile_button"):
+            self.therapy_config_screen._refresh_conductivity_profile_button()
+
+        if show_message:
+            self.show_info_message("Perfil de conductividad desactivado", 3500)
+        return True
+
+    def _apply_conductivity_profile_from_state(self, log_forced: bool = False):
+        phase = self.state.current_phase
+        if phase not in (TreatmentPhase.PREPARING, TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            return
+
+        if not self.is_conductivity_profile_active():
+            return
+
+        elapsed_min = 0.0
+        if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            elapsed_min = self.treatment_controller.get_elapsed_therapy_minutes()
+
+        target = calculate_target_conductivity(self.conductivity_profile, elapsed_min)
+        if target is None:
+            return
+
+        current_sp = float(self.current_values.get("dialyCondControlSetPoint", 0.0) or 0.0)
+        if self._last_profile_target is None:
+            self._last_profile_target = current_sp
+
+        if abs(current_sp - target) >= EPSILON:
+            self._write_setpoint("dialyCondControlSetPoint", float(target))
+            self._last_profile_target = float(target)
+
+        if log_forced:
+            logger.info(
+                "Perfil conductividad aplicado: type=%s elapsed=%.2f target=%.2f",
+                self.conductivity_profile.profile_type.value,
+                elapsed_min,
+                target,
+            )
+            return
+
+        current_second = QDateTime.currentDateTime().toSecsSinceEpoch()
+        if current_second % 10 == 0 and current_second != self._last_profile_log_second:
+            self._last_profile_log_second = current_second
+            logger.info(
+                "Perfil conductividad tick: type=%s elapsed=%.2f target=%.2f",
+                self.conductivity_profile.profile_type.value,
+                elapsed_min,
+                target,
+            )
     # ────────────────────────────────────────────────
     #              Utility Methods
     # ────────────────────────────────────────────────
@@ -1132,6 +1301,8 @@ class HemodialysisHMI(QMainWindow):
 
                 if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
                     self.treatment_controller.update_therapy_times()
+
+                self._apply_conductivity_profile_from_state()
 
                 self._update_heparin_auto_stop_timer()
 
@@ -1213,6 +1384,7 @@ class HemodialysisHMI(QMainWindow):
             self.KTVScreen: "Diálisis",                    # ← Importante
             self.patient_config_screen: "Diálisis",
             self.therapy_config_screen: "Diálisis",
+            self.conductivity_profile_screen: "Diálisis",
             self.heparin_config_screen: "Diálisis",
         }
 
@@ -2353,9 +2525,9 @@ class HemodialysisHMI(QMainWindow):
     def on_pattern_data(self, tag: str, value: float):        
         """Mapeo directo de alta velocidad de los datos del sensor patrón hacia el diccionario global"""
         mapping = {
-            "patternCondSensor": (0x09, 0x00),
+            "patternCondSensor": (0x09, 0x02),
             "patternTempSensor": (0x09, 0x01),
-            "patternCondRaw": (0x09, 0x02)
+            "patternCondRaw": (0x09, 0x00)
         }
         
         if tag in mapping:
@@ -2367,7 +2539,8 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
 
-    # Código de prueba para el sensor de Conductividad (MegaCond)
+    # Código de prueba para el sensor de Conductividad (MegaCond), si esta conectada la tarjeta mega y no el patron, 
+    # asigna los valores a VARIABLES[0x0C] y a current_values
     def on_mega_cond_data(self, tag: str, value: float):
         """Recibe datos del sensor de conductividad vía Arduino Mega."""
         mapping = {

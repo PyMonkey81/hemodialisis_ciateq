@@ -205,19 +205,29 @@ class TestPanelScreen(QWidget):
         )
         grid_top.addWidget(self.label_pattern_cond, 1, 3, 1, 2)
 
-        self.label_pattern_cond_raw = LabeledParameterWidget(
-            label_text="Cond. Patrón Raw", tag="patternCondSensor",
-            value="0.0", units="mS/cm", numpad_title="",
-            is_editable=False,
-        )
-        grid_top.addWidget(self.label_pattern_cond_raw, 2, 3, 1, 2)
+
 
         self.label_pattern_temp = LabeledParameterWidget(
             label_text="Temp. Patrón", tag="patternTempSensor",
             value="0.0", units="°C", numpad_title="",
             is_editable=False
         )
-        grid_top.addWidget(self.label_pattern_temp, 3, 3, 1, 2)
+        grid_top.addWidget(self.label_pattern_temp, 2, 3, 1, 2)
+
+
+        # self.label_pattern_cond_raw = LabeledParameterWidget(
+        #     label_text="Cond. Patrón Mega", tag="megaCondSensor", # este es el tag correcto para la conductividad del patrón mega
+        #     value="0.0", units="mS/cm", numpad_title="",
+        #     is_editable=False,
+        # )
+        # grid_top.addWidget(self.label_pattern_cond_raw, 3, 3, 1, 2)
+
+        # self.label_mega_temp = LabeledParameterWidget(
+        #     label_text="Temp. Patrón Mega", tag="megaTempSensor", # este es el tag correcto para la temperatura del patrón mega
+        #     value="0.0", units="°C", numpad_title="",
+        #     is_editable=False,
+        # )
+        # grid_top.addWidget(self.label_mega_temp, 4, 3, 1, 2)
 
 
 
@@ -474,7 +484,8 @@ class TestPanelScreen(QWidget):
 
         self._update_label_display(self.label_pattern_cond, self.current_values.get("patternCondRaw", 0.0),8)  # Multiplicar por 1000
         self._update_label_display(self.label_pattern_temp, self.current_values.get("patternTempSensor", 0.0))
-        self._update_label_display(self.label_pattern_cond_raw, self.current_values.get("patternCondSensor", 0.0))
+        # self._update_label_display(self.label_pattern_cond_raw, self.current_values.get("megaCondSensor", 0.0))
+        # self._update_label_display(self.label_mega_temp, self.current_values.get("megaTempSensor", 0.0))
 
         # ── Calculated PTM ──────────────────────────────────────────────────────
         pd_ef = self.current_values.get("dialyPresIFProcessData", 0.0)

@@ -38,6 +38,9 @@ class ScreenStateManager(QObject):
         if hasattr(self.main, "therapy_config_screen"):
             self.main.therapy_config_screen.update_state(phase)
 
+        if hasattr(self.main, "conductivity_profile_screen"):
+            self.main.conductivity_profile_screen.update_state(phase)
+
         if hasattr(self.main, "heparin_config_screen"):
             self.main.heparin_config_screen.update_state(phase)
         

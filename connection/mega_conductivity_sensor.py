@@ -44,9 +44,10 @@ class MegaConductivitySensor(QObject):
         # Expresión regular para parsear la línea de DFRobot
         # Ejemplo: temperature:25.0^C  EC:1.41ms/cm
         self._line_pattern = re.compile(
-            r"temperature\s*:\s*([\d.]+).*?EC\s*:\s*([\d.]+)",
+            r"temperature\s*:\s*([\d.]+).*?EC\s*:\s*([\d.]+)",            
             re.IGNORECASE
         )
+
 
     @property
     def running(self):
@@ -72,6 +73,7 @@ class MegaConductivitySensor(QObject):
             self.stop()
         elif self._is_enabled and not self.running:
             self.start_reading()
+        
         elif self._is_enabled and port_changed and self.running:
             self._close_port_resource()
 
@@ -98,6 +100,7 @@ class MegaConductivitySensor(QObject):
             self.is_connected = True
             self.last_successful_communication = time.time()
             logger.info(f"[MEGA_COND] Conectado en {port_name}")
+            print(f"[MEGA_COND] Conectado en {port_name}")
             return True
         except Exception as e:
             logger.error(f"[MEGA_COND] Error de conexión en {port_name}: {e}")
@@ -130,6 +133,7 @@ class MegaConductivitySensor(QObject):
         self.reader_thread = threading.Thread(target=self._communication_loop, daemon=True)
         self.reader_thread.start()
         logger.info("[MEGA_COND] Hilo iniciado")
+        print("[MEGA_COND] Hilo iniciado")
 
     def _communication_loop(self):
         while self.running:
@@ -154,10 +158,12 @@ class MegaConductivitySensor(QObject):
                         self._parse_lines()
                     except Exception as e:
                         logger.debug(f"[MEGA_COND] Error decodificando: {e}")
+                        print(f"[MEGA_COND] Error decodificando: {e}")
 
                 # Watchdog
                 if time.time() - self.last_successful_communication > 10.0:
                     logger.warning("[MEGA_COND] Watchdog → reconectando")
+                    print("[MEGA_COND] Watchdog → reconectando")
                     self._close_port_resource()
                     continue
 
@@ -165,6 +171,7 @@ class MegaConductivitySensor(QObject):
 
             except Exception as e:
                 logger.error(f"[MEGA_COND] Error en bucle: {e}")
+                print(f"[MEGA_COND] Error en bucle: {e}")
                 self._close_port_resource()
                 time.sleep(1.0)
 
@@ -177,6 +184,7 @@ class MegaConductivitySensor(QObject):
                 continue
 
             match = self._line_pattern.search(line)
+            print(f"[MEGA_COND] Línea recibida: {line}")
             if match:
                 try:
                     temperature = float(match.group(1))
@@ -186,13 +194,15 @@ class MegaConductivitySensor(QObject):
                     self.data_received.emit("megaCondSensor", ec_value)
                     self.data_received.emit("megaTempSensor", temperature)
 
-                    self.data_received.emit("patternCondSensor", ec_value)
+                    self.data_received.emit("patternCondRaw", ec_value)
                     self.data_received.emit("patternTempSensor", temperature)
 
                     self.last_successful_communication = time.time()
                     logger.debug(f"[MEGA_COND] EC={ec_value:.3f} mS/cm | Temp={temperature:.1f} °C")
+                    print(f"[MEGA_COND] EC={ec_value:.3f} mS/cm | Temp={temperature:.1f} °C")
                 except ValueError:
                     logger.warning(f"[MEGA_COND] No se pudo convertir valores de la línea: {line}")
+                    print(f"[MEGA_COND] No se pudo convertir valores de la línea: {line}")
             else:
                 # Puede ser un mensaje de calibración, lo ignoramos en operación normal
                 if "CALIBRATION" in line.upper() or "ENTEREC" in line.upper() or "EXITEC" in line.upper():
