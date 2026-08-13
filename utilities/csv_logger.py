@@ -133,16 +133,19 @@ class CsvLogger:
             try:
                 # Espera hasta 1 segundo por nuevos datos
                 row_data = self.data_queue.get(timeout=1.0)
-                
-                if self.csv_writer and self.file:
-                    self.csv_writer.writerow(row_data)
-                    self._rows_since_flush += 1
-                    now = time.monotonic()
-                    if self._rows_since_flush >= self.flush_every_rows or (now - self._last_flush_time) >= self.flush_interval_sec:
-                        self.file.flush()
-                        self._rows_since_flush = 0
-                        self._last_flush_time = now
-                
+
+                if self.csv_writer is None or self.file is None or self.file.closed:
+                    self.data_queue.task_done()
+                    continue
+
+                self.csv_writer.writerow(row_data)
+                self._rows_since_flush += 1
+                now = time.monotonic()
+                if self._rows_since_flush >= self.flush_every_rows or (now - self._last_flush_time) >= self.flush_interval_sec:
+                    self.file.flush()
+                    self._rows_since_flush = 0
+                    self._last_flush_time = now
+
                 self.data_queue.task_done()
             except queue.Empty:
                 # Es normal que salte por timeout si no hay datos nuevos, continúa el bucle
@@ -156,16 +159,19 @@ class CsvLogger:
         """
         logger.info(f"CSV Logger: Cerrando archivo '{self.file_path}'...")
         self.is_running = False # Señal para detener el bucle
-        
+
         # Esperamos a que el hilo termine de escribir los últimos datos
-        if self.writer_thread and self.writer_thread.is_alive():
+        if getattr(self, 'writer_thread', None) and self.writer_thread.is_alive():
             self.writer_thread.join(timeout=3.0)
 
-        if self.file and not self.file.closed:
+        if getattr(self, 'file', None) is not None and not self.file.closed:
             try:
                 self.file.flush()
             except Exception:
                 pass
-            self.file.close()
+            try:
+                self.file.close()
+            except Exception:
+                pass
             logger.info("CSV Logger: Archivo cerrado correctamente.")
 

@@ -8,7 +8,7 @@
         "enabled": false
     },
     "mega_conductivity_sensor": {
-        "port": "COM4",
+        "port": "Auto",
         "enabled": true
     },
     "bioz_urea_sensor": {

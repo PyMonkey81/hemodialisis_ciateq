@@ -526,7 +526,7 @@ class DialysisScreen(QWidget):
         # ── Card de Signos Vitales (NUEVA) ──
         vitals_card = QFrame()
         vitals_card.setObjectName("card")
-        vitals_card.setMinimumHeight(180) # Un poco más baja que las otras
+        vitals_card.setMinimumHeight(230)
         vitals_layout = QVBoxLayout(vitals_card)
         vitals_layout.setContentsMargins(12, 12, 12, 12)
         vitals_layout.setSpacing(8)
@@ -567,15 +567,17 @@ class DialysisScreen(QWidget):
         
         # OJO: Para que quepan bien, tendrías que quitar el setFixedHeight(132) 
         # del SimpleValueDisplay o hacerlo más pequeño (ej. 80px)
-        self.remaining_time_display.setFixedHeight(85)
+        # self.remaining_time_display.setFixedHeight(85)
         self.elapsed_time_display.setFixedHeight(85)
 
-        time_layout.addWidget(self.remaining_time_display)
+        # self.remaining_time_display ahora se muestra en el header principal.
+        # Se deja comentado por si se requiere restaurarlo en esta tarjeta.
+        # time_layout.addWidget(self.remaining_time_display)
         time_layout.addWidget(self.elapsed_time_display)
 
         # Agregamos ambas al layout vertical de la columna 4
-        columna_4_layout.addWidget(vitals_card)
-        columna_4_layout.addWidget(time_card)
+        columna_4_layout.addWidget(vitals_card, 2)
+        columna_4_layout.addWidget(time_card, 1)
 
         # Añadimos el layout vertical al grid general de parámetros
         grid_params.addLayout(columna_4_layout, 0, 3)

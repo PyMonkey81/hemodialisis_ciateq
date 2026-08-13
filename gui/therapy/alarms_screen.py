@@ -572,7 +572,9 @@ class AlarmsScreen(QWidget):
 
         # 3. Guardar a archivo JSON
         try:
-            os.makedirs(os.path.dirname(self.history_file), exist_ok=True)
+            history_dir = os.path.dirname(self.history_file)
+            if history_dir:
+                os.makedirs(history_dir, exist_ok=True)
             with open(self.history_file, 'w', encoding='utf-8') as f:
                 json.dump(self.history_data, f, indent=4)
         except Exception as e:
@@ -583,17 +585,20 @@ class AlarmsScreen(QWidget):
 
     def _append_to_history_visual(self, text, value, level, time_str):
         """Aquí mueves la lógica de 'self.history_display.append' que ya tenías"""
+        if not hasattr(self, 'history_display') or self.history_display is None:
+            return
+
         colors = {"rojo": "#E74C3C", "naranja": "#F39C12", "amarillo": "#FBC02D", "cian": "#3498DB", "info": "#607D8B"}
         color = colors.get(level, "#333333")
         val_str = f" [{value:.1f}]" if value is not None else ""
-    
+
         self.history_display.append(
             f'<span style="color:#607D8B;">[{time_str}]</span> '
             f'<span style="color:{color}; font-weight:bold;">{text}{val_str}</span>'
         )
-        self.history_display.verticalScrollBar().setValue(
-            self.history_display.verticalScrollBar().maximum()
-        )
+        scrollbar = self.history_display.verticalScrollBar()
+        if scrollbar is not None:
+            scrollbar.setValue(scrollbar.maximum())
 
 
     def update_ack_button_state(self):

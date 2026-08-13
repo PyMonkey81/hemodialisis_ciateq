@@ -40,18 +40,48 @@ class CommPortScreen(QWidget):
             logger.error(f"Error obteniendo puertos: {e}")
             return ports
 
+        
     def setup_ui(self):
+        # --- CORRECCIÓN DE FONDO ---
+        # Forzamos que la pantalla tenga fondo claro para que el texto oscuro sea visible
+        self.setObjectName("CommPortScreen")
+        self.setStyleSheet("QWidget#CommPortScreen { background-color: #FCFCFC; }")
+        # ---------------------------
+        combo_style = """
+    QComboBox {
+        font-size: 24px;
+        min-width: 180px;
+        color: #0f172a;
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 5px;
+        padding: 5px;
+    }
+    QComboBox::drop-down {
+        border: none;
+    }
+    /* Estilo para la lista que se despliega */
+    QComboBox QAbstractItemView {
+        background-color: #ffffff;
+        color: #0f172a;
+        selection-background-color: #cbd5e1;
+        selection-color: #0f172a;
+        border: 1px solid #cbd5e1;
+    }
+"""
+
         layout = QVBoxLayout(self)
         layout.setSpacing(18)
         layout.setContentsMargins(10, 10, 10, 10)
 
         title = QLabel("Configuración de Puertos de Comunicación")
-        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #0f172a;")
+        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #0f172a; background: transparent;")
         layout.addWidget(title)
 
         # ─── GRUPO 1: CONTROLADOR PRINCIPAL ───────────────────────────────
         self.grp_main = QGroupBox("Controlador Principal (Máquina de Hemodiálisis)")
-        self.grp_main.setStyleSheet("font-size: 24px; font-weight: 600; color: #0f172a;")
+        # Se añade background-color: transparent para que use el del padre (#FCFCFC)
+        self.grp_main.setStyleSheet("font-size: 24px; font-weight: 600; color: #0f172a; background-color: transparent;")
         lyt_main = QHBoxLayout(self.grp_main)
         lyt_main.setSpacing(15)
         
@@ -61,9 +91,9 @@ class CommPortScreen(QWidget):
             QCheckBox::indicator { width: 32px; height: 32px; }
         """)
         lbl_port_main = QLabel("Puerto:")
-        lbl_port_main.setStyleSheet("font-size: 24px;")
+        lbl_port_main.setStyleSheet("font-size: 24px; color: #0f172a;")
         self.cmb_main_port = QComboBox()
-        self.cmb_main_port.setStyleSheet("font-size: 24px; min-width: 180px;")
+        self.cmb_main_port.setStyleSheet(combo_style)
         
         lyt_main.addWidget(self.chk_main)
         lyt_main.addWidget(lbl_port_main)
@@ -73,7 +103,7 @@ class CommPortScreen(QWidget):
 
         # ─── GRUPO 2: SENSOR CONDUCTIVIDAD PATRÓN (HDM18/19) ───────────────
         self.grp_cond = QGroupBox("Sensor de Conductividad Patrón (HDM18/19)")
-        self.grp_cond.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a;")
+        self.grp_cond.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a; background-color: transparent;")
         lyt_cond = QHBoxLayout(self.grp_cond)
         lyt_cond.setSpacing(15)
         
@@ -83,9 +113,9 @@ class CommPortScreen(QWidget):
             QCheckBox::indicator { width: 32px; height: 32px; }
         """)
         lbl_port_cond = QLabel("Puerto:")
-        lbl_port_cond.setStyleSheet("font-size: 26px;")
+        lbl_port_cond.setStyleSheet("font-size: 26px; color: #0f172a;")
         self.cmb_cond_port = QComboBox()
-        self.cmb_cond_port.setStyleSheet("font-size: 26px; min-width: 180px;")
+        self.cmb_cond_port.setStyleSheet(combo_style)
         
         lyt_cond.addWidget(self.chk_cond)
         lyt_cond.addWidget(lbl_port_cond)
@@ -95,7 +125,7 @@ class CommPortScreen(QWidget):
 
         # ─── GRUPO 3: SENSOR CONDUCTIVIDAD PATRÓN (ARDUINO MEGA) ────────────
         self.grp_mega = QGroupBox("Sensor de Conductividad Patrón (Arduino Mega)")
-        self.grp_mega.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a;")
+        self.grp_mega.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a; background-color: transparent;")
         lyt_mega = QHBoxLayout(self.grp_mega)
         lyt_mega.setSpacing(15)
         
@@ -105,9 +135,9 @@ class CommPortScreen(QWidget):
             QCheckBox::indicator { width: 32px; height: 32px; }
         """)
         lbl_port_mega = QLabel("Puerto:")
-        lbl_port_mega.setStyleSheet("font-size: 26px;")
+        lbl_port_mega.setStyleSheet("font-size: 26px; color: #0f172a;")
         self.cmb_mega_port = QComboBox()
-        self.cmb_mega_port.setStyleSheet("font-size: 26px; min-width: 180px;")
+        self.cmb_mega_port.setStyleSheet(combo_style)
         
         lyt_mega.addWidget(self.chk_mega)
         lyt_mega.addWidget(lbl_port_mega)
@@ -117,7 +147,7 @@ class CommPortScreen(QWidget):
 
         # ─── GRUPO 4: SENSOR BIOIMPEDANCIA / UREA ──────────────────────────
         self.grp_bioz = QGroupBox("Sensor Bioimpedancia / Urea")
-        self.grp_bioz.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a;")
+        self.grp_bioz.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a; background-color: transparent;")
         lyt_bioz = QHBoxLayout(self.grp_bioz)
         lyt_bioz.setSpacing(15)
         
@@ -127,9 +157,9 @@ class CommPortScreen(QWidget):
             QCheckBox::indicator { width: 32px; height: 32px; }
         """)
         lbl_port_bioz = QLabel("Puerto:")
-        lbl_port_bioz.setStyleSheet("font-size: 26px;")
+        lbl_port_bioz.setStyleSheet("font-size: 26px; color: #0f172a;")
         self.cmb_bioz_port = QComboBox()
-        self.cmb_bioz_port.setStyleSheet("font-size: 26px; min-width: 180px;")
+        self.cmb_bioz_port.setStyleSheet(combo_style)
         
         lyt_bioz.addWidget(self.chk_bioz)
         lyt_bioz.addWidget(lbl_port_bioz)
@@ -180,12 +210,160 @@ class CommPortScreen(QWidget):
         buttons_layout.addWidget(self.btn_refresh)
         layout.addLayout(buttons_layout)
         layout.addStretch()
-        
-        # Llenar combos
+
+        #     # Llenar combos
         self.cmb_main_port.addItems(self.all_ports)
         self.cmb_cond_port.addItems(self.all_ports)
         self.cmb_mega_port.addItems(self.all_ports)
         self.cmb_bioz_port.addItems(self.all_ports)
+
+
+    # def setup_ui(self):
+    #     layout = QVBoxLayout(self)
+    #     layout.setSpacing(18)
+    #     layout.setContentsMargins(10, 10, 10, 10)
+
+    #     title = QLabel("Configuración de Puertos de Comunicación")
+    #     title.setStyleSheet("font-size: 28px; font-weight: bold; color: #0f172a;")
+    #     layout.addWidget(title)
+
+    #     # ─── GRUPO 1: CONTROLADOR PRINCIPAL ───────────────────────────────
+    #     self.grp_main = QGroupBox("Controlador Principal (Máquina de Hemodiálisis)")
+    #     self.grp_main.setStyleSheet("font-size: 24px; font-weight: 600; color: #0f172a;")
+    #     lyt_main = QHBoxLayout(self.grp_main)
+    #     lyt_main.setSpacing(15)
+        
+    #     self.chk_main = QCheckBox("Habilitar Comunicación")
+    #     self.chk_main.setStyleSheet("""
+    #         QCheckBox { color: #0f172a; font-size: 24px; spacing: 12px; }
+    #         QCheckBox::indicator { width: 32px; height: 32px; }
+    #     """)
+    #     lbl_port_main = QLabel("Puerto:")
+    #     lbl_port_main.setStyleSheet("font-size: 24px;")
+    #     self.cmb_main_port = QComboBox()
+    #     self.cmb_main_port.setStyleSheet("font-size: 24px; min-width: 180px;")
+        
+    #     lyt_main.addWidget(self.chk_main)
+    #     lyt_main.addWidget(lbl_port_main)
+    #     lyt_main.addWidget(self.cmb_main_port)
+    #     lyt_main.addStretch()
+    #     layout.addWidget(self.grp_main)
+
+    #     # ─── GRUPO 2: SENSOR CONDUCTIVIDAD PATRÓN (HDM18/19) ───────────────
+    #     self.grp_cond = QGroupBox("Sensor de Conductividad Patrón (HDM18/19)")
+    #     self.grp_cond.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a;")
+    #     lyt_cond = QHBoxLayout(self.grp_cond)
+    #     lyt_cond.setSpacing(15)
+        
+    #     self.chk_cond = QCheckBox("Habilitar Comunicación")
+    #     self.chk_cond.setStyleSheet("""
+    #         QCheckBox { color: #0f172a; font-size: 26px; spacing: 12px; }
+    #         QCheckBox::indicator { width: 32px; height: 32px; }
+    #     """)
+    #     lbl_port_cond = QLabel("Puerto:")
+    #     lbl_port_cond.setStyleSheet("font-size: 26px;")
+    #     self.cmb_cond_port = QComboBox()
+    #     self.cmb_cond_port.setStyleSheet("font-size: 26px; min-width: 180px;")
+        
+    #     lyt_cond.addWidget(self.chk_cond)
+    #     lyt_cond.addWidget(lbl_port_cond)
+    #     lyt_cond.addWidget(self.cmb_cond_port)
+    #     lyt_cond.addStretch()
+    #     layout.addWidget(self.grp_cond)
+
+    #     # ─── GRUPO 3: SENSOR CONDUCTIVIDAD PATRÓN (ARDUINO MEGA) ────────────
+    #     self.grp_mega = QGroupBox("Sensor de Conductividad Patrón (Arduino Mega)")
+    #     self.grp_mega.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a;")
+    #     lyt_mega = QHBoxLayout(self.grp_mega)
+    #     lyt_mega.setSpacing(15)
+        
+    #     self.chk_mega = QCheckBox("Habilitar Comunicación")
+    #     self.chk_mega.setStyleSheet("""
+    #         QCheckBox { color: #0f172a; font-size: 26px; spacing: 12px; }
+    #         QCheckBox::indicator { width: 32px; height: 32px; }
+    #     """)
+    #     lbl_port_mega = QLabel("Puerto:")
+    #     lbl_port_mega.setStyleSheet("font-size: 26px;")
+    #     self.cmb_mega_port = QComboBox()
+    #     self.cmb_mega_port.setStyleSheet("font-size: 26px; min-width: 180px;")
+        
+    #     lyt_mega.addWidget(self.chk_mega)
+    #     lyt_mega.addWidget(lbl_port_mega)
+    #     lyt_mega.addWidget(self.cmb_mega_port)
+    #     lyt_mega.addStretch()
+    #     layout.addWidget(self.grp_mega)
+
+    #     # ─── GRUPO 4: SENSOR BIOIMPEDANCIA / UREA ──────────────────────────
+    #     self.grp_bioz = QGroupBox("Sensor Bioimpedancia / Urea")
+    #     self.grp_bioz.setStyleSheet("font-size: 26px; font-weight: 600; color: #0f172a;")
+    #     lyt_bioz = QHBoxLayout(self.grp_bioz)
+    #     lyt_bioz.setSpacing(15)
+        
+    #     self.chk_bioz = QCheckBox("Habilitar Comunicación")
+    #     self.chk_bioz.setStyleSheet("""
+    #         QCheckBox { color: #0f172a; font-size: 26px; spacing: 12px; }
+    #         QCheckBox::indicator { width: 32px; height: 32px; }
+    #     """)
+    #     lbl_port_bioz = QLabel("Puerto:")
+    #     lbl_port_bioz.setStyleSheet("font-size: 26px;")
+    #     self.cmb_bioz_port = QComboBox()
+    #     self.cmb_bioz_port.setStyleSheet("font-size: 26px; min-width: 180px;")
+        
+    #     lyt_bioz.addWidget(self.chk_bioz)
+    #     lyt_bioz.addWidget(lbl_port_bioz)
+    #     lyt_bioz.addWidget(self.cmb_bioz_port)
+    #     lyt_bioz.addStretch()
+    #     layout.addWidget(self.grp_bioz)
+
+    #     # ─── BOTONES ──────────────────────────────────────────────────────
+    #     buttons_layout = QHBoxLayout()
+    #     buttons_layout.setSpacing(20)
+    #     buttons_layout.setAlignment(Qt.AlignCenter)
+
+    #     self.btn_apply = QPushButton("Aplicar Cambios")
+    #     self.btn_apply.setStyleSheet("""
+    #         QPushButton {
+    #             background-color: #0f172a;
+    #             color: #ffffff;
+    #             font-size: 26px;
+    #             font-weight: bold;
+    #             padding: 12px 30px;
+    #             border-radius: 8px;
+    #             min-height: 80px;
+    #             min-width: 240px;
+    #         }
+    #         QPushButton:hover { background-color: #60a5fa; }
+    #         QPushButton:pressed { background-color: #1e40af; }
+    #     """)
+    #     self.btn_apply.clicked.connect(self.apply_configurations)
+        
+    #     self.btn_refresh = QPushButton("Actualizar Puertos")
+    #     self.btn_refresh.setStyleSheet("""
+    #         QPushButton {
+    #             background-color: #0f172a;
+    #             color: #ffffff;
+    #             font-size: 26px;
+    #             font-weight: bold;
+    #             padding: 12px 30px;
+    #             border-radius: 8px;
+    #             min-height: 80px;
+    #             min-width: 240px;
+    #         }
+    #         QPushButton:hover { background-color: #60a5fa; }
+    #         QPushButton:pressed { background-color: #1e40af; }
+    #     """)
+    #     self.btn_refresh.clicked.connect(self.refresh_ports)
+
+    #     buttons_layout.addWidget(self.btn_apply)
+    #     buttons_layout.addWidget(self.btn_refresh)
+    #     layout.addLayout(buttons_layout)
+    #     layout.addStretch()
+        
+    #     # Llenar combos
+    #     self.cmb_main_port.addItems(self.all_ports)
+    #     self.cmb_cond_port.addItems(self.all_ports)
+    #     self.cmb_mega_port.addItems(self.all_ports)
+    #     self.cmb_bioz_port.addItems(self.all_ports)
 
     def _handle_port_change(self, changed_sensor: str):
         self._block_signals(True)

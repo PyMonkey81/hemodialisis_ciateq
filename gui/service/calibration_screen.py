@@ -95,16 +95,16 @@ class CalibrationScreen(QWidget):
     request_setpoint_change = Signal(str, float)
     request_boolean_change = Signal(str, bool)
 
-    def __init__(self, parent=None, values_dict=None):
+    def __init__(self, parent=None, values_dict=None):        
         super().__init__(parent)
         self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}
 
+        # 1. FORZAR FONDO CLARO AL WIDGET PRINCIPAL
+        self.setObjectName("CalibrationScreen")
+        self.setStyleSheet("QWidget#CalibrationScreen { background-color: #FCFCFC; }")
+
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), QColor("#fcfcfc"))
-        self.setPalette(palette)
 
         # Toggle switches mapping (tag → ToggleSwitch widget)
         self.control_loop_toggles = {}
@@ -140,6 +140,7 @@ class CalibrationScreen(QWidget):
 
         # ── Plots Area ───────────────────────────────────────────────────────────
         graphics_area = QWidget()
+        graphics_area.setStyleSheet("background: transparent;")
         graphics_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         grid_graphics = QGridLayout(graphics_area)
         grid_graphics.setSpacing(15)
@@ -199,6 +200,7 @@ class CalibrationScreen(QWidget):
 
         # ── Control Area ─────────────────────────────────────────────────────────
         control_area = QWidget()
+        control_area.setStyleSheet("background: transparent;")
         control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         grid = QGridLayout(control_area)
         grid.setSpacing(15)

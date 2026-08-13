@@ -63,44 +63,10 @@ class TherapyConfigScreen(QWidget):
         self.write_hold_off = {}
         self.toggle_hold_off = {}
         self.status_code = 0.0
-        self.apply_stylesheet()
+        
         self.setup_ui()
 
-    def apply_stylesheet(self):
-        self.setStyleSheet("""
-            QWidget { background-color: transparent; }
-            QFrame#card {
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 14px;
-            }
-            QLabel#card_title {
-                color: #0f172a;
-                font-size: 26px;
-                font-weight: bold;
-                border-bottom: 1px solid #e2e8f0;
-                padding-bottom: 10px;
-                margin-bottom: 12px;
-            }
-            QLabel#val_large {
-                color: #ef4444;
-                font-family: 'Consolas', monospace;
-                font-size: 48px;
-                font-weight: bold;
-            }
-            QLabel {
-                color: #334155;
-                font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 26px;
-            }
-            QComboBox {
-                background-color: #0f172a;
-                color: #f8fafc;
-                border: 1px solid #475569;
-                border-radius: 4px;
-                padding: 4px;
-            }
-        """)
+
 
     def setup_ui(self):
         # ==================== CARGA DE ESTILOS Y CONFIGURACIÓN ====================
