@@ -60,7 +60,7 @@ from typing import List, Tuple
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QColor
 
 # === MODULES ===
 from connection.mega_conductivity_sensor import MegaConductivitySensor
@@ -224,6 +224,18 @@ class HemodialysisHMI(QMainWindow):
         }
     """
 
+    def _build_header_label_style(self, background: str) -> str:
+        return f"""
+            QLabel {{
+                background: {background};
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-weight: bold;
+                font-size: 32px;
+                color: #ffffff;
+                border-radius: 8px;
+            }}
+        """
+
 
     def __init__(self):
         super().__init__()
@@ -357,12 +369,13 @@ class HemodialysisHMI(QMainWindow):
         self.current_treatment_start_date_time = None # Variable para reporte de inicio/tratamiento
         self.navigation_buttons = {} # nuevo
         self._heparin_auto_stop_latched = False
-        self.setup_ui()           
+        self.setup_ui()
+        
+
         self._load_histories()     
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setStyleSheet("background: #FCFCFC;")
 
-
+        
 
         # Serial communication
         self.current_values.clear()
@@ -390,7 +403,6 @@ class HemodialysisHMI(QMainWindow):
         self.bioz_urea_controller.start()
 
         # --- Inyección de dependencias al KtvController ---
-        # Se configura aquí porque BioZ y current_values ya existen.
         self.ktv_controller.set_dependencies(
             main_window=self, # Referencia a sí mismo para usar sus métodos (show_operator_message, _write_setpoint, etc.)
             bioz_urea_controller=self.bioz_urea_controller, # Referencia al controlador BioZ/Urea
@@ -661,12 +673,16 @@ class HemodialysisHMI(QMainWindow):
              self.state.set_phase(TreatmentPhase.IDLE, "Sincronización inicial - Sin actividad")
              self.screen_state_manager.update_all_screens(TreatmentPhase.IDLE)
 
+    
+
 
 # ===============================================================================================
 #                   UI Setup
 #================================================================================================
     def setup_ui(self):
         central_widget = QWidget()
+        central_widget.setObjectName("main_central_widget")
+        central_widget.setStyleSheet("QWidget#main_central_widget { background: #FCFCFC; }")
         self.setCentralWidget(central_widget)
         self.main_layout = QGridLayout(central_widget)
         self.main_layout.setSpacing(0)
@@ -683,11 +699,25 @@ class HemodialysisHMI(QMainWindow):
         # =========================================================================================
         #                                    MAIN STACKED
         # =========================================================================================
-        self.screen_stack = QStackedWidget()    
+        self.screen_stack = QStackedWidget()
+        self.screen_stack.setObjectName("main_screen_stack")
+        self.screen_stack.setStyleSheet("""
+            QStackedWidget#main_screen_stack {
+                background: #FCFCFC;
+                border: none;
+            }
+            QStackedWidget#main_screen_stack > QWidget {
+                background: #FCFCFC;
+            }
+        """)
+        self.screen_stack.setAutoFillBackground(True)
+        stack_palette = self.screen_stack.palette()
+        stack_palette.setColor(self.screen_stack.backgroundRole(), QColor("#FCFCFC"))
+        self.screen_stack.setPalette(stack_palette)
         self._main_screen = MainScreen()    
         self.screen_stack.addWidget(self._main_screen)
         self.main_layout.addWidget(self.screen_stack, 1, 1, 1, 4)
-        #==========================================================================================
+        #==============================================2===========================================
         # ============================ Header (1920 × 177) ========================================
         #==========================================================================================
         header_container = QWidget()
@@ -695,8 +725,8 @@ class HemodialysisHMI(QMainWindow):
         header_container.setStyleSheet("background: #EBEBEB;")
 
         header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(10, 10, 10, 10)
-        header_layout.setSpacing(5)
+        header_layout.setContentsMargins(2, 2, 2, 2)
+        header_layout.setSpacing(1)
 
         #logo 1
         
@@ -705,28 +735,49 @@ class HemodialysisHMI(QMainWindow):
         header_layout.addWidget(logo1)
 
         # Connection / alarm status
-        self.status_label = QLabel("Conectado")
+        # #header card
+        # header_card = QFrame()
+        # header_card.setObjectName("header_card_")
+        # header_card.setStyleSheet("border: 1px solid #A19A9A; border-radius: 14px;")
+   
+        # header_card.setMinimumHeight(140)
+        
+
+        # header_card_layout = QHBoxLayout(header_card)
+        
+
+
+        self.status_label = QLabel("RECONECTANDO")
+        self.status_label.setObjectName("header_status_label")
         self.status_label.setFixedSize(260, 120)
         self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet("""
-               QLabel { background: #10b981; color: #ffffff; 
-                       font-weight: bold; font-size: 25px; }
-        """)
+        self.status_label.setStyleSheet(self._build_header_label_style("#10b981"))
         header_layout.addWidget(self.status_label)
 
-        self.active_alarms_label = QLabel("") 
         self.treatment_mode_selected = QLabel("")
-        self.current_process_status = QLabel("Esperando conexión")
-        self.date_time_label = QLabel("25/12/2025  14:37:22")
+        self.current_process_status = QLabel("PROCESO: --")
+        self.remaining_time_display = QLabel(
+            "<div style='text-align:center;'>"
+            "<span style='font-size:25px;'>T. RESTANTE</span><br>"
+            "<span style='font-size:32px;'>00:00:00</span>"
+            "</div>"
+        )
+        self.date_time_label = QLabel("25/12/2025 \n 14:37:22")
         
-        for lbl in [self.active_alarms_label,  self.current_process_status, self.treatment_mode_selected, self.date_time_label]:
+        self.current_process_status.setObjectName("header_process_label")
+        self.treatment_mode_selected.setObjectName("header_treatment_label")
+        self.remaining_time_display.setObjectName("header_remaining_label")
+        self.date_time_label.setObjectName("header_datetime_label")
+
+        self.current_process_status.setStyleSheet(self._build_header_label_style("#C6E3E6"))
+        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1E4573"))
+        self.remaining_time_display.setStyleSheet(self._build_header_label_style("#334155"))
+        self.date_time_label.setStyleSheet(self._build_header_label_style("#0f172a"))
+
+        for lbl in [self.current_process_status, self.treatment_mode_selected, self.remaining_time_display, self.date_time_label]:
             lbl.setFixedSize(330, 120)
             lbl.setAlignment(Qt.AlignCenter)
-            lbl.setStyleSheet("""
-                QLabel { color: #ffffff; background: #1E4573;
-                         font-weight: bold; font-size: 25px; }
-            """)
-            header_layout.addWidget(lbl)        
+            header_layout.addWidget(lbl)
         header_layout.addStretch()
 
         # Logo 2
@@ -1708,7 +1759,6 @@ class HemodialysisHMI(QMainWindow):
             if hasattr(self, 'alarms_screen') and self.alarms_screen:
                 self.alarms_screen.reset_ui_state() 
             
-            self.current_process_status.setText("Máquina conectada") 
             self.refresh_treatment_selected()
 
             # Solo mandamos al Home si NO estamos en área de servicio
@@ -1727,8 +1777,6 @@ class HemodialysisHMI(QMainWindow):
             if hasattr(self, 'alarms_screen') and self.alarms_screen:
                 self.alarms_screen.reset_ui_state() 
 
-            self.current_process_status.setText("Esperando conexión")
-    
             if not is_in_service_area:
                 self.show_home_screen()
             else:
@@ -1800,7 +1848,7 @@ class HemodialysisHMI(QMainWindow):
 
     def update_date_time(self):
         from datetime import datetime
-        self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y  %H:%M:%S"))    
+        self.date_time_label.setText(datetime.now().strftime("%d/%m/%Y \n %H:%M:%S"))
 
     def update_value(self, tag: str, value: float):        
         # Estos setpoints son locales de UI y no deben ser pisados por telemetría.
@@ -1957,21 +2005,36 @@ class HemodialysisHMI(QMainWindow):
 
     def refresh_alarms_label(self):
         """
-        Actualiza el QLabel del encabezado con la alarma de mayor prioridad.
-        Si no hay conexión, muestra un estado adecuado.
+        Reutiliza status_label para mostrar conexión/estado/alarmas.
         """      
         if not self.serial_comm or not self.serial_comm.is_connected:
-            self.active_alarms_label.setText("SIN CONEXIÓN\n DE CONTROL")
-            self.active_alarms_label.setStyleSheet("""
+            self.status_label.setText("RECONECTANDO")
+            self.status_label.setStyleSheet("""
                 QLabel { color: #ffffff; background: #f39c12; font-weight: bold; font-size: 20px; border-radius: 8px; }
             """)
             return
 
+        if getattr(self, "_connection_just_established_ticks", 0) > 0:
+            self._connection_just_established_ticks -= 1
+            self.status_label.setText("CONEXION\nESTABLECIDA")
+            self.status_label.setStyleSheet("""
+                QLabel { color: #ffffff; background: #0ea5e9; font-weight: bold; font-size: 20px; border-radius: 8px; }
+            """)
+            return
+
+        if self._last_priming_status < 0 and not self.active_alarms:
+            self.status_label.setText("MAQUINA\nCONECTADA")
+            self.status_label.setStyleSheet("""
+                QLabel { color: #ffffff; background: #0891b2; font-weight: bold; font-size: 20px; border-radius: 8px; }
+            """)
+            return
+
         if not self.active_alarms:
-            self.active_alarms_label.setText("ESTADO: OK")
-            self.active_alarms_label.setStyleSheet("""
+            self.status_label.setText("ESTADO: OK")
+            self.status_label.setStyleSheet("""
                 QLabel { color: #ffffff; background: #10b981; font-weight: bold; font-size: 22px; border-radius: 8px; }
             """)
+            self._alarm_flash_toggle = False
             return
 
         # Orden de prioridad (rojo > naranja > amarillo > cian)
@@ -1999,8 +2062,12 @@ class HemodialysisHMI(QMainWindow):
         color_map = {"rojo": "#dc2626", "naranja": "#f97316", "amarillo": "#eab308", "cian": "#06b6d4"}
         bg_color = color_map.get(level, "#1e293b")
 
-        self.active_alarms_label.setText(display_text)
-        self.active_alarms_label.setStyleSheet(f"""
+        # Parpadeo entre mensaje genérico y detalle de la alarma activa.
+        self._alarm_flash_toggle = not getattr(self, "_alarm_flash_toggle", False)
+        flash_text = "ALARMA" if self._alarm_flash_toggle else display_text
+
+        self.status_label.setText(flash_text)
+        self.status_label.setStyleSheet(f"""
             QLabel {{ background: {bg_color}; color: #ffffff; font-weight: bold; font-size: 22px; border-radius: 8px; }}
         """)                                         
 
@@ -2009,9 +2076,16 @@ class HemodialysisHMI(QMainWindow):
         mode_code = int(self.current_values.get("treatmentModeSelection", 0)) 
         mode_text = self._treatment_map.get(mode_code, "Desconocido") 
         self.treatment_mode_selected.setText(mode_text.upper()) 
-        self.treatment_mode_selected.setStyleSheet("""
-            QLabel { color: #ffffff; background: #1E4573; font-weight: bold; font-size: 25px; }
-        """)
+        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1E4573"))
+
+    def update_remaining_time_header(self, remaining_str: str):
+        if hasattr(self, "remaining_time_display") and self.remaining_time_display:
+            self.remaining_time_display.setText(
+                "<div style='text-align:center;'>"
+                "<span style='font-size:25px;'>T. RESTANTE</span><br>"
+                f"<span style='font-size:32px;'>{remaining_str}</span>"
+                "</div>"
+            )
 
     def update_alarm_system_monitor_config(self):
         """
@@ -2198,21 +2272,9 @@ class HemodialysisHMI(QMainWindow):
         if current_is_connected != self._is_connected_prev_state:
             self._sync_state_with_hardware()
             self._set_ui_connected_state(current_is_connected)
+            if current_is_connected:
+                self._connection_just_established_ticks = 3
          
-        if not current_is_connected:
-            text, color = "RECONECTANDO...", "#f97316" 
-        elif self.active_alarms:
-            text = "ALARMA ACTIVA"
-            color = "#dc2626" if int(time.time()) % 2 == 0 else "#991b1b"
-        else:
-            text, color = "EN LINEA", "#10b981"
-
-        self.status_label.setText(text)
-        self.status_label.setStyleSheet(f"""
-            QLabel {{ background: {color}; color: #ffffff; 
-                      font-weight: bold; font-size: 22px; }}
-        """)
-
         self._is_connected_prev_state = current_is_connected
         current_widget = self.screen_stack.currentWidget()
         if hasattr(current_widget, "update_values"):
@@ -2252,9 +2314,14 @@ class HemodialysisHMI(QMainWindow):
                 logger.info("Timer Maestro ya destruido por Qt; se omite stop().")
 
         # SOLO GUARDAR 
-        self.timer_manager._save_power_on_hours()
-        self.timer_manager._save_operation_hours()
-        self.timer_manager._save_cleaning_hours()
+        timer_manager = getattr(self, 'timer_manager', None)
+        if timer_manager is not None:
+            try:
+                timer_manager._save_power_on_hours()
+                timer_manager._save_operation_hours()
+                timer_manager._save_cleaning_hours()
+            except Exception as e:
+                logger.warning(f"[WARN] No se pudieron guardar horas del TimerManager durante shutdown: {e}")
 
         # Stop alarm system
         if hasattr(self, 'alarm_system') and self.alarm_system:
