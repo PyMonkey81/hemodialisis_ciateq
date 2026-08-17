@@ -170,7 +170,7 @@ class SimpleValueDisplay(QWidget):
     """
     def __init__(self, label_text: str, initial_value: str = "0.0", units: str = "", is_critical: bool = False):
         super().__init__()
-        self.setFixedHeight(132)
+        self.setFixedHeight(100)
 
         self.frame = QFrame()
         background_color = "#fff1b8" if is_critical else "#f8fafc"
@@ -239,66 +239,8 @@ class DialysisScreen(QWidget):
         self.arterial_pressure_history = deque(nan_array, maxlen=self.history_length)
         self.time_axis = np.arange(-self.history_length + 1, 1, dtype=np.float32)
         
-        self.apply_stylesheet()
         self.setup_ui()
     
-    def apply_stylesheet(self):
-        self.setStyleSheet("""
-            QWidget {
-                background-color: transparent;
-            }
-            QFrame#card {
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 14px;
-            }
-            QFrame#graph_card {
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 14px;
-            }
-            QLabel {
-                color: #334155;
-                background-color: transparent;
-                font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 16px;
-            }
-            QLabel#card_title {
-                color: #0f172a;
-                font-size: 20px;
-                font-weight: bold;
-                border-bottom: 1px solid #e2e8f0;
-                padding-bottom: 10px;
-                margin-bottom: 8px;
-            }
-            QLabel#val_large {
-                color: #ef4444;
-                font-family: 'Consolas', monospace;
-                font-size: 52px;
-                font-weight: bold;
-            }
-            QLabel#val_large_yellow {
-                color: #eab308;
-                font-family: 'Consolas', monospace;
-                font-size: 52px;
-                font-weight: bold;
-            }
-            QLabel#val_large_green {
-                            color: #15301E;
-                            font-family: 'Consolas', monospace;
-                            font-size: 52px;
-                            font-weight: bold;
-                        }
-            QLabel#val_large_cyan {
-                color: #0369a1;
-                font-family: 'Consolas', monospace;
-                font-size: 52px;
-                font-weight: bold;
-            }
-            QPushButton {
-                padding: 4px 10px;
-            }
-        """)
 
 
     def setup_ui(self):
@@ -443,7 +385,7 @@ class DialysisScreen(QWidget):
 
         # Presión Transmembrana (TMP)
         tmp_layout = QHBoxLayout()
-        tmp_label = QLabel("P. Transmembrana:")
+        tmp_label = QLabel("PTM:")
         tmp_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         tmp_layout.addWidget(tmp_label)
         self.tmp_val = QLabel("85 mmHg")
@@ -556,7 +498,7 @@ class DialysisScreen(QWidget):
         # ── Card de Tiempos (Rediseñada) ──
         time_card = QFrame()
         time_card.setObjectName("card")
-        time_card.setMinimumHeight(180) 
+        time_card.setMinimumHeight(100) 
         time_layout = QVBoxLayout(time_card)
         time_layout.setContentsMargins(10, 10, 10, 10)
         time_layout.setSpacing(8)
@@ -613,12 +555,12 @@ class DialysisScreen(QWidget):
             ("INICIAR", "#39ec21", self.parent_window.start_treatment),
             ("PAUSAR", "#FFC400", self.parent_window.pause_treatment),
             ("DETENER", "#DD2911", self.parent_window.stop_treatment),
-            ("MENÚ TERAPIA", "#0f172a", self.show_therapy_config),
-            ("MENÚ PACIENTE", "#0f172a", self.show_patient_config),
-            ("HEPARINA", "#0f172a", self.show_heparin_config_screen),
-            ("INICIAR CEBADO", "#0f172a", self.parent_window.start_priming),
-            ("DETENER CEBADO", "#0f172a", self.parent_window.stop_priming),  
-            ("Kt/V", "#0f172a", self.parent_window.show_ktv_screen),       
+            ("MENÚ TERAPIA", "#06298a", self.show_therapy_config),
+            ("MENÚ PACIENTE", "#06298a", self.show_patient_config),
+            ("HEPARINA", "#06298a", self.show_heparin_config_screen),
+            ("INICIAR CEBADO", "#06298a", self.parent_window.start_priming),
+            ("DETENER CEBADO", "#06298a", self.parent_window.stop_priming),
+            ("Kt/V", "#06298a", self.parent_window.show_ktv_screen),       
         ]
 
         for i, (text, color, callback) in enumerate(button_config):
@@ -882,11 +824,11 @@ class DialysisScreen(QWidget):
         # Estilos
         if btn_start_priming:
             btn_start_priming.setEnabled(enable_start_priming)
-            btn_start_priming.setStyleSheet(self._button_style("#0f172a", enable_start_priming))
+            btn_start_priming.setStyleSheet(self._button_style("#06298a", enable_start_priming))
         
         if btn_stop_priming:
             btn_stop_priming.setEnabled(enable_stop_priming)
-            btn_stop_priming.setStyleSheet(self._button_style("#0f172a", enable_stop_priming))
+            btn_stop_priming.setStyleSheet(self._button_style("#06298a", enable_stop_priming))
     
     
     def update_state(self, phase: TreatmentPhase):

@@ -161,26 +161,28 @@ class PatternConductivity(QObject):
 
     def stop(self):
         """Detiene el hilo y cierra el puerto"""
-        if not self.running:
-            return
-        
         self.running = False
         if self.reader_thread and self.reader_thread.is_alive():
             self.reader_thread.join(timeout=2.0)
             logger.info("[COND. PATRÓN] Hilo de comunicación detenido.")
+        self.reader_thread = None
         self._close_port()
         logger.info("[COND. PATRÓN] Controlador detenido.")
 
     def _close_port(self):
         """Cierra el puerto serial si está abierto."""
-        if self.serial_port and self.serial_port.is_open:
+        port = self.serial_port
+        if port is not None:
             try:
-                self.serial_port.close()
-                logger.info("[COND. PATRÓN] Puerto serial cerrado.")
+                if getattr(port, "is_open", False):
+                    port.close()
+                    logger.info("[COND. PATRÓN] Puerto serial cerrado.")
             except Exception as e:
                 logger.error(f"[COND. PATRÓN] Error cerrando puerto serial: {e}")
             finally:
                 self.serial_port = None
+        else:
+            self.serial_port = None
 
 
     def _connect_to_specific_port(self, port_name: str) -> bool:

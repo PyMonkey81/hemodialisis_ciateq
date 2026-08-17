@@ -3,7 +3,7 @@ import json
 from PySide6.QtCore import QObject, QTimer, QDateTime, QElapsedTimer # Import QElapsedTimer
 from core.state_manager import TreatmentPhase
 from core.hardware_state_mapper import HardwareStateMapper
-from utilities.platform_runtime import get_runtime_config_path
+from utilities.platform_runtime import get_runtime_config_path, safe_int, safe_float, safe_json_load
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +57,8 @@ class TimerManager(QObject):
         if not isinstance(values, dict):
             values = {}
 
-        status_code = int(values.get("primingProcessStatus", 0))
-        treatment_mode = int(values.get("treatmentModeSelection", 0))
+        status_code = safe_int(values.get("primingProcessStatus", 0), 0)
+        treatment_mode = safe_int(values.get("treatmentModeSelection", 0), 0)
 
         # ==================== POWER ON (siempre activo) ====================
         msecs_power = self.last_power_on_tick.msecsTo(now)
@@ -107,8 +107,8 @@ class TimerManager(QObject):
         values = getattr(self.main, "current_values", {})
         if not isinstance(values, dict):
             values = {}
-        treatment_mode = int(values.get("treatmentModeSelection", 0))
-        
+        treatment_mode = safe_int(values.get("treatmentModeSelection", 0), 0)
+
         # La lógica de sync_with_hardware es para operation_hours, se mantiene igual.
         if self.hardware_mapper.should_count_operation_time(status_code, treatment_mode):
             if not self.operation_start_time:
@@ -209,10 +209,9 @@ class TimerManager(QObject):
 
     def _load_power_on_hours(self):
         try:
-            if POWER_ON_HOURS_PATH.exists():
-                with POWER_ON_HOURS_PATH.open('r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.power_on_hours = data.get("power_on_hours", 0.0)
+            data = safe_json_load(POWER_ON_HOURS_PATH, {})
+            if isinstance(data, dict):
+                self.power_on_hours = safe_float(data.get("power_on_hours", 0.0), 0.0)
         except Exception as e:
             logger.warning(f"Error cargando power_on_hours: {e}")
 
@@ -229,10 +228,9 @@ class TimerManager(QObject):
 
     def _load_operation_hours(self):
         try:
-            if OPERATION_HOURS_PATH.exists():
-                with OPERATION_HOURS_PATH.open('r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.total_operation_hours = data.get("total_operation_hours", 0.0)
+            data = safe_json_load(OPERATION_HOURS_PATH, {})
+            if isinstance(data, dict):
+                self.total_operation_hours = safe_float(data.get("total_operation_hours", 0.0), 0.0)
         except Exception as e:
             logger.warning(f"Error cargando operation_hours: {e}")
 
@@ -249,10 +247,9 @@ class TimerManager(QObject):
 
     def _load_cleaning_hours(self):
         try:
-            if CLEANING_HOURS_PATH.exists():
-                with CLEANING_HOURS_PATH.open('r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.cleaning_hours = data.get("cleaning_hours", 0.0)
+            data = safe_json_load(CLEANING_HOURS_PATH, {})
+            if isinstance(data, dict):
+                self.cleaning_hours = safe_float(data.get("cleaning_hours", 0.0), 0.0)
         except Exception as e:
             logger.warning(f"Error cargando cleaning_hours: {e}")
 

@@ -20,7 +20,7 @@ from gui.components.floating_message import FloatingMessage
 from core.variables_map import VARIABLES
 import json
 from pathlib import Path
-from utilities.platform_runtime import get_runtime_config_path
+from utilities.platform_runtime import get_runtime_config_path, safe_json_load
 import logging
 logger = logging.getLogger(__name__)
 
@@ -59,9 +59,10 @@ class PatientConfigScreen(QWidget):
             return
 
         try:
-            with PATIENTS_CONFIG_FILE.open('r', encoding='utf-8') as f:
-                data = json.load(f)
-                self.patients_db = data
+            data = safe_json_load(PATIENTS_CONFIG_FILE, {})
+            if not isinstance(data, dict):
+                raise ValueError("El archivo de pacientes no contiene un objeto JSON válido.")
+            self.patients_db = data
             logger.info(f"Se cargaron {len(self.patients_db)} pacientes desde {PATIENTS_CONFIG_FILE}")
         except Exception as e:
             logger.error(f"Error al cargar pacientes desde JSON: {e}")

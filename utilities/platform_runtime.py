@@ -50,6 +50,62 @@ def is_linux() -> bool:
     return platform_name() == "Linux"
 
 
+def safe_int(value, default: int = 0) -> int:
+    """Convierte valores de entrada a int sin romper la app si vienen vacíos o corruptos."""
+    try:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, (int, float)):
+            return int(value)
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return default
+            return int(float(stripped))
+        return default
+    except (TypeError, ValueError):
+        return default
+
+
+def safe_float(value, default: float = 0.0) -> float:
+    """Convierte valores numéricos sin forzar truncamiento al cargar horas persistentes."""
+    try:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return float(value)
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return default
+            return float(stripped)
+        return default
+    except (TypeError, ValueError):
+        return default
+
+
+def safe_json_load(path: str | Path, default=None):
+    """Carga JSON con fallback seguro para archivos vacíos o corruptos."""
+    if path is None:
+        return default
+
+    file_path = Path(path)
+    if not file_path.exists():
+        return default
+
+    try:
+        with file_path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        return data if data is not None else default
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        logger.warning("No se pudo cargar JSON seguro desde %s. Se usa fallback.", file_path)
+        return default
+
+
 def load_platform_features() -> dict:
     """Carga feature flags desde config, con fallback seguro si falta/está corrupto."""
     default_features_path = get_runtime_config_path("platform_features.json")

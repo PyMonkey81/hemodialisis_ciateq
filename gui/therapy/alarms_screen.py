@@ -125,7 +125,9 @@ class AlarmsScreen(QWidget):
         if os.path.exists(self.history_file):
             try:
                 with open(self.history_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                if isinstance(data, list):
+                    return data
             except Exception as e:
                 logger.error(f"Error cargando historial: {e}")
         return []
@@ -134,10 +136,13 @@ class AlarmsScreen(QWidget):
         """Puebla el QTextEdit con los datos cargados"""
         self.history_display.clear()
         for entry in self.history_data:
-            # Reutilizamos tu lógica de formato existente
-            self._append_to_history_visual(
-                entry['text'], entry['value'], entry['level'], entry['time']
-            )
+            if not isinstance(entry, dict):
+                continue
+            text = entry.get('text', '')
+            value = entry.get('value', 0)
+            level = entry.get('level', 'INFO')
+            time_value = entry.get('time', '')
+            self._append_to_history_visual(text, value, level, time_value)
 
     def setup_ui(self):
         layout = QVBoxLayout(self)

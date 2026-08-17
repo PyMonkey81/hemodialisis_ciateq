@@ -144,11 +144,18 @@ class LedBarController(QObject):
     def stop(self):
         """Detiene la comunicación."""
         self.running = False
-        if self.write_thread:
+        if self.write_thread and self.write_thread.is_alive():
             self.write_thread.join(timeout=1.0)
-        if self.serial_port and self.serial_port.is_open:
-            self.serial_port.close()
-            logger.info("LedBarController: Puerto serial cerrado.")
+        self.write_thread = None
+        if self.serial_port is not None:
+            try:
+                if getattr(self.serial_port, "is_open", False):
+                    self.serial_port.close()
+                logger.info("LedBarController: Puerto serial cerrado.")
+            except Exception as e:
+                logger.error(f"LedBarController: Error cerrando puerto serial: {e}")
+            finally:
+                self.serial_port = None
 
     def _connect(self):
         """Intenta conectar al puerto serial de la barra LED."""
@@ -183,19 +190,22 @@ class LedBarController(QObject):
     def _process_loop(self):
         """Bucle principal del hilo."""
         while self.running:
-            if not self.serial_port or not self.serial_port.is_open:
+            if self.serial_port is None or not getattr(self.serial_port, "is_open", False):
                 if not self._connect():
                     time.sleep(2)
                     continue
 
             try:
                 cmd = self.command_queue.get(timeout=0.1)
+                if self.serial_port is None or not getattr(self.serial_port, "is_open", False):
+                    continue
                 self.serial_port.write(cmd)
-                self.serial_port.flush()
-                
-                if self.serial_port.in_waiting > 0:
+                if hasattr(self.serial_port, "flush"):
+                    self.serial_port.flush()
+
+                if getattr(self.serial_port, "in_waiting", 0) > 0 and hasattr(self.serial_port, "read_all"):
                     self.serial_port.read_all()
-                    
+
             except Empty:
                 pass
             except Exception as e:

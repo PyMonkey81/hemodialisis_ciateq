@@ -44,10 +44,9 @@ class MegaConductivitySensor(QObject):
         # Expresión regular para parsear la línea de DFRobot
         # Ejemplo: temperature:25.0^C  EC:1.41ms/cm
         self._line_pattern = re.compile(
-            r"temperature\s*:\s*([\d.]+).*?EC\s*:\s*([\d.]+)",            
-            re.IGNORECASE
+            r"temperature\s*:\s*([\d.]+).*?EC\s*:\s*([\d.]+)",
+            re.IGNORECASE,
         )
-
 
     @property
     def running(self):
@@ -73,7 +72,6 @@ class MegaConductivitySensor(QObject):
             self.stop()
         elif self._is_enabled and not self.running:
             self.start_reading()
-        
         elif self._is_enabled and port_changed and self.running:
             self._close_port_resource()
 
@@ -88,13 +86,13 @@ class MegaConductivitySensor(QObject):
                 port=port_name,
                 baudrate=115200,
                 timeout=0.3,
-                write_timeout=0.5
+                write_timeout=0.5,
             )
             if platform.system() != "Windows":
                 self.serial_port.dtr = False
                 self.serial_port.rts = False
 
-            time.sleep(1.5)  # La Mega tarda un poco más en reiniciar
+            time.sleep(1.5)
             self.serial_port.reset_input_buffer()
             self.serial_port.reset_output_buffer()
             self.is_connected = True
@@ -113,12 +111,10 @@ class MegaConductivitySensor(QObject):
             desc = (port_info.description or "").upper()
             manuf = (port_info.manufacturer or "").upper()
 
-            # Arduino Mega 2560 oficial
             if port_info.vid == 0x2341 and port_info.pid in (0x0010, 0x0042):
                 logger.info(f"[MEGA_COND] Arduino Mega detectado en {port_info.device}")
                 return self._execute_connection(port_info.device)
 
-            # Clones / descripciones comunes
             if "MEGA" in desc or "MEGA" in manuf:
                 logger.info(f"[MEGA_COND] Posible Mega detectada en {port_info.device} ({port_info.description})")
                 return self._execute_connection(port_info.device)
@@ -149,7 +145,6 @@ class MegaConductivitySensor(QObject):
                     continue
 
             try:
-                # Leer datos disponibles
                 data = self.serial_port.read(self.serial_port.in_waiting or 1)
                 if data:
                     try:
@@ -160,7 +155,6 @@ class MegaConductivitySensor(QObject):
                         logger.debug(f"[MEGA_COND] Error decodificando: {e}")
                         print(f"[MEGA_COND] Error decodificando: {e}")
 
-                # Watchdog
                 if time.time() - self.last_successful_communication > 10.0:
                     logger.warning("[MEGA_COND] Watchdog → reconectando")
                     print("[MEGA_COND] Watchdog → reconectando")
@@ -190,10 +184,8 @@ class MegaConductivitySensor(QObject):
                     temperature = float(match.group(1))
                     ec_value = float(match.group(2))
 
-                    # Tags principales + aliases para compatibilidad
                     self.data_received.emit("megaCondSensor", ec_value)
                     self.data_received.emit("megaTempSensor", temperature)
-
                     self.data_received.emit("patternCondRaw", ec_value)
                     self.data_received.emit("patternTempSensor", temperature)
 
@@ -204,7 +196,6 @@ class MegaConductivitySensor(QObject):
                     logger.warning(f"[MEGA_COND] No se pudo convertir valores de la línea: {line}")
                     print(f"[MEGA_COND] No se pudo convertir valores de la línea: {line}")
             else:
-                # Puede ser un mensaje de calibración, lo ignoramos en operación normal
                 if "CALIBRATION" in line.upper() or "ENTEREC" in line.upper() or "EXITEC" in line.upper():
                     logger.info(f"[MEGA_COND] Mensaje de calibración: {line}")
                 else:
@@ -212,21 +203,25 @@ class MegaConductivitySensor(QObject):
 
     def _close_port_resource(self):
         self.is_connected = False
-        if self.serial_port:
+        port = self.serial_port
+        if port is not None:
             try:
-                if self.serial_port.is_open:
-                    self.serial_port.close()
+                if getattr(port, "is_open", False):
+                    port.close()
             except Exception:
                 pass
             finally:
                 self.serial_port = None
+        else:
+            self.serial_port = None
+
         self._rx_buffer = ""
 
     def stop(self):
-        if not self.running:
-            return
+        """Detiene de forma segura el hilo y cierra el puerto."""
         self.running = False
-        self._close_port_resource()
         if self.reader_thread and self.reader_thread.is_alive():
-            self.reader_thread.join(timeout=1.5)
-        logger.info("[MEGA_COND] Detenido")
+            self.reader_thread.join(timeout=2.0)
+        self.reader_thread = None
+        self._close_port_resource()
+        logger.info("[MEGA_COND] Controlador detenido.")

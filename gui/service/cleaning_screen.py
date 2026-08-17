@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt, QTimer, Signal, QElapsedTimer
 import logging
 import json
 import os
-from utilities.platform_runtime import get_runtime_config_path
+from utilities.platform_runtime import get_runtime_config_path, safe_json_load
 
 # Suponiendo que estos módulos existen en tu estructura de proyecto
 from logic.calculos import convertir_flujo_a_ciclos
@@ -227,21 +227,20 @@ class CleaningScreen(QWidget):
                 return
 
         try:
-            with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
-            
-            # Asegurar que todas las claves por defecto estén presentes, fusionando si es necesario
-            if "modes" not in config_data:
+            config_data = safe_json_load(CONFIG_FILE_PATH, {})
+            if not isinstance(config_data, dict):
+                raise ValueError("La configuración de limpieza no es un objeto JSON válido.")
+
+            if "modes" not in config_data or not isinstance(config_data["modes"], dict):
                 config_data["modes"] = {}
             for mode_key, default_mode_config in DEFAULT_CONFIG["modes"].items():
                 if mode_key not in config_data["modes"]:
                     config_data["modes"][mode_key] = default_mode_config
-            
-            # Guardar la configuración fusionada de nuevo en el archivo
+
             with open(CONFIG_FILE_PATH, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=4)
             self.config_data = config_data
-        except (json.JSONDecodeError, IOError) as e:
+        except (TypeError, ValueError, IOError) as e:
             logger.error(f"Error al cargar o parsear el archivo de configuración: {e}. Usando configuración por defecto.")
             self.config_data = DEFAULT_CONFIG
 

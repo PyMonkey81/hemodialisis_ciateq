@@ -96,6 +96,8 @@ class SerialCommunication(QObject):
 
     def connect(self) -> bool:
         """Establece la conexión física basándose en la configuración de la UI."""
+        if self.serial_port and getattr(self.serial_port, "is_open", False):
+            self._close_port_resource()
         if self._user_selected_port:
             # Conexión directa a puerto específico dictado por el usuario
             logger.info(f"[CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: {self._user_selected_port}")
@@ -108,6 +110,8 @@ class SerialCommunication(QObject):
         """Realiza la apertura física del puerto serial."""
         current_os = platform.system()
         try:
+            if self.serial_port and getattr(self.serial_port, "is_open", False):
+                self._close_port_resource()
             self.serial_port = serial.Serial(
                 port=port_name,
                 baudrate=115200,
@@ -268,25 +272,28 @@ class SerialCommunication(QObject):
 
     def _send_command(self, command: bytes) -> bool:
         """Send command with CRC appended."""
-        if not self.serial_port or not self.serial_port.is_open:
+        if not self.serial_port or not getattr(self.serial_port, "is_open", False):
             return False
         try:
             crc = crc16(command)
             frame = command + bytes([crc >> 8, crc & 0xFF])
-            self.serial_port.reset_input_buffer()
+            if hasattr(self.serial_port, "reset_input_buffer"):
+                self.serial_port.reset_input_buffer()
             self.serial_port.write(frame)
             return True
-        except:
+        except Exception:
+            self._close_port_resource()
             return False
 
     def _read_response(self, size: int) -> Optional[bytes]:
         """Read exactly 'size' bytes from serial port."""
-        if not self.serial_port or not self.serial_port.is_open:
+        if not self.serial_port or not getattr(self.serial_port, "is_open", False):
             return None
         try:
             data = self.serial_port.read(size)
             return data if len(data) == size else None
-        except:
+        except Exception:
+            self._close_port_resource()
             return None
 
     def _parse_read_payload(self, payload: bytes):
@@ -331,22 +338,28 @@ class SerialCommunication(QObject):
     def _close_port_resource(self):
         """Libera de forma segura el puerto serial y resetea variables de estado."""
         self.is_connected = False
-        if self.serial_port:
+        port = self.serial_port
+        if port is not None:
             try:
-                if self.serial_port.is_open:
-                    self.serial_port.reset_input_buffer()
-                    self.serial_port.reset_output_buffer()
-                    self.serial_port.close()
+                if getattr(port, "is_open", False):
+                    if hasattr(port, "reset_input_buffer"):
+                        port.reset_input_buffer()
+                    if hasattr(port, "reset_output_buffer"):
+                        port.reset_output_buffer()
+                    port.close()
                     logger.info("[CONTROLADOR PPAL] Puerto serial cerrado.")
             except Exception as e:
                 logger.error(f"[CONTROLADOR PPAL] Error cerrando el recurso serial: {e}")
             finally:
                 self.serial_port = None
+        else:
+            self.serial_port = None
 
     def stop(self):
         """Gracefully stop communication thread and close port without triggering exceptions."""
         if not self.running:
-            return  
+            self._close_port_resource()
+            return
 
         logger.info("Iniciando apagado síncrono del módulo de comunicación serial...")
         self.running = False
@@ -358,4 +371,5 @@ class SerialCommunication(QObject):
             if self.reader_thread.is_alive():
                 logger.warning("El hilo serial no respondió al join a tiempo.")
 
+        self.reader_thread = None
         logger.info("[CONTROLADOR PPAL] Comunicación serial detenida limpiamente.")

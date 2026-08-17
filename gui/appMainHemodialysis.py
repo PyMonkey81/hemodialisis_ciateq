@@ -129,7 +129,7 @@ from logic.conductivity_profile import (
     validate_profile,
 )
 from utilities.csv_logger import CsvLogger
-from utilities.platform_runtime import get_runtime_config_path
+from utilities.platform_runtime import get_runtime_config_path, safe_float, safe_int
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ class HemodialysisHMI(QMainWindow):
     INDEX_HOME = 0
 
     BTN_ENABLED_DEFAULT_STYLE = """
-        QPushButton { background: #0f172a; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
+        QPushButton { background: #06298a; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
         QPushButton:pressed { background: #334155; }
     """
     BTN_ENABLED_START_TREATMENT_STYLE = """
@@ -644,8 +644,8 @@ class HemodialysisHMI(QMainWindow):
         if not hasattr(self, 'current_values'):
             return
 
-        status_code = int(self.current_values.get("primingProcessStatus", 0))
-        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+        status_code = safe_int(self.current_values.get("primingProcessStatus", 0), 0)
+        treatment_mode = safe_int(self.current_values.get("treatmentModeSelection", 0), 0)
         reason = "Sincronización automática con hardware"
 
         logger.info(f"Sincronizando estado - Status: {status_code}, Mode: {treatment_mode}")
@@ -699,17 +699,76 @@ class HemodialysisHMI(QMainWindow):
         # =========================================================================================
         #                                    MAIN STACKED
         # =========================================================================================
+                # En gui/appMainHemodialysis.py -> setup_ui
         self.screen_stack = QStackedWidget()
         self.screen_stack.setObjectName("main_screen_stack")
+
+        # ESTILO GLOBAL CENTRALIZADO
         self.screen_stack.setStyleSheet("""
-            QStackedWidget#main_screen_stack {
-                background: #FCFCFC;
-                border: none;
-            }
+            /* Asegura que el contenedor del stack y sus páginas sean claros */
+            QStackedWidget#main_screen_stack, 
             QStackedWidget#main_screen_stack > QWidget {
-                background: #FCFCFC;
+                background-color: #FCFCFC;
+            }
+
+            /* Estilo de las Cards (se aplica a Frames y GroupBoxes con este ID) */
+            QFrame#card, QFrame#graph_card, QGroupBox#card {
+                background-color: #ffffff;
+                border: 2px solid #cbd5e1;
+                border-radius: 14px;
+            }
+
+            /* Etiquetas generales */
+            QLabel {
+                color: #334155;
+                background-color: transparent;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 22px;
+            }
+
+            /* Título de la card con la línea debajo que pediste */
+            QLabel#card_title {
+                color: #0f172a;
+                font-size: 20px;
+                font-weight: bold;
+                background: transparent;
+                border: none;
+                border-bottom: 2px solid #77787D;
+                padding-bottom: 8px;
+                margin-bottom: 8px;
+            }
+
+            /* Valores grandes con colores específicos */
+            QLabel#val_large {
+                color: #ef4444;
+                font-family: 'Consolas', monospace;
+                font-size: 52px;
+                font-weight: bold;
+            }
+            QLabel#val_large_yellow {
+                color: #eab308;
+                font-family: 'Consolas', monospace;
+                font-size: 52px;
+                font-weight: bold;
+            }
+            QLabel#val_large_green {
+                color: #15301E;
+                font-family: 'Consolas', monospace;
+                font-size: 52px;
+                font-weight: bold;
+            }
+            QLabel#val_large_cyan {
+                color: #0369a1;
+                font-family: 'Consolas', monospace;
+                font-size: 52px;
+                font-weight: bold;
+            }
+    
+            QPushButton {
+                padding: 4px 10px;
             }
         """)
+
         self.screen_stack.setAutoFillBackground(True)
         stack_palette = self.screen_stack.palette()
         stack_palette.setColor(self.screen_stack.backgroundRole(), QColor("#FCFCFC"))
@@ -734,24 +793,12 @@ class HemodialysisHMI(QMainWindow):
         logo1.setPixmap(QPixmap(resource_path("resources/images/logo_ciateq__.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         header_layout.addWidget(logo1)
 
-        # Connection / alarm status
-        # #header card
-        # header_card = QFrame()
-        # header_card.setObjectName("header_card_")
-        # header_card.setStyleSheet("border: 1px solid #A19A9A; border-radius: 14px;")
-   
-        # header_card.setMinimumHeight(140)
-        
-
-        # header_card_layout = QHBoxLayout(header_card)
-        
-
 
         self.status_label = QLabel("RECONECTANDO")
         self.status_label.setObjectName("header_status_label")
         self.status_label.setFixedSize(260, 120)
         self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet(self._build_header_label_style("#10b981"))
+        self.status_label.setStyleSheet(self._build_header_label_style("#2bbd37"))
         header_layout.addWidget(self.status_label)
 
         self.treatment_mode_selected = QLabel("")
@@ -769,10 +816,10 @@ class HemodialysisHMI(QMainWindow):
         self.remaining_time_display.setObjectName("header_remaining_label")
         self.date_time_label.setObjectName("header_datetime_label")
 
-        self.current_process_status.setStyleSheet(self._build_header_label_style("#C6E3E6"))
-        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1E4573"))
-        self.remaining_time_display.setStyleSheet(self._build_header_label_style("#334155"))
-        self.date_time_label.setStyleSheet(self._build_header_label_style("#0f172a"))
+        self.current_process_status.setStyleSheet(self._build_header_label_style("#2bbd37"))
+        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#06298a"))
+        self.remaining_time_display.setStyleSheet(self._build_header_label_style("#06298a"))
+        self.date_time_label.setStyleSheet(self._build_header_label_style("#06298a"))
 
         for lbl in [self.current_process_status, self.treatment_mode_selected, self.remaining_time_display, self.date_time_label]:
             lbl.setFixedSize(330, 120)
@@ -849,14 +896,14 @@ class HemodialysisHMI(QMainWindow):
         self.navigation_buttons = {}
 
         nav_items = [
-            ("Inicio",              "#0f172a", self.show_home_screen),
-            ("Diálisis",            "#0f172a", self.show_dialysis_screen),
-            ("Tipo de\nTratamiento","#0f172a", self.show_treatment_mode_screen), 
+            ("Inicio",              "#06298a", self.show_home_screen),
+            ("Diálisis",            "#06298a", self.show_dialysis_screen),
+            ("Tipo de\nTratamiento","#06298a", self.show_treatment_mode_screen), 
             ("Iniciar\nTratamiento", "#39ec21", self.start_treatment),
-            ("Limpieza",            "#0f172a", self.show_cleaning_screen),
-            ("Servicio", "#0f172a", self.show_options_screen),
-            ("Alarmas",             "#0f172a", self.show_alarms_screen),
-            ("Historial",            "#0f172a", self.show_history_screen),
+            ("Limpieza",            "#06298a", self.show_cleaning_screen),
+            ("Servicio", "#06298a", self.show_options_screen),
+            ("Alarmas",             "#06298a", self.show_alarms_screen),
+            ("Historial",            "#06298a", self.show_history_screen),
             ("Salir",               "#dc2626", self.close),
         ]
 
@@ -1180,8 +1227,8 @@ class HemodialysisHMI(QMainWindow):
         self._highlight_active_nav_button("Diálisis")
 
     def get_therapy_duration_minutes(self) -> int:
-        hours = int(self.current_values.get("heparineTherapyHours", 0) or 0)
-        minutes = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+        hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
+        minutes = safe_int(self.current_values.get("heparineTherapyMinutes", 0), 0)
         return max(0, (hours * 60) + minutes)
 
     def get_remaining_therapy_minutes(self) -> float:
@@ -1370,12 +1417,12 @@ class HemodialysisHMI(QMainWindow):
             self._timer_lock = False
 
     def _coerce_heparin_auto_stop_seconds(self) -> int:
-        cfg_hours = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
-        cfg_minutes = int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0) or 0)
+        cfg_hours = safe_int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0), 0)
+        cfg_minutes = safe_int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0), 0)
         requested_seconds = max(0, (cfg_hours * 3600) + (cfg_minutes * 60))
 
-        therapy_hours = int(self.current_values.get("heparineTherapyHours", 0) or 0)
-        therapy_minutes = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+        therapy_hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
+        therapy_minutes = safe_int(self.current_values.get("heparineTherapyMinutes", 0), 0)
         therapy_seconds = max(0, (therapy_hours * 3600) + (therapy_minutes * 60))
 
         # La heparina debe parar, como máximo, cuando falten 30 minutos de terapia.
@@ -1475,18 +1522,18 @@ class HemodialysisHMI(QMainWindow):
             self._handle_disconnected_state()
             return
         # status_code = int(self.current_values.get("primingProcessStatus", 0))
-        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)     # dialyTempVariableData anterior
-        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)   # Setpoint de temperatura
-        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)      # conductividad actual   
-        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)   # Setpoint de conductividad
-              
+        temp_actual = safe_float(self.current_values.get("dialyTempIFProcessData", 0.0), 0.0)
+        temp_set    = safe_float(self.current_values.get("dialyTempControlSetPoint", 0.0), 0.0)
+        cond_actual = safe_float(self.current_values.get("dialyCondVariableData", 0.0), 0.0)
+        cond_set    = safe_float(self.current_values.get("dialyCondControlSetPoint", 0.0), 0.0)
+
         # 2. Lógica de validación (Tolerancias)
         temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
         cond_ok = abs(cond_actual - cond_set) <= 2.0
 
         phase = self.state.current_phase
-        status_code = int(self.current_values.get("primingProcessStatus", 0))
-        treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+        status_code = safe_int(self.current_values.get("primingProcessStatus", 0), 0)
+        treatment_mode = safe_int(self.current_values.get("treatmentModeSelection", 0), 0)
         # 1. OBTENER TEXTO DE PANTALLA ACTUAL 
         current_nav_text = self._get_current_screen_nav_text()
 
@@ -1619,52 +1666,7 @@ class HemodialysisHMI(QMainWindow):
             btn.setText("Iniciar\nTratamiento")
             btn.setEnabled(False)
     
- 
 
-
-    # def _can_start_treatment(self) -> bool:
-    #     """Lógica centralizada de condiciones para habilitar Iniciar/Reanudar"""
-    #     if self.state.current_phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
-    #         return False
-        
-    #     # 1. Evaluamos las condiciones de temperatura y conductividad siempre
-    #     temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
-    #     temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
-    #     cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
-    #     cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
-
-    #     temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
-    #     cond_ok = abs(cond_actual - cond_set) <= 2.0    
-        
-    #     condiciones_optimas = temp_ok and cond_ok
-
-    #     # 2. Si está en PAUSA, solo evaluamos las condiciones físicas (sin delay)
-    #     if self.state.current_phase == TreatmentPhase.PAUSED:
-    #         return condiciones_optimas
-        
-    #     # 3. ==================== DELAY DE 90 SEGUNDOS (SOLO EN READY) ====================
-    #     if self.state.current_phase == TreatmentPhase.READY:
-            
-    #         # Verificamos si el temporizador del filtro fue iniciado
-    #         if self.filter_fill_waiting and self.filter_fill_start_time is not None:
-    #             elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
-                
-    #             # debuguear, pero cuidado si se llama muchas veces por segundo:
-    #             # print(f"[FILTER] Tiempo transcurrido: {elapsed}s | Esperando: {self.MIN_FILTER_FILL_WAIT_SECONDS}s")
-
-    #             if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
-    #                 # Aunque la temp y cond estén bien, BLOQUEAMOS porque no han pasado los 90s
-    #                 return False
-    #             else:
-    #                 # Pasaron los 90 segundos. Ahora sí, habilitamos SOLO SI temp y cond están OK
-    #                 return condiciones_optimas
-            
-    #         # Si self.filter_fill_waiting es False (no se ha llamado a _start_filter), 
-    #         # mantenemos bloqueado el botón para forzar que pase por el delay de 90s.
-    #         return False
-    
-    
-    # NUEVA VERSION  POR PROBAR
     def _can_start_treatment(self) -> bool:
         """Lógica centralizada para habilitar Iniciar / Reanudar"""
         phase = self.state.current_phase
@@ -1895,11 +1897,27 @@ class HemodialysisHMI(QMainWindow):
         # Manejo de primingProcessStatus (estado del proceso + horas de operación)
         # ────────────────────────────────────────────────────────────────
         if tag == "primingProcessStatus":
-            status_code = int(value)
+            try:
+                status_code = int(value)
+            except (TypeError, ValueError):
+                logger.warning("primingProcessStatus inválido recibido: %r", value)
+                return
 
             if status_code != self._last_priming_status:
                 logger.info(f"Cambio de estado hardware: {self._last_priming_status} → {status_code}")
                 self._last_priming_status = status_code
+
+                if not hasattr(self, "current_process_status") or self.current_process_status is None:
+                    logger.warning("current_process_status no está inicializado; ignorando cambio de estado hardware.")
+                    return
+
+                if not hasattr(self, "state") or self.state is None:
+                    logger.warning("state no está inicializado; ignorando cambio de estado hardware.")
+                    return
+
+                if not hasattr(self, "hardware_mapper") or self.hardware_mapper is None:
+                    logger.warning("hardware_mapper no está inicializado; ignorando cambio de estado hardware.")
+                    return
 
                 treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
 
@@ -1916,25 +1934,27 @@ class HemodialysisHMI(QMainWindow):
                     if not (old_phase == TreatmentPhase.CLEANING and new_phase != TreatmentPhase.CLEANING):
                         reason = f"Hardware → {display_text}"
                         self.state.set_phase(new_phase, reason)
-                        self.screen_state_manager.update_all_screens(new_phase)
+                        if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
+                            self.screen_state_manager.update_all_screens(new_phase)
 
                         # === CONTROL DEL TIMER DE TERAPIA SEGÚN HARDWARE ===
-                        if hasattr(self, 'treatment_controller'):
+                        treatment_controller = getattr(self, 'treatment_controller', None)
+                        if treatment_controller is not None:
                             if new_phase == TreatmentPhase.RUNNING:
-                                self.treatment_controller.start_therapy_timer()
+                                treatment_controller.start_therapy_timer()
                                 
                                 if not self.current_treatment_start:
                                     self.current_treatment_start = QDateTime.currentDateTime()
                                 # Logger: nueva sesión o reanudación
                                 is_resuming = (old_phase == TreatmentPhase.PAUSED)
-                                self.treatment_controller._setup_treatment_logger(is_resuming)
+                                treatment_controller._setup_treatment_logger(is_resuming)
                                 
                             elif new_phase == TreatmentPhase.PAUSED:
-                                self.treatment_controller.pause_therapy_timer()
+                                treatment_controller.pause_therapy_timer()
                             elif new_phase == TreatmentPhase.READY and old_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
                                 # Si el hardware vuelve a READY sin pasar por IDLE,
                                 # se limpia la sesión previa para evitar arrastre de tiempo.
-                                self.treatment_controller.prepare_new_treatment_session()
+                                treatment_controller.prepare_new_treatment_session()
                                 self.current_treatment_start = None
 
                             
@@ -1951,13 +1971,16 @@ class HemodialysisHMI(QMainWindow):
                         self.treatment_logger.close()
                         self.treatment_logger = None
                     
-                    if hasattr(self, 'treatment_controller'):
-                        self.treatment_controller.stop_therapy_timer()
+                    treatment_controller = getattr(self, 'treatment_controller', None)
+                    if treatment_controller is not None:
+                        treatment_controller.stop_therapy_timer()
                         logger.debug("Timer de terapia detenido tras transición a IDLE")
                         
 
                 # Sincronizar timers del TimerManager
-                self.timer_manager.sync_with_hardware(status_code)
+                timer_manager = getattr(self, 'timer_manager', None)
+                if timer_manager is not None:
+                    timer_manager.sync_with_hardware(status_code)
 
                 # Mensaje especial para colocar filtro
                 if status_code == 7:
@@ -1965,11 +1988,11 @@ class HemodialysisHMI(QMainWindow):
 
                 # ==================== COLORES ====================
                 if status_code in [6, 7, 13]:
-                    color = "#25AD37"
+                    color = "#2bbd37"
                 elif status_code in [1, 2, 3, 4, 5, 8]:
-                    color = "#eab308"
+                    color = "#06298a"
                 elif status_code == 14:
-                    color = "#22c55e"
+                    color = "#2bbd37"
                 elif status_code in [15, 16]:
                     color = "#ef4444"
                 else:
@@ -2032,7 +2055,7 @@ class HemodialysisHMI(QMainWindow):
         if not self.active_alarms:
             self.status_label.setText("ESTADO: OK")
             self.status_label.setStyleSheet("""
-                QLabel { color: #ffffff; background: #10b981; font-weight: bold; font-size: 22px; border-radius: 8px; }
+                QLabel { color: #ffffff; background: #2bbd37; font-weight: bold; font-size: 22px; border-radius: 8px; }
             """)
             self._alarm_flash_toggle = False
             return
@@ -2076,7 +2099,7 @@ class HemodialysisHMI(QMainWindow):
         mode_code = int(self.current_values.get("treatmentModeSelection", 0)) 
         mode_text = self._treatment_map.get(mode_code, "Desconocido") 
         self.treatment_mode_selected.setText(mode_text.upper()) 
-        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1E4573"))
+        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1d4ed8"))
 
     def update_remaining_time_header(self, remaining_str: str):
         if hasattr(self, "remaining_time_display") and self.remaining_time_display:
@@ -2223,21 +2246,6 @@ class HemodialysisHMI(QMainWindow):
             self.update_led_bar_state()  # Forzar sincronización con sistema de alarmas
 
         QTimer.singleShot(timeout_ms, restore_alarm_state)   
-
-
-# # En lugar de:
-# self.show_info_message("Cebado iniciado", 3000)
-
-# # Usa:
-# self.show_operator_message("Cebado iniciado", level="info", timeout_ms=3000)
-
-
-# # Ejemplos según tipo:
-# self.show_operator_message("Tratamiento iniciado correctamente", "success", 2500)
-# self.show_operator_message("Temperatura fuera de rango", "warning", 5000)
-# self.show_operator_message("Error crítico en bomba", "error", 8000)
-
-#===============================Fin de codigo de prueba======================
 
 
 # ====================== MÉTODOS DE MENSAJES FLOTANTES ======================

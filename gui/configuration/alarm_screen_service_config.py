@@ -37,7 +37,6 @@ class AlarmScreenServiceConfig(QWidget):
 
 
         self.setup_ui()
-
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 25, 25, 25)
@@ -45,82 +44,135 @@ class AlarmScreenServiceConfig(QWidget):
 
         # Título
         title = QLabel("Configuración de Alarmas - Servicio Técnico")
-        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #34495e;")
+        title.setStyleSheet("font-size: 32px; font-weight: bold; color: #0f172a; background: transparent;")
         main_layout.addWidget(title)
 
         # Scroll Area
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("""
-            QScrollArea { 
-                border: none; 
-                background: transparent; 
+            QScrollArea {
+                border: 1px solid #cbd5e1;
+                background-color: #ffffff;
+                border-radius: 8px;
             }
+
+            /* Barra vertical */
             QScrollBar:vertical {
                 border: none;
-                background: #e0e0e5;
+                background: #f1f5f9;
                 width: 34px;
-                margin: 0px 0px 0px 0px;
-                border-radius: 14px;
+                margin: 0px;
+                border-radius: 2px;
             }
+
+            /* Handle (la barrita que se mueve) */
             QScrollBar::handle:vertical {
                 background: #8a8a9c;
-                min-height: 60px;
-                border-radius: 14px;
+                min-height: 50px;
+                border-radius: 2px;
+                margin: 4px 4px;          /* pequeño margen para que no toque los botones */
             }
             QScrollBar::handle:vertical:hover {
                 background: #6b6b7a;
             }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
+            QScrollBar::handle:vertical:pressed {
+                background: #555566;
             }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+
+            /* === Botones de flecha (arriba y abajo) === */
+            QScrollBar::sub-line:vertical {          /* flecha ARRIBA */
+                height: 28px;
+                background: #e2e8f0;
+                border: none;
+                border-top-left-radius: 2px;
+                border-top-right-radius: 2px;
+                subcontrol-origin: margin;
+                subcontrol-position: top;
+            }
+            QScrollBar::add-line:vertical {          /* flecha ABAJO */
+                height: 28px;
+                background: #e2e8f0;
+                border: none;
+                border-bottom-left-radius: 2px;
+                border-bottom-right-radius: 2px;
+                subcontrol-origin: margin;
+                subcontrol-position: bottom;
+            }
+
+            /* Hover de los botones */
+            QScrollBar::sub-line:vertical:hover,
+            QScrollBar::add-line:vertical:hover {
+                background: #cbd5e1;
+            }
+
+            /* Cuando se presiona */
+            QScrollBar::sub-line:vertical:pressed,
+            QScrollBar::add-line:vertical:pressed {
+                background: #94a3b8;
+            }
+
+            /* Ocultar las flechas nativas (las vamos a dibujar nosotros con color) */
+            QScrollBar::up-arrow:vertical,
+            QScrollBar::down-arrow:vertical {
+                width: 0px;
+                height: 0px;
                 background: none;
+            }
+
+            /* Evitar zonas grises/negras residuales */
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical {
+                background: transparent;
             }
         """)
 
+        # Contenedor interno del scroll
         scroll_content = QWidget()
+        scroll_content.setStyleSheet("background-color: #ffffff;") # Fondo blanco para la lista
         grid = QGridLayout(scroll_content)
         grid.setSpacing(18)
-        grid.setColumnStretch(1, 1)   # Hace que la columna de nombre ocupe el espacio restante
+        grid.setContentsMargins(20, 20, 20, 20)
+        grid.setColumnStretch(1, 1)
 
         # Encabezados
         headers = ["Habilitar", "Señal de control (Variable)"]
         for col, text in enumerate(headers):
             lbl = QLabel(text)
-            lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #7f8c8d; padding-bottom: 8px;")
+            lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #475569; padding-bottom: 8px; background: transparent;")
             grid.addWidget(lbl, 0, col)
+
+        # Estilo para los Checkboxes
+        chk_style = """
+            QCheckBox { color: #0f172a; font-size: 22px; background: transparent; }
+            QCheckBox::indicator { width: 30px; height: 32px; border: 2px solid #334155; border-radius: 4px; }
+            QCheckBox::indicator:checked { background-color: #0f172a; image: url(check_icon.png); } /* Si tienes un icono */
+        """
 
         row = 1
         for group in VARIABLES.values():
             for info in group.values():
                 if info.get("tag") and info.get("type") in ("double", "bool"):
                     tag = info["tag"]
-                    name = info.get("name", info.get("name", tag))
+                    name = info.get("name", tag)
                     unit = info.get("unit", "")
 
-                    # Checkbox más grande y visible
+                    # Checkbox
                     chk = QCheckBox()
                     chk.setChecked(self.config_manager.is_enabled(tag))
-                    chk.setMinimumHeight(32)
-                    chk.setStyleSheet("""
-                        QCheckBox { color: #000000; font-size: 26px;  border: 2px solid #000000; border-radius: 6px; padding: 4px; }
-                        QCheckBox::indicator { width: 25px; height: 25px; }
-                    """)
+                    chk.setStyleSheet(chk_style)
                     self.checkboxes[tag] = chk
 
                     # Nombre de la variable
                     display_text = f"{name}"
                     if unit:
                         display_text += f" ({unit})"
-                    # Indicador visual si es booleana
-                    if info.get("type") == "boolean":
-                        display_text += "  [Booleana]"
+                    if info.get("type") == "bool":
+                        display_text += "  [DIGITAL]"
 
                     lbl_name = QLabel(display_text)
-                    lbl_name.setStyleSheet("color: #0f172a; font-size: 22px; padding: 4px 0;")
+                    lbl_name.setStyleSheet("color: #334155; font-size: 22px; background: transparent;")
 
-                    # Agregar al grid
                     grid.addWidget(chk, row, 0, alignment=Qt.AlignCenter)
                     grid.addWidget(lbl_name, row, 1, alignment=Qt.AlignLeft)
                     row += 1
@@ -128,27 +180,138 @@ class AlarmScreenServiceConfig(QWidget):
         scroll_area.setWidget(scroll_content)
         main_layout.addWidget(scroll_area)
 
-        # Botones
+        # Botón Guardar
         btn_layout = QHBoxLayout()
-        btn_save = QPushButton("Guardar Configuración de Alarmas")
-        btn_save.setFixedSize(380, 60)
+        btn_save = QPushButton("Guardar Configuración")
+        btn_save.setFixedSize(400, 80)
         btn_save.setStyleSheet("""
             QPushButton {
                 background: #0f172a; 
                 color: #ffffff; 
-                font-size: 18px; 
+                font-size: 24px; 
                 font-weight: bold; 
-                border-radius: 10px;
+                border-radius: 12px;
             }
-            QPushButton:hover {
-                background: #1e2937;
-            }
+            QPushButton:hover { background: #1e293b; }
+            QPushButton:pressed { background: #3b82f6; }
         """)
         btn_save.clicked.connect(self.save_enabled)
 
         btn_layout.addStretch()
         btn_layout.addWidget(btn_save)
         main_layout.addLayout(btn_layout)
+
+    # def setup_ui(self):
+    #     main_layout = QVBoxLayout(self)
+    #     main_layout.setContentsMargins(25, 25, 25, 25)
+    #     main_layout.setSpacing(20)
+
+    #     # Título
+    #     title = QLabel("Configuración de Alarmas - Servicio Técnico")
+    #     title.setStyleSheet("font-size: 28px; font-weight: bold; color: #34495e;")
+    #     main_layout.addWidget(title)
+
+    #     # Scroll Area
+    #     scroll_area = QScrollArea()
+    #     scroll_area.setWidgetResizable(True)
+    #     scroll_area.setStyleSheet("""
+    #         QScrollArea { 
+    #             border: none; 
+    #             background: transparent; 
+    #         }
+    #         QScrollBar:vertical {
+    #             border: none;
+    #             background: #e0e0e5;
+    #             width: 34px;
+    #             margin: 0px 0px 0px 0px;
+    #             border-radius: 14px;
+    #         }
+    #         QScrollBar::handle:vertical {
+    #             background: #8a8a9c;
+    #             min-height: 60px;
+    #             border-radius: 14px;
+    #         }
+    #         QScrollBar::handle:vertical:hover {
+    #             background: #6b6b7a;
+    #         }
+    #         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    #             height: 0px;
+    #         }
+    #         QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    #             background: none;
+    #         }
+    #     """)
+
+    #     scroll_content = QWidget()
+    #     grid = QGridLayout(scroll_content)
+    #     grid.setSpacing(18)
+    #     grid.setColumnStretch(1, 1)   # Hace que la columna de nombre ocupe el espacio restante
+
+    #     # Encabezados
+    #     headers = ["Habilitar", "Señal de control (Variable)"]
+    #     for col, text in enumerate(headers):
+    #         lbl = QLabel(text)
+    #         lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #7f8c8d; padding-bottom: 8px;")
+    #         grid.addWidget(lbl, 0, col)
+
+    #     row = 1
+    #     for group in VARIABLES.values():
+    #         for info in group.values():
+    #             if info.get("tag") and info.get("type") in ("double", "bool"):
+    #                 tag = info["tag"]
+    #                 name = info.get("name", info.get("name", tag))
+    #                 unit = info.get("unit", "")
+
+    #                 # Checkbox más grande y visible
+    #                 chk = QCheckBox()
+    #                 chk.setChecked(self.config_manager.is_enabled(tag))
+    #                 chk.setMinimumHeight(32)
+    #                 chk.setStyleSheet("""
+    #                     QCheckBox { color: #000000; font-size: 26px;  border: 2px solid #000000; border-radius: 6px; padding: 4px; }
+    #                     QCheckBox::indicator { width: 25px; height: 25px; }
+    #                 """)
+    #                 self.checkboxes[tag] = chk
+
+    #                 # Nombre de la variable
+    #                 display_text = f"{name}"
+    #                 if unit:
+    #                     display_text += f" ({unit})"
+    #                 # Indicador visual si es booleana
+    #                 if info.get("type") == "boolean":
+    #                     display_text += "  [Booleana]"
+
+    #                 lbl_name = QLabel(display_text)
+    #                 lbl_name.setStyleSheet("color: #0f172a; font-size: 22px; padding: 4px 0;")
+
+    #                 # Agregar al grid
+    #                 grid.addWidget(chk, row, 0, alignment=Qt.AlignCenter)
+    #                 grid.addWidget(lbl_name, row, 1, alignment=Qt.AlignLeft)
+    #                 row += 1
+
+    #     scroll_area.setWidget(scroll_content)
+    #     main_layout.addWidget(scroll_area)
+
+    #     # Botones
+    #     btn_layout = QHBoxLayout()
+    #     btn_save = QPushButton("Guardar Configuración de Alarmas")
+    #     btn_save.setFixedSize(380, 60)
+    #     btn_save.setStyleSheet("""
+    #         QPushButton {
+    #             background: #0f172a; 
+    #             color: #ffffff; 
+    #             font-size: 18px; 
+    #             font-weight: bold; 
+    #             border-radius: 10px;
+    #         }
+    #         QPushButton:hover {
+    #             background: #1e2937;
+    #         }
+    #     """)
+    #     btn_save.clicked.connect(self.save_enabled)
+
+    #     btn_layout.addStretch()
+    #     btn_layout.addWidget(btn_save)
+    #     main_layout.addLayout(btn_layout)
 
 
     def save_enabled(self):

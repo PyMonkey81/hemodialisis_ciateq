@@ -93,7 +93,7 @@ class TherapyConfigScreen(QWidget):
             enabled_bg=colors.get("button_enabled_bg", "#39ec21"),
             button_text=colors.get("button_text", "#ffffff"),
             button_size=button_font_size,
-            button_border=colors.get("button_border", "#1e293b"),
+            button_border=colors.get("button_border", "#06298a"),
             pressed_bg=colors.get("button_pressed_bg", "#334155"),
         )
 
@@ -103,7 +103,7 @@ class TherapyConfigScreen(QWidget):
             disabled_bg=colors.get("button_disabled_bg", "#334155"),
             disabled_text=colors.get("button_disabled_text", "#94a3b8"),
             button_size=button_font_size,
-            button_border=colors.get("button_border", "#1e293b"),
+            button_border=colors.get("button_border", "#06298a"),
         )
 
         self.style_stop_enabled = """
@@ -113,7 +113,7 @@ class TherapyConfigScreen(QWidget):
             stop_bg=colors.get("button_stop_bg", "#DD2911"),
             button_text=colors.get("button_text", "#ffffff"),
             button_size=button_font_size,
-            button_border=colors.get("button_border", "#1e293b"),
+            button_border=colors.get("button_border", "#06298a"),
             pressed_bg=colors.get("button_pressed_bg", "#334155"),
         )
 
@@ -153,7 +153,7 @@ class TherapyConfigScreen(QWidget):
                 font-weight: bold;
                 font-size: 20px;
                 border-radius: 12px;
-                border: 2px solid #1e293b;
+                border: 2px solid #06298a;
                 min-height: 48px;
                 padding: 4px 12px;
             }

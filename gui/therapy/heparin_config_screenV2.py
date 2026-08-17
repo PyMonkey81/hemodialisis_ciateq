@@ -53,44 +53,9 @@ class HeparinConfigScreen(QWidget):
         self._selected_heparin_flow_index = 1
         self._selected_syringe_index = 0
 
-        self.apply_stylesheet()
+        
         self.setup_ui()
 
-    def apply_stylesheet(self):
-        self.setStyleSheet("""
-            QWidget { background-color: transparent; }
-            QFrame#card {
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 14px;
-            }
-            QLabel#card_title {
-                color: #0f172a;
-                font-size: 28px;
-                font-weight: bold;
-                border-bottom: 1px solid #e2e8f0;
-                padding-bottom: 10px;
-                margin-bottom: 12px;
-            }
-            QLabel#val_large {
-                color: #ef4444;
-                font-family: 'Consolas', monospace;
-                font-size: 48px;
-                font-weight: bold;
-            }
-            QLabel {
-                color: #334155;
-                font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 26px;
-            }
-            QComboBox {
-                background-color: #0f172a;
-                color: #f8fafc;
-                border: 1px solid #475569;
-                border-radius: 4px;
-                padding: 4px;
-            }
-        """)
 
     def setup_ui(self):
         layout = QGridLayout(self)
@@ -100,7 +65,7 @@ class HeparinConfigScreen(QWidget):
         # ==================== ESTILOS ====================
         button_style = """
             QPushButton { 
-                background: #0f172a; 
+                background: #06298a; 
                 color: #ffffff; 
                 border-radius: 20px; 
                 font-weight: bold; 
@@ -129,21 +94,25 @@ class HeparinConfigScreen(QWidget):
 
         combo_style = """
             QComboBox {
-                background-color: #f8fafc;
-                color: #1f2937;
-                border: 2px solid #64748b;
-                border-radius: 8px;
-                padding: 8px 12px;
-            }
-            QComboBox:hover {
-                border-color: #3b82f6;
-                background: #f1f5f9;
+                font-size: 24px;
+                min-width: 180px;
+                color: #0f172a;
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 5px;
+                padding: 5px;
             }
             QComboBox::drop-down {
                 border: none;
-                width: 30px;
             }
-
+            /* Estilo para la lista que se despliega */
+            QComboBox QAbstractItemView {
+                background-color: #ffffff;
+                color: #0f172a;
+                selection-background-color: #cbd5e1;
+                selection-color: #0f172a;
+                border: 1px solid #cbd5e1;
+            }
             """
 
         # ===================== CARDS =====================
@@ -346,7 +315,7 @@ class HeparinConfigScreen(QWidget):
             
             try:
                 # Extraemos solo el número (limpiamos el " ml")
-                # split()[0] toma "10" de "10 ml"
+                # split()[0] toma "10" de "10 ml", "20" de "20 ml" etc
                 syringe_value = float(syringe_text.split()[0])
             except (ValueError, IndexError):
                 syringe_value = 0.0
@@ -357,7 +326,7 @@ class HeparinConfigScreen(QWidget):
             if self.parent_window and hasattr(self.parent_window, "current_values"):
                 self.parent_window.current_values["heparineSyringeSize"] = syringe_value
             
-            # Ahora enviamos un float, no un string
+            # enviamos un float, no un string
             self.on_user_input_setpoint("heparineSyringeSize", syringe_value)
 
 

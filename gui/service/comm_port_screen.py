@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboB
 from PySide6.QtCore import Signal, Qt
 import json
 from gui.components.floating_message import FloatingMessage
-from utilities.platform_runtime import sanitize_port_for_platform, get_runtime_config_path
+from utilities.platform_runtime import sanitize_port_for_platform, get_runtime_config_path, safe_json_load
 import logging
 logger = logging.getLogger(__name__)
 
@@ -48,27 +48,27 @@ class CommPortScreen(QWidget):
         self.setStyleSheet("QWidget#CommPortScreen { background-color: #FCFCFC; }")
         # ---------------------------
         combo_style = """
-    QComboBox {
-        font-size: 24px;
-        min-width: 180px;
-        color: #0f172a;
-        background-color: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 5px;
-        padding: 5px;
-    }
-    QComboBox::drop-down {
-        border: none;
-    }
-    /* Estilo para la lista que se despliega */
-    QComboBox QAbstractItemView {
-        background-color: #ffffff;
-        color: #0f172a;
-        selection-background-color: #cbd5e1;
-        selection-color: #0f172a;
-        border: 1px solid #cbd5e1;
-    }
-"""
+            QComboBox {
+                font-size: 24px;
+                min-width: 180px;
+                color: #0f172a;
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            /* Estilo para la lista que se despliega */
+            QComboBox QAbstractItemView {
+                background-color: #ffffff;
+                color: #0f172a;
+                selection-background-color: #cbd5e1;
+                selection-color: #0f172a;
+                border: 1px solid #cbd5e1;
+            }
+            """
 
         layout = QVBoxLayout(self)
         layout.setSpacing(18)
@@ -475,8 +475,9 @@ class CommPortScreen(QWidget):
         }
         if CONFIG_FILE.exists():
             try:
-                with CONFIG_FILE.open('r', encoding='utf-8') as f:
-                    settings = json.load(f)
+                settings = safe_json_load(CONFIG_FILE, {})
+                if not isinstance(settings, dict):
+                    raise ValueError("La configuración de puertos no es un objeto JSON válido.")
                 merged = {**default, **settings}
                 self._sanitize_platform_ports(merged)
                 return merged
