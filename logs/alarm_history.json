@@ -1,269 +1,5 @@
 [
     {
-        "time": "16:54:59",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "16:54:59",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:55:00",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "16:55:00",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "16:57:32",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "16:57:32",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:57:33",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "16:57:33",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "16:57:34",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "16:57:34",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:57:34",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "16:57:34",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:02:00",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "17:02:00",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "17:02:01",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:02:01",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:02:02",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "17:02:02",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "17:02:02",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:02:02",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:05:57",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "17:05:58",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "17:05:58",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:05:58",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:06:00",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "17:06:00",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "17:06:00",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:06:01",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:07:07",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "17:07:07",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "17:07:07",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:07:07",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:07:09",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "17:07:09",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "17:07:09",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:07:09",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:10:26",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "17:10:26",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "17:10:27",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:10:27",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:10:28",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "17:10:28",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "17:10:29",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "17:10:29",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
         "time": "17:13:56",
         "text": "ACTIVADA - Setpoint temperatura",
         "value": 0.0,
@@ -5995,6 +5731,270 @@
     },
     {
         "time": "16:06:36",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "16:21:11",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "16:21:11",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "16:21:11",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "16:21:11",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "16:21:12",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "16:21:12",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:37",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:37",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:38",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:38",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:38",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:38",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:39",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:39",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:39",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:39",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:41",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:41",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:41",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:41",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:42",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:42",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:43",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:43",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:44",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:44",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:44",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:44",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:45",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:45",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:46",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:46",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:50",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:50",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:50",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:50",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:51",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:51",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:52",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:52",
+        "text": "NORMALIZADA: Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:57",
+        "text": "ACTIVADA - Setpoint temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:57",
+        "text": "ACTIVADA: Setpoint temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "08:22:58",
+        "text": "DESACTIVADA - Setpoint temperatura",
+        "value": 36.0,
+        "level": "info"
+    },
+    {
+        "time": "08:22:58",
         "text": "NORMALIZADA: Setpoint temperatura",
         "value": 36.0,
         "level": "info"

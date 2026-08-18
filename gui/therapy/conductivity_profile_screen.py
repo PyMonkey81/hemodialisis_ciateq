@@ -114,7 +114,10 @@ class ConductivityProfileScreen(QWidget):
 
         self._setup_modes()
         self._set_selected_slider(0)
-        self._apply_profile_shape(self._selected_type())
+        self._slider_values = [self._get_conductivity_setpoint()] * 6
+        for idx, slider in enumerate(self.slider_widgets):
+            slider.setValue(int(round(self._slider_values[idx] * 10.0)))
+        self._update_selected_value_label()
         self.refresh_from_parent()
 
     def _build_top_card(self, card_style: str) -> QFrame:
@@ -313,34 +316,8 @@ class ConductivityProfileScreen(QWidget):
         value = self._slider_values[self._selected_index]
         self.lbl_selected_value.setText(f"{value:.2f} mS/cm")
 
-
-
     def _on_profile_type_changed(self):
-    # Ya no aplicamos la forma automáticamente.
-    # El usuario debe pulsar "Ajuste" para redistribuir.
         self._update_selected_value_label()
-
-    def _apply_profile_shape(self, profile_type: ProfileType):
-        if not self.slider_widgets:
-            return
-
-        if profile_type == ProfileType.NONE:
-            base = self._slider_values[0] if self._slider_values else 14.0
-            self._slider_values = [base, base, base, base, base, base]
-
-        elif profile_type == ProfileType.LINEAR:
-            self._slider_values = self._generate_linear_profile()
-        elif profile_type == ProfileType.STEP:
-            self._slider_values = self._generate_step_profile()
-        elif profile_type == ProfileType.CUSTOM:
-            self._slider_values = self._generate_exp_profile()
-        else:
-            self._slider_values = [14.0, 14.0, 14.0, 14.0, 14.0, 14.0]
-
-        for idx, slider in enumerate(self.slider_widgets):
-            slider.setValue(int(round(self._slider_values[idx] * 10.0)))
-
-        self._set_selected_slider(self._selected_index)
 
     def _get_conductivity_setpoint(self) -> float:
         """Obtiene el setpoint de conductividad actual (dialyCondControlSetPoint)."""
@@ -357,35 +334,6 @@ class ConductivityProfileScreen(QWidget):
     
         return 14.0  # valor por defecto seguro
 
-    def _generate_linear_profile(self):
-        start = float(self._slider_values[0]) if self._slider_values else 14.0
-        end = float(self._slider_values[-1]) if self._slider_values else 14.0
-        if math.isclose(start, end, abs_tol=0.05):
-            start = min(16.0, max(12.0, start + 1.2))
-            end = max(12.0, min(16.0, start - 2.6))
-        values = []
-        for i in range(6):
-            progress = i / 5.0
-            values.append(start + (end - start) * progress)
-        return [self._clamp_value(v) for v in values]
-
-    def _generate_exp_profile(self):
-        start = float(self._slider_values[0]) if self._slider_values else 14.0
-        end = float(self._slider_values[-1]) if self._slider_values else 14.0
-        if math.isclose(start, end, abs_tol=0.05):
-            start = min(16.0, max(12.0, start + 1.2))
-            end = max(12.0, min(16.0, start - 2.6))
-            
-        return self._calculate_decay_curve(start, end)
-
-    def _generate_step_profile(self):
-        high = max(float(self._slider_values[0]) if self._slider_values else 14.0, float(self._slider_values[-1]) if self._slider_values else 14.0)
-        low = min(float(self._slider_values[0]) if self._slider_values else 14.0, float(self._slider_values[-1]) if self._slider_values else 14.0)
-        if math.isclose(high, low, abs_tol=0.05):
-            high = min(16.0, max(12.0, high + 1.2))
-            low = max(12.0, min(16.0, high - 2.6))
-        return [self._clamp_value(high), self._clamp_value(high), self._clamp_value(high), self._clamp_value(low), self._clamp_value(low), self._clamp_value(low)]
-
     def _clamp_value(self, value: float) -> float:
         return max(12.0, min(16.0, float(value)))
 
@@ -396,12 +344,6 @@ class ConductivityProfileScreen(QWidget):
     def _on_back(self):
         if self.parent_window and hasattr(self.parent_window, "show_therapy_config_screen"):
             self.parent_window.show_therapy_config_screen()
-
-    def _on_disable_profile(self):
-        if self.parent_window and hasattr(self.parent_window, "disable_conductivity_profile"):
-            self.parent_window.disable_conductivity_profile(show_message=True)
-            self.profile_saved.emit()
-            self._on_back()
 
     def _on_save_profile(self):
         profile_type = self._selected_type()
@@ -434,16 +376,21 @@ class ConductivityProfileScreen(QWidget):
         self._update_therapy_time_label()
 
         if not self.parent_window or not hasattr(self.parent_window, "conductivity_profile"):
-            self._slider_values = [14.0, 14.0, 14.0, 14.0, 14.0, 14.0]
+            setpoint = self._get_conductivity_setpoint()
+            self._slider_values = [setpoint] * 6
             self.btn_type_none.setChecked(True)
-            self._apply_profile_shape(ProfileType.NONE)
+            for idx, slider in enumerate(self.slider_widgets):
+                slider.setValue(int(round(self._slider_values[idx] * 10.0)))
+            self._set_selected_slider(self._selected_index)
+            self._update_selected_value_label()
             return
 
         profile: ConductivityProfile = self.parent_window.conductivity_profile
 
         if not profile.enabled or profile.profile_type == ProfileType.NONE:
             self.btn_type_none.setChecked(True)
-            self._slider_values = [float(profile.start_conductivity) if profile.start_conductivity else 14.0] * 6
+            setpoint = self._get_conductivity_setpoint()
+            self._slider_values = [setpoint] * 6
         elif profile.profile_type == ProfileType.LINEAR:
             self.btn_type_linear.setChecked(True)
             self._slider_values = self._generate_linear_profile_from_values(
@@ -453,7 +400,7 @@ class ConductivityProfileScreen(QWidget):
             self.btn_type_step.setChecked(True)
             high = float(profile.step_high if profile.step_high else profile.start_conductivity)
             low = float(profile.step_low if profile.step_low else profile.end_conductivity)
-            self._slider_values = [high, high, high, low, low, low]
+            self._slider_values = self._generate_step_from_ends(high, low)
         else:
             self.btn_type_exp.setChecked(True)
             self._slider_values = self._generate_exp_profile_from_values(
@@ -495,6 +442,7 @@ class ConductivityProfileScreen(QWidget):
             self.btn_cancel,
             self.btn_plus,
             self.btn_minus,
+            self.btn_adjust,
             self.btn_type_none,
             self.btn_type_linear,
             self.btn_type_exp,
@@ -505,29 +453,6 @@ class ConductivityProfileScreen(QWidget):
         for slider in self.slider_widgets:
             slider.setEnabled(not disabled)
 
-
-    # def _on_adjust_clicked(self):
-    #     """Recalcula las barras intermedias usando los extremos actuales (barra 1 y barra 6)."""
-    #     profile_type = self._selected_type()
-    #     start = float(self._slider_values[0])
-    #     end = float(self._slider_values[-1])
-
-    #     if profile_type == ProfileType.LINEAR:
-    #         self._slider_values = self._generate_linear_from_ends(start, end)
-    #     elif profile_type == ProfileType.CUSTOM:  # Exp
-    #         self._slider_values = self._generate_exp_from_ends(start, end)
-    #     elif profile_type == ProfileType.STEP:
-    #         self._slider_values = self._generate_step_from_ends(start, end)
-    #     else:  # NONE
-    #         self._slider_values = [start] * 6
-
-    #     for idx, slider in enumerate(self.slider_widgets):
-    #         slider.blockSignals(True)
-    #         slider.setValue(int(round(self._slider_values[idx] * 10.0)))
-    #         slider.blockSignals(False)
-
-    #     self._set_selected_slider(self._selected_index)
-    #     self._update_selected_value_label()
 
     def _on_adjust_clicked(self):
         """Recalcula las barras según el tipo de perfil actual."""
