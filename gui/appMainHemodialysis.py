@@ -2647,6 +2647,9 @@ class HemodialysisHMI(QMainWindow):
         elif sensor_id == "BIOZ":
             self.bioz_urea_controller.update_config(port, is_enabled)
             logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}")
+        elif sensor_id == "LED_CONTROLLER":
+            self.led_bar.update_config(port, is_enabled)
+            logger.info(f"LED Controller: Puerto={port}, Habilitado={is_enabled}")
 
     # ====================== PERSISTENCIA DE HORAS DE HARDWARE ======================
 

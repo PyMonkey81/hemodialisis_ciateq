@@ -122,10 +122,6 @@ class TherapyConfigScreen(QWidget):
         main_layout.setSpacing(16)
         main_layout.setContentsMargins(18, 18, 18, 18)
 
-        # label_style = (
-        #     f"color: {colors.get('label_text', '#334155')}; "
-        #     f"font-size: {label_font_size}px; font-weight: 600;"
-        # )
         label_style = "font-family: 'Segoe UI', Arial, sans-serif; font-size: 26px; color: #334155; font-weight: 600;"
 
 

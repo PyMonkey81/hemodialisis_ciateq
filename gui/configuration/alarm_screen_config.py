@@ -1,5 +1,7 @@
 # gui/configuration/alarm_screen_config.py
 # pantalla de configuracion de alarmas para usuario
+from wsgiref import headers
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QScrollArea, QGridLayout, 
     QPushButton, QHBoxLayout, QComboBox, QSizePolicy, QMessageBox
@@ -33,15 +35,28 @@ class AlarmScreenConfig(QWidget):
         self.config_manager = config_manager
         self.inputs: Dict[str, dict] = {}   # tag -> {'min': widget, 'max': widget, 'level': widget, 'type': str}
 
+        self.setObjectName("AlarmScreenConfig")
+        self.setStyleSheet("""
+            QWidget#AlarmScreenConfig {
+                background-color: #f8fafc;
+            }
+        """)
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), QColor("#f8f8f8"))
-        self.setPalette(palette)
+
+        # self.setAutoFillBackground(True)
+        # palette = self.palette()
+        # palette.setColor(self.backgroundRole(), QColor("#f8f8f8"))
+        # self.setPalette(palette)
         self.setup_ui() 
 
     def setup_ui(self):
+        self.setObjectName("AlarmScreenConfig")
+        self.setStyleSheet("""
+                    QWidget#AlarmScreenConfig {
+                        background-color: #f8fafc;
+                    }
+                """)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 25, 25, 25)
         main_layout.setSpacing(20)
@@ -55,6 +70,9 @@ class AlarmScreenConfig(QWidget):
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("""
             QScrollArea { border: none; background: #f8fafc; }
+            QScrollArea > QWidget > QWidget {
+            background: #f8fafc;
+            }
             QScrollBar:vertical {
                 border: none;
                 background: #e0e0e5;
@@ -79,12 +97,25 @@ class AlarmScreenConfig(QWidget):
         """)
 
         scroll_content = QWidget()   
-   
+        scroll_content.setObjectName("AlarmScrollContent")
+        scroll_content.setStyleSheet("""
+            QWidget#AlarmScrollContent {
+                background-color: #f8fafc;
+            }
+        """)
         v_layout = QVBoxLayout(scroll_content)
         v_layout.setContentsMargins(0, 0, 0, 0)
 
         grid_widget = QWidget() 
         self.grid_layout = QGridLayout(grid_widget)
+        grid_widget.setObjectName("AlarmGridWidget")
+        grid_widget.setStyleSheet("""
+        QWidget#AlarmGridWidget {
+            background-color: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            }
+        """)
         self.grid_layout.setSpacing(15)
 
         v_layout.addWidget(grid_widget)
@@ -106,12 +137,12 @@ class AlarmScreenConfig(QWidget):
         btn_layout = QHBoxLayout()
         btn_restore = QPushButton("Restaurar Todo")
         btn_restore.setFixedSize(180, 55)
-        btn_restore.setStyleSheet("background: #0f172a; color: #ffffff; font-size: 16px; font-weight: bold; border-radius: 8px;")
+        btn_restore.setStyleSheet("background-color: #06298a; color: #ffffff; font-size: 16px; font-weight: bold; border-radius: 8px;")
         btn_restore.clicked.connect(self.restore_all_defaults)
 
         btn_save = QPushButton("Guardar Cambios")
         btn_save.setFixedSize(180, 55)
-        btn_save.setStyleSheet("background: #0f172a; color: #ffffff; font-size: 16px; font-weight: bold; border-radius: 8px;")
+        btn_save.setStyleSheet("background-color: #06298a; color: #ffffff; font-size: 16px; font-weight: bold; border-radius: 8px;")
         btn_save.clicked.connect(self.save_configuration)
 
         btn_layout.addStretch()
@@ -146,7 +177,7 @@ class AlarmScreenConfig(QWidget):
 
                 combo_level = QComboBox()
                 combo_level.addItems(["cian", "naranja", "amarillo", "rojo"])
-                combo_level.setStyleSheet("color: #0f172a; font-size: 23px;")
+                combo_level.setStyleSheet("background-color: #fcfcfc; color: #0f172a; font-size: 23px;")
                 combo_level.setCurrentText(current_level)
                 combo_level.setFixedWidth(130)
 
@@ -159,8 +190,8 @@ class AlarmScreenConfig(QWidget):
 
                     min_edit = ClickableLineEdit(f"{min_val:.1f}")
                     max_edit = ClickableLineEdit(f"{max_val:.1f}")
-                    min_edit.setStyleSheet("color: #0f172a; font-size: 23px;")
-                    max_edit.setStyleSheet("color: #0f172a; font-size: 23px;")
+                    min_edit.setStyleSheet("background-color: #fcfcfc; color: #0f172a; font-size: 23px;")
+                    max_edit.setStyleSheet("background-color: #fcfcfc; color: #0f172a; font-size: 23px;")
                     min_edit.setFixedWidth(100)
                     max_edit.setFixedWidth(100)
 

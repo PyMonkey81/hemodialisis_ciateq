@@ -59,6 +59,7 @@ import threading
 import time
 from queue import Queue, Empty
 from PySide6.QtCore import QObject
+from utilities.platform_runtime import sanitize_port_for_platform
 import logging
 logger = logging.getLogger(__name__)
 
@@ -94,12 +95,36 @@ class LedBarController(QObject):
         self.running = False
         self.command_queue = Queue()
         self.write_thread = None
+        self._user_selected_port = None
+        self._is_enabled = False
         
         # Estas variables rastrean el último estado de LED y el último estado de silencio
         # para evitar enviar comandos duplicados innecesarios al Arduino.
         self._last_led_cmd_sent = b'o' # Por defecto, LEDs apagados
         self._last_buzzer_silence_state_sent = False # Por defecto, buzzer no silenciado (puede sonar)
 
+    def update_config(self, port_name: str, is_enabled: bool):
+        """Actualiza la configuración de puerto y activación desde la UI."""
+        sanitized_port = sanitize_port_for_platform(port_name)
+        port_changed = (
+            self._user_selected_port != sanitized_port
+            and not (self._user_selected_port is None and sanitized_port == "Auto")
+        )
+
+        self._user_selected_port = sanitized_port if sanitized_port != "Auto" else None
+        self._is_enabled = is_enabled
+
+        logger.info(f"[LED BAR] Configuración recibida: Puerto='{sanitized_port}', Habilitado={is_enabled}")
+
+        if not self._is_enabled and self.running:
+            logger.info("[LED BAR] Se deshabilitó la comunicación. Deteniendo controlador.")
+            self.stop()
+        elif self._is_enabled and not self.running:
+            logger.info("[LED BAR] Se habilitó la comunicación. Iniciando controlador.")
+            self.start()
+        elif self._is_enabled and port_changed and self.running:
+            logger.info(f"[LED BAR] El puerto cambió a '{sanitized_port}'. Forzando reconexión.")
+            self._close_port()
 
     def start(self):
         """Inicia el hilo de comunicación de la barra LED."""
@@ -109,6 +134,18 @@ class LedBarController(QObject):
         self.write_thread = threading.Thread(target=self._process_loop, daemon=True)
         self.write_thread.start()
         logger.info("LedBarController: Hilo de comunicación iniciado.")
+
+    def _close_port(self):
+        """Cierra el puerto serial si está abierto."""
+        if self.serial_port is not None:
+            try:
+                if getattr(self.serial_port, "is_open", False):
+                    self.serial_port.close()
+                    logger.info("LedBarController: Puerto serial cerrado por cambio de configuración.")
+            except Exception as exc:
+                logger.error(f"LedBarController: Error cerrando puerto serial: {exc}")
+            finally:
+                self.serial_port = None
 
     def send_state(self, led_command: bytes, silence_buzzer: bool = False):
         """

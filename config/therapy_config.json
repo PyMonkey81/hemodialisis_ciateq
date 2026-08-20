@@ -7,7 +7,7 @@
   "firmware": {
     "balanceChamberSetTiming": 500.0,
     "bloodFlowControlSetPoint": 300.0,
-    "dialyCondControlSetPoint": 13.366388888888888,
+    "dialyCondControlSetPoint": 15.0,
     "dialyHeparineBolusFlow": 0.0,
     "dialyTempControlSetPoint": 36.0,
     "heparineAutoStopHours": 2.0,
