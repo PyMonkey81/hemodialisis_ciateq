@@ -44,6 +44,12 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         self._automatic_frequency_minutes: int = 0 # Default: 0 (deshabilitado)
         self._next_automatic_measurement_time_s: float = float('inf') # En segundos, tiempo absoluto de terapia para próxima medición
 
+        # Validación de BIOZ / fase θ
+        self._bioz_retry_count: int = 0
+        self._bioz_retry_max_attempts: int = 3
+        self._bioz_phase_max_abs_degrees: float = 20.0
+        self._last_bioz_validation_issue: Optional[str] = None
+
         self.is_paused: bool = False # Controla si la secuencia de Kt/V está pausada (a nivel de KtvController)
         self._grafcet_is_paused_internally: bool = False # Controla si el KtvGrafcet está en su estado PAUSED_SEQUENCE
         self._suppress_measurement_popups: bool = True # Evita popups durante la secuencia Kt/V
@@ -211,10 +217,40 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         # Configurar la bandera para que el grafcet sepa si es auto o manual
         self.grafcet.is_auto_trigger = is_automatic
 
+        self._bioz_retry_count = 0
+        self._last_bioz_validation_issue = None
         logger.info(f"[KtvController] Iniciando secuencia de medición Kt/V {'(AUTOMÁTICA)' if is_automatic else '(MANUAL)'}.")
         self.grafcet.start()
         self.measurement_started.emit()
 
+
+    def set_bioz_validation_config(self, max_phase_degrees: float = 20.0, max_retry_attempts: int = 3) -> None:
+        """Configura los límites de validación de fase y el número máximo de reintentos."""
+        self._bioz_phase_max_abs_degrees = max(0.0, float(max_phase_degrees))
+        self._bioz_retry_max_attempts = max(1, int(max_retry_attempts))
+        logger.info(
+            "[KtvController] Config BIOZ: phase_max_abs=%s°, max_retries=%s",
+            self._bioz_phase_max_abs_degrees,
+            self._bioz_retry_max_attempts,
+        )
+
+    def _validate_bioz(self, resistance: float, phase: float) -> bool:
+        """Valida la medición de bioimpedancia para decidir si es usable para V(t)."""
+        if not (50.0 <= resistance <= 3000.0):
+            logger.warning("[KtvController] BIOZ inválida por resistencia: %.2f Ω", resistance)
+            return False
+
+        phase_abs = abs(float(phase))
+        if not (0.0 <= phase_abs <= self._bioz_phase_max_abs_degrees):
+            logger.warning(
+                "[KtvController] BIOZ inválida por fase fuera de rango: %.2f° (máx %.2f°)",
+                phase_abs,
+                self._bioz_phase_max_abs_degrees,
+            )
+            return False
+
+        logger.info("[KtvController] BIOZ válida: R=%.2f Ω | θ=%.2f°", resistance, phase_abs)
+        return True
 
     def abort(self, reason: str = "Abortado por usuario") -> None:
         """Aborta la secuencia de medición Kt/V y emite una señal."""
@@ -227,6 +263,8 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
             self._original_conductivity_setpoint = None # Limpiar después de restaurar
         self._grafcet_is_paused_internally = False # Asegurarse de que no quede en estado de pausa interna
+        self._bioz_retry_count = 0
+        self._last_bioz_validation_issue = None
 
     def pause_measurement(self):
         """Pausa la secuencia del Grafcet si es posible."""
@@ -285,6 +323,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         self.calculadora_ktv.reset()
         self._original_conductivity_setpoint = None
         self._next_automatic_measurement_time_s = 0 # Recalculará al inicio del primer tick
+        self._bioz_retry_count = 0
         self.is_paused = False
         self._grafcet_is_paused_internally = False
         self.schedule_info_updated.emit("No programado") # Limpiar la etiqueta de programación
@@ -302,6 +341,61 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             self._notify_user("Controlador BioZ/Urea no disponible o deshabilitado.", "error", 5000)
             self.grafcet.abort("BioZ/Urea no disponible")
 
+    def _perform_validate_bioz(self) -> bool:
+        """Valida la última BIOZ capturada antes de seguir con la secuencia de Kt/V."""
+        current_values = self._current_values_accessor()
+        resistance = float(current_values.get("bioz_resistance", 0.0) or 0.0)
+        phase = float(current_values.get("bioz_phase", 0.0) or 0.0)
+
+        if self._validate_bioz(resistance, phase):
+            self._bioz_retry_count = 0
+            self._last_bioz_validation_issue = None
+            return True
+
+        self._bioz_retry_count += 1
+        issue = f"R={resistance:.2f} Ω | θ={abs(phase):.2f}° fuera de rango"
+        self._last_bioz_validation_issue = issue
+        logger.warning(
+            "[KtvController] BIOZ inválida. Intento %s/%s. %s",
+            self._bioz_retry_count,
+            self._bioz_retry_max_attempts,
+            issue,
+        )
+
+        if self._bioz_retry_count < self._bioz_retry_max_attempts:
+            self._notify_user(
+                f"Bioimpedancia no confiable ({issue}). Reintentando adquisición...",
+                "warning",
+                2500,
+            )
+            if self._write_bioz_command_callback:
+                self._write_bioz_command_callback("SRTB")
+            self.grafcet._transition_to(KtvStep.WAIT_BIOIMPEDANCE)
+            return False
+
+        self._notify_user(
+            f"Bioimpedancia no confiable: {issue}. Se descarta la medición Kt/V.",
+            "error",
+            5000,
+            force=True,
+        )
+        logger.error(
+            "[KtvController] BIOZ descartada tras %s reintentos. %s. No se actualiza V(t).",
+            self._bioz_retry_count,
+            issue,
+        )
+        self.measurement_aborted.emit("Bioimpedancia no confiable - medición descartada")
+        self._bioz_retry_count = 0
+        if self._original_conductivity_setpoint is not None:
+            if self._write_setpoint_callback:
+                self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
+                logger.info(
+                    "[KtvController] Conductividad restaurada tras BIOZ inválida: %.2f mS/cm",
+                    self._original_conductivity_setpoint,
+                )
+            self._original_conductivity_setpoint = None
+        self.grafcet.abort("Bioimpedancia no confiable para Kt/V")
+        return False
 
     def _perform_capture_t1(self) -> None:
         """Callback: Captura conductividades T1 y guarda el setpoint original."""
@@ -439,13 +533,23 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
     def _on_grafcet_error(self) -> None:
         """Callback: La secuencia del Grafcet ha terminado con un error."""
         logger.error("[KtvController] Secuencia Kt/V terminada con error.")
-        self._notify_user("Error durante la medición de Kt/V. Verifique logs.", "error", 5000)
-        self.measurement_aborted.emit("Error interno")
+        if self._last_bioz_validation_issue:
+            self._notify_user(
+                f"Medición Kt/V descartada: Bioimpedancia no confiable ({self._last_bioz_validation_issue}).",
+                "error",
+                6000,
+                force=True,
+            )
+            self.measurement_aborted.emit("Bioimpedancia no confiable")
+        else:
+            self._notify_user("Error durante la medición de Kt/V. Verifique logs.", "error", 5000)
+            self.measurement_aborted.emit("Error interno")
         # Asegurarse de restaurar setpoint de conductividad si se aborta en medio
         if self._original_conductivity_setpoint is not None:
             self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
             self._original_conductivity_setpoint = None # Limpiar después de restaurar
         self.grafcet.reset() # Resetear el Grafcet a IDLE
+        self._last_bioz_validation_issue = None
         self._update_next_scheduled_time(self._get_elapsed_therapy_seconds()) # Recalcular próxima medición
 
     def _make_internal_callbacks(self) -> Dict[str, Callable]:
@@ -459,6 +563,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             "show_warning": lambda text, timeout: self._notify_user(text, "warning", timeout),
             "show_error": lambda text, timeout: self._notify_user(text, "error", timeout),
             "capture_t1": self._perform_capture_t1,
+            "validate_bioz": self._perform_validate_bioz,
             "set_step_conductivity": self._perform_set_step_conductivity,
             "capture_t2": self._perform_capture_t2,
             "restore_conductivity": self._perform_restore_conductivity,

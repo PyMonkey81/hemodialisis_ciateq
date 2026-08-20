@@ -13,6 +13,7 @@ class KtvStep(Enum):
     IDLE = auto()
     START_BIOIMPEDANCE = auto()
     WAIT_BIOIMPEDANCE = auto()
+    VALIDATE_BIOZ = auto()
     START_UREA = auto()
     WAIT_UREA = auto()
     CAPTURE_T1 = auto()
@@ -148,7 +149,9 @@ class KtvGrafcet(QObject):
         elif self.step == KtvStep.START_BIOIMPEDANCE:
             self._start_bioimpedance()
         elif self.step == KtvStep.WAIT_BIOIMPEDANCE:
-            self._wait(5000, KtvStep.START_UREA)
+            self._wait(5000, KtvStep.VALIDATE_BIOZ)
+        elif self.step == KtvStep.VALIDATE_BIOZ:
+            self._validate_bioz()
         elif self.step == KtvStep.START_UREA:
             self._start_urea()
         elif self.step == KtvStep.WAIT_UREA:
@@ -181,6 +184,18 @@ class KtvGrafcet(QObject):
         self._call_callback("send_bioz_command", "SRTB")
         self._call_callback("show_info", "Iniciando medición de Bioimpedancia...", 2000)
         self._transition_to(KtvStep.WAIT_BIOIMPEDANCE)
+
+    def _validate_bioz(self) -> None:
+        """Valida la BIOZ antes de continuar con la secuencia de Kt/V."""
+        result = self._call_callback("validate_bioz")
+        if result is True:
+            self._transition_to(KtvStep.START_UREA)
+        elif result is False:
+            # El callback ya gestionó reintentos/aborto; no hacer nada más.
+            logger.debug("[Kt/V GRAFCET] Validación de BIOZ fallida; el callback gestionó el reintento o el abort.")
+        else:
+            logger.warning("[Kt/V GRAFCET] La validación de BIOZ no devolvió un valor explícito; se asume fallo.")
+            self._transition_to(KtvStep.ERROR)
 
     def _start_urea(self) -> None:
         """Envía comando de Urea."""
