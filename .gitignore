@@ -37,6 +37,11 @@ Icon
 .env
 .env.local
 *.log
+var/log/
+logs/**/*.csv
+logs/**/*.log
+logs/**/hemodialysis_log_*.csv
+logs/**/ktv_*.csv
 
 # --- Configuraciones locales del editor ---
 .vscode/
