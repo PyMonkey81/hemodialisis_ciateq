@@ -2,7 +2,8 @@
 
 import logging
 from enum import Enum, auto
-from typing import Callable, Optional, Dict
+from typing import Any, Callable, Optional, Dict
+from unicodedata import name
 
 from PySide6.QtCore import QObject, QTimer
 
@@ -20,12 +21,12 @@ class KtvStep(Enum):
     SET_STEP_CONDUCTIVITY = auto()
     WAIT_CONDUCTIVITY_STEP = auto()
     CAPTURE_T2 = auto()
+    CALCULATE_RESULT = auto()      # antes de restaurar
     RESTORE_CONDUCTIVITY = auto()
     WAIT_RESTORE = auto()
-    CALCULATE_RESULT = auto()
     FINISHED = auto()
     ERROR = auto()
-    PAUSED_SEQUENCE = auto() # Nuevo estado para la pausa
+    PAUSED_SEQUENCE = auto()
 
 
 class KtvGrafcet(QObject):
@@ -145,7 +146,7 @@ class KtvGrafcet(QObject):
     def _execute_current_step(self) -> None:
         """Ejecuta la acción asociada al estado actual del GRAFCET."""
         if self.step == KtvStep.IDLE:
-            return # No hay acción en IDLE
+            return
         elif self.step == KtvStep.START_BIOIMPEDANCE:
             self._start_bioimpedance()
         elif self.step == KtvStep.WAIT_BIOIMPEDANCE:
@@ -161,21 +162,20 @@ class KtvGrafcet(QObject):
         elif self.step == KtvStep.SET_STEP_CONDUCTIVITY:
             self._set_step_conductivity()
         elif self.step == KtvStep.WAIT_CONDUCTIVITY_STEP:
-            self._wait(120000, KtvStep.CAPTURE_T2) # 2 minutos
+            self._wait(120000, KtvStep.CAPTURE_T2)  # 2 min: estabilizar escalón
         elif self.step == KtvStep.CAPTURE_T2:
             self._capture_t2()
+        elif self.step == KtvStep.CALCULATE_RESULT:
+            self._calculate_result()
         elif self.step == KtvStep.RESTORE_CONDUCTIVITY:
             self._restore_conductivity()
         elif self.step == KtvStep.WAIT_RESTORE:
-            self._wait(120000, KtvStep.CALCULATE_RESULT) # 2 minutos
-        elif self.step == KtvStep.CALCULATE_RESULT:
-            self._calculate_result()
+            self._wait(120000, KtvStep.FINISHED)  # 2 min: volver a 14 mS/cm
         elif self.step == KtvStep.FINISHED:
             self._finish()
         elif self.step == KtvStep.ERROR:
             self._handle_error()
         elif self.step == KtvStep.PAUSED_SEQUENCE:
-            # En este estado, no hay ejecución, solo espera ser reanudado.
             pass
 
 
@@ -214,20 +214,20 @@ class KtvGrafcet(QObject):
         self._transition_to(KtvStep.WAIT_CONDUCTIVITY_STEP)
 
     def _capture_t2(self) -> None:
-        """Captura los valores de conductividad después del paso."""
+        """Captura T2; con T1 y T2 ya se puede calcular."""
         self._call_callback("capture_t2")
-        self._transition_to(KtvStep.RESTORE_CONDUCTIVITY)
+        self._transition_to(KtvStep.CALCULATE_RESULT)
 
     def _restore_conductivity(self) -> None:
-        """Restaura el setpoint de conductividad original."""
+        """Restaura el setpoint original. No bloquea el resultado ya calculado."""
         self._call_callback("restore_conductivity")
         self._call_callback("show_info", "Restaurando conductividad original. Espere...", 2000)
         self._transition_to(KtvStep.WAIT_RESTORE)
 
     def _calculate_result(self) -> None:
-        """Realiza el cálculo final de Kt/V."""
+        """Calcula Kt/V con T1/T2 almacenados y luego restaura conductividad."""
         self._call_callback("calculate_ktv")
-        self._transition_to(KtvStep.FINISHED)
+        self._transition_to(KtvStep.RESTORE_CONDUCTIVITY)
 
     def _finish(self) -> None:
         """Maneja la finalización exitosa de la secuencia."""
@@ -256,15 +256,45 @@ class KtvGrafcet(QObject):
             return
         self._transition_to(self._next_step_after_wait)
 
-    def _call_callback(self, name: str, *args) -> None:
-        """Intenta llamar un callback definido, manejando errores."""
+    # def _call_callback(self, name: str, *args) -> None:
+    #     """Intenta llamar un callback definido, manejando errores."""
+    #     callback = self.callbacks.get(name)
+    #     if not callable(callback):
+    #         logger.error(f"[Kt/V GRAFCET] Callback no definido o no invocable: '{name}'. Abortando secuencia.")
+    #         self.abort(f"Callback '{name}' no disponible.")
+    #         return
+    #     try:
+    #         callback(*args)
+    #     except Exception as exc:
+    #         logger.error(f"[Kt/V GRAFCET] Error en la ejecución del callback '{name}': {exc}", exc_info=True)
+    #         self.abort(f"Error en callback '{name}': {exc}")
+
+
+    def _call_callback(self, name: str, *args) -> Any:
+        """Invoca un callback y propaga su valor de retorno con abort seguro."""
         callback = self.callbacks.get(name)
         if not callable(callback):
-            logger.error(f"[Kt/V GRAFCET] Callback no definido o no invocable: '{name}'. Abortando secuencia.")
+            logger.error(
+                "[Kt/V GRAFCET] Callback no definido o no invocable: '%s'. Abortando secuencia.",
+                name,
+            )
             self.abort(f"Callback '{name}' no disponible.")
-            return
+            return None
+
         try:
-            callback(*args)
+            result = callback(*args)
+            if result is None and name in {"validate_bioz", "calculate_ktv", "capture_t1", "capture_t2"}:
+                logger.debug(
+                    "[Kt/V GRAFCET] Callback '%s' ejecutado sin retorno explícito.",
+                    name,
+                )
+            return result
         except Exception as exc:
-            logger.error(f"[Kt/V GRAFCET] Error en la ejecución del callback '{name}': {exc}", exc_info=True)
+            logger.error(
+                "[Kt/V GRAFCET] Error en la ejecución del callback '%s': %s",
+                name,
+                exc,
+                exc_info=True,
+            )
             self.abort(f"Error en callback '{name}': {exc}")
+            return None

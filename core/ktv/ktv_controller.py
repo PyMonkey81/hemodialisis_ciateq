@@ -258,13 +258,31 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             self.grafcet.abort(reason)
             self._notify_user(f"Medición Kt/V abortada: {reason}", "error", 4000)
             self.measurement_aborted.emit(reason) # Notificar a la UI
-        # Asegurarse de restaurar setpoint de conductividad si se aborta en medio
-        if self._original_conductivity_setpoint is not None:
-            self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
-            self._original_conductivity_setpoint = None # Limpiar después de restaurar
+
+        self._restore_original_conductivity_if_needed(f"abort: {reason}")
         self._grafcet_is_paused_internally = False # Asegurarse de que no quede en estado de pausa interna
         self._bioz_retry_count = 0
         self._last_bioz_validation_issue = None
+
+    def _restore_original_conductivity_if_needed(self, reason: str) -> None:
+        """Restaura el setpoint original solo si el flujo Kt/V lo alteró."""
+        if self._original_conductivity_setpoint is None:
+            return
+
+        if self._write_setpoint_callback:
+            self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
+            logger.info(
+                "[KtvController] Conductividad restaurada (%s): %.2f mS/cm",
+                reason,
+                self._original_conductivity_setpoint,
+            )
+        else:
+            logger.warning(
+                "[KtvController] No se pudo restaurar conductividad (%s): callback no disponible.",
+                reason,
+            )
+
+        self._original_conductivity_setpoint = None
 
     def pause_measurement(self):
         """Pausa la secuencia del Grafcet si es posible."""
@@ -386,14 +404,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         )
         self.measurement_aborted.emit("Bioimpedancia no confiable - medición descartada")
         self._bioz_retry_count = 0
-        if self._original_conductivity_setpoint is not None:
-            if self._write_setpoint_callback:
-                self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
-                logger.info(
-                    "[KtvController] Conductividad restaurada tras BIOZ inválida: %.2f mS/cm",
-                    self._original_conductivity_setpoint,
-                )
-            self._original_conductivity_setpoint = None
+        self._restore_original_conductivity_if_needed("BIOZ inválida")
         self.grafcet.abort("Bioimpedancia no confiable para Kt/V")
         return False
 
@@ -544,10 +555,8 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         else:
             self._notify_user("Error durante la medición de Kt/V. Verifique logs.", "error", 5000)
             self.measurement_aborted.emit("Error interno")
-        # Asegurarse de restaurar setpoint de conductividad si se aborta en medio
-        if self._original_conductivity_setpoint is not None:
-            self._write_setpoint_callback("dialyCondControlSetPoint", self._original_conductivity_setpoint)
-            self._original_conductivity_setpoint = None # Limpiar después de restaurar
+
+        self._restore_original_conductivity_if_needed("error del grafcet")
         self.grafcet.reset() # Resetear el Grafcet a IDLE
         self._last_bioz_validation_issue = None
         self._update_next_scheduled_time(self._get_elapsed_therapy_seconds()) # Recalcular próxima medición
@@ -568,11 +577,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             "capture_t2": self._perform_capture_t2,
             "restore_conductivity": self._perform_restore_conductivity,
             "calculate_ktv": self._perform_calculate_ktv,
-            # Métodos para que el grafcet pueda obtener información del estado de la app
-            "is_therapy_running": self.is_therapy_running, 
-            # El grafcet ya no necesita current_values directamente, KtvController los obtiene
-            # "get_current_values": lambda: self._current_values_accessor(), 
-            # "get_elapsed_therapy_minutes": self._get_elapsed_therapy_minutes,
+            "is_therapy_running": self.is_therapy_running,
             "on_finish": self._on_grafcet_finish,
             "on_error": self._on_grafcet_error,
         }
