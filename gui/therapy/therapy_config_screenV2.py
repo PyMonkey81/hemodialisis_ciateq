@@ -1,4 +1,4 @@
-# gui/therapy/therapy_config_screen.py
+# gui/therapy/therapy_config_screenV2.py
 # Pantalla de configuración de parámetros de terapia (sin selección de modo)
 
 from PySide6.QtWidgets import (

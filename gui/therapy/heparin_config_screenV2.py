@@ -516,9 +516,21 @@ class HeparinConfigScreen(QWidget):
         return syringe_volume - current_dosage, syringe_volume, current_dosage
 
     def _show_bolus_message(self, message: str):
-        parent = self.parent_window if self.parent_window is not None else self
-        dialog = FloatingConfirmDialog(parent)
-        dialog.show_confirm(message, accept_text="Aceptar", cancel_text="Cerrar")
+        alert_owner = self.parent_window if self.parent_window is not None else self
+        if getattr(alert_owner, "_operator_dialog_open", False):
+            logger.debug("Diálogo de bolo suprimido por reentrancia")
+            return
+
+        alert_owner._operator_dialog_open = True
+        try:
+            if self.parent_window and hasattr(self.parent_window, "begin_operator_alert"):
+                self.parent_window.begin_operator_alert("warning")
+            dialog = FloatingConfirmDialog(alert_owner)
+            dialog.show_confirm(message, accept_text="Aceptar", cancel_text="Cerrar")
+        finally:
+            if self.parent_window and hasattr(self.parent_window, "end_operator_alert"):
+                self.parent_window.end_operator_alert()
+            alert_owner._operator_dialog_open = False
 
     def _can_apply_bolus(self) -> bool:
         bolus_quantity = safe_float(self.current_values.get("heparineBolusQuantity"), 0.0)

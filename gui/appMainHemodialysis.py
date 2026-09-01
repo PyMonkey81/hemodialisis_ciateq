@@ -439,6 +439,10 @@ class HemodialysisHMI(QMainWindow):
         self.alarm_system.start_monitoring()
         self.active_alarms: List[Tuple[str, float, str]] = [] # La lista activa que usa el header label
         self.buzzer_silenced_by_user = False   
+        self._operator_alert_active = False
+        self._operator_alert_cmd = None
+        self._operator_dialog_open = False
+        self._last_status_prompt = None
 
         self.led_bar = LedBarController()     
         self.led_bar.start()
@@ -1983,8 +1987,11 @@ class HemodialysisHMI(QMainWindow):
                     timer_manager.sync_with_hardware(status_code)
 
                 # Mensaje especial para colocar filtro
-                if status_code == 7:
+                if status_code == 7 and self._last_status_prompt != 7:
                     self.show_info_message("Coloque el filtro y presione 'Llenado de Filtro'", 8000)
+                    self._last_status_prompt = 7
+                elif status_code != 7:
+                    self._last_status_prompt = None
 
                 # ==================== COLORES ====================
                 if status_code in [6, 7, 13]:
@@ -2159,10 +2166,51 @@ class HemodialysisHMI(QMainWindow):
     #              LED Bar Logic
     # ────────────────────────────────────────────────
 
+    def begin_operator_alert(self, level: str = "warning"):
+        if any(alarm_level == "rojo" for _, _, alarm_level in self.active_alarms):
+            logger.info("Aviso de operador omitido: hay una alarma roja activa")
+            return
+
+        if self._operator_alert_active:
+            logger.info("Aviso de operador ya activo")
+            return
+
+        command_by_level = {
+            "warning": self.led_bar.CMD_YELLOW_FLASH,
+            "error": self.led_bar.CMD_RED_SOLID,
+            "info": self.led_bar.CMD_CYAN_SOLID,
+        }
+        cmd = command_by_level.get(level, self.led_bar.CMD_YELLOW_FLASH)
+        self._operator_alert_active = True
+        self._operator_alert_cmd = cmd
+        self.led_bar.send_state(cmd, silence_buzzer=False)
+        logger.info("Aviso de operador iniciado: %s", level)
+
+    def end_operator_alert(self):
+        if not self._operator_alert_active:
+            return
+
+        self._operator_alert_active = False
+        self._operator_alert_cmd = None
+        logger.info("Aviso de operador finalizado")
+        self.update_led_bar_state()
+
     def update_led_bar_state(self):
         """Actualiza el estado de la barra LED según las alarmas activas"""
         if not hasattr(self, 'led_bar') or self.led_bar is None:
             return  # Evita error si aún no se ha creado o ya se cerró
+
+        if any(level == "rojo" for _, _, level in self.active_alarms):
+            self.led_bar.send_state(
+                self.led_bar.CMD_RED_SOLID,
+                silence_buzzer=self.buzzer_silenced_by_user,
+            )
+            return
+
+        if getattr(self, "_operator_alert_active", False):
+            if self._operator_alert_cmd:
+                self.led_bar.send_state(self._operator_alert_cmd, silence_buzzer=False)
+            return
 
         if not self.serial_comm or not self.serial_comm.is_connected:
             self.led_bar.send_state(self.led_bar.CMD_CYAN_SOLID, silence_buzzer=False)
@@ -2196,15 +2244,8 @@ class HemodialysisHMI(QMainWindow):
         - LED + Buzzer temporal
         - Restauración automática del estado de alarma (si existe)
         """
-        # Evitar spam de un mismo mensaje en un intervalo corto para no saturar la UI ni el LED/Buzzer.
-        now_ms = QDateTime.currentMSecsSinceEpoch()
-        dedupe_key = f"{level}:{text}"
-        last_key = getattr(self, "_last_operator_message_key", None)
-        last_ts = getattr(self, "_last_operator_message_ts", 0)
-        if last_key == dedupe_key and (now_ms - last_ts) < 2500:
+        if not self._can_show_operator_toast(text, level):
             return
-        self._last_operator_message_key = dedupe_key
-        self._last_operator_message_ts = now_ms
 
         # Guardar estado actual de alarmas antes de modificar
         had_active_alarms = len(self.active_alarms) > 0
@@ -2227,16 +2268,16 @@ class HemodialysisHMI(QMainWindow):
 
         # Determinar comando y estilo según el nivel del mensaje
         if level == "success":
-            self.show_success_message(text, timeout_ms)
+            self._get_or_create_floating_msg().show_success_message(text, timeout_ms)
             cmd = getattr(self.led_bar, 'CMD_GREEN_SOLID', None)
         elif level == "warning":
-            self.show_warning_message(text, timeout_ms)
+            self._get_or_create_floating_msg().show_warning_message(text, timeout_ms)
             cmd = getattr(self.led_bar, 'CMD_YELLOW_FLASH', None)
         elif level == "error":
-            self.show_error_message(text, timeout_ms)
+            self._get_or_create_floating_msg().show_error_message(text, timeout_ms)
             cmd = getattr(self.led_bar, 'CMD_RED_SOLID', None)
         else:  # info
-            self.show_info_message(text, timeout_ms)
+            self._get_or_create_floating_msg().show_info_message(text, timeout_ms)
             cmd = getattr(self.led_bar, 'CMD_CYAN_SOLID', None)
 
         # Enviar comando al LED Bar + Buzzer activo
@@ -2259,6 +2300,19 @@ class HemodialysisHMI(QMainWindow):
 
 
 # ====================== MÉTODOS DE MENSAJES FLOTANTES ======================
+    def _can_show_operator_toast(self, text: str, level: str) -> bool:
+        now_ms = QDateTime.currentMSecsSinceEpoch()
+        dedupe_key = f"{level}:{text}"
+        if (
+            getattr(self, "_last_operator_message_key", None) == dedupe_key
+            and now_ms - getattr(self, "_last_operator_message_ts", 0) < 4000
+        ):
+            logger.debug("Toast de operador suprimido por reentrancia: %s", dedupe_key)
+            return False
+        self._last_operator_message_key = dedupe_key
+        self._last_operator_message_ts = now_ms
+        return True
+
     def _get_or_create_floating_msg(self) -> FloatingMessage:
         """Helper para evitar la duplicación de instanciación del widget de mensajes"""
         if not hasattr(self, '_floating_msg') or self._floating_msg is None:
@@ -2269,16 +2323,20 @@ class HemodialysisHMI(QMainWindow):
         self._get_or_create_floating_msg().show_floating_message(text, timeout_ms)
 
     def show_success_message(self, text: str, timeout_ms: int = 4000):
-        self._get_or_create_floating_msg().show_success_message(text, timeout_ms)
+        if self._can_show_operator_toast(text, "success"):
+            self._get_or_create_floating_msg().show_success_message(text, timeout_ms)
 
     def show_info_message(self, text: str, timeout_ms: int = 3800):
-        self._get_or_create_floating_msg().show_info_message(text, timeout_ms)
+        if self._can_show_operator_toast(text, "info"):
+            self._get_or_create_floating_msg().show_info_message(text, timeout_ms)
 
     def show_warning_message(self, text: str, timeout_ms: int = 4500):
-        self._get_or_create_floating_msg().show_warning_message(text, timeout_ms)
+        if self._can_show_operator_toast(text, "warning"):
+            self._get_or_create_floating_msg().show_warning_message(text, timeout_ms)
     
     def show_error_message(self, text: str, timeout_ms: int = 5000):
-        self._get_or_create_floating_msg().show_error_message(text, timeout_ms)
+        if self._can_show_operator_toast(text, "error"):
+            self._get_or_create_floating_msg().show_error_message(text, timeout_ms)
     
 
     def update_connection_status(self):

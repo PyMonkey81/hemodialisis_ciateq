@@ -437,6 +437,11 @@ class CleaningScreen(QWidget):
 
     def _pause_for_line_change(self):
         """ET4: Pausa obligatoria para cambio de línea."""
+        parent = self.parent_window if self.parent_window is not None else self
+        if self.mid_pause_done or getattr(parent, "_operator_dialog_open", False):
+            logger.debug("Diálogo de cambio de línea suprimido por reentrancia")
+            return
+
         self._accumulate_active_time() # Acumular tiempo activo antes de pausar
         
         # **** EMITIR SEÑAL para que TimerManager PARE de contar ****
@@ -458,7 +463,19 @@ class CleaningScreen(QWidget):
         self.on_user_boolean_command("dialyStopDialysisButt", True)
 
         # Mostrar diálogo de confirmación (BLOQUEANTE)
-        user_confirmed = self._confirm_message("Cambie la línea y presione 'Continuar' para reanudar.", "Continuar", "Detener")
+        parent._operator_dialog_open = True
+        try:
+            if parent and hasattr(parent, "begin_operator_alert"):
+                parent.begin_operator_alert("warning")
+            user_confirmed = self._confirm_message(
+                "Cambie la línea y presione 'Continuar' para reanudar.",
+                "Continuar",
+                "Detener",
+            )
+        finally:
+            if parent and hasattr(parent, "end_operator_alert"):
+                parent.end_operator_alert()
+            parent._operator_dialog_open = False
         
         # Una vez que el diálogo se cierra (el usuario ha hecho una elección)
         if user_confirmed:
