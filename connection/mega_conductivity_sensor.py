@@ -75,7 +75,7 @@ class MegaConductivitySensor(QObject):
         elif self._is_enabled and port_changed and self.running:
             self._close_port_resource()
 
-    def connect(self) -> bool:
+    def connect_port(self) -> bool:
         if self._user_selected_port:
             return self._execute_connection(self._user_selected_port)
         return self._find_and_connect_auto()
@@ -140,7 +140,7 @@ class MegaConductivitySensor(QObject):
 
             if not self.is_connected or not self.serial_port or not self.serial_port.is_open:
                 self.is_connected = False
-                if not self.connect():
+                if not self.connect_port():
                     time.sleep(2.0)
                     continue
 

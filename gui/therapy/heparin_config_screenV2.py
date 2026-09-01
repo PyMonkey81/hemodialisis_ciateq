@@ -8,8 +8,10 @@ from PySide6.QtCore import Qt, Signal, QEvent
 
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
+from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.components.ui_components import ClickableLineEdit
 from core.state_manager import TreatmentPhase
+from utilities.platform_runtime import safe_float
 
 import logging
 logger = logging.getLogger(__name__)
@@ -17,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 HEPARIN_AUTO_STOP_HOURS_TAG = "heparineAutoStopHours"
 HEPARIN_AUTO_STOP_MINUTES_TAG = "heparineAutoStopMinutes"
+HEPARIN_BOLUS_EPSILON_ML = 0.01
 
 
 class PushbuttonEvent(QPushButton):
@@ -150,6 +153,7 @@ class HeparinConfigScreen(QWidget):
         h.addWidget(btn_apply_bolus)
         bolus_layout.addLayout(h)
 
+#======================no hay flujo de bolo de heparina, por ahora se comenta el combo de flujo========================
         # Flujo bolo
         # h = QHBoxLayout()
         # flujo_label = QLabel("Flujo Bolo Heparina (ml/h):")
@@ -158,7 +162,7 @@ class HeparinConfigScreen(QWidget):
         # self.flow_combo = QComboBox()
         # self.flow_combo.addItems(["1.0", "2.0", "3.0", "4.0"])
         # self.flow_combo.setStyleSheet(combo_style)
-        # self.flow_combo.currentIndexChanged.connect(self._on_flujo_changed)
+        # self.flow_combo.currentIndexChanged.connect(self._on_bolus_flow_changed)
         # h.addWidget(self.flow_combo)
         # bolus_layout.addLayout(h)
         bolus_layout.addStretch(1)  # para centrar verticalmente los campos
@@ -220,7 +224,7 @@ class HeparinConfigScreen(QWidget):
         # Campos
         fields = [
             ("Vol. Dosis Heparina (ml):", "heparineTherapyDosage", "input_heparin"),
-            ("Flujo Heparina (ml/h):", None, "heparin_flow_combo"),
+            ("Flujo Heparina (ml/h):", None, "heparin_flow_combo"), 
             ("Tamaño de Jeringa:", None, "syringe_combo"),
             ("Vol. Heparina en Jeringa (ml):", "heparineSyringeVolume", "input_vol_hep"),
             ("Tiempo Heparina (hh:mm):", None, "input_heparin_auto_stop"),
@@ -288,17 +292,20 @@ class HeparinConfigScreen(QWidget):
         layout.setRowStretch(0, 1)
         layout.setRowStretch(1, 1)
 
-    def _on_flujo_changed(self, index):
-        self._selected_flujo_index = index
+#================================FALTA DEFINIR SI HABRÁ FLUJO DE HEPARINA O NO, POR AHORA SE COMENTA EL MÉTODO========================================
+    # def _on_bolus_flow_changed(self, index):
+    #     self._selected_flujo_index = index
 
-        if hasattr(self, "combo_flujo") and self.combo_flujo is not None:
-            flujo_value = float(self.combo_flujo.currentText())
-            self.current_values["dialyHeparineBolusFlow"] = flujo_value
-            if self.parent_window and hasattr(self.parent_window, "current_values"):
-                self.parent_window.current_values["dialyHeparineBolusFlow"] = flujo_value
-            self.on_user_input_setpoint("dialyHeparineBolusFlow", flujo_value)
+    #     if hasattr(self, "combo_flujo") and self.combo_flujo is not None:
+    #         flujo_value = float(self.combo_flujo.currentText())
+    #         self.current_values["dialyHeparineBolusFlow"] = flujo_value
+    #         if self.parent_window and hasattr(self.parent_window, "current_values"):
+    #             self.parent_window.current_values["dialyHeparineBolusFlow"] = flujo_value
+    #         self.on_user_input_setpoint("dialyHeparineBolusFlow", flujo_value)
 
-    def _on_flow_hep_changed(self, index):  #validar el tag correcto para el flujo de heparina NO EXISTE AUN 
+
+
+    def _on_flow_hep_changed(self, index):  
         self._selected_heparin_flow_index = index
         if hasattr(self, "heparin_flow_combo") and self.heparin_flow_combo is not None:
             flujo_value = float(self.heparin_flow_combo.currentText())
@@ -355,16 +362,11 @@ class HeparinConfigScreen(QWidget):
                 
                 # --- LÓGICA ESPECIAL PARA EL VOLUMEN DE JERINGA ---
                 if tag == "heparineSyringeVolume":
-                    # 1. Leer el valor de la jeringa seleccionada (ej: "10 ml" -> 10.0)
-                    try:
-                        syringe_text = self.syringe_combo.currentText() # "10 ml"
-                        syringe_max_vol = float(syringe_text.split()[0]) # Tomar el número "10"
-                        
-                        # 2. Enviar primero tamaño de jeringa 
-                        self.on_user_input_setpoint("heparineSyringeSize", syringe_max_vol)                        
-                        logger.info(f"Tamaño de jeringa seleccionado: {syringe_max_vol} ml")
-                    except Exception as e:
-                        logger.error(f"Error leyendo tamaño de jeringa: {e}")
+                    if not self._validate_syringe_fill_volume(float_val):
+                        return
+                    syringe_max_vol = self._syringe_max_volume_ml()
+                    self.on_user_input_setpoint("heparineSyringeSize", syringe_max_vol)
+                    logger.info("Tamaño de jeringa seleccionado: %.2f ml", syringe_max_vol)
 
                 # Actualizar UI y Diccionarios
                 input_widget.setText(f"{float_val:.1f}")
@@ -379,8 +381,8 @@ class HeparinConfigScreen(QWidget):
 
                 # --- EJECUTAR BOLO SI ES EL TAG DE JERINGA ---
                 if tag == "heparineSyringeVolume":
-                    self.apply_bolus()
-                    print("Bolo aplicado automáticamente tras actualizar el volumen de jeringa.")
+                    self._adjust_syringe_volume()
+                    logger.info("Ajuste de volumen de jeringa enviado: %.2f ml", float_val)
 
                 if hasattr(input_widget, 'clearFocus'):
                     input_widget.clearFocus()
@@ -480,9 +482,94 @@ class HeparinConfigScreen(QWidget):
                 elif isinstance(widget, ClickableLineEdit):
                     widget.setText(f"{value:.1f}")
 
+    def _syringe_max_volume_ml(self) -> float:
+        try:
+            return float(self.syringe_combo.currentText().split()[0])
+        except (AttributeError, IndexError, ValueError):
+            return safe_float(self.current_values.get("heparineSyringeSize"), 0.0)
+
+    def _validate_syringe_fill_volume(self, fill_volume: float) -> bool:
+        if fill_volume < 0:
+            logger.warning("Volumen de jeringa bloqueado: valor negativo (volumen=%.2f ml)", fill_volume)
+            self._show_bolus_message("El volumen en jeringa no puede ser negativo.")
+            return False
+
+        max_volume = self._syringe_max_volume_ml()
+        if max_volume > 0 and fill_volume > max_volume + HEPARIN_BOLUS_EPSILON_ML:
+            logger.warning(
+                "Volumen de jeringa bloqueado: excede capacidad (volumen=%.2f ml, tamaño=%.2f ml)",
+                fill_volume,
+                max_volume,
+            )
+            self._show_bolus_message(
+                "El volumen de heparina no puede ser mayor que el tamaño de la jeringa.\n"
+                f"Volumen capturado: {fill_volume:.2f} ml\n"
+                f"Tamaño de jeringa: {max_volume:.0f} ml"
+            )
+            return False
+
+        return True
+
+    def _heparin_remaining_ml(self) -> tuple[float, float, float]:
+        syringe_volume = safe_float(self.current_values.get("heparineSyringeVolume"), 0.0)
+        current_dosage = safe_float(self.current_values.get("heparineCurrentDosage"), 0.0)
+        return syringe_volume - current_dosage, syringe_volume, current_dosage
+
+    def _show_bolus_message(self, message: str):
+        parent = self.parent_window if self.parent_window is not None else self
+        dialog = FloatingConfirmDialog(parent)
+        dialog.show_confirm(message, accept_text="Aceptar", cancel_text="Cerrar")
+
+    def _can_apply_bolus(self) -> bool:
+        bolus_quantity = safe_float(self.current_values.get("heparineBolusQuantity"), 0.0)
+        remaining, syringe_volume, current_dosage = self._heparin_remaining_ml()
+
+        if bolus_quantity <= 0:
+            logger.info("Bolo bloqueado: volumen inválido (bolo=%.2f ml)", bolus_quantity)
+            self._show_bolus_message("El volumen de bolo debe ser mayor que 0 ml.")
+            return False
+
+        if remaining <= HEPARIN_BOLUS_EPSILON_ML:
+            logger.info(
+                "Bolo bloqueado: heparina agotada (jeringa=%.2f ml, dosificado=%.2f ml, restante=%.2f ml)",
+                syringe_volume,
+                current_dosage,
+                remaining,
+            )
+            self._show_bolus_message(
+                "La heparina se ha agotado.\n"
+                f"Volumen en jeringa: {syringe_volume:.2f} ml\n"
+                f"Dosificado: {current_dosage:.2f} ml\n"
+                "Restante: 0.00 ml"
+            )
+            return False
+
+        if bolus_quantity > remaining + HEPARIN_BOLUS_EPSILON_ML:
+            logger.info(
+                "Bolo bloqueado: volumen insuficiente (bolo=%.2f ml, restante=%.2f ml, jeringa=%.2f ml)",
+                bolus_quantity,
+                remaining,
+                syringe_volume,
+            )
+            self._show_bolus_message(
+                "No hay heparina suficiente para este bolo.\n"
+                f"Bolo solicitado: {bolus_quantity:.2f} ml\n"
+                f"Restante en jeringa: {remaining:.2f} ml\n"
+                f"Volumen en jeringa: {syringe_volume:.2f} ml"
+            )
+            return False
+
+        return True
+
     def apply_bolus(self):
+        if not self._can_apply_bolus():
+            return
         self.on_user_boolean_command("heparinApplyBolusDose", True)
-        
+
+    def _adjust_syringe_volume(self):
+        # Firmware: el mismo bit avanza el driver al volumen de jeringa.
+        # No es un bolo clínico; no validar heparineBolusQuantity.
+        self.on_user_boolean_command("heparinApplyBolusDose", True)        
 
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)

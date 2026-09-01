@@ -94,7 +94,7 @@ class SerialCommunication(QObject):
             logger.info(f"[CONTROLADOR PPAL] Puerto cambiado a '{sanitized_port}'. Forzando reconexión física.")
             self._close_port_resource()
 
-    def connect(self) -> bool:
+    def connect_port(self) -> bool:
         """Establece la conexión física basándose en la configuración de la UI."""
         if self.serial_port and getattr(self.serial_port, "is_open", False):
             self._close_port_resource()
@@ -203,7 +203,7 @@ class SerialCommunication(QObject):
 
             if not self.is_connected or not self.serial_port or not self.serial_port.is_open:
                 self.is_connected = False
-                if self.connect():
+                if self.connect_port():
                     self.last_successful_communication = time.time()
                 else:
                     time.sleep(2.0)  # Frecuencia de reintento ante caídas de enlace o desconexión

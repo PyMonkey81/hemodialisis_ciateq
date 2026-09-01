@@ -146,7 +146,7 @@ THERAPY_LOCAL_TAGS = {
 }
 THERAPY_FIRMWARE_TAGS = {
     "heparineBolusQuantity",      # Vol. bolo heparina
-    "dialyHeparineBolusFlow",     # Flujo heparina
+    # "dialyHeparineBolusFlow",     # Flujo heparina 
     "heparineTherapyDosage",      # Dosis heparina
     "heparineAutoStopHours",      # Paro heparina (hh:mm)
     "heparineAutoStopMinutes",
@@ -574,7 +574,7 @@ class HemodialysisHMI(QMainWindow):
         self.refresh_alarms_label()
         self.refresh_treatment_selected()
         
-        self.serial_comm.connect()
+        self.serial_comm.connect_port()
         self.serial_comm.start_reading()
         self._set_ui_connected_state(False)
         self.screen_stack.setCurrentIndex(self.INDEX_HOME)

@@ -251,17 +251,18 @@ class HeparinConfigScreen(QWidget):
 
         main_layout.addStretch(1)
 
+#================================FALTA DEFINIR SI HABRÁ FLUJO DE HEPARINA O NO, POR AHORA SE COMENTA EL MÉTODO========================================
+    # # def _on_flow_hep_changed(self, index):  #validar el tag
+    # def _on_flujo_changed(self, index):
 
-    def _on_flujo_changed(self, index):
+    #     self._selected_flujo_index = index
 
-        self._selected_flujo_index = index
-
-        if hasattr(self, "combo_flujo") and self.combo_flujo is not None:
-            flujo_value = float(self.combo_flujo.currentText())
-            self.current_values["dialyHeparineBolusFlow"] = flujo_value
-            if self.parent_window and hasattr(self.parent_window, "current_values"):
-                self.parent_window.current_values["dialyHeparineBolusFlow"] = flujo_value
-            self.on_user_input_setpoint("dialyHeparineBolusFlow", flujo_value)
+    #     if hasattr(self, "combo_flujo") and self.combo_flujo is not None:
+    #         flujo_value = float(self.combo_flujo.currentText())
+    #         self.current_values["dialyHeparineBolusFlow"] = flujo_value
+    #         if self.parent_window and hasattr(self.parent_window, "current_values"):
+    #             self.parent_window.current_values["dialyHeparineBolusFlow"] = flujo_value
+    #         self.on_user_input_setpoint("dialyHeparineBolusFlow", flujo_value)
 
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
         dialog = NumpadDialog(self, initial_value="", title=title)
