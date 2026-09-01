@@ -1,6 +1,6 @@
 {
     "main_control": {
-        "port": "COM13",
+        "port": "COM3",
         "enabled": true
     },
     "conductivity_sensor": {
@@ -12,7 +12,11 @@
         "enabled": false
     },
     "bioz_urea_sensor": {
-        "port": "COM10",
+        "port": "COM5",
         "enabled": true
+    },
+    "led_controller": {
+        "port": "Auto",
+        "enabled": false
     }
 }

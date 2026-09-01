@@ -2196,6 +2196,16 @@ class HemodialysisHMI(QMainWindow):
         - LED + Buzzer temporal
         - Restauración automática del estado de alarma (si existe)
         """
+        # Evitar spam de un mismo mensaje en un intervalo corto para no saturar la UI ni el LED/Buzzer.
+        now_ms = QDateTime.currentMSecsSinceEpoch()
+        dedupe_key = f"{level}:{text}"
+        last_key = getattr(self, "_last_operator_message_key", None)
+        last_ts = getattr(self, "_last_operator_message_ts", 0)
+        if last_key == dedupe_key and (now_ms - last_ts) < 2500:
+            return
+        self._last_operator_message_key = dedupe_key
+        self._last_operator_message_ts = now_ms
+
         # Guardar estado actual de alarmas antes de modificar
         had_active_alarms = len(self.active_alarms) > 0
         previous_cmd = None

@@ -826,5 +826,14 @@
         "duracion_minutos": 130,
         "duracion_hhmm": "02:10",
         "timestamp_registro": "2026-08-18 12:05:43"
+    },
+    {
+        "fecha": "2026-08-26",
+        "hora_inicio": "15:08:58",
+        "hora_fin": "15:17:39",
+        "tipo_tratamiento": "Hemodiálisis",
+        "duracion_minutos": 9,
+        "duracion_hhmm": "00:09",
+        "timestamp_registro": "2026-08-26 15:17:39"
     }
 ]

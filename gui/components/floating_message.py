@@ -11,17 +11,27 @@ class FloatingMessage(QLabel):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint)
         # self.setAttribute(Qt.WA_TranslucentBackground)
-        
+
         self.setAlignment(Qt.AlignCenter)
         self.setWordWrap(True)
-        
+
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.hide_message)
         self._animation = None
+        self._last_message_key = None
+        self._last_message_ts = 0
 
     def _show_message(self, text: str, timeout_ms: int, bg_color: str, border_color: str, emoji: str = ""):
         """Método interno para mostrar mensaje con estilo personalizado"""
+        now_ms = QTimer.currentTime() if hasattr(QTimer, 'currentTime') else 0
+        message_key = f"{text}|{bg_color}|{border_color}|{emoji}"
+        if self._last_message_key == message_key and abs(now_ms - self._last_message_ts) < 2500:
+            return
+
+        self._last_message_key = message_key
+        self._last_message_ts = now_ms
+
         full_text = f"{emoji}  {text}" if emoji else text
         self.setText(full_text)
         
@@ -107,12 +117,16 @@ class FloatingMessage(QLabel):
         self._animation.start()
 
     def hide_message(self):
+        if self._animation is not None:
+            self._animation.stop()
+            self._animation.finished.disconnect(self.hide)
+
         self._animation = QPropertyAnimation(self, b"windowOpacity", self)
         self._animation.setDuration(350)
         self._animation.setStartValue(1.0)
         self._animation.setEndValue(0.0)
         self._animation.setEasingCurve(QEasingCurve.InOutQuad)
-        self._animation.finished.connect(self.hide) 
+        self._animation.finished.connect(self.hide)
         self._animation.start()
 
 

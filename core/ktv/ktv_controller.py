@@ -53,6 +53,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         self.is_paused: bool = False # Controla si la secuencia de Kt/V está pausada (a nivel de KtvController)
         self._grafcet_is_paused_internally: bool = False # Controla si el KtvGrafcet está en su estado PAUSED_SEQUENCE
         self._suppress_measurement_popups: bool = True # Evita popups durante la secuencia Kt/V
+        self._connection_warning_sent: bool = False # Evita repetir el aviso de falta de conexión durante un mismo ciclo
 
         # El GRAFCET de la secuencia de medición de Kt/V
         # Le pasamos los callbacks que este KtvController implementa.
@@ -219,6 +220,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
 
         self._bioz_retry_count = 0
         self._last_bioz_validation_issue = None
+        self._connection_warning_sent = False
         logger.info(f"[KtvController] Iniciando secuencia de medición Kt/V {'(AUTOMÁTICA)' if is_automatic else '(MANUAL)'}.")
         self.grafcet.start()
         self.measurement_started.emit()
@@ -263,6 +265,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         self._grafcet_is_paused_internally = False # Asegurarse de que no quede en estado de pausa interna
         self._bioz_retry_count = 0
         self._last_bioz_validation_issue = None
+        self._connection_warning_sent = False
 
     def _restore_original_conductivity_if_needed(self, reason: str) -> None:
         """Restaura el setpoint original solo si el flujo Kt/V lo alteró."""
@@ -342,6 +345,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         self._original_conductivity_setpoint = None
         self._next_automatic_measurement_time_s = 0 # Recalculará al inicio del primer tick
         self._bioz_retry_count = 0
+        self._connection_warning_sent = False
         self.is_paused = False
         self._grafcet_is_paused_internally = False
         self.schedule_info_updated.emit("No programado") # Limpiar la etiqueta de programación
@@ -350,13 +354,20 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
     # ==================== Métodos internos (callbacks del Grafcet) ====================
     # Estos métodos son llamados por el KtvGrafcet para ejecutar las acciones.
 
+    def _warn_bioz_connection_issue_once(self) -> None:
+        """Emite el aviso de falta de conexión solo una vez por ciclo de medición."""
+        if self._connection_warning_sent:
+            return
+        self._connection_warning_sent = True
+        self._notify_user("Controlador BioZ/Urea no disponible o deshabilitado.", "error", 5000)
+
     def _perform_send_bioz_command(self, command: str) -> None:
         """Callback: Envía un comando al controlador de BioZ/Urea."""
         if self._write_bioz_command_callback and self._bioz_urea_controller and self._bioz_urea_controller.is_enabled():
             self._write_bioz_command_callback(command)
             logger.debug(f"[KtvController] Enviando comando '{command}' a BioZ/Urea.")
         else:
-            self._notify_user("Controlador BioZ/Urea no disponible o deshabilitado.", "error", 5000)
+            self._warn_bioz_connection_issue_once()
             self.grafcet.abort("BioZ/Urea no disponible")
 
     def _perform_validate_bioz(self) -> bool:
@@ -536,6 +547,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         self.measurement_finished.emit() # Notificar a la UI
         # Resetear setpoint original, ya no es necesario
         self._original_conductivity_setpoint = None
+        self._connection_warning_sent = False
         self.grafcet.reset() # Resetear el Grafcet a IDLE
         # Recalcular el tiempo de la próxima medición automática si el modo es auto
         self._update_next_scheduled_time(self._get_elapsed_therapy_seconds())
@@ -559,6 +571,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         self._restore_original_conductivity_if_needed("error del grafcet")
         self.grafcet.reset() # Resetear el Grafcet a IDLE
         self._last_bioz_validation_issue = None
+        self._connection_warning_sent = False
         self._update_next_scheduled_time(self._get_elapsed_therapy_seconds()) # Recalcular próxima medición
 
     def _make_internal_callbacks(self) -> Dict[str, Callable]:

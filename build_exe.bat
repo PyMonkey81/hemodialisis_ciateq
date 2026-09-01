@@ -43,6 +43,11 @@ rmdir /s /q "%LOCALAPPDATA%\pyinstaller" 2>nul
 echo.
 echo Instalando/actualizando PyInstaller...
 "%PYTHON_EXE%" -m pip install -r requirements.txt
+if errorlevel 1 (
+    echo ERROR: No se pudieron instalar las dependencias.
+    popd
+    exit /b 1
+)
 
 if "%SKIP_SMOKE%"=="0" (
     echo.
@@ -61,6 +66,20 @@ if "%SKIP_SMOKE%"=="0" (
 echo.
 echo Compilando ejecutable LIMPIO...
 "%PYTHON_EXE%" -m PyInstaller --clean --noconfirm HemodialisisApp.spec
+if errorlevel 1 (
+    echo ERROR: PyInstaller no pudo generar el ejecutable.
+    popd
+    exit /b 1
+)
+
+if exist "config" (
+    xcopy "config" "dist\config" /E /I /Y /Q >nul
+    if errorlevel 1 (
+        echo ERROR: No se pudo copiar la configuracion a dist\config\.
+        popd
+        exit /b 1
+    )
+)
 
 echo.
 echo ===============================================
