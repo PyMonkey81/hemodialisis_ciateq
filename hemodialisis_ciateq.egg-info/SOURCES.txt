@@ -8,3 +8,6 @@ hemodialisis_ciateq.egg-info/requires.txt
 hemodialisis_ciateq.egg-info/top_level.txt
 tests/test.py
 tests/test_alarma_mod.py
+tests/test_due_hot_port_runtime.py
+tests/test_invalid_priming_status_guard.py
+tests/test_ktv_connection_message_once.py

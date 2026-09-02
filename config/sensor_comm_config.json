@@ -1,6 +1,6 @@
 {
     "main_control": {
-        "port": "COM3",
+        "port": "Auto",
         "enabled": true
     },
     "conductivity_sensor": {
