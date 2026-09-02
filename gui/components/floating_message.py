@@ -2,6 +2,7 @@
 
 from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve
+from PySide6.QtGui import QGuiApplication
 
 
 class FloatingMessage(QLabel):
@@ -19,6 +20,9 @@ class FloatingMessage(QLabel):
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.hide_message)
         self._animation = None
+        self._supports_opacity_animation = QGuiApplication.platformName() not in {
+            "wayland", "offscreen", "minimal"
+        }
         self._last_message_key = None
         self._last_message_ts = 0
 
@@ -108,6 +112,9 @@ class FloatingMessage(QLabel):
         self.show_info_message(text, timeout_ms)
 
     def fade_in(self):
+        if not self._supports_opacity_animation:
+            return
+
         self.setWindowOpacity(0.0)
         self._animation = QPropertyAnimation(self, b"windowOpacity", self)
         self._animation.setDuration(280)
@@ -117,9 +124,12 @@ class FloatingMessage(QLabel):
         self._animation.start()
 
     def hide_message(self):
+        if not self._supports_opacity_animation:
+            self.hide()
+            return
+
         if self._animation is not None:
             self._animation.stop()
-            self._animation.finished.disconnect(self.hide)
 
         self._animation = QPropertyAnimation(self, b"windowOpacity", self)
         self._animation.setDuration(350)
