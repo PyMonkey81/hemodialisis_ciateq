@@ -5,13 +5,13 @@
     "heparineTherapyMinutes": 0.0
   },
   "firmware": {
-    "balanceChamberSetTiming": 0.0,
-    "bloodFlowControlSetPoint": 0.0,
-    "dialyCondControlSetPoint": 13.0,
-    "dialyTempControlSetPoint": 35.0,
+    "balanceChamberSetTiming": 500.0,
+    "bloodFlowControlSetPoint": 300.0,
+    "dialyCondControlSetPoint": 14.0,
+    "dialyTempControlSetPoint": 36.0,
     "heparineAutoStopHours": 0.0,
     "heparineAutoStopMinutes": 0.0,
-    "heparineBolusQuantity": 21.0,
+    "heparineBolusQuantity": 10.0,
     "heparineTherapyDosage": 0.0,
     "ultraFilterPumpSpeed": 0.0
   }

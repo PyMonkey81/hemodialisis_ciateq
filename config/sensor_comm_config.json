@@ -8,12 +8,12 @@
         "enabled": false
     },
     "mega_conductivity_sensor": {
-        "port": "Auto",
-        "enabled": false
+        "port": "COM6",
+        "enabled": true
     },
     "bioz_urea_sensor": {
-        "port": "COM5",
-        "enabled": true
+        "port": "Auto",
+        "enabled": false
     },
     "led_controller": {
         "port": "Auto",

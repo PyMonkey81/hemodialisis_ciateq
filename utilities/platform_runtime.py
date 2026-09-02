@@ -15,6 +15,14 @@ logger = logging.getLogger(__name__)
 COM_PORT_PATTERN = re.compile(r"^COM\d+$", re.IGNORECASE)
 
 
+def _ensure_config_dir(path: Path) -> Path | None:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    except OSError:
+        return None
+
+
 def get_runtime_config_dir() -> Path:
     """
     Devuelve un directorio de configuración escribible en runtime.
@@ -25,10 +33,27 @@ def get_runtime_config_dir() -> Path:
     """
     env_dir = os.environ.get("CIATEQ_CONFIG_DIR", "").strip()
     if env_dir:
-        return Path(env_dir)
+        config_dir = _ensure_config_dir(Path(env_dir))
+        if config_dir is not None:
+            return config_dir
+        logger.warning("No se pudo usar CIATEQ_CONFIG_DIR: %s", env_dir)
 
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent / "config"
+        executable_config_dir = Path(sys.executable).resolve().parent / "config"
+        config_dir = _ensure_config_dir(executable_config_dir)
+        if config_dir is not None:
+            return config_dir
+
+        app_data_dir = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+        fallback_dir = app_data_dir / "CIATEQ" / "Hemodialisis" / "config"
+        config_dir = _ensure_config_dir(fallback_dir)
+        if config_dir is not None:
+            logger.warning(
+                "Configuración junto al ejecutable no disponible (%s); se usa %s",
+                executable_config_dir,
+                config_dir,
+            )
+            return config_dir
 
     return Path(__file__).resolve().parent.parent / "config"
 

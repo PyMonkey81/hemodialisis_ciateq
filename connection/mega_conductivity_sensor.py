@@ -129,7 +129,7 @@ class MegaConductivitySensor(QObject):
         self.reader_thread = threading.Thread(target=self._communication_loop, daemon=True)
         self.reader_thread.start()
         logger.info("[MEGA_COND] Hilo iniciado")
-        print("[MEGA_COND] Hilo iniciado")
+        
 
     def _communication_loop(self):
         while self.running:
@@ -153,7 +153,7 @@ class MegaConductivitySensor(QObject):
                         self._parse_lines()
                     except Exception as e:
                         logger.debug(f"[MEGA_COND] Error decodificando: {e}")
-                        print(f"[MEGA_COND] Error decodificando: {e}")
+                        
 
                 if time.time() - self.last_successful_communication > 10.0:
                     logger.warning("[MEGA_COND] Watchdog → reconectando")
@@ -178,7 +178,7 @@ class MegaConductivitySensor(QObject):
                 continue
 
             match = self._line_pattern.search(line)
-            print(f"[MEGA_COND] Línea recibida: {line}")
+            
             if match:
                 try:
                     temperature = float(match.group(1))
@@ -191,10 +191,10 @@ class MegaConductivitySensor(QObject):
 
                     self.last_successful_communication = time.time()
                     logger.debug(f"[MEGA_COND] EC={ec_value:.3f} mS/cm | Temp={temperature:.1f} °C")
-                    print(f"[MEGA_COND] EC={ec_value:.3f} mS/cm | Temp={temperature:.1f} °C")
+                    
                 except ValueError:
                     logger.warning(f"[MEGA_COND] No se pudo convertir valores de la línea: {line}")
-                    print(f"[MEGA_COND] No se pudo convertir valores de la línea: {line}")
+                    
             else:
                 if "CALIBRATION" in line.upper() or "ENTEREC" in line.upper() or "EXITEC" in line.upper():
                     logger.info(f"[MEGA_COND] Mensaje de calibración: {line}")
