@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "hemodialisis-ciateq"
 version = "1.2.0"
 description = "Máquina de Hemodiálisis - CIATEQ"
+requires-python = ">=3.11,<3.13"
 dependencies = [
 	"crcmod==1.7",
 	"numpy==2.4.1",

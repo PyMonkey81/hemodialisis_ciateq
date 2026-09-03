@@ -35,6 +35,13 @@ echo -e "\nCompilando ejecutable LIMPIO..."
 # Usamos el archivo .spec que ya tienes
 pyinstaller --clean --noconfirm HemodialisisApp.spec
 
+if [ -d "config" ]; then
+    cp -a config dist/config
+else
+    echo "Error: No se encontró la carpeta config"
+    exit 1
+fi
+
 echo -e "\n==============================================="
 echo "COMPILACION FINALIZADA"
 echo "==============================================="

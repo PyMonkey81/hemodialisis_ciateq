@@ -1,6 +1,6 @@
 {
     "main_control": {
-        "port": "Auto",
+        "port": "COM3",
         "enabled": true
     },
     "conductivity_sensor": {
@@ -8,8 +8,8 @@
         "enabled": false
     },
     "mega_conductivity_sensor": {
-        "port": "COM6",
-        "enabled": true
+        "port": "Auto",
+        "enabled": false
     },
     "bioz_urea_sensor": {
         "port": "Auto",
