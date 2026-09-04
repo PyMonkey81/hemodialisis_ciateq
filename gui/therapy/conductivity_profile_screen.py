@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -17,6 +17,40 @@ from PySide6.QtWidgets import (
 from core.state_manager import TreatmentPhase
 from gui.theme_manager import ThemeManager
 from logic.conductivity_profile import ConductivityProfile, ProfileType
+
+
+class _SelectableSlider(QSlider):
+    """Vertical slider whose value only changes via external setValue(); touch/mouse only select it."""
+
+    def __init__(self, index: int, on_select, parent=None):
+        super().__init__(Qt.Vertical, parent)
+        self._index = index
+        self._on_select = on_select
+        self.setFocusPolicy(Qt.NoFocus)
+
+    def mousePressEvent(self, event):
+        self._on_select(self._index)
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        event.accept()
+
+    def wheelEvent(self, event):
+        event.ignore()
+
+    def keyPressEvent(self, event):
+        event.ignore()
+
+    def event(self, event):
+        if event.type() in (QEvent.TouchBegin, QEvent.TouchUpdate, QEvent.TouchEnd):
+            if event.type() == QEvent.TouchBegin:
+                self._on_select(self._index)
+            event.accept()
+            return True
+        return super().event(event)
 
 
 class ConductivityProfileScreen(QWidget):
@@ -208,7 +242,7 @@ class ConductivityProfileScreen(QWidget):
         for index in range(6):
             column = QVBoxLayout()
             column.setSpacing(10)
-            slider = QSlider(Qt.Vertical)
+            slider = _SelectableSlider(index, self._set_selected_slider)
             slider.setRange(120, 160)
             slider.setSingleStep(1)
             slider.setPageStep(1)
@@ -216,9 +250,6 @@ class ConductivityProfileScreen(QWidget):
             slider.setMinimumHeight(220)
             slider.setMinimumWidth(78)
             slider.setStyleSheet(self._slider_style(False))
-            slider.valueChanged.connect(lambda value, idx=index: self._on_slider_value_changed(idx, value))
-            slider.sliderPressed.connect(lambda idx=index: self._set_selected_slider(idx))
-            slider.mouseReleaseEvent = lambda event, idx=index: self._on_slider_release(idx, event)
 
             label = QLabel(f"{index + 1}")
             label.setAlignment(Qt.AlignCenter)
@@ -288,29 +319,27 @@ class ConductivityProfileScreen(QWidget):
             slider.setStyleSheet(self._slider_style(i == self._selected_index))
         self._update_selected_value_label()
 
-    def _on_slider_release(self, index: int, event):
-        self._set_selected_slider(index)
-        if event is not None:
-            event.accept()
-
-    def _on_slider_value_changed(self, index: int, value: int):
-        self._slider_values[index] = value / 10.0
-        self._set_selected_slider(index)
-        self._update_selected_value_label()
-
     def _on_plus_clicked(self):
         if not self.slider_widgets:
             return
-        current = self._slider_values[self._selected_index] * 10.0
-        next_value = min(160.0, current + 1.0)
-        self.slider_widgets[self._selected_index].setValue(int(round(next_value)))
+        idx = self._selected_index
+        next_value = self._clamp_value(self._slider_values[idx] + 0.1)
+        self._slider_values[idx] = next_value
+        self.slider_widgets[idx].blockSignals(True)
+        self.slider_widgets[idx].setValue(int(round(next_value * 10.0)))
+        self.slider_widgets[idx].blockSignals(False)
+        self._update_selected_value_label()
 
     def _on_minus_clicked(self):
         if not self.slider_widgets:
             return
-        current = self._slider_values[self._selected_index] * 10.0
-        next_value = max(120.0, current - 1.0)
-        self.slider_widgets[self._selected_index].setValue(int(round(next_value)))
+        idx = self._selected_index
+        next_value = self._clamp_value(self._slider_values[idx] - 0.1)
+        self._slider_values[idx] = next_value
+        self.slider_widgets[idx].blockSignals(True)
+        self.slider_widgets[idx].setValue(int(round(next_value * 10.0)))
+        self.slider_widgets[idx].blockSignals(False)
+        self._update_selected_value_label()
 
     def _update_selected_value_label(self):
         value = self._slider_values[self._selected_index]
@@ -359,6 +388,7 @@ class ConductivityProfileScreen(QWidget):
             step_high=float(max(values[0], values[-1])),
             step_low=float(min(values[0], values[-1])),
             step_change_at_percent=50.0,
+            points=[float(v) for v in values],
         )
 
         if self.parent_window and hasattr(self.parent_window, "set_conductivity_profile"):
@@ -391,6 +421,14 @@ class ConductivityProfileScreen(QWidget):
             self.btn_type_none.setChecked(True)
             setpoint = self._get_conductivity_setpoint()
             self._slider_values = [setpoint] * 6
+        elif getattr(profile, "points", None) and len(profile.points) == 6:
+            if profile.profile_type == ProfileType.LINEAR:
+                self.btn_type_linear.setChecked(True)
+            elif profile.profile_type == ProfileType.STEP:
+                self.btn_type_step.setChecked(True)
+            else:
+                self.btn_type_exp.setChecked(True)
+            self._slider_values = [self._clamp_value(float(v)) for v in profile.points]
         elif profile.profile_type == ProfileType.LINEAR:
             self.btn_type_linear.setChecked(True)
             self._slider_values = self._generate_linear_profile_from_values(

@@ -120,12 +120,12 @@ from logic.calculos import (
     convertir_ml_min_a_litros_h,
 )
 from logic.conductivity_profile import (
-    EPSILON,
     ConductivityProfile,
     ProfileType,
     calculate_target_conductivity,
     load_profile,
     save_profile,
+    step_index,
     validate_profile,
 )
 from utilities.csv_logger import CsvLogger
@@ -359,6 +359,9 @@ class HemodialysisHMI(QMainWindow):
         self._original_conductivity_setpoint = None # Para almacenar el setpoint original de conductividad antes de cualquier ajuste por terapia    
         self.conductivity_profile: ConductivityProfile = load_profile()
         self._last_profile_target = None
+        self._last_profile_written = None      # último SP enviado por el perfil
+        self._last_profile_step_index = None
+        self._last_profile_write_ts = 0         # epoch seconds
         self._last_profile_log_second = -1
         
         # Control de tiempo de terapia (global)
@@ -1286,6 +1289,9 @@ class HemodialysisHMI(QMainWindow):
 
         self.conductivity_profile = profile
         self._last_profile_target = None
+        self._last_profile_written = None
+        self._last_profile_step_index = None
+        self._last_profile_write_ts = 0
 
         if show_message:
             if self.is_conductivity_profile_active():
@@ -1317,6 +1323,9 @@ class HemodialysisHMI(QMainWindow):
 
         self.conductivity_profile = disabled
         self._last_profile_target = None
+        self._last_profile_written = None
+        self._last_profile_step_index = None
+        self._last_profile_write_ts = 0
 
         if hasattr(self.therapy_config_screen, "_refresh_conductivity_profile_button"):
             self.therapy_config_screen._refresh_conductivity_profile_button()
@@ -1341,13 +1350,31 @@ class HemodialysisHMI(QMainWindow):
         if target is None:
             return
 
-        current_sp = float(self.current_values.get("dialyCondControlSetPoint", 0.0) or 0.0)
-        if self._last_profile_target is None:
-            self._last_profile_target = current_sp
+        target = round(float(target), 2)
+        now = QDateTime.currentDateTime().toSecsSinceEpoch()
 
-        if abs(current_sp - target) >= EPSILON:
-            self._write_setpoint("dialyCondControlSetPoint", float(target))
-            self._last_profile_target = float(target)
+        if self.conductivity_profile.profile_type == ProfileType.STEP:
+            idx = step_index(elapsed_min, float(self.conductivity_profile.therapy_duration_min))
+            if idx != self._last_profile_step_index or self._last_profile_written is None:
+                self._write_setpoint("dialyCondControlSetPoint", target)
+                self._last_profile_target = target
+                self._last_profile_written = target
+                self._last_profile_step_index = idx
+                self._last_profile_write_ts = now
+                logger.info(
+                    "Perfil STEP write idx=%s target=%.2f elapsed=%.2f",
+                    idx,
+                    target,
+                    elapsed_min,
+                )
+        else:
+            changed = self._last_profile_written is None or abs(target - self._last_profile_written) >= 0.01
+            due = (now - self._last_profile_write_ts) >= 10
+            if self._last_profile_written is None or (changed and due):
+                self._write_setpoint("dialyCondControlSetPoint", target)
+                self._last_profile_target = target
+                self._last_profile_written = target
+                self._last_profile_write_ts = now
 
         if log_forced:
             logger.info(
@@ -1358,7 +1385,7 @@ class HemodialysisHMI(QMainWindow):
             )
             return
 
-        current_second = QDateTime.currentDateTime().toSecsSinceEpoch()
+        current_second = now
         if current_second % 10 == 0 and current_second != self._last_profile_log_second:
             self._last_profile_log_second = current_second
             logger.info(
