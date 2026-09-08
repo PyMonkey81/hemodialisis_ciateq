@@ -5,6 +5,7 @@ Módulo para la comunicación serial con el controlador de la máquina de hemodi
 Adaptado para control dinámico de puertos y estado desde la UI de configuración.
 """
 
+import os
 import platform
 import sys
 import serial
@@ -18,7 +19,7 @@ from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 from core.variables_map import VARIABLES, ANALOG_MAP
-from utilities.platform_runtime import sanitize_port_for_platform
+from utilities.platform_runtime import sanitize_port_for_platform, get_operation_mode
 import logging
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,11 @@ class SerialCommunication(QObject):
             port_name (str): Nombre del puerto ("COMx", "/dev/ttyUSBx") o "Auto".
             is_enabled (bool): Flag de activación del controlador principal.
         """
+        if not port_name or port_name == "Auto":
+            env_port = os.getenv("MAIN_SERIAL_PORT", "").strip()
+            if env_port:
+                port_name = env_port
+
         sanitized_port = sanitize_port_for_platform(port_name)
         port_changed = (self._user_selected_port != sanitized_port and not (self._user_selected_port is None and sanitized_port == "Auto"))
         enabled_changed = (self._is_enabled != is_enabled)
@@ -164,17 +170,43 @@ class SerialCommunication(QObject):
             )
 
     def _find_and_connect_auto(self) -> bool:
-        """Algoritmo de detección automática original filtrando por fabricante FTDI."""
-        current_os = platform.system()
+        """
+        Detecta primero el puerto configurado, después el enlace virtual
+        de simulación y finalmente dispositivos FTDI físicos.
+        """
+        # 1. Puerto principal definido explícitamente por variable de entorno
+        configured_port = os.getenv("MAIN_SERIAL_PORT", "").strip()
+        if configured_port:
+            logger.info("[CONTROLADOR PPAL] Intentando puerto configurado: %s", configured_port)
+            if os.path.exists(configured_port) or configured_port.upper().startswith("COM"):
+                if self._execute_connection(configured_port):
+                    return True
+
+        # 2. Enlace virtual de socat en Linux (modo simulación)
+        if platform.system() != "Windows" and get_operation_mode() == "simulation":
+            virtual_port = os.path.expanduser("~/.hemodialisis/ppal")
+            if os.path.exists(virtual_port):
+                logger.info("[CONTROLADOR PPAL] Enlace virtual detectado: %s", virtual_port)
+                if self._execute_connection(virtual_port):
+                    return True
+
+        # 3. Puerto físico FTDI
         logger.debug("[CONTROLADOR PPAL] Ejecutando escaneo automático FTDI...")
-        
         for port_info in serial.tools.list_ports.comports():
-            is_ftdi = port_info.manufacturer and "FTDI" in port_info.manufacturer.upper()
-            if is_ftdi:
-                logger.info(f"[CONTROLADOR PPAL] Dispositivo FTDI detectado automáticamente en: {port_info.device}")
-                return self._execute_connection(port_info.device)
-                
-        logger.warning("[CONTROLADOR PPAL] No se encontró ningún dispositivo FTDI en los puertos del sistema.")
+            manufacturer = (port_info.manufacturer or "").upper()
+            description = (port_info.description or "").upper()
+            if "FTDI" in manufacturer or "FTDI" in description:
+                logger.info("[CONTROLADOR PPAL] Dispositivo FTDI detectado en: %s", port_info.device)
+                if self._execute_connection(port_info.device):
+                    return True
+
+        # 4. Fallback explícito para Windows
+        if platform.system() == "Windows":
+            default_port = "COM4"
+            if self._execute_connection(default_port):
+                return True
+
+        logger.warning("[CONTROLADOR PPAL] No se encontró ningún puerto compatible.")
         self.is_connected = False
         return False
 

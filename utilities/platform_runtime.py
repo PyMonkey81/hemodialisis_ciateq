@@ -160,6 +160,11 @@ def feature_enabled(flag_name: str, default: bool = False) -> bool:
     return bool(value)
 
 
+def get_operation_mode() -> str:
+    """Modo de operación del enlace serial ('simulation' o 'production') vía CIATEQ_OPERATION_MODE."""
+    return os.environ.get("CIATEQ_OPERATION_MODE", "production").strip().lower() or "production"
+
+
 def sanitize_port_for_platform(port_value: str | None) -> str:
     """Normaliza puertos inválidos para Linux. Mantiene Windows intacto."""
     port = (port_value or "Auto").strip() or "Auto"
