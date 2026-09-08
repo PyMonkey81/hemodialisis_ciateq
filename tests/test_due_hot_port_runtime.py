@@ -19,8 +19,8 @@ class _CaptureUpdateConfig:
     def __init__(self):
         self.calls = []
 
-    def update_config(self, port, enabled):
-        self.calls.append((port, enabled))
+    def update_config(self, port, enabled, simulation_enabled=False):
+        self.calls.append((port, enabled, simulation_enabled))
 
 
 class DueHotPortRuntimeTests(unittest.TestCase):
@@ -88,7 +88,7 @@ class DueHotPortRuntimeTests(unittest.TestCase):
 
         HemodialysisHMI.handle_comm_config_change(fake_main, "LED_CONTROLLER", "COM7", True)
 
-        self.assertEqual(fake_main.led_bar.calls, [("COM7", True)])
+        self.assertEqual(fake_main.led_bar.calls, [("COM7", True, False)])
 
     def test_comm_screen_routing_updates_main_and_mega_controllers(self):
         fake_main = SimpleNamespace(
@@ -102,8 +102,8 @@ class DueHotPortRuntimeTests(unittest.TestCase):
         HemodialysisHMI.handle_comm_config_change(fake_main, "MAIN_CONTROL", "COM9", True)
         HemodialysisHMI.handle_comm_config_change(fake_main, "MEGA_CONDUCTIVITY", "COM8", True)
 
-        self.assertEqual(fake_main.serial_comm.calls, [("COM9", True)])
-        self.assertEqual(fake_main.mega_cond_sensor.calls, [("COM8", True)])
+        self.assertEqual(fake_main.serial_comm.calls, [("COM9", True, False)])
+        self.assertEqual(fake_main.mega_cond_sensor.calls, [("COM8", True, False)])
 
 
 if __name__ == "__main__":

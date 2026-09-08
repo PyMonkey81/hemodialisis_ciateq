@@ -56,7 +56,9 @@ class SerialCommunication(QObject):
 
         # --- Nuevas variables para la configuración dinámica desde la UI ---
         self._user_selected_port: Optional[str] = None  # None significa "Auto" (Detección FTDI)
+        self._auto_configured_port: Optional[str] = None
         self._is_enabled: bool = False                  # Deshabilitado por defecto para coincidir con la UI
+        self._simulation_enabled: bool = False
 
     @property
     def running(self):
@@ -66,7 +68,7 @@ class SerialCommunication(QObject):
     def running(self, value: bool):
         self._running = value
 
-    def update_config(self, port_name: str, is_enabled: bool):
+    def update_config(self, port_name: str, is_enabled: bool, simulation_enabled: bool = False):
         """
         Actualiza la configuración de comunicación desde la UI.
         
@@ -74,20 +76,27 @@ class SerialCommunication(QObject):
             port_name (str): Nombre del puerto ("COMx", "/dev/ttyUSBx") o "Auto".
             is_enabled (bool): Flag de activación del controlador principal.
         """
-        if not port_name or port_name == "Auto":
-            env_port = os.getenv("MAIN_SERIAL_PORT", "").strip()
-            if env_port:
-                port_name = env_port
-
-        sanitized_port = sanitize_port_for_platform(port_name)
+        requested_port = (port_name or "Auto").strip() or "Auto"
+        auto_port = os.getenv("MAIN_SERIAL_PORT", "").strip() if requested_port == "Auto" else ""
+        previous_auto_port = self._auto_configured_port
+        previous_enabled = self._is_enabled
+        sanitized_port = sanitize_port_for_platform(requested_port)
+        sanitized_auto_port = sanitize_port_for_platform(auto_port) if auto_port else None
         port_changed = (self._user_selected_port != sanitized_port and not (self._user_selected_port is None and sanitized_port == "Auto"))
-        enabled_changed = (self._is_enabled != is_enabled)
+        port_changed = port_changed or previous_auto_port != sanitized_auto_port
+        simulation_changed = self._simulation_enabled != bool(simulation_enabled)
         
         # Guardar configuraciones mapeando "Auto" a None
         self._user_selected_port = sanitized_port if sanitized_port != "Auto" else None
+        self._auto_configured_port = sanitized_auto_port
         self._is_enabled = is_enabled
-        
-        logger.info(f"[CONTROLADOR PPAL] Configuración recibida: Puerto='{sanitized_port}', Habilitado={is_enabled}")
+        self._simulation_enabled = bool(simulation_enabled)
+        effective_mode = self._operation_mode()
+        logger.info(
+            "[CONTROLADOR PPAL] Configuración recibida: Puerto='%s', Habilitado=%s, "
+            "Simulación=%s, Modo efectivo=%s",
+            sanitized_port, is_enabled, bool(simulation_enabled), effective_mode,
+        )
 
         # Lógica de estados del hilo basados en cambios de la UI
         if not self._is_enabled and self.running:
@@ -96,42 +105,48 @@ class SerialCommunication(QObject):
         elif self._is_enabled and not self.running:
             logger.info("[CONTROLADOR PPAL] Se habilitó la comunicación. Iniciando controlador.")
             self.start_reading()
-        elif self._is_enabled and port_changed and self.running:
-            logger.info(f"[CONTROLADOR PPAL] Puerto cambiado a '{sanitized_port}'. Forzando reconexión física.")
+        elif self.running and (port_changed or simulation_changed or previous_enabled != is_enabled):
+            logger.info("[CONTROLADOR PPAL] Configuración de puerto/modo cambiada. Forzando reconexión física.")
             self._close_port_resource()
 
     def connect_port(self) -> bool:
         """Establece la conexión física basándose en la configuración de la UI."""
         if self.serial_port and getattr(self.serial_port, "is_open", False):
             self._close_port_resource()
+        mode = self._operation_mode()
+        if mode == "simulation" and platform.system() != "Windows":
+            return self._connect_linux_simulation()
         if self._user_selected_port:
-            # Conexión directa a puerto específico dictado por el usuario
-            logger.info(f"[CONTROLADOR PPAL] Intentando conectar a puerto ESPECÍFICO: {self._user_selected_port}")
+            if self._is_forbidden_virtual_port(self._user_selected_port):
+                logger.warning("[CONTROLADOR PPAL] Se rechazó una ruta virtual en modo producción: %s", self._user_selected_port)
+                return False
             return self._execute_connection(self._user_selected_port)
-        else:
-            # Conexión en modo "Auto" buscando dispositivos FTDI por hardware
-            return self._find_and_connect_auto()
+        return self._find_and_connect_auto()
 
     def _execute_connection(self, port_name: str) -> bool:
         """Realiza la apertura física del puerto serial."""
         current_os = platform.system()
+        mode = self._operation_mode()
         try:
             if self.serial_port and getattr(self.serial_port, "is_open", False):
                 self._close_port_resource()
-            self.serial_port = serial.Serial(
+            serial_kwargs = dict(
                 port=port_name,
                 baudrate=115200,
                 timeout=1.0,
                 write_timeout=0.5
             )
+            if self._is_virtual_port(port_name):
+                serial_kwargs["exclusive"] = False
+            self.serial_port = serial.Serial(**serial_kwargs)
             
             
-            # Ajustes específicos para evitar autorreseteos de hardware en Linux
-            if current_os != "Windows":
+            # Los PTY de socat no soportan estos ioctl; el hardware Linux sí los necesita.
+            if current_os != "Windows" and not self._is_virtual_port(port_name):
                 self.serial_port.dtr = False
                 self.serial_port.rts = False
 
-            time.sleep(1.5)  # Estabilización del hardware tras el DTR/RTS bind
+            time.sleep(0.1 if mode == "simulation" else 1.5)
             self.is_connected = True
             #=========================Código de prueba======================
             # self.serial_port.reset_input_buffer()
@@ -147,7 +162,7 @@ class SerialCommunication(QObject):
             #===========================Fin================================
 
             self.last_successful_communication = time.time()
-            logger.info(f"[CONNECTED PPAL] OS: {current_os} | Puerto: {port_name}")
+            logger.info("[CONNECTED PPAL] OS: %s | Modo: %s | Puerto: %s", current_os, mode, port_name)
             return True
         except Exception as e:
             self._log_linux_permission_hint(port_name, e)
@@ -170,29 +185,26 @@ class SerialCommunication(QObject):
             )
 
     def _find_and_connect_auto(self) -> bool:
-        """
-        Detecta primero el puerto configurado, después el enlace virtual
-        de simulación y finalmente dispositivos FTDI físicos.
-        """
-        # 1. Puerto principal definido explícitamente por variable de entorno
+        """Resuelve Auto sin usar rutas virtuales cuando el modo es producción."""
+        mode = self._operation_mode()
         configured_port = os.getenv("MAIN_SERIAL_PORT", "").strip()
-        if configured_port:
+        available_ports = serial.tools.list_ports.comports()
+        available_devices = {port.device.upper() for port in available_ports}
+        if configured_port and self._is_valid_auto_port(configured_port, mode, available_devices):
             logger.info("[CONTROLADOR PPAL] Intentando puerto configurado: %s", configured_port)
-            if os.path.exists(configured_port) or configured_port.upper().startswith("COM"):
-                if self._execute_connection(configured_port):
-                    return True
+            if self._execute_connection(configured_port):
+                return True
 
-        # 2. Enlace virtual de socat en Linux (modo simulación)
-        if platform.system() != "Windows" and get_operation_mode() == "simulation":
-            virtual_port = os.path.expanduser("~/.hemodialisis/ppal")
-            if os.path.exists(virtual_port):
-                logger.info("[CONTROLADOR PPAL] Enlace virtual detectado: %s", virtual_port)
-                if self._execute_connection(virtual_port):
-                    return True
+        if platform.system() == "Windows" and mode == "simulation":
+            default_port = os.getenv("CIATEQ_DEFAULT_SERIAL_PORT", "COM4").strip()
+            if default_port.upper() in available_devices and self._execute_connection(default_port):
+                return True
+            logger.warning("[CONTROLADOR PPAL] Simulación Windows: no se encontró el COM configurado o predeterminado.")
+            return False
 
-        # 3. Puerto físico FTDI
+        # En producción, Auto solo busca hardware FTDI.
         logger.debug("[CONTROLADOR PPAL] Ejecutando escaneo automático FTDI...")
-        for port_info in serial.tools.list_ports.comports():
+        for port_info in available_ports:
             manufacturer = (port_info.manufacturer or "").upper()
             description = (port_info.description or "").upper()
             if "FTDI" in manufacturer or "FTDI" in description:
@@ -200,13 +212,63 @@ class SerialCommunication(QObject):
                 if self._execute_connection(port_info.device):
                     return True
 
-        # 4. Fallback explícito para Windows
         if platform.system() == "Windows":
-            default_port = "COM4"
-            if self._execute_connection(default_port):
+            default_port = os.getenv("CIATEQ_DEFAULT_SERIAL_PORT", "COM4").strip()
+            if default_port.upper() in available_devices and self._execute_connection(default_port):
                 return True
 
         logger.warning("[CONTROLADOR PPAL] No se encontró ningún puerto compatible.")
+        self.is_connected = False
+        return False
+
+    def _operation_mode(self) -> str:
+        return get_operation_mode(self._simulation_enabled)
+
+    @staticmethod
+    def _virtual_port_path() -> str:
+        return os.path.expanduser("~/.hemodialisis/ppal")
+
+    def _is_virtual_port(self, port_name: str) -> bool:
+        expanded = os.path.abspath(os.path.expanduser(port_name))
+        virtual_dir = os.path.abspath(os.path.expanduser("~/.hemodialisis"))
+        return expanded == self._virtual_port_path() or expanded.startswith(virtual_dir + os.sep)
+
+    def _is_forbidden_virtual_port(self, port_name: str) -> bool:
+        if self._is_virtual_port(port_name) or port_name.startswith("/dev/pts/"):
+            return True
+        return platform.system() == "Windows" and not port_name.upper().startswith("COM")
+
+    def _is_valid_auto_port(self, port_name: str, mode: str, available_devices: set[str]) -> bool:
+        if platform.system() == "Windows":
+            return port_name.upper() in available_devices
+        if mode == "production" and self._is_forbidden_virtual_port(port_name):
+            return False
+        return os.path.exists(port_name)
+
+    def _connect_linux_simulation(self) -> bool:
+        candidates = []
+        if self._auto_configured_port:
+            candidates.append(("MAIN_SERIAL_PORT", self._auto_configured_port))
+        if self._user_selected_port:
+            candidates.append(("combo", self._user_selected_port))
+        candidates.append(("virtual", self._virtual_port_path()))
+
+        for source, port_name in candidates:
+            if os.path.exists(port_name):
+                logger.info("[CONTROLADOR PPAL] Simulación Linux: intentando %s (%s)", port_name, source)
+                if self._execute_connection(port_name):
+                    return True
+                continue
+            if os.path.lexists(port_name):
+                logger.warning(
+                    "[CONTROLADOR PPAL] El enlace virtual está roto; socat no está corriendo: %s",
+                    port_name,
+                )
+                self.is_connected = False
+                return False
+            logger.info("[CONTROLADOR PPAL] Simulación Linux: puerto no disponible (%s): %s", source, port_name)
+
+        logger.warning("[CONTROLADOR PPAL] Simulación Linux: no se encontró un puerto virtual disponible.")
         self.is_connected = False
         return False
 

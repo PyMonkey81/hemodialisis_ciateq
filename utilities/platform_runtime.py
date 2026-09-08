@@ -160,9 +160,18 @@ def feature_enabled(flag_name: str, default: bool = False) -> bool:
     return bool(value)
 
 
-def get_operation_mode() -> str:
-    """Modo de operación del enlace serial ('simulation' o 'production') vía CIATEQ_OPERATION_MODE."""
-    return os.environ.get("CIATEQ_OPERATION_MODE", "production").strip().lower() or "production"
+def get_operation_mode(simulation_enabled: bool | None = None) -> str:
+    """Resuelve el modo serial: entorno, checkbox persistido y producción.
+
+    La precedencia es: CIATEQ_OPERATION_MODE válido, checkbox de la UI y
+    finalmente producción.
+    """
+    env_mode = os.environ.get("CIATEQ_OPERATION_MODE", "").strip().lower()
+    if env_mode in {"simulation", "production"}:
+        return env_mode
+    if simulation_enabled is True:
+        return "simulation"
+    return "production"
 
 
 def sanitize_port_for_platform(port_value: str | None) -> str:

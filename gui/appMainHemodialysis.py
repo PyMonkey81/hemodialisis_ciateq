@@ -45,7 +45,7 @@ Esta clase se instancia desde archivo `main.py`:
     sys.exit(app.exec())
 
 Author: Miguel de Jesus C. Espinoza Calderón
-Version: 2.18.5
+Version: 2.21.0
 """
 
 
@@ -2728,10 +2728,10 @@ class HemodialysisHMI(QMainWindow):
         if hasattr(current_widget, "update_values"):
             current_widget.update_values(self.current_values)
 
-    def handle_comm_config_change(self, sensor_id, port, is_enabled):
+    def handle_comm_config_change(self, sensor_id, port, is_enabled, simulation_enabled=False):
         if sensor_id == "MAIN_CONTROL":
-            self.serial_comm.update_config(port, is_enabled)
-            logger.info(f"Controlador Principal: Puerto={port}, Habilitado={is_enabled}")
+            self.serial_comm.update_config(port, is_enabled, simulation_enabled)
+            logger.info("Controlador Principal: Puerto=%s, Habilitado=%s, Simulación=%s", port, is_enabled, simulation_enabled)
             
         elif sensor_id == "CONDUCTIVITY":
             self.pattern_sensor.update_config(port, is_enabled)
