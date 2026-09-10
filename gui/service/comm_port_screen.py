@@ -1,6 +1,7 @@
 # gui/service/comm_port_screen.py
 
 import serial.tools.list_ports
+import os
 from PySide6.QtWidgets import QFrame, QGridLayout, QSizePolicy, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QCheckBox, QPushButton, QGroupBox
 from PySide6.QtCore import Signal, Qt
 import json
@@ -25,7 +26,7 @@ NIBP_DEFAULT_CONFIG = {
 }
 
 class CommPortScreen(QWidget):
-    config_changed = Signal(str, str, bool)  # id_sensor, puerto, habilitado
+    config_changed = Signal(str, str, bool, bool)  # id_sensor, puerto, habilitado, simulación
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -50,12 +51,16 @@ class CommPortScreen(QWidget):
         self.cmb_nibp_port.currentIndexChanged.connect(lambda: self._handle_port_change('nibp'))
         self.cmb_nibp_port.currentIndexChanged.connect(self._update_nibp_status_preview)
         self.chk_nibp.toggled.connect(self._on_chk_nibp_toggled)
+        self.chk_main_simulation.toggled.connect(self._handle_simulation_change)
 
     def _get_filtered_ports(self):
         ports = ["Auto"]
         try:
             for port in serial.tools.list_ports.comports():
                 ports.append(port.device)
+            virtual_port = os.path.expanduser("~/.hemodialisis/ppal")
+            if os.name != "nt" and os.path.exists(virtual_port) and virtual_port not in ports:
+                ports.append(virtual_port)
             return ports
         except Exception as e:
             logger.error(f"Error obteniendo puertos: {e}")
@@ -130,6 +135,8 @@ class CommPortScreen(QWidget):
 
         self.chk_main = QCheckBox("Habilitar")
         self.chk_main.setStyleSheet(chk_style)
+        self.chk_main_simulation = QCheckBox("Modo simulación")
+        self.chk_main_simulation.setStyleSheet(chk_style)
 
         lbl_port_main = QLabel("Puerto:")
         lbl_port_main.setStyleSheet("font-size: 22px; color: #0f172a;")
@@ -138,6 +145,7 @@ class CommPortScreen(QWidget):
         self.cmb_main_port.setStyleSheet(combo_style)
 
         ctrl_layout.addWidget(self.chk_main)
+        ctrl_layout.addWidget(self.chk_main_simulation)
         ctrl_layout.addWidget(lbl_port_main)
         ctrl_layout.addWidget(self.cmb_main_port)
         ctrl_layout.addStretch()
@@ -364,6 +372,12 @@ class CommPortScreen(QWidget):
             self._block_signals(False)
         logger.debug(f"Puerto cambiado: {changed_sensor}")
 
+    def _handle_simulation_change(self, enabled: bool):
+        if self._signal_block_depth:
+            return
+        self._save_settings()
+        self.emit_current_configurations()
+
     def _block_signals(self, block: bool):
         # Permite llamadas anidadas sin desbloquear señales antes de tiempo.
         if block:
@@ -484,7 +498,7 @@ class CommPortScreen(QWidget):
 
     def _load_settings(self):
         default = {
-            "main_control": {"port": "Auto", "enabled": False},
+            "main_control": {"port": "Auto", "enabled": False, "main_controller_simulation": False},
             "conductivity_sensor": {"port": "Auto", "enabled": False},      # HDM
             "mega_conductivity_sensor": {"port": "Auto", "enabled": False},  # Mega
             "bioz_urea_sensor": {"port": "Auto", "enabled": False},
@@ -528,7 +542,8 @@ class CommPortScreen(QWidget):
         settings = {
             "main_control": {
                 "port": self.cmb_main_port.currentText(),
-                "enabled": self.chk_main.isChecked()
+                "enabled": self.chk_main.isChecked(),
+                "main_controller_simulation": self.chk_main_simulation.isChecked()
             },
             "conductivity_sensor": {          # HDM18/19
                 "port": self.cmb_cond_port.currentText(),
@@ -584,6 +599,7 @@ class CommPortScreen(QWidget):
         self.cmb_led_port.setCurrentText(led.get("port", "Auto"))
         
         self.chk_main.setChecked(main.get("enabled", False))
+        self.chk_main_simulation.setChecked(main.get("main_controller_simulation", False))
         self.chk_cond.setChecked(cond.get("enabled", False))
         self.chk_mega.setChecked(mega.get("enabled", False))
         self.chk_bioz.setChecked(bioz.get("enabled", False))
@@ -610,12 +626,15 @@ class CommPortScreen(QWidget):
         self.show_success_message("Configuración de puertos guardada y aplicada correctamente.", 3000)
 
     def emit_current_configurations(self):
-        self.config_changed.emit("MAIN_CONTROL", self.cmb_main_port.currentText(), self.chk_main.isChecked())
-        self.config_changed.emit("CONDUCTIVITY", self.cmb_cond_port.currentText(), self.chk_cond.isChecked())       # HDM
-        self.config_changed.emit("MEGA_CONDUCTIVITY", self.cmb_mega_port.currentText(), self.chk_mega.isChecked())  # mega
-        self.config_changed.emit("BIOZ", self.cmb_bioz_port.currentText(), self.chk_bioz.isChecked())
-        self.config_changed.emit("LED_CONTROLLER", self.cmb_led_port.currentText(), self.chk_led.isChecked())
-        self.config_changed.emit("NIBP", self.cmb_nibp_port.currentText(), self.chk_nibp.isChecked())
+        self.config_changed.emit(
+            "MAIN_CONTROL", self.cmb_main_port.currentText(), self.chk_main.isChecked(),
+            self.chk_main_simulation.isChecked()
+        )
+        self.config_changed.emit("CONDUCTIVITY", self.cmb_cond_port.currentText(), self.chk_cond.isChecked(), False)       # HDM
+        self.config_changed.emit("MEGA_CONDUCTIVITY", self.cmb_mega_port.currentText(), self.chk_mega.isChecked(), False)  # mega
+        self.config_changed.emit("BIOZ", self.cmb_bioz_port.currentText(), self.chk_bioz.isChecked(), False)
+        self.config_changed.emit("LED_CONTROLLER", self.cmb_led_port.currentText(), self.chk_led.isChecked(), False)
+        self.config_changed.emit("NIBP", self.cmb_nibp_port.currentText(), self.chk_nibp.isChecked(), False)
 
     def _on_chk_nibp_toggled(self, checked: bool):
         # No pisar el label si ya refleja una conexión real establecida por el driver.

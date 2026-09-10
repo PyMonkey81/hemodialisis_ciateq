@@ -1,7 +1,8 @@
 {
     "main_control": {
-        "port": "COM3",
-        "enabled": true
+        "port": "/home/monkey/.hemodialisis/ppal",
+        "enabled": true,
+        "main_controller_simulation": true
     },
     "conductivity_sensor": {
         "port": "Auto",
