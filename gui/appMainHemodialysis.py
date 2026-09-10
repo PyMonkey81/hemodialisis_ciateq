@@ -76,6 +76,7 @@ from connection.serial_communication import SerialCommunication
 from connection.led_bar_controller import LedBarController
 from connection.bioz_urea_controller import BiozUreaController
 from connection.conductivity_sensor_comm import PatternConductivity
+from connection.nibp_par_communication import NibpParCommunication
 
 
 from gui.screen_state_manager import ScreenStateManager
@@ -111,6 +112,7 @@ from gui.therapy.heparin_config_screenV2 import (
     HEPARIN_AUTO_STOP_HOURS_TAG,
     HEPARIN_AUTO_STOP_MINUTES_TAG,
 )
+from gui.therapy.nibp_config_screen import NibpConfigScreen
 from pathlib import Path
 
 from logic.calculos import (
@@ -129,7 +131,7 @@ from logic.conductivity_profile import (
     validate_profile,
 )
 from utilities.csv_logger import CsvLogger
-from utilities.platform_runtime import get_runtime_config_path, safe_float, safe_int
+from utilities.platform_runtime import get_runtime_config_path, safe_float, safe_int, safe_json_load
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,18 @@ LOCAL_SETPOINT_TAGS = {
 }
 
 THERAPY_CONFIG_PATH = get_runtime_config_path("therapy_config.json")
+NIBP_CONFIG_PATH = get_runtime_config_path("nibp_config.json")
+NIBP_DEFAULT_CONFIG = {
+    "enabled": False,
+    "port": "Auto",
+    "baudrate": 19200,
+    "patient_mode": "adult",
+    "method": 2,
+    "start_pressure_mmhg": 160,
+    "auto_during_therapy": False,
+    "interval_min": 15,
+    "spo2_enabled": False,
+}
 THERAPY_LOCAL_TAGS = {
     "heparineTherapyHours",
     "heparineTherapyMinutes",
@@ -400,6 +414,13 @@ class HemodialysisHMI(QMainWindow):
         self.serial_comm.data_received.connect(self.update_value)
         self._is_connected_prev_state = False # Rastrea estado de conexción
 
+        # Baumanómetro PAR NIBP2020 UP: deshabilitado por defecto, no abre puerto solo.
+        self.nibp = NibpParCommunication()
+        self.nibp.connected_changed.connect(self._on_nibp_connected_changed)
+        self.nibp.error_message.connect(self._on_nibp_error_message)
+        self.nibp.measurement_ready.connect(self._on_nibp_measurement_ready)
+        self._load_nibp_config_and_apply()
+
         # lectura de sensores de bioimpedancia
         self.bioz_urea_controller = BiozUreaController()
         self.bioz_urea_controller.data_received.connect(self.update_value) 
@@ -510,6 +531,17 @@ class HemodialysisHMI(QMainWindow):
         
         self.comm_port_screen = CommPortScreen(parent=self)
         self.comm_port_screen.config_changed.connect(self.handle_comm_config_change)
+        self.nibp.connected_changed.connect(self.comm_port_screen.update_nibp_status)
+        self.nibp.error_message.connect(self.comm_port_screen.update_nibp_error)
+
+        self.nibp_screen = NibpConfigScreen(parent=self)
+        self.nibp_screen.settings_applied.connect(self._on_nibp_settings_applied)
+        self.nibp_screen.measure_now_requested.connect(self.nibp.start_measurement)
+        self.nibp_screen.reset_requested.connect(self.nibp.software_reset)
+        self.nibp.connected_changed.connect(self.nibp_screen.update_connection)
+        self.nibp.error_message.connect(self.nibp_screen.update_error)
+        self.nibp.measurement_ready.connect(self.nibp_screen.update_measurement)
+        self.nibp.cuff_pressure.connect(self.nibp_screen.update_cuff)
 
         self.maintenance_screen = MaintenanceScreen(parent=self)  # PANTALLA NUEVA DE MANTENIMIENTO 
 
@@ -557,6 +589,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self._cleanning_config_screen)     # 19      
         self.screen_stack.addWidget(self.history_screen)               # 20
         self.screen_stack.addWidget(self.KTVScreen)                    # 21
+        self.screen_stack.addWidget(self.nibp_screen)                  # 22
 
 
         # self.master_timer.timeout.connect(self.KTVScreen.on_master_tick)
@@ -1229,6 +1262,13 @@ class HemodialysisHMI(QMainWindow):
         # No se llama update_values aquí directamente para todos los current_values.
         # KTVScreen ya se actualiza a través del master_timer y las señales del ktv_controller.
         self.KTVScreen.update_patient_data(self.current_values) # Función auxiliar para datos del paciente
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Diálisis")
+
+    def show_nibp_screen(self):
+        # TEMPORAL: acceso desde el card de signos vitales de dialysis_screen.
+        self.screen_stack.setCurrentWidget(self.nibp_screen)
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Diálisis")
@@ -2442,6 +2482,13 @@ class HemodialysisHMI(QMainWindow):
                 logger.error(f"[ERROR] Failed to stop serial communication: {e}")
             self.serial_comm = None
 
+        if hasattr(self, 'nibp') and self.nibp:
+            try:
+                self.nibp.stop()
+            except Exception as e:
+                logger.error(f"[ERROR] Failed to stop NIBP communication: {e}")
+            self.nibp = None
+
         if hasattr(self, 'led_bar') and self.led_bar:
             try:
                 self.led_bar.send_state(self.led_bar.CMD_OFF, silence_buzzer=True)
@@ -2745,6 +2792,44 @@ class HemodialysisHMI(QMainWindow):
         elif sensor_id == "LED_CONTROLLER":
             self.led_bar.update_config(port, is_enabled)
             logger.info(f"LED Controller: Puerto={port}, Habilitado={is_enabled}")
+        elif sensor_id == "NIBP":
+            self.nibp.update_config(port, is_enabled)
+            logger.info(f"[NIBP] Baumanómetro PAR NIBP2020 UP: Puerto={port}, Habilitado={is_enabled}")
+
+    def _load_nibp_config_and_apply(self):
+        """Carga config/nibp_config.json y aplica update_config; enabled=False no abre puerto."""
+        loaded = safe_json_load(NIBP_CONFIG_PATH, {})
+        if not isinstance(loaded, dict):
+            loaded = {}
+        config = {**NIBP_DEFAULT_CONFIG, **loaded}
+        self.nibp.update_config(config.get("port", "Auto"), config.get("enabled", False))
+
+    def _on_nibp_connected_changed(self, connected: bool, port: str):
+        logger.info(f"[NIBP] connected_changed: conectado={connected} | puerto={port} | NIBP2020 UP")
+
+    def _on_nibp_error_message(self, error_code: str, error_text: str):
+        logger.warning(f"[NIBP] {error_code}: {error_text}")
+
+    def _on_nibp_measurement_ready(self, sys_mmhg: int, dia_mmhg: int, map_mmhg: int, hr_bpm: int):
+        logger.info(f"[NIBP] Medición lista: SYS={sys_mmhg} DIA={dia_mmhg} MAP={map_mmhg} HR={hr_bpm}")
+
+    def _on_nibp_settings_applied(self, config: dict):
+        """Aplica patient_mode/method/start_pressure/spo2 al módulo; el ciclo queda en manual (otro ticket)."""
+        if config.get("patient_mode") == "neonatal":
+            self.nibp.set_neonatal_mode()
+        else:
+            self.nibp.set_adult_mode()
+
+        self.nibp.set_method(int(config.get("method", 2)))
+        self.nibp.set_start_pressure_mmhg(int(config.get("start_pressure_mmhg", 160)))
+        self.nibp.set_cycle_minutes(None)  # siempre manual en esta entrega
+
+        if config.get("spo2_enabled"):
+            self.nibp.spo2_on()
+        else:
+            self.nibp.spo2_off()
+
+        logger.info(f"[NIBP] Configuración clínica aplicada: {config}")
 
     # ====================== PERSISTENCIA DE HORAS DE HARDWARE ======================
 

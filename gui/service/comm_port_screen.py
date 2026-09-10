@@ -11,6 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 CONFIG_FILE = get_runtime_config_path("sensor_comm_config.json")
+NIBP_CONFIG_FILE = get_runtime_config_path("nibp_config.json")
+NIBP_DEFAULT_CONFIG = {
+    "enabled": False,
+    "port": "Auto",
+    "baudrate": 19200,
+    "patient_mode": "adult",
+    "method": 2,
+    "start_pressure_mmhg": 160,
+    "auto_during_therapy": False,
+    "interval_min": 15,
+    "spo2_enabled": False,
+}
 
 class CommPortScreen(QWidget):
     config_changed = Signal(str, str, bool)  # id_sensor, puerto, habilitado
@@ -20,6 +32,7 @@ class CommPortScreen(QWidget):
         self._signal_block_depth = 0
         self.all_ports = self._get_filtered_ports()
         self._loaded_settings = self._load_settings()
+        self._nibp_config = self._load_nibp_settings()
         self.setObjectName("CommPortScreen")
         self.setStyleSheet("QWidget#CommPortScreen { background-color: #FCFCFC; }")
 
@@ -34,6 +47,9 @@ class CommPortScreen(QWidget):
         self.cmb_mega_port.currentIndexChanged.connect(lambda: self._handle_port_change('mega'))
         self.cmb_bioz_port.currentIndexChanged.connect(lambda: self._handle_port_change('bioz'))
         self.cmb_led_port.currentIndexChanged.connect(lambda: self._handle_port_change('led'))
+        self.cmb_nibp_port.currentIndexChanged.connect(lambda: self._handle_port_change('nibp'))
+        self.cmb_nibp_port.currentIndexChanged.connect(self._update_nibp_status_preview)
+        self.chk_nibp.toggled.connect(self._on_chk_nibp_toggled)
 
     def _get_filtered_ports(self):
         ports = ["Auto"]
@@ -44,6 +60,14 @@ class CommPortScreen(QWidget):
         except Exception as e:
             logger.error(f"Error obteniendo puertos: {e}")
             return ports
+
+    def _get_nibp_port_options(self):
+        """Puertos disponibles para el NIBP; conserva el puerto guardado aunque no se detecte."""
+        ports = list(self.all_ports)
+        saved_port = str(self._nibp_config.get("port", "Auto")).strip() or "Auto"
+        if saved_port not in ports:
+            ports.append(saved_port)
+        return ports
 
     def setup_ui(self):
         
@@ -248,6 +272,46 @@ class CommPortScreen(QWidget):
 
         layout.addWidget(led_card, 3, 0, 1, 1)
 
+        # ─── CARD 6: BAUMANÓMETRO PAR NIBP2020 UP (ocupa las 2 columnas) ─────
+        nibp_card = QFrame()
+        nibp_card.setObjectName("card")
+        nibp_layout = QVBoxLayout(nibp_card)
+        nibp_layout.setContentsMargins(10, 10, 10, 10)
+        nibp_layout.setSpacing(7)
+
+        nibp_title = QLabel("Baumanómetro PAR NIBP2020 UP")
+        nibp_title.setObjectName("card_title")
+        nibp_title.setMinimumWidth(280)
+        nibp_layout.addWidget(nibp_title)
+
+        nibp_row = QHBoxLayout()
+        nibp_row.setSpacing(10)
+
+        self.chk_nibp = QCheckBox("Habilitar")
+        self.chk_nibp.setStyleSheet(chk_style)
+
+        lbl_port_nibp = QLabel("Puerto:")
+        lbl_port_nibp.setStyleSheet("font-size: 22px; color: #0f172a;")
+
+        self.cmb_nibp_port = QComboBox()
+        self.cmb_nibp_port.setStyleSheet(combo_style)
+
+        lbl_baud_nibp = QLabel("19200 8N1")
+        lbl_baud_nibp.setStyleSheet("font-size: 20px; color: #475569;")
+
+        nibp_row.addWidget(self.chk_nibp)
+        nibp_row.addWidget(lbl_port_nibp)
+        nibp_row.addWidget(self.cmb_nibp_port)
+        nibp_row.addWidget(lbl_baud_nibp)
+        nibp_row.addStretch()
+        nibp_layout.addLayout(nibp_row)
+
+        self.lbl_nibp_status = QLabel("Desconectado")
+        self.lbl_nibp_status.setStyleSheet("font-size: 20px; color: #475569;")
+        nibp_layout.addWidget(self.lbl_nibp_status)
+
+        layout.addWidget(nibp_card, 3, 1, 1, 1)
+
         # ─── BOTONES ─────────────────────────────────────────────────────────
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(16)
@@ -278,7 +342,7 @@ class CommPortScreen(QWidget):
 
         buttons_layout.addWidget(self.btn_apply)
         buttons_layout.addWidget(self.btn_refresh)
-        layout.addLayout(buttons_layout, 3, 1, 1, 1)
+        layout.addLayout(buttons_layout, 4, 1, 1, 1)
         # layout.addStretch()
 
         # Llenar combos
@@ -286,7 +350,8 @@ class CommPortScreen(QWidget):
         self.cmb_cond_port.addItems(self.all_ports)
         self.cmb_mega_port.addItems(self.all_ports)
         self.cmb_bioz_port.addItems(self.all_ports)
-        self.cmb_led_port.addItems(self.all_ports)    
+        self.cmb_led_port.addItems(self.all_ports)
+        self.cmb_nibp_port.addItems(self._get_nibp_port_options())
 
         main_layout.addLayout(layout)
         main_layout.addStretch()
@@ -309,6 +374,7 @@ class CommPortScreen(QWidget):
                 self.cmb_mega_port.blockSignals(True)
                 self.cmb_bioz_port.blockSignals(True)
                 self.cmb_led_port.blockSignals(True)
+                self.cmb_nibp_port.blockSignals(True)
             return
 
         if self._signal_block_depth > 0:
@@ -320,24 +386,27 @@ class CommPortScreen(QWidget):
             self.cmb_mega_port.blockSignals(False)
             self.cmb_bioz_port.blockSignals(False)
             self.cmb_led_port.blockSignals(False)
+            self.cmb_nibp_port.blockSignals(False)
 
     def _update_port_exclusion(self):
-        """Exclusión mutua entre los 5 combos"""
+        """Exclusión mutua entre los 6 combos (incluye NIBP)"""
         main_port = self.cmb_main_port.currentText()
         cond_port = self.cmb_cond_port.currentText()
         mega_port  = self.cmb_mega_port.currentText()
         bioz_port = self.cmb_bioz_port.currentText()
         led_port = self.cmb_led_port.currentText()
+        nibp_port = self.cmb_nibp_port.currentText()
 
         self._repopulate_combos()
 
         # Quitar el puerto seleccionado de los otros combos
         for port, combos in [
-            (main_port, [self.cmb_cond_port, self.cmb_mega_port, self.cmb_bioz_port, self.cmb_led_port]),
-            (cond_port, [self.cmb_main_port, self.cmb_mega_port, self.cmb_bioz_port, self.cmb_led_port]),
-            (mega_port,  [self.cmb_main_port, self.cmb_cond_port, self.cmb_bioz_port, self.cmb_led_port]),
-            (bioz_port, [self.cmb_main_port, self.cmb_cond_port, self.cmb_mega_port, self.cmb_led_port]),
-            (led_port, [self.cmb_main_port, self.cmb_cond_port, self.cmb_mega_port, self.cmb_bioz_port]),
+            (main_port, [self.cmb_cond_port, self.cmb_mega_port, self.cmb_bioz_port, self.cmb_led_port, self.cmb_nibp_port]),
+            (cond_port, [self.cmb_main_port, self.cmb_mega_port, self.cmb_bioz_port, self.cmb_led_port, self.cmb_nibp_port]),
+            (mega_port,  [self.cmb_main_port, self.cmb_cond_port, self.cmb_bioz_port, self.cmb_led_port, self.cmb_nibp_port]),
+            (bioz_port, [self.cmb_main_port, self.cmb_cond_port, self.cmb_mega_port, self.cmb_led_port, self.cmb_nibp_port]),
+            (led_port, [self.cmb_main_port, self.cmb_cond_port, self.cmb_mega_port, self.cmb_bioz_port, self.cmb_nibp_port]),
+            (nibp_port, [self.cmb_main_port, self.cmb_cond_port, self.cmb_mega_port, self.cmb_bioz_port, self.cmb_led_port]),
         ]:
             if port != "Auto":
                 for combo in combos:
@@ -349,18 +418,24 @@ class CommPortScreen(QWidget):
         current_mega  = self.cmb_mega_port.currentText()
         current_bioz = self.cmb_bioz_port.currentText()
         current_led = self.cmb_led_port.currentText()
+        current_nibp = self.cmb_nibp_port.currentText()
+
+        nibp_options = self._get_nibp_port_options()
 
         self._block_signals(True)
         try:
             for combo in [self.cmb_main_port, self.cmb_cond_port, self.cmb_mega_port, self.cmb_bioz_port, self.cmb_led_port]:
                 combo.clear()
                 combo.addItems(self.all_ports)
+            self.cmb_nibp_port.clear()
+            self.cmb_nibp_port.addItems(nibp_options)
 
             if current_main in self.all_ports: self.cmb_main_port.setCurrentText(current_main)
             if current_cond in self.all_ports: self.cmb_cond_port.setCurrentText(current_cond)
             if current_mega  in self.all_ports: self.cmb_mega_port.setCurrentText(current_mega)
             if current_bioz in self.all_ports: self.cmb_bioz_port.setCurrentText(current_bioz)
             if current_led in self.all_ports: self.cmb_led_port.setCurrentText(current_led)
+            if current_nibp in nibp_options: self.cmb_nibp_port.setCurrentText(current_nibp)
         finally:
             self._block_signals(False)
 
@@ -376,6 +451,7 @@ class CommPortScreen(QWidget):
             current_mega  = self.cmb_mega_port.currentText()
             current_bioz = self.cmb_bioz_port.currentText()
             current_led = self.cmb_led_port.currentText()
+            current_nibp = self.cmb_nibp_port.currentText()
 
             self.all_ports = self._get_filtered_ports()
 
@@ -390,10 +466,16 @@ class CommPortScreen(QWidget):
                 self.cmb_mega_port.setCurrentText(current_mega  if current_mega  in self.all_ports else "Auto")
                 self.cmb_bioz_port.setCurrentText(current_bioz if current_bioz in self.all_ports else "Auto")
                 self.cmb_led_port.setCurrentText(current_led if current_led in self.all_ports else "Auto")
+
+                nibp_options = self._get_nibp_port_options()
+                self.cmb_nibp_port.clear()
+                self.cmb_nibp_port.addItems(nibp_options)
+                self.cmb_nibp_port.setCurrentText(current_nibp if current_nibp in nibp_options else "Auto")
             finally:
                 self._block_signals(False)
 
             self._update_port_exclusion()
+            self._update_nibp_status_preview()
             self.show_info_message("Lista de puertos actualizada correctamente.", 3000)
 
         except Exception as e:
@@ -429,6 +511,19 @@ class CommPortScreen(QWidget):
                 sensor_cfg["port"] = "Auto"
                 settings[sensor_key] = sensor_cfg
 
+    def _load_nibp_settings(self):
+        """Carga config/nibp_config.json con defaults seguros si falta o está corrupto."""
+        loaded = safe_json_load(NIBP_CONFIG_FILE, {})
+        if not isinstance(loaded, dict):
+            loaded = {}
+        merged = {**NIBP_DEFAULT_CONFIG, **loaded}
+
+        port_value = str(merged.get("port", "Auto")).strip() or "Auto"
+        sanitized_port = sanitize_port_for_platform(port_value)
+        if sanitized_port != port_value:
+            merged["port"] = "Auto"
+        return merged
+
     def _save_settings(self):
         settings = {
             "main_control": {
@@ -461,6 +556,20 @@ class CommPortScreen(QWidget):
             logger.error(f"Error guardando configuración: {e}")
             self.show_error_message("No se pudo guardar la configuración.", 5000)
 
+    def _save_nibp_settings(self):
+        """Persiste config/nibp_config.json conservando method/patient_mode/etc. no editados aquí."""
+        self._nibp_config["port"] = self.cmb_nibp_port.currentText()
+        self._nibp_config["enabled"] = self.chk_nibp.isChecked()
+
+        NIBP_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with NIBP_CONFIG_FILE.open('w', encoding='utf-8') as f:
+                json.dump(self._nibp_config, f, indent=4, ensure_ascii=False)
+            logger.info(f"[NIBP] Configuración guardada en {NIBP_CONFIG_FILE}")
+        except Exception as e:
+            logger.error(f"[NIBP] Error guardando configuración: {e}")
+            self.show_error_message("No se pudo guardar la configuración del NIBP.", 5000)
+
     def _apply_loaded_settings_to_ui(self):
         main = self._loaded_settings.get("main_control", {})
         cond = self._loaded_settings.get("conductivity_sensor", {})
@@ -479,12 +588,25 @@ class CommPortScreen(QWidget):
         self.chk_mega.setChecked(mega.get("enabled", False))
         self.chk_bioz.setChecked(bioz.get("enabled", False))
         self.chk_led.setChecked(led.get("enabled", False))
-        
+
+        nibp_options = self._get_nibp_port_options()
+        self.cmb_nibp_port.blockSignals(True)
+        self.cmb_nibp_port.clear()
+        self.cmb_nibp_port.addItems(nibp_options)
+        self.cmb_nibp_port.setCurrentText(self._nibp_config.get("port", "Auto"))
+        self.cmb_nibp_port.blockSignals(False)
+        self.chk_nibp.blockSignals(True)
+        self.chk_nibp.setChecked(self._nibp_config.get("enabled", False))
+        self.chk_nibp.blockSignals(False)
+        self._update_nibp_status_preview()
+
         self._update_port_exclusion()
 
     def apply_configurations(self):
         self._save_settings()
+        self._save_nibp_settings()
         self.emit_current_configurations()
+        self._update_nibp_status_preview()
         self.show_success_message("Configuración de puertos guardada y aplicada correctamente.", 3000)
 
     def emit_current_configurations(self):
@@ -493,6 +615,34 @@ class CommPortScreen(QWidget):
         self.config_changed.emit("MEGA_CONDUCTIVITY", self.cmb_mega_port.currentText(), self.chk_mega.isChecked())  # mega
         self.config_changed.emit("BIOZ", self.cmb_bioz_port.currentText(), self.chk_bioz.isChecked())
         self.config_changed.emit("LED_CONTROLLER", self.cmb_led_port.currentText(), self.chk_led.isChecked())
+        self.config_changed.emit("NIBP", self.cmb_nibp_port.currentText(), self.chk_nibp.isChecked())
+
+    def _on_chk_nibp_toggled(self, checked: bool):
+        # No pisar el label si ya refleja una conexión real establecida por el driver.
+        if self.lbl_nibp_status.text().startswith("Conectado"):
+            return
+        self._update_nibp_status_preview()
+
+    def _update_nibp_status_preview(self):
+        """Actualiza el label de estado del NIBP antes de que lleguen signals de conexión reales."""
+        if not self.chk_nibp.isChecked():
+            self.lbl_nibp_status.setText("Deshabilitado")
+            return
+        if self.cmb_nibp_port.currentText() == "Auto":
+            self.lbl_nibp_status.setText("Selecciona un puerto concreto")
+            return
+        self.lbl_nibp_status.setText("Desconectado")
+
+    def update_nibp_status(self, connected: bool, port: str):
+        """Slot para NibpParCommunication.connected_changed."""
+        if connected:
+            self.lbl_nibp_status.setText(f"Conectado ({port})")
+        else:
+            self._update_nibp_status_preview()
+
+    def update_nibp_error(self, error_code: str, error_text: str):
+        """Slot para NibpParCommunication.error_message."""
+        self.lbl_nibp_status.setText(f"Error {error_code}: {error_text}")
 
     # ─── Mensajes flotantes (igual que antes) ─────────────────────────────
     def show_floating_message(self, text: str, timeout_ms: int = 3800):

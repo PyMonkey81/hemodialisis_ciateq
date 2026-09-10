@@ -495,6 +495,24 @@ class DialysisScreen(QWidget):
         spo2_layout.addWidget(self.spo2_value)
         vitals_layout.addLayout(spo2_layout)
 
+        # TEMPORAL: acceso rápido a la pantalla del NIBP mientras se define
+        # su lugar definitivo en la barra de navegación. No eliminar sin ticket.
+        self.btn_nibp_screen = QPushButton("Baumanómetro…")
+        self.btn_nibp_screen.setFixedHeight(40)
+        self.btn_nibp_screen.setStyleSheet("""
+            QPushButton {
+                background-color: #06298a;
+                color: #ffffff;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 4px 10px;
+            }
+            QPushButton:hover { background-color: #1e293b; }
+        """)
+        self.btn_nibp_screen.clicked.connect(self.show_nibp_config_screen)
+        vitals_layout.addWidget(self.btn_nibp_screen)
+
         # ── Card de Tiempos (Rediseñada) ──
         time_card = QFrame()
         time_card.setObjectName("card")
@@ -685,6 +703,11 @@ class DialysisScreen(QWidget):
     def show_heparin_config_screen(self):
         if self.parent_window and hasattr(self.parent_window, "show_heparin_config_screen"):
             self.parent_window.show_heparin_config_screen()
+
+    def show_nibp_config_screen(self):
+        # TEMPORAL: ver comentario junto a btn_nibp_screen.
+        if self.parent_window and hasattr(self.parent_window, "show_nibp_screen"):
+            self.parent_window.show_nibp_screen()
 
     def _format_display_value(self, tag: str, value):
         try:

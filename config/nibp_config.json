@@ -1,0 +1,11 @@
+{
+    "enabled": true,
+    "port": "COM8",
+    "baudrate": 19200,
+    "patient_mode": "adult",
+    "method": 3,
+    "start_pressure_mmhg": 160,
+    "auto_during_therapy": true,
+    "interval_min": 15,
+    "spo2_enabled": true
+}
