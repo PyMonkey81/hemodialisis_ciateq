@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from core.state_manager import TreatmentPhase
 from gui.theme_manager import ThemeManager
-from logic.conductivity_profile import ConductivityProfile, ProfileType
+from logic.uf_profile import ProfileType, UFProfile
 
 
 class _SelectableSlider(QSlider):
@@ -53,7 +53,7 @@ class _SelectableSlider(QSlider):
         return super().event(event)
 
 
-class ConductivityProfileScreen(QWidget):
+class UFProfileScreen(QWidget):
     profile_saved = Signal()
 
     def __init__(self, parent=None, values_dict=None):
@@ -62,7 +62,7 @@ class ConductivityProfileScreen(QWidget):
         self.current_values = values_dict if values_dict is not None else {}
         self._phase = TreatmentPhase.IDLE
         self._selected_index = 0
-        self._slider_values = [14.0, 14.0, 14.0, 14.0, 14.0, 14.0]
+        self._slider_values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self._setup_ui()
 
     def _setup_ui(self):
@@ -135,6 +135,11 @@ class ConductivityProfileScreen(QWidget):
         main_layout.setContentsMargins(24, 20, 24, 20)
         main_layout.setSpacing(18)
 
+        self.lbl_screen = QLabel("Perfil UF")
+        self.lbl_screen.setStyleSheet("font-size: 26px; font-weight: bold; color: #1e3a8a;")
+        self.lbl_screen.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.lbl_screen)
+        
         self.lbl_therapy_time = QLabel("Tiempo de terapia: 00:00 (0 min)")
         self.lbl_therapy_time.setStyleSheet("font-size: 22px; font-weight: 600; color: #1e3a8a;")
         self.lbl_therapy_time.setAlignment(Qt.AlignCenter)
@@ -148,9 +153,9 @@ class ConductivityProfileScreen(QWidget):
 
         self._setup_modes()
         self._set_selected_slider(0)
-        self._slider_values = [self._get_conductivity_setpoint()] * 6
+        self._slider_values = [self._get_uf_setpoint()] * 6
         for idx, slider in enumerate(self.slider_widgets):
-            slider.setValue(int(round(self._slider_values[idx] * 10.0)))
+            slider.setValue(int(round(self._slider_values[idx] * 100.0)))
         self._update_selected_value_label()
         self.refresh_from_parent()
 
@@ -162,7 +167,7 @@ class ConductivityProfileScreen(QWidget):
         card_layout.setContentsMargins(20, 18, 20, 18)
         card_layout.setSpacing(18)
 
-        self.lbl_selected_value = QLabel("14.00 mS/cm")
+        self.lbl_selected_value = QLabel("0.00 L/h")
         self.lbl_selected_value.setStyleSheet(
             "font-size: 30px; font-weight: bold; color: #0f172a;"
         )
@@ -243,7 +248,7 @@ class ConductivityProfileScreen(QWidget):
             column = QVBoxLayout()
             column.setSpacing(10)
             slider = _SelectableSlider(index, self._set_selected_slider)
-            slider.setRange(120, 160)
+            slider.setRange(0, 200)
             slider.setSingleStep(1)
             slider.setPageStep(1)
             slider.setTickPosition(QSlider.NoTicks)
@@ -256,7 +261,7 @@ class ConductivityProfileScreen(QWidget):
             label.setStyleSheet("font-size: 12px; color: #475569; font-weight: 600;")
             label.setMinimumHeight(30)
 
-            column.addWidget(slider, 1, Qt.AlignHCenter)       
+            column.addWidget(slider, 1, Qt.AlignHCenter)
             column.addWidget(label)
             self.slider_layout.addLayout(column)
             self.slider_widgets.append(slider)
@@ -291,12 +296,12 @@ class ConductivityProfileScreen(QWidget):
         accent = "#14b8a6" if selected else "#2dd4bf"
         empty = "#dfe7ee"
         border = "#0f766e" if selected else "#cbd5e1"
-    
+
         return (
             "QSlider { background: transparent; min-height: 220px; }"
             "QSlider::groove:vertical { background: transparent; width: 42px; border-radius: 7px; }"
-            "QSlider::sub-page:vertical { background: %s; border-radius: 2px; }"   # ← ahora el vacío
-            "QSlider::add-page:vertical { background: %s; border-radius: 2px; }"   # ← ahora el color (verde)
+            "QSlider::sub-page:vertical { background: %s; border-radius: 2px; }"
+            "QSlider::add-page:vertical { background: %s; border-radius: 2px; }"
             "QSlider::handle:vertical { background: transparent; width: 0px; height: 0px; border: none; }"
             "QSlider { border: %s solid %s; border-radius: 14px; padding: 2px; }"
         ) % (empty, accent, "3px" if selected else "2px", border)
@@ -323,10 +328,10 @@ class ConductivityProfileScreen(QWidget):
         if not self.slider_widgets:
             return
         idx = self._selected_index
-        next_value = self._clamp_value(self._slider_values[idx] + 0.1)
+        next_value = self._clamp_value(self._slider_values[idx] + 0.05)
         self._slider_values[idx] = next_value
         self.slider_widgets[idx].blockSignals(True)
-        self.slider_widgets[idx].setValue(int(round(next_value * 10.0)))
+        self.slider_widgets[idx].setValue(int(round(next_value * 100.0)))
         self.slider_widgets[idx].blockSignals(False)
         self._update_selected_value_label()
 
@@ -334,16 +339,16 @@ class ConductivityProfileScreen(QWidget):
         if not self.slider_widgets:
             return
         idx = self._selected_index
-        next_value = self._clamp_value(self._slider_values[idx] - 0.1)
+        next_value = self._clamp_value(self._slider_values[idx] - 0.05)
         self._slider_values[idx] = next_value
         self.slider_widgets[idx].blockSignals(True)
-        self.slider_widgets[idx].setValue(int(round(next_value * 10.0)))
+        self.slider_widgets[idx].setValue(int(round(next_value * 100.0)))
         self.slider_widgets[idx].blockSignals(False)
         self._update_selected_value_label()
 
     def _update_selected_value_label(self):
         value = self._slider_values[self._selected_index]
-        self.lbl_selected_value.setText(f"{value:.2f} mS/cm")
+        self.lbl_selected_value.setText(f"{value:.2f} L/h")
         self._update_slider_numeric_labels()
 
     def _update_slider_numeric_labels(self):
@@ -354,23 +359,19 @@ class ConductivityProfileScreen(QWidget):
     def _on_profile_type_changed(self):
         self._update_selected_value_label()
 
-    def _get_conductivity_setpoint(self) -> float:
-        """Obtiene el setpoint de conductividad actual (dialyCondControlSetPoint)."""
+    def _get_uf_setpoint(self) -> float:
+        """Obtiene el flujo UF actual en L/h (ultraFilterPumpSpeed, ya persistido en L/h)."""
         try:
-            value = self.current_values.get("dialyCondControlSetPoint")
-            if value is None:
-                # Fallback por si viene con otro nombre
-                value = self.current_values.get("dialyCondControlSetpoint")
-        
+            value = self.current_values.get("ultraFilterPumpSpeed")
             if value is not None:
                 return self._clamp_value(float(value))
         except (TypeError, ValueError):
             pass
-    
-        return 14.0  # valor por defecto seguro
+
+        return 0.0
 
     def _clamp_value(self, value: float) -> float:
-        return max(12.0, min(16.0, float(value)))
+        return max(0.0, min(2.0, float(value)))
 
     def _on_cancel_profile(self):
         self.refresh_from_parent()
@@ -385,20 +386,20 @@ class ConductivityProfileScreen(QWidget):
         therapy_duration_min = self._therapy_duration_min_from_values()
 
         values = self._slider_values[:]
-        profile = ConductivityProfile(
+        profile = UFProfile(
             enabled=(profile_type != ProfileType.NONE),
             profile_type=profile_type,
             therapy_duration_min=therapy_duration_min,
-            start_conductivity=float(values[0]),
-            end_conductivity=float(values[-1]),
+            start_uf=float(values[0]),
+            end_uf=float(values[-1]),
             step_high=float(max(values[0], values[-1])),
             step_low=float(min(values[0], values[-1])),
             step_change_at_percent=50.0,
             points=[float(v) for v in values],
         )
 
-        if self.parent_window and hasattr(self.parent_window, "set_conductivity_profile"):
-            ok = self.parent_window.set_conductivity_profile(profile, show_message=True)
+        if self.parent_window and hasattr(self.parent_window, "set_uf_profile"):
+            ok = self.parent_window.set_uf_profile(profile, show_message=True)
             if ok:
                 self.profile_saved.emit()
                 self._on_back()
@@ -411,21 +412,21 @@ class ConductivityProfileScreen(QWidget):
     def refresh_from_parent(self):
         self._update_therapy_time_label()
 
-        if not self.parent_window or not hasattr(self.parent_window, "conductivity_profile"):
-            setpoint = self._get_conductivity_setpoint()
+        if not self.parent_window or not hasattr(self.parent_window, "uf_profile"):
+            setpoint = self._get_uf_setpoint()
             self._slider_values = [setpoint] * 6
             self.btn_type_none.setChecked(True)
             for idx, slider in enumerate(self.slider_widgets):
-                slider.setValue(int(round(self._slider_values[idx] * 10.0)))
+                slider.setValue(int(round(self._slider_values[idx] * 100.0)))
             self._set_selected_slider(self._selected_index)
             self._update_selected_value_label()
             return
 
-        profile: ConductivityProfile = self.parent_window.conductivity_profile
+        profile: UFProfile = self.parent_window.uf_profile
 
         if not profile.enabled or profile.profile_type == ProfileType.NONE:
             self.btn_type_none.setChecked(True)
-            setpoint = self._get_conductivity_setpoint()
+            setpoint = self._get_uf_setpoint()
             self._slider_values = [setpoint] * 6
         elif getattr(profile, "points", None) and len(profile.points) == 6:
             if profile.profile_type == ProfileType.LINEAR:
@@ -438,21 +439,21 @@ class ConductivityProfileScreen(QWidget):
         elif profile.profile_type == ProfileType.LINEAR:
             self.btn_type_linear.setChecked(True)
             self._slider_values = self._generate_linear_profile_from_values(
-                float(profile.start_conductivity), float(profile.end_conductivity)
+                float(profile.start_uf), float(profile.end_uf)
             )
         elif profile.profile_type == ProfileType.STEP:
             self.btn_type_step.setChecked(True)
-            high = float(profile.step_high if profile.step_high else profile.start_conductivity)
-            low = float(profile.step_low if profile.step_low else profile.end_conductivity)
+            high = float(profile.step_high if profile.step_high else profile.start_uf)
+            low = float(profile.step_low if profile.step_low else profile.end_uf)
             self._slider_values = self._generate_step_from_ends(high, low)
         else:
             self.btn_type_exp.setChecked(True)
             self._slider_values = self._generate_exp_profile_from_values(
-                float(profile.start_conductivity), float(profile.end_conductivity)
+                float(profile.start_uf), float(profile.end_uf)
             )
 
         for idx, slider in enumerate(self.slider_widgets):
-            slider.setValue(int(round(self._slider_values[idx] * 10.0)))
+            slider.setValue(int(round(self._slider_values[idx] * 100.0)))
 
         self._set_selected_slider(self._selected_index)
         self._update_selected_value_label()
@@ -492,19 +493,17 @@ class ConductivityProfileScreen(QWidget):
             self.btn_type_exp,
             self.btn_type_step,
         ]:
-            widget.setEnabled(not disabled)   
+            widget.setEnabled(not disabled)
 
         for slider in self.slider_widgets:
             slider.setEnabled(not disabled)
-
 
     def _on_adjust_clicked(self):
         """Recalcula las barras según el tipo de perfil actual."""
         profile_type = self._selected_type()
 
         if profile_type == ProfileType.NONE:
-            # Sin perfil → todas las barras al setpoint de conductividad
-            sp = self._get_conductivity_setpoint()
+            sp = self._get_uf_setpoint()
             self._slider_values = [sp] * 6
         else:
             start = float(self._slider_values[0])
@@ -519,12 +518,11 @@ class ConductivityProfileScreen(QWidget):
 
         for idx, slider in enumerate(self.slider_widgets):
             slider.blockSignals(True)
-            slider.setValue(int(round(self._slider_values[idx] * 10.0)))
+            slider.setValue(int(round(self._slider_values[idx] * 100.0)))
             slider.blockSignals(False)
 
         self._set_selected_slider(self._selected_index)
         self._update_selected_value_label()
-
 
     def _generate_linear_from_ends(self, start: float, end: float):
         values = []
@@ -532,7 +530,7 @@ class ConductivityProfileScreen(QWidget):
             progress = i / 5.0
             values.append(start + (end - start) * progress)
         return [self._clamp_value(v) for v in values]
-  
+
     def _generate_exp_from_ends(self, start: float, end: float):
         return self._calculate_decay_curve(start, end)
 
@@ -549,16 +547,14 @@ class ConductivityProfileScreen(QWidget):
             self._clamp_value(start),  # 5 Alto
             self._clamp_value(end),    # 6 Bajo
         ]
-    
+
     def _calculate_decay_curve(self, start: float, end: float):
         values = []
-        k = 3.0  # Factor de curvatura (mayor número = caída más pronunciada)
+        k = 3.0
         for i in range(6):
-            progress = i / 5.0            
-            # Fórmula real de decaimiento exponencial mapeada de 0 a 1
-            normalized = (1.0 - math.exp(-k * progress)) / (1.0 - math.exp(-k))            
+            progress = i / 5.0
+            normalized = (1.0 - math.exp(-k * progress)) / (1.0 - math.exp(-k))
             values.append(start + (end - start) * normalized)
-            
         return [self._clamp_value(v) for v in values]
 
     def showEvent(self, event):

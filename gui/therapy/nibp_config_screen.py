@@ -117,7 +117,7 @@ class NibpConfigScreen(QWidget):
             QPushButton:hover { background-color: #1e293b; }
             QPushButton:pressed { background-color: #334155; }
         """
-
+        
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(7, 7, 7, 7)
         main_layout.setSpacing(10)
@@ -182,7 +182,7 @@ class NibpConfigScreen(QWidget):
         hint_label.setStyleSheet("font-size: 16px; color: #64748b;")
         reading_layout.addWidget(hint_label)
 
-        grid.addWidget(reading_card, 0, 0, 1, 2)
+        grid.addWidget(reading_card, 0, 0, 1, 1)
 
         # ─── CARD 2: PACIENTE ─────────────────────────────────────────────
         patient_card = QFrame()
@@ -201,7 +201,7 @@ class NibpConfigScreen(QWidget):
         self.cmb_patient_mode.addItem("Neonatal", "neonatal")
         patient_layout.addWidget(self.cmb_patient_mode)
 
-        grid.addWidget(patient_card, 1, 0, 1, 1)
+        grid.addWidget(patient_card, 0, 1, 1, 1)
 
         # ─── CARD 3: MÉTODO ───────────────────────────────────────────────
         method_card = QFrame()
@@ -220,7 +220,7 @@ class NibpConfigScreen(QWidget):
             self.cmb_method.addItem(label, code)
         method_layout.addWidget(self.cmb_method)
 
-        grid.addWidget(method_card, 1, 1, 1, 1)
+        grid.addWidget(method_card, 0, 2, 1, 1)
 
         # ─── CARD 4: PRESIÓN DE ARRANQUE ──────────────────────────────────
         pressure_card = QFrame()
@@ -311,7 +311,7 @@ class NibpConfigScreen(QWidget):
         buttons_row.addWidget(self.btn_reset)
         actions_layout.addLayout(buttons_row)
 
-        grid.addWidget(actions_card, 3, 0, 1, 2)
+        grid.addWidget(actions_card, 2, 2, 1, 1)
 
         main_layout.addLayout(grid)
         main_layout.addStretch()

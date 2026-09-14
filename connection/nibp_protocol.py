@@ -4,30 +4,33 @@
 Funciones puras para construir comandos y parsear tramas del baumanómetro
 PAR Medizintechnik NIBP2020 UP (Combi Board con SpO2).
 
-Protocolo (parte de presión, NIBPWin V3.1 / Technical Description Rev. 2.14):
+Protocolo (parte de presión, NIBPWin V3.1 / Technical Description Rev. 2.14,
+Combi Board con SpO2 activo — Manual Rev. 2.8 §12.3 y Rev. 2.12 §17):
 
-Host -> módulo, 8 bytes:
-    <STX=0x02> c0 c1 ';' ';' x0 x1 <ETX=0x03>
+Host -> módulo:
+    <STX=0xFD> c0 c1 ';' ';' x0 x1 <ETX=0xFE> <CR=0x0D>
 El checksum es la suma (mod 256) de TODOS los bytes después de STX y antes
 de x0/x1 (es decir c0, c1, ';', ';'), representada como 2 dígitos HEX ASCII
 mayúsculas.
 
 Ejemplo (comando 01, start medición):
-    build_command("01") == bytes.fromhex("02 30 31 3B 3B 44 37 03")
+    build_command("01") == bytes.fromhex("FD 30 31 3B 3B 44 37 FE 0D")
     porque 0x30 + 0x31 + 0x3B + 0x3B = 0xD7 -> "D7" -> 0x44 0x37 ('D','7')
 
-Módulo -> host: tramas ASCII que empiezan en 0x02 y terminan en 0x03 0x0D
-(<ETX><CR>). Tres formatos reconocidos:
-    1) Presión de manguito en vivo: <STX> ddd C c S a <ETX><CR>
+Módulo -> host: tramas ASCII delimitadas por <STX><ETX><CR>. Se aceptan tanto
+el delimitador con SpO2 (0xFD/0xFE) como el legado sin SpO2 (0x02/0x03).
+Tres formatos reconocidos dentro del contenido:
+    1) Presión de manguito en vivo: ddd C c S a
        ejemplo: <STX>035C0S3<ETX><CR>  (NO trae checksum)
-    2) Fin de medición: <STX>999<ETX><CR>
+    2) Fin de medición: 999
     3) Status (respuesta a cmd 18):
-       <STX>S{a};A{b};C{cc};M{mm};P{sys3}{dia3}{map3};R{hr3};T{t4};;{ck}<ETX><CR>
-       ejemplo: <STX>S1;A0;C03;M00;P125080090;R075;T0005;;D2<ETX><CR>
+       S{a};A{b};C{cc};M{mm};P{sys3}{dia3}{map3};R{hr3};T{t4};;{ck}
+       ejemplo real de banco (SpO2 ON):
+       <STX=0xFD>S1;A0;C00;M00;P101065076;R060;T    ;;F3<ETX=0xFE><CR>
        Valores ausentes vienen como "---" (o "---------" para el campo P).
 
-Cualquier otra trama (por ejemplo SpO2 en FD/FE, aún no implementado) se
-reporta como tipo "unknown" sin lanzar excepciones.
+Cualquier otra trama (por ejemplo pleth SMARTsat crudo) se reporta como tipo
+"unknown" sin lanzar excepciones.
 """
 
 from __future__ import annotations
@@ -37,6 +40,8 @@ from typing import Optional
 
 STX = 0x02
 ETX = 0x03
+STX_SPO2 = 0xFD
+ETX_SPO2 = 0xFE
 CR = 0x0D
 
 # --- Códigos de comando NIBP -------------------------------------------
@@ -52,6 +57,8 @@ CMD_METHOD3_ADAPTIVE = "65"
 CMD_VERSION_28 = "28"
 CMD_VERSION_29 = "29"
 CMD_SERIAL_NUMBER = "71"
+CMD_SPO2_ON = "31"
+CMD_SPO2_OFF = "30"
 
 # 04..13 -> ciclos de 1/2/3/4/5/10/15/30/60/90 minutos
 CYCLE_MINUTES_TO_CMD = {
@@ -67,11 +74,13 @@ CYCLE_MINUTES_TO_CMD = {
     90: "13",
 }
 
-# Presiones de arranque adulto (mmHg -> código de comando)
+# Presiones de arranque adulto (mmHg -> código de comando).
+# En el Combi Board con SpO2, 30/31 NO son 80/100 mmHg (esos códigos quedan
+# libres para CMD_SPO2_OFF/CMD_SPO2_ON); 80/100/120 usan 60/61/62.
 ADULT_START_PRESSURE_TO_CMD = {
-    80: "30",
-    100: "31",
-    120: "32",
+    80: "60",
+    100: "61",
+    120: "62",
     140: "21",
     160: "22",
     180: "23",
@@ -126,12 +135,12 @@ def checksum_hex(payload: bytes) -> str:
 
 def build_command(code: str) -> bytes:
     """
-    Construye una trama de comando de 8 bytes para el módulo NIBP.
+    Construye una trama de comando para el módulo NIBP (Combi Board, SpO2 ON).
 
     code: cadena de 2 caracteres, por ejemplo "01", "18", "56".
 
     Test mental:
-        build_command("01") == bytes.fromhex("02 30 31 3B 3B 44 37 03")
+        build_command("01") == bytes.fromhex("FD 30 31 3B 3B 44 37 FE 0D")
     """
     if not isinstance(code, str) or len(code) != 2:
         raise ValueError(f"Código de comando NIBP inválido: {code!r}")
@@ -139,7 +148,7 @@ def build_command(code: str) -> bytes:
     code_bytes = code.encode("ascii")
     payload = code_bytes + b";;"
     checksum = checksum_hex(payload).encode("ascii")
-    return bytes([STX]) + payload + checksum + bytes([ETX])
+    return bytes([STX_SPO2]) + payload + checksum + bytes([ETX_SPO2, CR])
 
 
 def _field_to_int(value: bytes) -> int:
@@ -156,11 +165,19 @@ def parse_frame(data: bytes) -> Optional[dict]:
 
     Devuelve un dict con clave "type" en {"cuff", "end", "status", "unknown"},
     o None si data no contiene una trama reconocible (sin STX/ETX).
+    Acepta tanto el delimitador con SpO2 (0xFD/0xFE) como el legado (0x02/0x03).
     """
-    if not data or data[0] != STX:
+    if not data:
         return None
 
-    etx_index = data.find(bytes([ETX]), 1)
+    if data[0] == STX:
+        etx_byte = ETX
+    elif data[0] == STX_SPO2:
+        etx_byte = ETX_SPO2
+    else:
+        return None
+
+    etx_index = data.find(bytes([etx_byte]), 1)
     if etx_index == -1:
         return None
 

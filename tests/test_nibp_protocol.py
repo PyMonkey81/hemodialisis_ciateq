@@ -16,7 +16,11 @@ def test_checksum_hex_example_01():
 
 
 def test_build_command_01_matches_manual_example():
-    assert build_command("01") == bytes.fromhex("02 30 31 3B 3B 44 37 03")
+    assert build_command("01") == bytes.fromhex("FD 30 31 3B 3B 44 37 FE 0D")
+
+
+def test_build_command_31_spo2_on():
+    assert build_command("31") == bytes.fromhex("FD 33 31 3B 3B 44 41 FE 0D")
 
 
 def test_parse_cuff_frame():
@@ -109,6 +113,22 @@ def test_parse_status_frame_all_dashes():
     assert parsed["next_measure_s"] == -1
     assert parsed["error_code"] is None
     assert parsed["error_text"] is None
+
+
+def test_parse_status_frame_real_bench_capture_with_spo2_delimiters():
+    # Captura real de banco (NIBPWin V3.1, COM8, SpO2 ON):
+    # <STX=0xFD>S1;A0;C00;M00;P101065076;R060;T    ;;{ck}<ETX=0xFE><CR>
+    body = b"S1;A0;C00;M00;P101065076;R060;T    ;;"
+    content = body + checksum_hex(body).encode("ascii")
+    frame = b"\xFD" + content + b"\xFE\x0D"
+    parsed = parse_frame(frame)
+    assert parsed["type"] == "status"
+    assert parsed["sys"] == 101
+    assert parsed["dia"] == 65
+    assert parsed["map"] == 76
+    assert parsed["hr"] == 60
+    assert parsed["checksum_ok"] is True
+    assert parsed["error_code"] is None
 
 
 def test_parse_unknown_frame_does_not_raise():

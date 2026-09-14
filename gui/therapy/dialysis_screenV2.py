@@ -73,8 +73,8 @@ class PressureWaveformWidget(QWidget):
         # Colores idénticos al primer código
         self.bg_color = QColor("#fcfcfc")    # Fondo claro para resaltar la rejilla
         self.grid_color = QColor("#64748b")  # Rejilla
-        self.art_color = QColor("#0059ff")   # Cyan brillante (Arterial)
-        self.ven_color = QColor("#ef4444")   # Rojo brillante (Venosa)
+        self.art_color = QColor("#ef4444")   # Rojo brillante (Arterial)
+        self.ven_color = QColor("#0059ff")   # Azul brillante (Venosa)
         self.panel_bg = QColor("#2d3e58")    # Fondo del panel de valores
         
     def add_values(self, arterial, venous):
@@ -302,7 +302,7 @@ class DialysisScreen(QWidget):
         art_p_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         art_p_layout.addWidget(art_p_label)
         self.art_p_value = QLabel("-120 mmHg")
-        self.art_p_value.setStyleSheet("color: #0078d7; font-weight: bold; font-family: monospace; font-size: 28px;")
+        self.art_p_value.setStyleSheet("color: #dc2626; font-weight: bold; font-family: monospace; font-size: 28px;")
         art_p_layout.addStretch()
         art_p_layout.addWidget(self.art_p_value)
         blood_layout.addLayout(art_p_layout)
@@ -313,7 +313,7 @@ class DialysisScreen(QWidget):
         ven_p_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         ven_p_layout.addWidget(ven_p_label)
         self.ven_p_value = QLabel("-80 mmHg")
-        self.ven_p_value.setStyleSheet("color: #dc2626; font-weight: bold; font-family: monospace; font-size: 28px;")
+        self.ven_p_value.setStyleSheet("color: #0078d7; font-weight: bold; font-family: monospace; font-size: 28px;")
         ven_p_layout.addStretch()
         ven_p_layout.addWidget(self.ven_p_value)
         blood_layout.addLayout(ven_p_layout)

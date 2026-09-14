@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import (
     QComboBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGridLayout, QFrame, QSizePolicy
+    QGridLayout, QFrame, QSizePolicy, QCheckBox
 )
 from PySide6.QtCore import Qt, Signal, QEvent
 
@@ -44,6 +44,7 @@ class HeparinConfigScreen(QWidget):
     valueChanged = Signal(str, float)
     request_setpoint_change = Signal(str, float)
     request_boolean_change = Signal(str, bool)
+    heparin_enabled_changed = Signal(bool)
 
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
@@ -220,6 +221,16 @@ class HeparinConfigScreen(QWidget):
         title = QLabel("PARÁMETROS DE HEPARINA")
         title.setObjectName("card_title")
         heparin_layout.addWidget(title)
+
+        self.chk_heparin_enabled = QCheckBox("Habilitar infusión de heparina")
+        self.chk_heparin_enabled.setStyleSheet(
+            "QCheckBox { color: #0f172a; font-size: 20px; background: transparent; }"
+            "QCheckBox::indicator { width: 28px; height: 28px; border: 2px solid #334155; border-radius: 4px; }"
+            "QCheckBox::indicator:checked { background-color: #0f172a; }"
+        )
+        self.chk_heparin_enabled.setChecked(True)
+        self.chk_heparin_enabled.toggled.connect(self._on_heparin_enabled_toggled)
+        heparin_layout.addWidget(self.chk_heparin_enabled)
 
         # Campos
         fields = [
@@ -451,6 +462,21 @@ class HeparinConfigScreen(QWidget):
             f"Heparina pause/resume latch -> {self.heparin_pause_latched}"
         )
 
+    def _on_heparin_enabled_toggled(self, checked: bool):
+        # Bolo y HOME/REV/FWD/PAUSE quedan operables aun deshabilitado: son acciones
+        # puntuales de servicio, no infusión automática de terapia.
+        self.current_values["heparineInfusionEnabled"] = 1.0 if checked else 0.0
+        self._update_heparin_dose_fields_enabled(checked)
+        if self.parent_window and hasattr(self.parent_window, "set_heparin_infusion_enabled"):
+            self.parent_window.set_heparin_infusion_enabled(checked)
+        self.heparin_enabled_changed.emit(checked)
+
+    def _update_heparin_dose_fields_enabled(self, enabled: bool):
+        for widget_name in ("input_heparin", "heparin_flow_combo", "input_heparin_auto_stop"):
+            widget = getattr(self, widget_name, None)
+            if widget is not None and hasattr(widget, "setEnabled"):
+                widget.setEnabled(enabled)
+
     
     def _update_input_display(self, widget: ClickableLineEdit, tag: str, precision: int = 1):
         if widget.hasFocus():
@@ -465,6 +491,13 @@ class HeparinConfigScreen(QWidget):
         auto_h = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
         auto_m = int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0) or 0)
         self.input_heparin_auto_stop.setText(f"{auto_h:02d}:{auto_m:02d}")
+
+        heparin_enabled = bool(self.current_values.get("heparineInfusionEnabled", 1.0))
+        if self.chk_heparin_enabled.isChecked() != heparin_enabled:
+            self.chk_heparin_enabled.blockSignals(True)
+            self.chk_heparin_enabled.setChecked(heparin_enabled)
+            self.chk_heparin_enabled.blockSignals(False)
+        self._update_heparin_dose_fields_enabled(heparin_enabled)
 
         variables_to_update = {
             "heparineSyringeSize": self.syringe_combo,
@@ -593,6 +626,8 @@ class HeparinConfigScreen(QWidget):
         enabled = phase not in (TreatmentPhase.CLEANING, TreatmentPhase.ERROR)
         self.input_heparin.setEnabled(enabled)
         self.input_bolus.setEnabled(enabled)
+        if not bool(self.current_values.get("heparineInfusionEnabled", 1.0)):
+            self._update_heparin_dose_fields_enabled(False)
 
     def showEvent(self, event):
         super().showEvent(event)

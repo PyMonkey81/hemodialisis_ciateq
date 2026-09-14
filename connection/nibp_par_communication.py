@@ -31,12 +31,17 @@ from connection.nibp_protocol import (
     CMD_NEONATAL_MODE,
     CMD_REQUEST_DATA,
     CMD_SOFTWARE_RESET,
+    CMD_SPO2_OFF,
+    CMD_SPO2_ON,
     CMD_START_MEASUREMENT,
     CMD_VERSION_29,
+    CR,
     CYCLE_MINUTES_TO_CMD,
     ETX,
+    ETX_SPO2,
     STATUS_TEXTS_ES,
     STX,
+    STX_SPO2,
     build_command,
     parse_frame,
 )
@@ -47,6 +52,7 @@ logger = logging.getLogger(__name__)
 NIBP_BAUDRATE = 19200
 _RECONNECT_INTERVAL_S = 2.0
 _READ_TIMEOUT_S = 0.2
+_MAX_RX_BUFFER = 256
 
 # Prioridades de la cola de comandos: menor número = mayor prioridad.
 _PRIORITY_HIGH = 0
@@ -281,20 +287,42 @@ class NibpParCommunication(QObject):
         self._rx_buffer.extend(chunk)
 
         while True:
-            stx_index = self._rx_buffer.find(STX)
-            if stx_index == -1:
-                self._rx_buffer.clear()
+            stx_candidates = [
+                (index, stx)
+                for index, stx in (
+                    (self._rx_buffer.find(STX), STX),
+                    (self._rx_buffer.find(STX_SPO2), STX_SPO2),
+                )
+                if index != -1
+            ]
+            if not stx_candidates:
+                # Sin SOH reconocible (p.ej. pleth SMARTsat crudo). No se
+                # descarta el buffer solo por esto; se acota su crecimiento.
+                if len(self._rx_buffer) > _MAX_RX_BUFFER:
+                    stray = bytes(self._rx_buffer)
+                    self._rx_buffer.clear()
+                    self.raw_frame_received.emit(stray)
                 return
-            if stx_index > 0:
-                del self._rx_buffer[:stx_index]
 
-            etx_index = self._rx_buffer.find(ETX, 1)
+            stx_index, which_stx = min(stx_candidates, key=lambda item: item[0])
+            if stx_index > 0:
+                stray = bytes(self._rx_buffer[:stx_index])
+                del self._rx_buffer[:stx_index]
+                self.raw_frame_received.emit(stray)
+
+            etx_byte = ETX if which_stx == STX else ETX_SPO2
+            etx_index = self._rx_buffer.find(etx_byte, 1)
             if etx_index == -1:
+                if len(self._rx_buffer) > _MAX_RX_BUFFER:
+                    # Trama nunca cerrada o SOH espúrio dentro de datos pleth;
+                    # se descarta solo el byte inicial, no todo el buffer.
+                    del self._rx_buffer[:1]
+                    continue
                 return  # Trama incompleta; esperar más datos
 
             end_index = etx_index + 1
             # Incluir el CR final si ya llegó junto con el ETX.
-            if len(self._rx_buffer) > end_index and self._rx_buffer[end_index] == 0x0D:
+            if len(self._rx_buffer) > end_index and self._rx_buffer[end_index] == CR:
                 end_index += 1
 
             frame = bytes(self._rx_buffer[:end_index])
@@ -399,9 +427,7 @@ class NibpParCommunication(QObject):
         self._enqueue_command(CMD_VERSION_29)
 
     def spo2_on(self):
-        """Stub: protocolo SpO2 (FD/FE) aún no implementado en esta capa."""
-        logger.info("[NIBP] spo2_on(): SpO2 protocol pending")
+        self._enqueue_command(CMD_SPO2_ON)
 
     def spo2_off(self):
-        """Stub: protocolo SpO2 (FD/FE) aún no implementado en esta capa."""
-        logger.info("[NIBP] spo2_off(): SpO2 protocol pending")
+        self._enqueue_command(CMD_SPO2_OFF)

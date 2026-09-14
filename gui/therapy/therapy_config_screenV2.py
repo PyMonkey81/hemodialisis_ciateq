@@ -304,6 +304,16 @@ class TherapyConfigScreen(QWidget):
                 profile_row.addWidget(self.btn_conductivity_profile)
                 params_layout.addLayout(profile_row)
 
+            if widget == self.lbl_input_UF:
+                uf_profile_row = QHBoxLayout()
+                uf_profile_row.addStretch(1)
+                self.btn_uf_profile = PushbuttonEvent("Perfil UF", self)
+                self.btn_uf_profile.setFixedWidth(320)
+                self.btn_uf_profile.setStyleSheet(self.profile_btn_style)
+                self.btn_uf_profile.pressed.connect(self._on_open_uf_profile)
+                uf_profile_row.addWidget(self.btn_uf_profile)
+                params_layout.addLayout(uf_profile_row)
+
         params_layout.addStretch(1)
 
         main_layout.addWidget(params_card, 0, 1, 2, 1)
@@ -538,6 +548,7 @@ class TherapyConfigScreen(QWidget):
         self._update_time_display(self.input_duration, "heparineTherapyHours", "heparineTherapyMinutes")
         self._update_bloop_pump_controls_state()
         self._refresh_conductivity_profile_button()
+        self._refresh_uf_profile_button()
         
         if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'state'):
             self.update_state(self.parent_window.state.current_phase)
@@ -578,34 +589,48 @@ class TherapyConfigScreen(QWidget):
   
 
     def _handle_uf_flow_input(self):
-        """Handle UF flow input (L/h → ml/min)."""
-    
+        """Handle UF flow input (L/h → ml/min). Edición manual pisa un perfil UF activo (modo Sin perfil)."""
+
         # 1. Obtener el valor actual del widget para mostrarlo en el numpad
         current_text = ""
-        
+
         dialog = NumpadDialog(self, initial_value=current_text, title="Flujo UF (L/h)")
-    
-        if dialog.exec():            
+
+        if dialog.exec():
             new_value_str = dialog.get_value()
-        
+
             if new_value_str is not None:
                 try:
                     # 2. Convertir a float una sola vez y validar
                     val_float = float(new_value_str)
-                
+
+                    # 2b. Rango de edición: 0.00 - 2.00 L/h. Fuera de rango: no escribir.
+                    if val_float > 2.0:
+                        if self.parent_window and hasattr(self.parent_window, "show_warning_message"):
+                            self.parent_window.show_warning_message(
+                                "Flujo UF fuera de rango (máximo 2.00 L/h)", 4000
+                            )
+                        return
+                    val_float = max(0.0, val_float)
+
                     # 3. Actualizar la interfaz inmediatamente
                     if hasattr(self.lbl_input_UF, 'setText'):
                         self.lbl_input_UF.setText(f"{val_float:.2f}")
 
                     # 4. Realizar el cálculo matemático con el número, NO con el texto
                     ml_min = convertir_litros_h_a_ml_min(val_float)
-                
-                    # 5. Enviar al controlador
+
+                    # 5. Editar el numpad manualmente cancela un perfil UF activo (el usuario lo pisa a propósito).
+                    if self.parent_window and hasattr(self.parent_window, "is_uf_profile_active"):
+                        if self.parent_window.is_uf_profile_active():
+                            self.parent_window.disable_uf_profile(show_message=False)
+
+                    # 6. Enviar al controlador
                     self.on_user_input_setpoint("ultraFilterPumpSpeed", ml_min)
-                
-                    # 6. Bloquear actualización de lectura por 3 segundos para dar tiempo al PLC
+
+                    # 7. Bloquear actualización de lectura por 3 segundos para dar tiempo al PLC
                     self.write_hold_off["ultraFilterPumpSpeed"] = QDateTime.currentMSecsSinceEpoch() + 3000
-                
+
                 except ValueError:
                     logger.error(f"El valor ingresado no es un número válido: {new_value_str}")
                 except Exception as e:
@@ -657,11 +682,43 @@ class TherapyConfigScreen(QWidget):
             is_active = bool(self.parent_window.is_conductivity_profile_active())
 
         if is_active:
-            self.btn_conductivity_profile.setText("Perfil ACTIVO")
+            self.btn_conductivity_profile.setText("Perfil Na+ ACTIVO")
             self.btn_conductivity_profile.setStyleSheet(self.profile_btn_active_style)
         else:
-            self.btn_conductivity_profile.setText("Perfil de Conductividad")
+            self.btn_conductivity_profile.setText("Perfil Na+")
             self.btn_conductivity_profile.setStyleSheet(self.profile_btn_style)
+
+    def _on_open_uf_profile(self):
+        if not self.parent_window:
+            return
+
+        if (
+            hasattr(self.parent_window, "can_configure_uf_profile")
+            and hasattr(self.parent_window, "is_uf_profile_active")
+            and hasattr(self.parent_window, "disable_uf_profile")
+        ):
+            can_open, _msg = self.parent_window.can_configure_uf_profile()
+            if not can_open and self.parent_window.is_uf_profile_active():
+                self.parent_window.disable_uf_profile(show_message=True)
+                return
+
+        if hasattr(self.parent_window, "show_uf_profile_screen"):
+            self.parent_window.show_uf_profile_screen()
+
+    def _refresh_uf_profile_button(self):
+        if not hasattr(self, "btn_uf_profile"):
+            return
+
+        is_active = False
+        if self.parent_window and hasattr(self.parent_window, "is_uf_profile_active"):
+            is_active = bool(self.parent_window.is_uf_profile_active())
+
+        if is_active:
+            self.btn_uf_profile.setText("Perfil UF ACTIVO")
+            self.btn_uf_profile.setStyleSheet(self.profile_btn_active_style)
+        else:
+            self.btn_uf_profile.setText("Perfil UF")
+            self.btn_uf_profile.setStyleSheet(self.profile_btn_style)
 
     def update_state(self, phase: TreatmentPhase):
         """Actualiza el estado de botones de bomba de sangre y deja el resto habilitado."""
@@ -691,6 +748,9 @@ class TherapyConfigScreen(QWidget):
 
         if hasattr(self, "btn_conductivity_profile"):
             self.btn_conductivity_profile.setEnabled(enabled_inputs)
+
+        if hasattr(self, "btn_uf_profile"):
+            self.btn_uf_profile.setEnabled(enabled_inputs)
 
    
 
