@@ -162,6 +162,8 @@ NIBP_DEFAULT_CONFIG = {
     "interval_min": 15,
     "spo2_enabled": False,
 }
+# Primera toma automática 30s después de RUNNING; luego cada interval_min minutos.
+NIBP_AUTO_FIRST_MEASURE_DELAY_S = 30
 THERAPY_LOCAL_TAGS = {
     "heparineTherapyHours",
     "heparineTherapyMinutes",
@@ -444,6 +446,9 @@ class HemodialysisHMI(QMainWindow):
         self.nibp.connected_changed.connect(self._on_nibp_connected_changed)
         self.nibp.error_message.connect(self._on_nibp_error_message)
         self.nibp.measurement_ready.connect(self._on_nibp_measurement_ready)
+        self._nibp_auto_spo2_active = False
+        self._nibp_auto_last_interval_index = -1
+        self._nibp_measuring = False
         self._load_nibp_config_and_apply()
 
         # lectura de sensores de bioimpedancia
@@ -561,12 +566,17 @@ class HemodialysisHMI(QMainWindow):
 
         self.nibp_screen = NibpConfigScreen(parent=self)
         self.nibp_screen.settings_applied.connect(self._on_nibp_settings_applied)
-        self.nibp_screen.measure_now_requested.connect(self.nibp.start_measurement)
+        self.nibp_screen.measure_now_requested.connect(self._on_nibp_measure_requested)
         self.nibp_screen.reset_requested.connect(self.nibp.software_reset)
+        self.nibp_screen.spo2_on_requested.connect(self.nibp.spo2_on)
+        self.nibp_screen.spo2_off_requested.connect(self.nibp.spo2_off)
         self.nibp.connected_changed.connect(self.nibp_screen.update_connection)
         self.nibp.error_message.connect(self.nibp_screen.update_error)
         self.nibp.measurement_ready.connect(self.nibp_screen.update_measurement)
         self.nibp.cuff_pressure.connect(self.nibp_screen.update_cuff)
+        self.nibp.spo2_updated.connect(self.nibp_screen.update_spo2)
+        self.nibp.measurement_ready.connect(self.dialysis_screen.update_nibp_measurement)
+        self.nibp.spo2_updated.connect(self.dialysis_screen.update_spo2)
 
         self.maintenance_screen = MaintenanceScreen(parent=self)  # PANTALLA NUEVA DE MANTENIMIENTO 
 
@@ -659,7 +669,75 @@ class HemodialysisHMI(QMainWindow):
         self._update_buttons_state()
         self._refresh_navigation_bar()
         self.screen_state_manager.update_all_screens(phase) # MODIFICADO: Esto llamará a KTVScreen.update_state
-        self.ktv_controller.update_app_state(phase) 
+        self.ktv_controller.update_app_state(phase)
+        self._apply_nibp_auto_spo2_for_phase(phase)
+        if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            # Solo al terminar la sesión (IDLE/READY/etc.), NUNCA en PAUSED: el reloj de
+            # terapia se congela en pausa, no reinicia, así que el índice tampoco debe hacerlo.
+            self._nibp_auto_last_interval_index = -1
+
+    def _apply_nibp_auto_spo2_for_phase(self, phase: TreatmentPhase):
+        """RUNNING/PAUSED + spo2_enabled: mantiene el stream SpO2 (interval_min nunca dispara 31).
+
+        No se apaga en PAUSED para no perder el clip/sensor; solo se apaga al salir
+        de la sesión de terapia (IDLE/READY/etc.).
+        """
+        loaded = safe_json_load(NIBP_CONFIG_PATH, {})
+        if not isinstance(loaded, dict):
+            loaded = {}
+        config = {**NIBP_DEFAULT_CONFIG, **loaded}
+        auto_spo2_wanted = bool(config.get("spo2_enabled"))
+
+        if not auto_spo2_wanted:
+            return
+
+        should_stream = phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED)
+        if should_stream and not self._nibp_auto_spo2_active:
+            self._nibp_auto_spo2_active = True
+            self.nibp.spo2_on()
+        elif not should_stream and self._nibp_auto_spo2_active:
+            self._nibp_auto_spo2_active = False
+            self.nibp.spo2_off()
+
+    def _on_nibp_measure_requested(self):
+        """Limpia SYS/DIA/MAP/FC y el error previo (NO toca SpO2, es un stream aparte) y dispara la toma."""
+        self.nibp_screen.update_measurement(-1, -1, -1, -1)
+        self.nibp_screen.clear_error()
+        self.dialysis_screen.update_nibp_measurement(-1, -1, -1, -1)
+        self._nibp_measuring = True
+        self.nibp.start_measurement()
+
+    def _check_nibp_auto_measurement(self):
+        """Dispara PA automática con el reloj de terapia (no un QTimer propio de NibpConfigScreen).
+
+        Primera toma NIBP_AUTO_FIRST_MEASURE_DELAY_S después de entrar a RUNNING;
+        luego una cada interval_min minutos mientras siga en RUNNING.
+        """
+        if self.state.current_phase != TreatmentPhase.RUNNING:
+            return
+
+        loaded = safe_json_load(NIBP_CONFIG_PATH, {})
+        if not isinstance(loaded, dict):
+            loaded = {}
+        config = {**NIBP_DEFAULT_CONFIG, **loaded}
+        if not config.get("auto_during_therapy"):
+            return
+
+        interval_min = safe_int(config.get("interval_min", 15), 15)
+        if interval_min <= 0:
+            return
+
+        elapsed_s = self.treatment_controller.get_elapsed_seconds()
+        if elapsed_s < NIBP_AUTO_FIRST_MEASURE_DELAY_S:
+            return
+
+        interval_s = interval_min * 60
+        current_index = (elapsed_s - NIBP_AUTO_FIRST_MEASURE_DELAY_S) // interval_s
+        if current_index == self._nibp_auto_last_interval_index or self._nibp_measuring:
+            return
+
+        self._nibp_auto_last_interval_index = current_index
+        self._on_nibp_measure_requested()
 
     def _on_treatment_started(self, start_time):
         logger.info("Tratamiento INICIADO")
@@ -1691,6 +1769,8 @@ class HemodialysisHMI(QMainWindow):
 
                 if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
                     self.treatment_controller.update_therapy_times()
+
+                self._check_nibp_auto_measurement()
 
                 self._apply_conductivity_profile_from_state()
                 self._apply_uf_profile_from_state()
@@ -3065,9 +3145,11 @@ class HemodialysisHMI(QMainWindow):
 
     def _on_nibp_error_message(self, error_code: str, error_text: str):
         logger.warning(f"[NIBP] {error_code}: {error_text}")
+        self._nibp_measuring = False
 
     def _on_nibp_measurement_ready(self, sys_mmhg: int, dia_mmhg: int, map_mmhg: int, hr_bpm: int):
         logger.info(f"[NIBP] Medición lista: SYS={sys_mmhg} DIA={dia_mmhg} MAP={map_mmhg} HR={hr_bpm}")
+        self._nibp_measuring = False
 
     def _on_nibp_settings_applied(self, config: dict):
         """Aplica patient_mode/method/start_pressure/spo2 al módulo; el ciclo queda en manual (otro ticket)."""

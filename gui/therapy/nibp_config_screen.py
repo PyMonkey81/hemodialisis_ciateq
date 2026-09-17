@@ -38,6 +38,11 @@ METHOD_LABELS = {
 }
 START_PRESSURE_OPTIONS_MMHG = [80, 100, 120, 140, 160, 180, 200, 220, 240, 280]
 INTERVAL_OPTIONS_MIN = [5, 10, 15, 30, 60]
+_CARD_FIXED_WIDTH = 507
+_CARD_ROW0_MIN_HEIGHT = 200
+_CARD_ROW1_MIN_HEIGHT = 260
+_SPO2_STATUS_TEXTS = ("Sensor desconectado", "Sin dedo", "Sin pulso", "Buscando…", "Señal débil", "OK", "-----")
+_SPO2_STATUS_WIDTH = max(len(text) for text in _SPO2_STATUS_TEXTS)
 
 
 class NibpConfigScreen(QWidget):
@@ -46,6 +51,8 @@ class NibpConfigScreen(QWidget):
     settings_applied = Signal(dict)
     measure_now_requested = Signal()
     reset_requested = Signal()
+    spo2_on_requested = Signal()
+    spo2_off_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -148,16 +155,8 @@ class NibpConfigScreen(QWidget):
         grid.setSpacing(16)
         grid.setContentsMargins(7, 7, 7, 7)
 
-        # ─── CARD 1: LECTURA ACTUAL (ocupa 2 columnas) ───────────────────────
-        reading_card = QFrame()
-        reading_card.setObjectName("card")
-        reading_layout = QVBoxLayout(reading_card)
-        reading_layout.setContentsMargins(10, 10, 10, 10)
-        reading_layout.setSpacing(7)
-
-        reading_title = QLabel("Lectura actual")
-        reading_title.setObjectName("card_title")
-        reading_layout.addWidget(reading_title)
+        # ─── CARD 1: LECTURA ACTUAL ───────────────────────────────────────
+        reading_card, reading_layout = self._make_card("Lectura actual", _CARD_ROW0_MIN_HEIGHT)
 
         values_row = QHBoxLayout()
         values_row.setSpacing(20)
@@ -170,89 +169,72 @@ class NibpConfigScreen(QWidget):
         values_row.addStretch()
         reading_layout.addLayout(values_row)
 
+        inf_row = QHBoxLayout()
+        inf_row.setSpacing(20)
+
         self.lbl_cuff = QLabel("Manguito: — mmHg")
         self.lbl_cuff.setStyleSheet("font-size: 22px; color: #0f172a;")
-        reading_layout.addWidget(self.lbl_cuff)
+        inf_row.addWidget(self.lbl_cuff)
 
         self.lbl_status = QLabel("Desconectado")
+
         self.lbl_status.setStyleSheet("font-size: 20px; color: #475569;")
-        reading_layout.addWidget(self.lbl_status)
+        inf_row.addWidget(self.lbl_status)
+        reading_layout.addLayout(inf_row)
+
+        self.lbl_nibp_error = QLabel("")
+        self.lbl_nibp_error.setStyleSheet("font-size: 16px; color: #b91c1c;")
+        self.lbl_nibp_error.setWordWrap(True)
+        reading_layout.addWidget(self.lbl_nibp_error)
 
         hint_label = QLabel("Colocar el manguito en el brazo contrario a la fístula.")
         hint_label.setStyleSheet("font-size: 16px; color: #64748b;")
         reading_layout.addWidget(hint_label)
+        reading_layout.addStretch()
 
         grid.addWidget(reading_card, 0, 0, 1, 1)
 
         # ─── CARD 2: PACIENTE ─────────────────────────────────────────────
-        patient_card = QFrame()
-        patient_card.setObjectName("card")
-        patient_layout = QVBoxLayout(patient_card)
-        patient_layout.setContentsMargins(10, 10, 10, 10)
-        patient_layout.setSpacing(7)
-
-        patient_title = QLabel("Paciente")
-        patient_title.setObjectName("card_title")
-        patient_layout.addWidget(patient_title)
+        patient_card, patient_layout = self._make_card("Paciente", _CARD_ROW0_MIN_HEIGHT)
 
         self.cmb_patient_mode = QComboBox()
         self.cmb_patient_mode.setStyleSheet(combo_style)
         self.cmb_patient_mode.addItem("Adulto", "adult")
         self.cmb_patient_mode.addItem("Neonatal", "neonatal")
         patient_layout.addWidget(self.cmb_patient_mode)
+        patient_layout.addStretch()
 
         grid.addWidget(patient_card, 0, 1, 1, 1)
 
         # ─── CARD 3: MÉTODO ───────────────────────────────────────────────
-        method_card = QFrame()
-        method_card.setObjectName("card")
-        method_layout = QVBoxLayout(method_card)
-        method_layout.setContentsMargins(10, 10, 10, 10)
-        method_layout.setSpacing(7)
-
-        method_title = QLabel("Método")
-        method_title.setObjectName("card_title")
-        method_layout.addWidget(method_title)
+        method_card, method_layout = self._make_card("Método", _CARD_ROW0_MIN_HEIGHT)
 
         self.cmb_method = QComboBox()
         self.cmb_method.setStyleSheet(combo_style)
         for code, label in METHOD_LABELS.items():
             self.cmb_method.addItem(label, code)
         method_layout.addWidget(self.cmb_method)
+        method_layout.addStretch()
 
         grid.addWidget(method_card, 0, 2, 1, 1)
 
         # ─── CARD 4: PRESIÓN DE ARRANQUE ──────────────────────────────────
-        pressure_card = QFrame()
-        pressure_card.setObjectName("card")
-        pressure_layout = QVBoxLayout(pressure_card)
-        pressure_layout.setContentsMargins(10, 10, 10, 10)
-        pressure_layout.setSpacing(7)
-
-        pressure_title = QLabel("Presión de arranque")
-        pressure_title.setObjectName("card_title")
-        pressure_layout.addWidget(pressure_title)
+        pressure_card, pressure_layout = self._make_card("Presión de arranque", _CARD_ROW1_MIN_HEIGHT)
 
         self.cmb_start_pressure = QComboBox()
         self.cmb_start_pressure.setStyleSheet(combo_style)
         for pressure in START_PRESSURE_OPTIONS_MMHG:
             self.cmb_start_pressure.addItem(f"{pressure} mmHg", pressure)
         pressure_layout.addWidget(self.cmb_start_pressure)
+        pressure_layout.addStretch()
 
-        grid.addWidget(pressure_card, 2, 0, 1, 1)
+        grid.addWidget(pressure_card, 1, 0, 1, 1)
 
-        # ─── CARD 5: AUTOMÁTICA (solo persistir) ──────────────────────────
-        auto_card = QFrame()
-        auto_card.setObjectName("card")
-        auto_layout = QVBoxLayout(auto_card)
-        auto_layout.setContentsMargins(10, 10, 10, 10)
-        auto_layout.setSpacing(7)
+        # ─── CARD 5: AUTOMÁTICA (solo persistir)
+        # ESTA CONFIGURACION APLICA PARA MEDICION DE PRESIÓN ARTERIAL AUTOMÁTICA DURANTE LA TERAPIA Y MEDICION SPo2 AUTOMÁTICA
+        auto_card, auto_layout = self._make_card("Configuración", _CARD_ROW1_MIN_HEIGHT)
 
-        auto_title = QLabel("Automática")
-        auto_title.setObjectName("card_title")
-        auto_layout.addWidget(auto_title)
-
-        self.chk_auto = QCheckBox("Automática durante la terapia")
+        self.chk_auto = QCheckBox("Medición automática durante la terapia")
         self.chk_auto.setStyleSheet(chk_style)
         auto_layout.addWidget(self.chk_auto)
 
@@ -269,32 +251,40 @@ class NibpConfigScreen(QWidget):
         interval_row.addStretch()
         auto_layout.addLayout(interval_row)
 
-        auto_hint = QLabel("Se activará cuando la terapia esté en RUNNING (próxima entrega).")
+        auto_hint = QLabel("Se activará cuando la terapia esté en RUNNING.")
         auto_hint.setStyleSheet("font-size: 16px; color: #64748b;")
         auto_hint.setWordWrap(True)
         auto_layout.addWidget(auto_hint)
+        auto_layout.addStretch()
 
-        grid.addWidget(auto_card, 2, 1, 1, 1)
+        grid.addWidget(auto_card, 1, 1, 1, 1)
 
-        # ─── CARD 6: ACCIONES ─────────────────────────────────────────────
-        actions_card = QFrame()
-        actions_card.setObjectName("card")
-        actions_layout = QVBoxLayout(actions_card)
-        actions_layout.setContentsMargins(10, 10, 10, 10)
-        actions_layout.setSpacing(7)
-
-        actions_title = QLabel("Acciones")
-        actions_title.setObjectName("card_title")
-        actions_layout.addWidget(actions_title)
+        # ─── CARD 6: SPo2 (solo checkbox + lectura, sin botones) ──────────
+        spo2_card, spo2_layout = self._make_card("SpO2", _CARD_ROW1_MIN_HEIGHT)
 
         self.chk_spo2 = QCheckBox("SpO2")
         self.chk_spo2.setStyleSheet(chk_style)
-        actions_layout.addWidget(self.chk_spo2)
+        self.chk_spo2.toggled.connect(self._on_chk_spo2_toggled)
+        spo2_layout.addWidget(self.chk_spo2)
+
+        self.lbl_spo2_value = self._make_value_label("SpO2", "----")
+        self.lbl_spo2_value.setFixedWidth(150)
+        spo2_layout.addWidget(self.lbl_spo2_value)
+
+        self.lbl_spo2_status = self._make_value_label("Estado SpO2", "-----".ljust(_SPO2_STATUS_WIDTH))
+        self.lbl_spo2_status.setFixedWidth(320)
+        spo2_layout.addWidget(self.lbl_spo2_status)
+        spo2_layout.addStretch()
+
+        grid.addWidget(spo2_card, 1, 2, 1, 1)
+
+        # ─── CARD 7: ACCIONES (span completo para no recortar los botones) ─
+        actions_card, actions_layout = self._make_card("Acciones", _CARD_ROW0_MIN_HEIGHT, fixed_width=False)
 
         buttons_row = QHBoxLayout()
         buttons_row.setSpacing(16)
 
-        self.btn_measure_now = QPushButton("Medir ahora")
+        self.btn_measure_now = QPushButton("Medir\n ahora")  # DEFINIR SI MIDE AMBOS (PRESION Y SPO2)
         self.btn_measure_now.setStyleSheet(btn_style)
         self.btn_measure_now.clicked.connect(self.measure_now_requested.emit)
 
@@ -302,19 +292,49 @@ class NibpConfigScreen(QWidget):
         self.btn_apply.setStyleSheet(btn_style)
         self.btn_apply.clicked.connect(self._on_apply_clicked)
 
-        self.btn_reset = QPushButton("Reset módulo")
+        self.btn_reset = QPushButton("Reset\n módulo")
         self.btn_reset.setStyleSheet(btn_style)
         self.btn_reset.clicked.connect(self.reset_requested.emit)
 
         buttons_row.addWidget(self.btn_measure_now)
         buttons_row.addWidget(self.btn_apply)
         buttons_row.addWidget(self.btn_reset)
+        buttons_row.addStretch()
         actions_layout.addLayout(buttons_row)
+        actions_layout.addStretch()
 
-        grid.addWidget(actions_card, 2, 2, 1, 1)
+        grid.addWidget(actions_card, 2, 0, 1, 1)
+
+        grid.setRowStretch(0, 0)
+        grid.setRowStretch(1, 0)
+        grid.setRowStretch(2, 0)
 
         main_layout.addLayout(grid)
         main_layout.addStretch()
+
+    def _make_card(self, title_text: str, min_height: int, fixed_width: bool = True):
+        """Card con patrón uniforme: título (con raya via QSS) + widgets añadidos directo al layout del card."""
+        card = QFrame()
+        card.setObjectName("card")
+        card.setMinimumHeight(min_height)
+        if fixed_width:
+            card.setMinimumWidth(_CARD_FIXED_WIDTH)
+            card.setMaximumWidth(_CARD_FIXED_WIDTH)
+
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(10, 10, 10, 10)
+        card_layout.setSpacing(7)
+
+        title = QLabel(title_text)
+        title.setObjectName("card_title")
+        title.setMinimumHeight(28)
+        title.setStyleSheet(
+            "font-size: 20px; font-weight: bold; color: #0f172a; background: transparent;"
+            "padding-bottom: 6px; border: none; border-bottom: 1px solid #94a3b8;"
+        )
+        card_layout.addWidget(title)
+
+        return card, card_layout
 
     def _make_value_label(self, name: str, value: str) -> QLabel:
         label = QLabel(f"{name}: {value}")
@@ -357,6 +377,14 @@ class NibpConfigScreen(QWidget):
         self._save_config()
         self.settings_applied.emit(dict(self._config))
 
+    def _on_chk_spo2_toggled(self, checked: bool):
+        self._config["spo2_enabled"] = checked
+        self._save_config()
+        if checked:
+            self.spo2_on_requested.emit()
+        else:
+            self.spo2_off_requested.emit()
+
     def _on_close_clicked(self):
         if self.parent_window and hasattr(self.parent_window, "show_dialysis_screen"):
             self.parent_window.show_dialysis_screen()
@@ -366,15 +394,56 @@ class NibpConfigScreen(QWidget):
     # ------------------------------------------------------------------
     def update_connection(self, connected: bool, port: str):
         self.lbl_status.setText(f"Conectado ({port})" if connected else "Desconectado")
+        if connected:
+            self.lbl_nibp_error.setText("")
+
+    def _mark_connected_if_needed(self):
+        # El módulo no siempre reporta connected_changed antes de la primera trama; si
+        # ya llegan datos, el puerto está evidentemente abierto.
+        if self.lbl_status.text() == "Desconectado":
+            self.lbl_status.setText("Conectado")
 
     def update_error(self, error_code: str, error_text: str):
-        self.lbl_status.setText(f"Error {error_code}: {error_text}")
+        # NO pisar "Conectado": el error de medición va en una línea aparte.
+        self.lbl_nibp_error.setText(f"Error {error_code}: {error_text}")
+
+    def clear_error(self):
+        self.lbl_nibp_error.setText("")
 
     def update_measurement(self, sys_mmhg: int, dia_mmhg: int, map_mmhg: int, hr_bpm: int):
+        if sys_mmhg >= 0 or dia_mmhg >= 0 or map_mmhg >= 0 or hr_bpm >= 0:
+            self._mark_connected_if_needed()
         self.lbl_sys.setText(f"SYS: {sys_mmhg if sys_mmhg >= 0 else '—'}")
         self.lbl_dia.setText(f"DIA: {dia_mmhg if dia_mmhg >= 0 else '—'}")
         self.lbl_map.setText(f"MAP: {map_mmhg if map_mmhg >= 0 else '—'}")
         self.lbl_hr.setText(f"FC: {hr_bpm if hr_bpm >= 0 else '—'}")
 
     def update_cuff(self, mmhg: int, caution: int, status: int):
+        self._mark_connected_if_needed()
         self.lbl_cuff.setText(f"Manguito: {mmhg} mmHg")
+
+    def update_spo2(self, data):
+        if not data:
+            self.lbl_spo2_value.setText("SpO2: ----")
+            self.lbl_spo2_status.setText(f"Estado SpO2: {'-----'.ljust(_SPO2_STATUS_WIDTH)}")
+            return
+
+        self._mark_connected_if_needed()
+        value = data.get("spo2")
+        self.lbl_spo2_value.setText(f"SpO2: {value} %" if value is not None else "SpO2: ----")
+
+        if data.get("sensor_off"):
+            status_text = "Sensor desconectado"
+        elif data.get("no_finger"):
+            status_text = "Sin dedo"
+        elif data.get("no_pulse"):
+            status_text = "Sin pulso"
+        elif data.get("searching"):
+            status_text = "Buscando…"
+        elif data.get("signal_weak"):
+            status_text = "Señal débil"
+        elif value is None:
+            status_text = "-----"
+        else:
+            status_text = "OK"
+        self.lbl_spo2_status.setText(f"Estado SpO2: {status_text.ljust(_SPO2_STATUS_WIDTH)}")

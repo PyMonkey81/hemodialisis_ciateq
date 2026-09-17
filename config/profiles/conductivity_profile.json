@@ -1,20 +1,20 @@
 {
   "enabled": true,
   "profile_type": "step",
-  "therapy_duration_min": 60,
-  "start_conductivity": 15.199999999999992,
+  "therapy_duration_min": 30,
+  "start_conductivity": 15.59999999999999,
   "end_conductivity": 12.8,
-  "step_high": 15.199999999999992,
+  "step_high": 15.59999999999999,
   "step_low": 12.8,
   "step_change_at_percent": 50.0,
   "points": [
-    15.199999999999992,
+    15.59999999999999,
     12.8,
-    15.199999999999992,
+    15.59999999999999,
     12.8,
-    15.199999999999992,
+    15.59999999999999,
     12.8
   ],
-  "created_at": "2026-09-14T09:04:43",
+  "created_at": "2026-09-17T12:46:46",
   "notes": ""
 }

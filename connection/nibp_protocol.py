@@ -59,6 +59,11 @@ CMD_VERSION_29 = "29"
 CMD_SERIAL_NUMBER = "71"
 CMD_SPO2_ON = "31"
 CMD_SPO2_OFF = "30"
+CMD_PLETH_ON = "93"
+CMD_PLETH_OFF = "92"
+
+# --- SpO2 binario (Appendix TD NIBP2020 UP with SpO2 Variant 3 Rev. A §5-7) ---
+SPO2_HDR = b"\x55\xAA"
 
 # 04..13 -> ciclos de 1/2/3/4/5/10/15/30/60/90 minutos
 CYCLE_MINUTES_TO_CMD = {
@@ -234,3 +239,58 @@ def parse_frame(data: bytes) -> Optional[dict]:
         }
 
     return {"type": "unknown", "raw": bytes(content)}
+
+# --- Bits del campo status (A2) del paquete SpO2 #1 (1 Hz, n==5) ---------
+SPO2_STATUS_SENSOR_OFF = 0x01
+SPO2_STATUS_NO_FINGER = 0x02
+SPO2_STATUS_NO_PULSE = 0x04
+SPO2_STATUS_SEARCHING = 0x10
+SPO2_STATUS_SIGNAL_WEAK = 0x40
+
+
+def parse_spo2_packet(buf: bytes) -> Optional[dict]:
+    """
+    Interpreta un paquete binario SpO2 (Appendix TD NIBP2020 UP with SpO2
+    Variant 3 Rev. A §5-7): 0x55 0xAA <N> <body:n> <checksum>, con N = n+2 y
+    checksum = (N + sum(body)) % 256.
+
+    Devuelve None si buf no empieza con SPO2_HDR o la trama está incompleta
+    (se debe esperar a que lleguen más bytes). No lanza excepciones.
+    """
+    if len(buf) < 4 or buf[0:2] != SPO2_HDR:
+        return None
+
+    n_field = buf[2]
+    total = 2 + n_field
+    if len(buf) < total:
+        return None
+
+    n = n_field - 2
+    if n < 0:
+        return {"type": "spo2_other", "n": n, "raw": bytes(buf[3:total])}
+
+    body = buf[3 : 3 + n]
+    checksum_recv = buf[3 + n]
+    checksum_calc = (n_field + sum(body)) % 256
+
+    if checksum_calc != checksum_recv:
+        return {"type": "spo2_bad_checksum", "raw": bytes(buf[:total])}
+
+    if n == 5:
+        idx, status, spo2, pr, pi = body
+        return {
+            "type": "spo2",
+            "index": idx,
+            "status": status,
+            "sensor_off": bool(status & SPO2_STATUS_SENSOR_OFF),
+            "no_finger": bool(status & SPO2_STATUS_NO_FINGER),
+            "no_pulse": bool(status & SPO2_STATUS_NO_PULSE),
+            "searching": bool(status & SPO2_STATUS_SEARCHING),
+            "signal_weak": bool(status & SPO2_STATUS_SIGNAL_WEAK),
+            "spo2": None if spo2 == 127 else int(spo2),
+            "pr": None if pr == 255 else int(pr),
+            "pi": None if pi == 0 else int(pi),
+            "checksum_ok": True,
+        }
+
+    return {"type": "spo2_other", "n": n, "raw": bytes(body)}

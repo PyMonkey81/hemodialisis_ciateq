@@ -1,20 +1,20 @@
 {
-  "enabled": true,
-  "profile_type": "step",
+  "enabled": false,
+  "profile_type": "none",
   "therapy_duration_min": 60,
-  "start_uf": 1.800000000000001,
-  "end_uf": 0.35,
-  "step_high": 1.800000000000001,
-  "step_low": 0.35,
+  "start_uf": 0.12,
+  "end_uf": 0.12,
+  "step_high": 0.12,
+  "step_low": 0.12,
   "step_change_at_percent": 50.0,
   "points": [
-    1.800000000000001,
-    0.35,
-    1.800000000000001,
-    0.35,
-    1.800000000000001,
-    0.35
+    0.12,
+    0.12,
+    0.12,
+    0.12,
+    0.12,
+    0.12
   ],
-  "created_at": "2026-09-14T12:43:18",
+  "created_at": "2026-09-17T12:30:17",
   "notes": ""
 }

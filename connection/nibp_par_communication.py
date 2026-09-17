@@ -29,6 +29,7 @@ from connection.nibp_protocol import (
     CMD_METHOD2_IMT,
     CMD_METHOD3_ADAPTIVE,
     CMD_NEONATAL_MODE,
+    CMD_PLETH_OFF,
     CMD_REQUEST_DATA,
     CMD_SOFTWARE_RESET,
     CMD_SPO2_OFF,
@@ -39,13 +40,19 @@ from connection.nibp_protocol import (
     CYCLE_MINUTES_TO_CMD,
     ETX,
     ETX_SPO2,
+    SPO2_HDR,
     STATUS_TEXTS_ES,
     STX,
     STX_SPO2,
     build_command,
     parse_frame,
+    parse_spo2_packet,
 )
-from utilities.platform_runtime import sanitize_port_for_platform
+from utilities.platform_runtime import (
+    get_runtime_config_path,
+    safe_json_load,
+    sanitize_port_for_platform,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +60,8 @@ NIBP_BAUDRATE = 19200
 _RECONNECT_INTERVAL_S = 2.0
 _READ_TIMEOUT_S = 0.2
 _MAX_RX_BUFFER = 256
+_SPO2_ACTIVATION_DELAY_S = 0.5
+_NIBP_CONFIG_PATH = get_runtime_config_path("nibp_config.json")
 
 # Prioridades de la cola de comandos: menor número = mayor prioridad.
 _PRIORITY_HIGH = 0
@@ -72,6 +81,8 @@ class NibpParCommunication(QObject):
     error_message = Signal(str, str)
     version_received = Signal(str)
     raw_frame_received = Signal(bytes)
+    spo2_updated = Signal(object)
+    spo2_status_text = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -85,6 +96,9 @@ class NibpParCommunication(QObject):
         self._user_selected_port: Optional[str] = None  # None -> "Auto"
         self._is_enabled: bool = False
         self.is_connected = False
+
+        self._spo2_enabled: bool = False
+        self._spo2_activation_deadline: Optional[float] = None
 
     @property
     def running(self) -> bool:
@@ -107,21 +121,43 @@ class NibpParCommunication(QObject):
         self._user_selected_port = sanitized_port if sanitized_port != "Auto" else None
         self._is_enabled = is_enabled
 
+        was_spo2_enabled = self._spo2_enabled
+        self._refresh_spo2_enabled_from_config()
+
         logger.info(
-            "[NIBP] Configuración recibida: Puerto='%s', Habilitado=%s",
+            "[NIBP] Configuración recibida: Puerto='%s', Habilitado=%s, SpO2=%s",
             sanitized_port,
             is_enabled,
+            self._spo2_enabled,
         )
 
         if not self._is_enabled and self.running:
             logger.info("[NIBP] Comunicación deshabilitada. Deteniendo módulo NIBP.")
             self.stop()
+            self._reset_spo2_ui_state()
         elif self._is_enabled and not self.running:
             logger.info("[NIBP] Comunicación habilitada. Iniciando módulo NIBP.")
             self.start_reading()
         elif self._is_enabled and port_changed and self.running:
             logger.info("[NIBP] Puerto cambiado a '%s'. Forzando reconexión.", sanitized_port)
             self._close_port_resource()
+            self._reset_spo2_ui_state()
+        elif self._is_enabled and self.is_connected and was_spo2_enabled and not self._spo2_enabled:
+            # spo2_enabled pasó a False con el puerto ya abierto: apagar stream y limpiar UI.
+            logger.info("[NIBP] SpO2 deshabilitado por configuración. Apagando stream.")
+            self.spo2_off()
+            self._reset_spo2_ui_state()
+
+    def _refresh_spo2_enabled_from_config(self):
+        """Relee spo2_enabled desde config/nibp_config.json (fuente única compartida con la UI)."""
+        loaded = safe_json_load(_NIBP_CONFIG_PATH, {})
+        if not isinstance(loaded, dict):
+            loaded = {}
+        self._spo2_enabled = bool(loaded.get("spo2_enabled", False))
+
+    def _reset_spo2_ui_state(self):
+        self.spo2_updated.emit(None)
+        self.spo2_status_text.emit("")
 
     def start_reading(self):
         """Inicia el hilo de comunicación de fondo si está habilitado."""
@@ -188,6 +224,9 @@ class NibpParCommunication(QObject):
             self._rx_buffer.clear()
             self.is_connected = True
             self.connected_changed.emit(True, port_name)
+            self._spo2_activation_deadline = (
+                time.monotonic() + _SPO2_ACTIVATION_DELAY_S if self._spo2_enabled else None
+            )
             logger.info(
                 "[NIBP] Conectado. OS: %s | Puerto: %s | Baud: %s | NIBP2020 UP",
                 current_os,
@@ -215,6 +254,7 @@ class NibpParCommunication(QObject):
 
     def _close_port_resource(self):
         self.is_connected = False
+        self._spo2_activation_deadline = None
         port = self.serial_port
         if port is not None:
             try:
@@ -245,6 +285,7 @@ class NibpParCommunication(QObject):
                     continue
 
             try:
+                self._maybe_activate_pending_spo2()
                 self._flush_pending_commands()
                 self._read_and_parse_frames()
             except Exception as exc:
@@ -254,6 +295,17 @@ class NibpParCommunication(QObject):
                 time.sleep(1.0)
 
         logger.info("[NIBP] Hilo de comunicación NIBP finalizado.")
+
+    def _maybe_activate_pending_spo2(self):
+        """Activa el stream SpO2 ~500 ms después de abrir el puerto (no en el mismo tick del open)."""
+        if self._spo2_activation_deadline is None:
+            return
+        if time.monotonic() < self._spo2_activation_deadline:
+            return
+        self._spo2_activation_deadline = None
+        if self._spo2_enabled and self.is_connected:
+            logger.info("[NIBP] Activando stream SpO2 tras la conexión.")
+            self.spo2_on()
 
     def _flush_pending_commands(self):
         """Envía todos los comandos encolados (mayor prioridad primero)."""
@@ -287,16 +339,19 @@ class NibpParCommunication(QObject):
         self._rx_buffer.extend(chunk)
 
         while True:
-            stx_candidates = [
-                (index, stx)
-                for index, stx in (
-                    (self._rx_buffer.find(STX), STX),
-                    (self._rx_buffer.find(STX_SPO2), STX_SPO2),
-                )
-                if index != -1
-            ]
-            if not stx_candidates:
-                # Sin SOH reconocible (p.ej. pleth SMARTsat crudo). No se
+            candidates = []
+            stx_index = self._rx_buffer.find(STX)
+            if stx_index != -1:
+                candidates.append((stx_index, "ascii", STX))
+            stx_spo2_index = self._rx_buffer.find(STX_SPO2)
+            if stx_spo2_index != -1:
+                candidates.append((stx_spo2_index, "ascii", STX_SPO2))
+            spo2_index = self._rx_buffer.find(SPO2_HDR)
+            if spo2_index != -1:
+                candidates.append((spo2_index, "spo2", None))
+
+            if not candidates:
+                # Sin SOH/header reconocible (p.ej. pleth SMARTsat crudo). No se
                 # descarta el buffer solo por esto; se acota su crecimiento.
                 if len(self._rx_buffer) > _MAX_RX_BUFFER:
                     stray = bytes(self._rx_buffer)
@@ -304,11 +359,16 @@ class NibpParCommunication(QObject):
                     self.raw_frame_received.emit(stray)
                 return
 
-            stx_index, which_stx = min(stx_candidates, key=lambda item: item[0])
-            if stx_index > 0:
-                stray = bytes(self._rx_buffer[:stx_index])
-                del self._rx_buffer[:stx_index]
+            start_index, kind, which_stx = min(candidates, key=lambda item: item[0])
+            if start_index > 0:
+                stray = bytes(self._rx_buffer[:start_index])
+                del self._rx_buffer[:start_index]
                 self.raw_frame_received.emit(stray)
+
+            if kind == "spo2":
+                if not self._try_consume_spo2_packet():
+                    return
+                continue
 
             etx_byte = ETX if which_stx == STX else ETX_SPO2
             etx_index = self._rx_buffer.find(etx_byte, 1)
@@ -329,6 +389,32 @@ class NibpParCommunication(QObject):
             del self._rx_buffer[:end_index]
 
             self._handle_frame(frame)
+
+    def _try_consume_spo2_packet(self) -> bool:
+        """Intenta consumir un paquete 55 AA completo del buffer.
+
+        Devuelve True si el bucle de lectura debe continuar (se consumió un
+        paquete o se descartó un byte espurio); False si hay que esperar más
+        datos (paquete incompleto).
+        """
+        if len(self._rx_buffer) < 3:
+            if len(self._rx_buffer) > _MAX_RX_BUFFER:
+                del self._rx_buffer[:1]
+                return True
+            return False
+
+        n_field = self._rx_buffer[2]
+        total = 2 + n_field
+        if len(self._rx_buffer) < total:
+            if len(self._rx_buffer) > _MAX_RX_BUFFER:
+                del self._rx_buffer[:1]
+                return True
+            return False
+
+        frame = bytes(self._rx_buffer[:total])
+        del self._rx_buffer[:total]
+        self._handle_spo2_frame(frame)
+        return True
 
     def _handle_frame(self, frame: bytes):
         try:
@@ -368,8 +454,41 @@ class NibpParCommunication(QObject):
                 logger.warning("[NIBP] Error M%s: %s", parsed["error_code"], error_text)
                 self.error_message.emit(f"M{parsed['error_code']}", error_text)
         else:
-            logger.debug("[NIBP] Trama desconocida/SpO2 recibida: %s", frame.hex())
+            logger.debug("[NIBP] Trama desconocida recibida: %s", frame.hex())
             self.raw_frame_received.emit(frame)
+
+    def _handle_spo2_frame(self, frame: bytes):
+        try:
+            parsed = parse_spo2_packet(frame)
+        except Exception as exc:
+            logger.debug("[NIBP] No se pudo parsear paquete SpO2 %s: %s", frame.hex(), exc)
+            return
+
+        if parsed is None:
+            return
+
+        ptype = parsed.get("type")
+        if ptype == "spo2":
+            self.spo2_updated.emit(parsed)
+            self.spo2_status_text.emit(self._spo2_status_text_from(parsed))
+        elif ptype == "spo2_bad_checksum":
+            logger.warning("[NIBP] Checksum SpO2 inválido: %s", frame.hex())
+        else:
+            logger.debug("[NIBP] Paquete SpO2 ignorado (pleth/versión): %s", frame.hex())
+
+    @staticmethod
+    def _spo2_status_text_from(parsed: dict) -> str:
+        if parsed.get("sensor_off"):
+            return "Sensor desconectado"
+        if parsed.get("no_finger"):
+            return "Sin dedo"
+        if parsed.get("no_pulse"):
+            return "Sin pulso"
+        if parsed.get("searching"):
+            return "Buscando…"
+        if parsed.get("signal_weak"):
+            return "Señal débil"
+        return ""
 
     # ------------------------------------------------------------------
     # Envío de comandos (API pública)
@@ -427,7 +546,9 @@ class NibpParCommunication(QObject):
         self._enqueue_command(CMD_VERSION_29)
 
     def spo2_on(self):
+        self._enqueue_command(CMD_PLETH_OFF)
         self._enqueue_command(CMD_SPO2_ON)
 
     def spo2_off(self):
         self._enqueue_command(CMD_SPO2_OFF)
+        self._reset_spo2_ui_state()

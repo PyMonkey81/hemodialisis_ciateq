@@ -351,6 +351,8 @@ class DialysisScreen(QWidget):
         temp_value_row.setSpacing(6)
         self.temp_value = QLabel("0.0")
         self.temp_value.setObjectName("val_large_green")
+        self.temp_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.temp_value.setFixedWidth(140)
         temp_unit = QLabel("°C")
         temp_unit.setStyleSheet("font-size: 22px; color: #475569; font-weight: 600;")
         temp_value_row.addWidget(self.temp_value)
@@ -363,11 +365,13 @@ class DialysisScreen(QWidget):
 
         # Conductividad del Dializado
         cond_layout = QHBoxLayout()
-        cond_label = QLabel("Conductividad:")
+        cond_label = QLabel("Cond.:")
         cond_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         cond_layout.addWidget(cond_label)
         self.cond_val = QLabel("14.1 mS/cm")
-        self.cond_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
+        self.cond_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px; font-family: monospace;")
+        self.cond_val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # self.cond_val.setFixedWidth(160)
         cond_layout.addStretch()
         cond_layout.addWidget(self.cond_val)
         dialysate_layout.addLayout(cond_layout)
@@ -389,7 +393,9 @@ class DialysisScreen(QWidget):
         tmp_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         tmp_layout.addWidget(tmp_label)
         self.tmp_val = QLabel("85 mmHg")
-        self.tmp_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
+        self.tmp_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px; font-family: monospace;")
+        self.tmp_val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tmp_val.setFixedWidth(160)
         tmp_layout.addStretch()
         tmp_layout.addWidget(self.tmp_val)
         dialysate_layout.addLayout(tmp_layout)
@@ -494,6 +500,10 @@ class DialysisScreen(QWidget):
         spo2_layout.addStretch()
         spo2_layout.addWidget(self.spo2_value)
         vitals_layout.addLayout(spo2_layout)
+
+        self.spo2_status_label = QLabel("")
+        self.spo2_status_label.setStyleSheet("color: #64748b; font-size: 14px;")
+        vitals_layout.addWidget(self.spo2_status_label)
 
         # TEMPORAL: acceso rápido a la pantalla del NIBP mientras se define
         # su lugar definitivo en la barra de navegación. No eliminar sin ticket.
@@ -719,9 +729,15 @@ class DialysisScreen(QWidget):
         except (TypeError, ValueError):
             return str(value) # Si no es número, devolver el texto tal cual
 
-        if tag in {"bloodArteryPressureData", "bloodVenousPressureData", "CALC_PTM"}:
+        if tag in {"bloodArteryPressureData", "bloodVenousPressureData"}:
             try:
                 return f"{val_float:.1f} mmHg"
+            except (TypeError, ValueError):
+                return str(val_float)
+
+        if tag == "CALC_PTM":
+            try:
+                return f"{val_float:.2f} mmHg"
             except (TypeError, ValueError):
                 return str(val_float)
 
@@ -745,7 +761,7 @@ class DialysisScreen(QWidget):
 
         if tag == "dialyTempIFProcessData":
             try:
-                return f"{val_float:.1f}"
+                return f"{val_float:5.1f}"
             except (TypeError, ValueError):
                 return str(val_float)
 
@@ -834,6 +850,37 @@ class DialysisScreen(QWidget):
             self.elapsed_time_display.set_time_value(elapsed_str)
         if hasattr(self, 'remaining_time_display') and self.remaining_time_display:
             self.remaining_time_display.set_time_value(remaining_str)
+
+    def update_nibp_measurement(self, sys_mmhg: int, dia_mmhg: int, map_mmhg: int, hr_bpm: int):
+        """Signos vitales - P.A. (NIBP), conectado a nibp.measurement_ready."""
+        if sys_mmhg >= 0 and dia_mmhg >= 0:
+            self.nibp_value.setText(f"{sys_mmhg} / {dia_mmhg}")
+        else:
+            self.nibp_value.setText("-- / --")
+
+    def update_spo2(self, data):
+        """Signos vitales - SpO2, conectado a nibp.spo2_updated (None si stream off)."""
+        if not data:
+            self.spo2_value.setText("-- %")
+            self.spo2_status_label.setText("")
+            return
+
+        value = data.get("spo2")
+        self.spo2_value.setText(f"{value} %" if value is not None else "-- %")
+
+        if data.get("sensor_off"):
+            status_text = "Sensor desconectado"
+        elif data.get("no_finger"):
+            status_text = "Sin dedo"
+        elif data.get("no_pulse"):
+            status_text = "Sin pulso"
+        elif data.get("searching"):
+            status_text = "Buscando…"
+        elif data.get("signal_weak"):
+            status_text = "Señal débil"
+        else:
+            status_text = ""
+        self.spo2_status_label.setText(status_text)
 
 
     def set_priming_buttons_state(self, enable_start_priming: bool, enable_stop_priming: bool):
