@@ -378,7 +378,7 @@ class DialysisScreen(QWidget):
 
         # Flujo de Dializado (DFR)
         dfr_layout = QHBoxLayout()
-        dfr_label = QLabel("Flujo Dializado:")
+        dfr_label = QLabel("F. Dializado:")
         dfr_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
         dfr_layout.addWidget(dfr_label)
         self.dfr_val_label = QLabel("500 mL/min")
@@ -395,7 +395,7 @@ class DialysisScreen(QWidget):
         self.tmp_val = QLabel("85 mmHg")
         self.tmp_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px; font-family: monospace;")
         self.tmp_val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tmp_val.setFixedWidth(160)
+        # self.tmp_val.setFixedWidth(160)
         tmp_layout.addStretch()
         tmp_layout.addWidget(self.tmp_val)
         dialysate_layout.addLayout(tmp_layout)

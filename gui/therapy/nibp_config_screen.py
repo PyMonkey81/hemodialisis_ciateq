@@ -156,7 +156,7 @@ class NibpConfigScreen(QWidget):
         grid.setContentsMargins(7, 7, 7, 7)
 
         # ─── CARD 1: LECTURA ACTUAL ───────────────────────────────────────
-        reading_card, reading_layout = self._make_card("Lectura actual", _CARD_ROW0_MIN_HEIGHT)
+        reading_card, reading_layout = self._make_card("Lectura actual", _CARD_ROW0_MIN_HEIGHT, fixed_width=False)
 
         values_row = QHBoxLayout()
         values_row.setSpacing(20)
@@ -192,21 +192,9 @@ class NibpConfigScreen(QWidget):
         reading_layout.addWidget(hint_label)
         reading_layout.addStretch()
 
-        grid.addWidget(reading_card, 0, 0, 1, 1)
+        grid.addWidget(reading_card, 0, 0, 1, 2)
 
-        # ─── CARD 2: PACIENTE ─────────────────────────────────────────────
-        patient_card, patient_layout = self._make_card("Paciente", _CARD_ROW0_MIN_HEIGHT)
-
-        self.cmb_patient_mode = QComboBox()
-        self.cmb_patient_mode.setStyleSheet(combo_style)
-        self.cmb_patient_mode.addItem("Adulto", "adult")
-        self.cmb_patient_mode.addItem("Neonatal", "neonatal")
-        patient_layout.addWidget(self.cmb_patient_mode)
-        patient_layout.addStretch()
-
-        grid.addWidget(patient_card, 0, 1, 1, 1)
-
-        # ─── CARD 3: MÉTODO ───────────────────────────────────────────────
+        # ─── CARD 2: MÉTODO ───────────────────────────────────────────────
         method_card, method_layout = self._make_card("Método", _CARD_ROW0_MIN_HEIGHT)
 
         self.cmb_method = QComboBox()
@@ -345,10 +333,6 @@ class NibpConfigScreen(QWidget):
     # Config <-> UI
     # ------------------------------------------------------------------
     def _apply_config_to_ui(self):
-        patient_mode = self._config.get("patient_mode", "adult")
-        index = self.cmb_patient_mode.findData(patient_mode)
-        self.cmb_patient_mode.setCurrentIndex(index if index >= 0 else 0)
-
         method = self._config.get("method", 2)
         index = self.cmb_method.findData(method)
         self.cmb_method.setCurrentIndex(index if index >= 0 else 1)
@@ -367,7 +351,8 @@ class NibpConfigScreen(QWidget):
 
     def _on_apply_clicked(self):
         # NO cambia enabled/port: eso solo lo edita CommPortScreen.
-        self._config["patient_mode"] = self.cmb_patient_mode.currentData()
+        # patient_mode siempre es "adult" (forzado internamente)
+        self._config["patient_mode"] = "adult"
         self._config["method"] = self.cmb_method.currentData()
         self._config["start_pressure_mmhg"] = self.cmb_start_pressure.currentData()
         self._config["auto_during_therapy"] = self.chk_auto.isChecked()

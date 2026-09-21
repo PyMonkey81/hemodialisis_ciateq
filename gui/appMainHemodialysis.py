@@ -1389,6 +1389,8 @@ class HemodialysisHMI(QMainWindow):
 
     def show_nibp_screen(self):
         # TEMPORAL: acceso desde el card de signos vitales de dialysis_screen.
+        # Al abrir módulo: set_adult_mode() (cmd 24)
+        self.nibp.set_adult_mode()
         self.screen_stack.setCurrentWidget(self.nibp_screen)
         self.left_content.show()
         self.right_content.show()
@@ -3153,10 +3155,8 @@ class HemodialysisHMI(QMainWindow):
 
     def _on_nibp_settings_applied(self, config: dict):
         """Aplica patient_mode/method/start_pressure/spo2 al módulo; el ciclo queda en manual (otro ticket)."""
-        if config.get("patient_mode") == "neonatal":
-            self.nibp.set_neonatal_mode()
-        else:
-            self.nibp.set_adult_mode()
+        # patient_mode siempre es "adult" en esta entrega (UI + default NIBP)
+        self.nibp.set_adult_mode()
 
         self.nibp.set_method(int(config.get("method", 2)))
         self.nibp.set_start_pressure_mmhg(int(config.get("start_pressure_mmhg", 160)))

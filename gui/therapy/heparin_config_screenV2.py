@@ -122,9 +122,9 @@ class HeparinConfigScreen(QWidget):
         # ===================== CARDS =====================
 
         # 1. Bolo
-        bolus_card = QFrame()
-        bolus_card.setObjectName("card")
-        bolus_layout = QVBoxLayout(bolus_card)
+        self.bolus_card = QFrame()
+        self.bolus_card.setObjectName("card")
+        bolus_layout = QVBoxLayout(self.bolus_card)
         bolus_layout.setContentsMargins(20, 20, 20, 20)
         bolus_layout.setSpacing(18)
 
@@ -134,9 +134,9 @@ class HeparinConfigScreen(QWidget):
 
         # Volumen bolo
         h = QHBoxLayout()
-        bolus_label = QLabel("Vol. Bolo Heparina (ml):")
-        bolus_label.setStyleSheet(label_style)        
-        h.addWidget(bolus_label)
+        self.bolus_label = QLabel("Vol. Bolo Heparina (ml):")
+        self.bolus_label.setStyleSheet(label_style)        
+        h.addWidget(self.bolus_label)
         self.input_bolus = ClickableLineEdit("0.0")
         self.input_bolus.setFixedSize(130, 52)
         self.input_bolus.setAlignment(Qt.AlignCenter)
@@ -147,11 +147,11 @@ class HeparinConfigScreen(QWidget):
         )
         h.addWidget(self.input_bolus)        
 
-        btn_apply_bolus = QPushButton("APLICAR\n BOLO")
-        btn_apply_bolus.setFixedHeight(60)
-        btn_apply_bolus.setStyleSheet(button_style)
-        btn_apply_bolus.clicked.connect(self.apply_bolus)
-        h.addWidget(btn_apply_bolus)
+        self.btn_apply_bolus = QPushButton("APLICAR\n BOLO")
+        self.btn_apply_bolus.setFixedHeight(60)
+        self.btn_apply_bolus.setStyleSheet(button_style)
+        self.btn_apply_bolus.clicked.connect(self.apply_bolus)
+        h.addWidget(self.btn_apply_bolus)
         bolus_layout.addLayout(h)
 
 #======================no hay flujo de bolo de heparina, por ahora se comenta el combo de flujo========================
@@ -168,7 +168,7 @@ class HeparinConfigScreen(QWidget):
         # bolus_layout.addLayout(h)
         bolus_layout.addStretch(1)  # para centrar verticalmente los campos
 
-        layout.addWidget(bolus_card, 0, 0)
+        layout.addWidget(self.bolus_card, 0, 0)
 
         # 2. Controles de bomba
         ctrls_card = QFrame()
@@ -186,8 +186,9 @@ class HeparinConfigScreen(QWidget):
 
         for text, tag, is_toggle in [
             ("HOME", "heparinePumpHomePosition", False),
-            ("REV", "heparinePumpREVButton", False),
-            ("FWD", "heparinePumpFWDButton", False),
+            # REV/FWD/PAUSE ocultos a petición clínica; reactivar si se requieren.
+            # ("REV", "heparinePumpREVButton", False),
+            # ("FWD", "heparinePumpFWDButton", False),
         ]:
             btn = PushbuttonEvent(text, self)
             btn.setFixedSize(150, 75)
@@ -199,11 +200,12 @@ class HeparinConfigScreen(QWidget):
                 btn.released.connect(lambda t=tag: self.on_user_boolean_command(t, False))
             buttons_layout.addWidget(btn)
 
-        self.btn_pause_hep = PushbuttonEvent("PAUSE", self)
-        self.btn_pause_hep.setFixedSize(150, 75)
-        self.btn_pause_hep.setStyleSheet(button_style)
-        self.btn_pause_hep.pressed.connect(self._toggle_heparin_pause_resume)
-        buttons_layout.addWidget(self.btn_pause_hep)
+        # PAUSE oculto a petición clínica; reactivar si se requiere.
+        # self.btn_pause_hep = PushbuttonEvent("PAUSE", self)
+        # self.btn_pause_hep.setFixedSize(150, 75)
+        # self.btn_pause_hep.setStyleSheet(button_style)
+        # self.btn_pause_hep.pressed.connect(self._toggle_heparin_pause_resume)
+        # buttons_layout.addWidget(self.btn_pause_hep)
 
         ctrls_layout.addLayout(buttons_layout)
         ctrls_layout.addStretch(1)   # para centrar verticalmente los botones
@@ -234,7 +236,7 @@ class HeparinConfigScreen(QWidget):
 
         # Campos
         fields = [
-            ("Vol. Dosis Heparina (ml):", "heparineTherapyDosage", "input_heparin"),
+            # ("Vol. Dosis Heparina (ml):", "heparineTherapyDosage", "input_heparin"),
             ("Flujo Heparina (ml/h):", None, "heparin_flow_combo"), 
             ("Tamaño de Jeringa:", None, "syringe_combo"),
             ("Vol. Heparina en Jeringa (ml):", "heparineSyringeVolume", "input_vol_hep"),
@@ -304,15 +306,7 @@ class HeparinConfigScreen(QWidget):
         layout.setRowStretch(1, 1)
 
 #================================FALTA DEFINIR SI HABRÁ FLUJO DE HEPARINA O NO, POR AHORA SE COMENTA EL MÉTODO========================================
-    # def _on_bolus_flow_changed(self, index):
-    #     self._selected_flujo_index = index
 
-    #     if hasattr(self, "combo_flujo") and self.combo_flujo is not None:
-    #         flujo_value = float(self.combo_flujo.currentText())
-    #         self.current_values["dialyHeparineBolusFlow"] = flujo_value
-    #         if self.parent_window and hasattr(self.parent_window, "current_values"):
-    #             self.parent_window.current_values["dialyHeparineBolusFlow"] = flujo_value
-    #         self.on_user_input_setpoint("dialyHeparineBolusFlow", flujo_value)
 
 
 
@@ -324,6 +318,8 @@ class HeparinConfigScreen(QWidget):
             if self.parent_window and hasattr(self.parent_window, "current_values"):
                 self.parent_window.current_values["heparineTherapyFlow"] = flujo_value
             self.on_user_input_setpoint("heparineTherapyFlow", flujo_value)
+            # Recalcular dosage cuando cambia el flujo
+            self._recalculate_therapy_dosage()
 
 
     def _on_syringe_changed(self, index):
@@ -348,23 +344,15 @@ class HeparinConfigScreen(QWidget):
             self.on_user_input_setpoint("heparineSyringeSize", syringe_value)
 
 
-    # def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
-    #     dialog = NumpadDialog(self, initial_value="", title=title)
-    #     if dialog.exec():
-    #         new_value = dialog.get_value()
-    #         if new_value is not None:
-    #             float_val = float(new_value)
-    #             input_widget.setText(str(new_value))
-    #             self.current_values[tag] = float_val
-    #             if self.parent_window and hasattr(self.parent_window, "current_values"):
-    #                 self.parent_window.current_values[tag] = float_val
-    #             self.on_user_input_setpoint(tag, float_val)
-    #             if hasattr(input_widget, 'clearFocus'):
-    #                 input_widget.clearFocus()
-    #             self.setFocus()
+
 
 
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
+        # Verificar si es bolo y heparina está deshabilitada
+        if tag == "heparineBolusQuantity" and not bool(self.current_values.get("heparineInfusionEnabled", 1.0)):
+            logger.debug("Numpad de bolo bloqueado: heparina deshabilitada")
+            return
+        
         dialog = NumpadDialog(self, initial_value="", title=title)
         if dialog.exec():
             new_value = dialog.get_value()
@@ -427,6 +415,9 @@ class HeparinConfigScreen(QWidget):
                 if tag_hours and tag_minutes:
                     self.on_user_input_setpoint(tag_hours, float(hours))
                     self.on_user_input_setpoint(tag_minutes, float(minutes))
+                    # Recalcular dosage si cambió el tiempo de paro automático de heparina
+                    if tag_hours == HEPARIN_AUTO_STOP_HOURS_TAG:
+                        self._recalculate_therapy_dosage()
 
     def _coerce_heparin_auto_stop_time(self, hours: int, minutes: int) -> tuple[int, int]:
         requested_minutes = max(0, (int(hours) * 60) + int(minutes))
@@ -463,19 +454,203 @@ class HeparinConfigScreen(QWidget):
         )
 
     def _on_heparin_enabled_toggled(self, checked: bool):
-        # Bolo y HOME/REV/FWD/PAUSE quedan operables aun deshabilitado: son acciones
+        # Bolo y HOME quedan operables aun deshabilitado: son acciones
         # puntuales de servicio, no infusión automática de terapia.
-        self.current_values["heparineInfusionEnabled"] = 1.0 if checked else 0.0
+        if not checked:
+            # Mostrar modal de confirmación al desmarcar
+            dialog = FloatingConfirmDialog(self.parent_window if self.parent_window else self)
+            title = "Suspender infusión de heparina"
+            message = (
+                "Va a deshabilitar la infusión de heparina para este tratamiento.\n"
+                "No se administrará bolo ni infusión continua. Debe indicarse\n"
+                "por prescripción médica. ¿Confirma suspender la heparina?"
+            )
+            result = dialog.show_confirm(message, accept_text="Sí", cancel_text="No")
+            
+            if not result:  # Usuario seleccionó No
+                # Restablecer el estado del checkbox sin emitir la señal
+                self.chk_heparin_enabled.blockSignals(True)
+                self.chk_heparin_enabled.setChecked(True)
+                self.chk_heparin_enabled.blockSignals(False)
+                logger.info("[HEPARIN] Deshabilitación cancelada por usuario")
+                return
+            
+            # Usuario confirmó deshabilitar
+            logger.info("[HEPARIN] disabled")
+            self.current_values["heparineInfusionEnabled"] = 0.0
+            # Enviar setpoint de dosis a 0 cuando se deshabilita
+            self.on_user_input_setpoint("heparineTherapyDosage", 0.0)
+        else:
+            # Heparin habilitado: recalcular dosage
+            self.current_values["heparineInfusionEnabled"] = 1.0
+            self._recalculate_therapy_dosage()
+        
         self._update_heparin_dose_fields_enabled(checked)
         if self.parent_window and hasattr(self.parent_window, "set_heparin_infusion_enabled"):
             self.parent_window.set_heparin_infusion_enabled(checked)
         self.heparin_enabled_changed.emit(checked)
 
     def _update_heparin_dose_fields_enabled(self, enabled: bool):
-        for widget_name in ("input_heparin", "heparin_flow_combo", "input_heparin_auto_stop"):
+        # Deshabilitar/habilitar tarjeta de bolo completa
+        self.bolus_card.setEnabled(enabled)
+        self.input_bolus.setEnabled(enabled)
+        self.btn_apply_bolus.setEnabled(enabled)
+        self.bolus_label.setEnabled(enabled)
+        
+        # Deshabilitar/habilitar parámetros de heparina
+        for widget_name in ("heparin_flow_combo", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
             widget = getattr(self, widget_name, None)
             if widget is not None and hasattr(widget, "setEnabled"):
                 widget.setEnabled(enabled)
+        
+        # Aplicar estilos QSS para estado disabled
+        self._apply_disabled_styles(enabled)
+
+    def _apply_disabled_styles(self, enabled: bool):
+        """Aplica estilos QSS para el estado enabled/disabled de controles de heparina."""
+        if enabled:
+            # Restaurar estilos normales
+            button_style = """
+                QPushButton { 
+                    background: #06298a; 
+                    color: #ffffff; 
+                    border-radius: 20px; 
+                    font-weight: bold; 
+                    font-size: 18px;
+                }
+                QPushButton:pressed { background: #1e40af; }
+            """
+            input_style = """
+                ClickableLineEdit {
+                    font-family: Consolas, "Courier New", monospace;
+                    font-size: 24px;
+                    color: #000000;
+                    background: #e2e8f0;
+                    border: 2px solid #64748b;
+                    border-radius: 8px;
+                    padding: 5px;
+                    min-width: 120px;
+                }
+                ClickableLineEdit:focus {
+                    border: 2px solid #3b82f6;
+                    background: #ffffff;
+                }
+            """
+            combo_style = """
+                QComboBox {
+                    font-size: 24px;
+                    min-width: 180px;
+                    color: #0f172a;
+                    background-color: #ffffff;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 5px;
+                    padding: 5px;
+                }
+                QComboBox::drop-down {
+                    border: none;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #ffffff;
+                    color: #0f172a;
+                    selection-background-color: #cbd5e1;
+                    selection-color: #0f172a;
+                    border: 1px solid #cbd5e1;
+                }
+            """
+            label_style = "font-size: 26px; color: #334155; font-weight: 600;"
+            
+            self.btn_apply_bolus.setStyleSheet(button_style)
+            self.input_bolus.setStyleSheet(input_style)
+            self.bolus_label.setStyleSheet(label_style)
+            
+            # Restaurar estilos de combos e inputs de heparina
+            for widget_name in ("heparin_flow_combo", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
+                widget = getattr(self, widget_name, None)
+                if widget is None:
+                    continue
+                if isinstance(widget, QComboBox):
+                    widget.setStyleSheet(combo_style)
+                elif isinstance(widget, ClickableLineEdit):
+                    widget.setStyleSheet(input_style)
+        else:
+            # Estilos para estado disabled (gris)
+            disabled_button_style = """
+                QPushButton:disabled {
+                    background-color: #94a3b8;
+                    color: #e2e8f0;
+                }
+            """
+            disabled_input_style = """
+                ClickableLineEdit:disabled {
+                    color: #94a3b8;
+                    background-color: #f1f5f9;
+                    border: 2px solid #cbd5e1;
+                }
+            """
+            disabled_combo_style = """
+                QComboBox:disabled {
+                    color: #94a3b8;
+                    background-color: #f1f5f9;
+                    border: 1px solid #cbd5e1;
+                }
+            """
+            disabled_label_style = "font-size: 26px; color: #94a3b8; font-weight: 600;"
+            
+            self.btn_apply_bolus.setStyleSheet(disabled_button_style)
+            self.input_bolus.setStyleSheet(disabled_input_style)
+            self.bolus_label.setStyleSheet(disabled_label_style)
+            
+            # Aplicar estilos disabled a combos e inputs de heparina
+            for widget_name in ("heparin_flow_combo", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
+                widget = getattr(self, widget_name, None)
+                if widget is None:
+                    continue
+                if isinstance(widget, QComboBox):
+                    widget.setStyleSheet(disabled_combo_style)
+                elif isinstance(widget, ClickableLineEdit):
+                    widget.setStyleSheet(disabled_input_style)
+
+    def _recalculate_therapy_dosage(self):
+        """
+        Calcula y envía el setpoint de dosis de heparina (ml).
+        Fórmula: dosis_ml = tiempo_horas * flujo_ml_por_h
+        Tiempo: desde heparineAutoStopHours y heparineAutoStopMinutes
+        Flujo: desde heparin_flow_combo (combobox)
+        """
+        # Verificar que heparina esté habilitada
+        if not bool(self.current_values.get("heparineInfusionEnabled", 1.0)):
+            # Si heparina deshabilitada, no recalcular
+            return
+        
+        try:
+            # Obtener tiempo de paro automático en horas y minutos
+            auto_h = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
+            auto_m = int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0) or 0)
+            time_hours = auto_h + (auto_m / 60.0)
+            
+            # Obtener flujo del combo (ml/h)
+            if not hasattr(self, "heparin_flow_combo") or self.heparin_flow_combo is None:
+                logger.warning("heparin_flow_combo no disponible para cálculo de dosage")
+                return
+            
+            flow_ml_per_h = float(self.heparin_flow_combo.currentText())
+            
+            # Calcular dosage: tiempo * flujo
+            dosage_ml = round(time_hours * flow_ml_per_h, 2)
+            
+            # Actualizar valores internos
+            self.current_values["heparineTherapyDosage"] = dosage_ml
+            if self.parent_window and hasattr(self.parent_window, "current_values"):
+                self.parent_window.current_values["heparineTherapyDosage"] = dosage_ml
+            
+            # Enviar setpoint al puerto
+            self.on_user_input_setpoint("heparineTherapyDosage", dosage_ml)
+            logger.debug(
+                f"Dosis heparina recalculada: tiempo={auto_h:02d}:{auto_m:02d}h ({time_hours:.2f}h), "
+                f"flujo={flow_ml_per_h:.1f}ml/h → dosis={dosage_ml:.2f}ml"
+            )
+        except Exception as e:
+            logger.error(f"Error recalculando dosis de heparina: {e}")
 
     
     def _update_input_display(self, widget: ClickableLineEdit, tag: str, precision: int = 1):
@@ -486,7 +661,7 @@ class HeparinConfigScreen(QWidget):
 
     def update_values(self, new_values: dict):
         self.current_values = new_values
-        self._update_input_display(self.input_heparin, "heparineTherapyDosage")
+        # Nota: heparineTherapyDosage ahora se calcula automáticamente, no se actualiza directamente
         self._update_input_display(self.input_bolus, "heparineBolusQuantity")
         auto_h = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
         auto_m = int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0) or 0)
@@ -607,14 +782,17 @@ class HeparinConfigScreen(QWidget):
         return True
 
     def apply_bolus(self):
+        # Verificar que heparina esté habilitada
+        if not bool(self.current_values.get("heparineInfusionEnabled", 1.0)):
+            logger.debug("Bolo bloqueado: heparina deshabilitada")
+            return
         if not self._can_apply_bolus():
             return
         self.on_user_boolean_command("heparinApplyBolusDose", True)
 
     def _adjust_syringe_volume(self):
-        # Firmware: el mismo bit avanza el driver al volumen de jeringa.
-        # No es un bolo clínico; no validar heparineBolusQuantity.
-        self.on_user_boolean_command("heparinApplyBolusDose", True)        
+        # Firmware: se cambio el bit que avanza el driver al volumen de jeringa.
+        self.on_user_boolean_command("heparineSynringeAct", True)
 
     def on_user_input_setpoint(self, tag, value):
         self.request_setpoint_change.emit(tag, value)
@@ -624,7 +802,6 @@ class HeparinConfigScreen(QWidget):
 
     def update_state(self, phase: TreatmentPhase):
         enabled = phase not in (TreatmentPhase.CLEANING, TreatmentPhase.ERROR)
-        self.input_heparin.setEnabled(enabled)
         self.input_bolus.setEnabled(enabled)
         if not bool(self.current_values.get("heparineInfusionEnabled", 1.0)):
             self._update_heparin_dose_fields_enabled(False)

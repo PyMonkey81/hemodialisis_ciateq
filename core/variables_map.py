@@ -149,7 +149,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Llenado de filtro", "LLENADO DE FILTRO", "cian", "dialyFilterFillButton"),    # 56
                 ("Sobrepresión Bomba Diálisis", "SOBREPRESIÓN DIALIZANTE", "rojo", "dialyDialyPumpOverPress"),    # 57
                 ("Sobrepresión Bomba Deaeración", "SOBREPRESIÓN DEAERACIÓN", "rojo", "dialyDeaerPumpOverPress"),    # 58
-                ("Disponible para Función Digital 18", "RESERVA 18", "cian", "availableBoolVariable14"),    # 59
+                ("Activación de posición jeringa", "ACT POS JERINGA", "cian", "heparineSynringeAct"),    # 59
             ], start=0)}
     },
 
