@@ -871,5 +871,14 @@
         "duracion_minutos": 11,
         "duracion_hhmm": "00:11",
         "timestamp_registro": "2026-09-17 13:00:55"
+    },
+    {
+        "fecha": "2026-09-22",
+        "hora_inicio": "12:39:44",
+        "hora_fin": "12:49:46",
+        "tipo_tratamiento": "Ultrafiltración",
+        "duracion_minutos": 10,
+        "duracion_hhmm": "00:10",
+        "timestamp_registro": "2026-09-22 12:49:46"
     }
 ]

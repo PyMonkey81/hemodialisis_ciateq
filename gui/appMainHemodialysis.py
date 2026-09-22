@@ -1514,7 +1514,10 @@ class HemodialysisHMI(QMainWindow):
             elapsed_seconds = int(self.treatment_controller.get_elapsed_seconds())
         elapsed_min = elapsed_seconds / 60.0
 
-        target = calculate_target_conductivity(self.conductivity_profile, elapsed_min)
+        # Usar duración real de terapia en curso, no el snapshot congelado en JSON
+        therapy_duration_min = self.get_therapy_duration_minutes()
+        
+        target = calculate_target_conductivity(self.conductivity_profile, elapsed_min, therapy_duration_min=therapy_duration_min)
         if target is None:
             return
 
@@ -1547,6 +1550,20 @@ class HemodialysisHMI(QMainWindow):
                 self._last_profile_target = target
                 self._last_profile_written = target
                 self._last_profile_write_ts = now
+                # Calcular progreso para logging
+                progress = 0.0
+                if therapy_duration_min > 0:
+                    progress = min(1.0, elapsed_min / therapy_duration_min)
+                logger.info(
+                    "[PROFILE] mode=%s out=%.2f t_s=%.1f T_s=%.1f progress=%.1f%% start=%.2f end=%.2f",
+                    self.conductivity_profile.profile_type.value,
+                    target,
+                    elapsed_min,
+                    therapy_duration_min,
+                    progress * 100.0,
+                    self.conductivity_profile.start_conductivity,
+                    self.conductivity_profile.end_conductivity,
+                )
 
         if log_forced:
             logger.info(
@@ -1676,7 +1693,10 @@ class HemodialysisHMI(QMainWindow):
             elapsed_seconds = int(self.treatment_controller.get_elapsed_seconds())
         elapsed_min = elapsed_seconds / 60.0
 
-        target_l_h = calculate_target_uf(self.uf_profile, elapsed_min)
+        # Usar duración real de terapia en curso, no el snapshot congelado en JSON
+        therapy_duration_min = self.get_therapy_duration_minutes()
+        
+        target_l_h = calculate_target_uf(self.uf_profile, elapsed_min, therapy_duration_min=therapy_duration_min)
         if target_l_h is None:
             return
 
@@ -1718,13 +1738,20 @@ class HemodialysisHMI(QMainWindow):
                 self._last_uf_profile_target = target_l_h
                 self._last_uf_profile_written = target_l_h
                 self._last_uf_profile_write_ts = now
+                # Calcular progreso para logging
+                progress = 0.0
+                if therapy_duration_min > 0:
+                    progress = min(1.0, elapsed_min / therapy_duration_min)
                 logger.info(
-                    "[PROFILE-UF] mode=%s out_Lh=%.2f out_mlmin=%.1f t_terapia_s=%s dt_s=%s",
+                    "[PROFILE-UF] mode=%s out_Lh=%.2f out_mlmin=%.1f t_s=%.1f T_s=%.1f progress=%.1f%% start=%.2f end=%.2f",
                     self.uf_profile.profile_type.value,
                     target_l_h,
                     ml_min,
-                    elapsed_seconds,
-                    now - self._last_uf_profile_write_ts,
+                    elapsed_min,
+                    therapy_duration_min,
+                    progress * 100.0,
+                    self.uf_profile.start_uf,
+                    self.uf_profile.end_uf,
                 )
 
         if log_forced:
@@ -2915,6 +2942,22 @@ class HemodialysisHMI(QMainWindow):
         if tag in LOCAL_SETPOINT_TAGS:
             self.current_values[tag] = float(value)
             self._persist_therapy_config_tag(tag, float(value))
+            
+            # Detectar cambio de tiempo de terapia y actualizar displays
+            if tag in ("heparineTherapyHours", "heparineTherapyMinutes"):
+                hours = int(self.current_values.get("heparineTherapyHours", 0))
+                minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
+                total_min = (hours * 60) + minutes
+                
+                # Si no está RUNNING, puede cambiar el total de terapia
+                if self.state.current_phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+                    self.treatment_controller.total_therapy_seconds = total_min * 60
+                
+                # Actualizar displays inmediatamente
+                self._update_therapy_time_displays()
+                
+                logger.info(f"[THERAPY-TIME] set_min={total_min} remaining={hours:02d}:{minutes:02d}:00 source=config")
+            
             logger.info(f"SETPOINT [LOCAL]: {tag} = {value}")
             return
 

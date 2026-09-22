@@ -252,11 +252,24 @@ def step_index_by_seconds(elapsed_seconds: float, period_seconds: int = STEP_PER
     return max(0, min(num_steps - 1, idx))
 
 
-def calculate_target_conductivity(profile: ConductivityProfile, elapsed_min: float) -> Optional[float]:
+def calculate_target_conductivity(profile: ConductivityProfile, elapsed_min: float, therapy_duration_min: Optional[float] = None) -> Optional[float]:
+    """Devuelve el valor objetivo de conductividad, o None si el perfil no aplica.
+    
+    Args:
+        profile: Perfil de conductividad
+        elapsed_min: Minutos transcurridos de terapia
+        therapy_duration_min: Duración real de terapia en minutos. Si se proporciona y es > 0,
+                             se usa en lugar de profile.therapy_duration_min (que es un snapshot
+                             congelado en el JSON).
+    """
     if not profile.enabled or profile.profile_type == ProfileType.NONE:
         return None
 
-    total = float(profile.therapy_duration_min)
+    # Usar duración real si se proporciona, sino el snapshot del perfil
+    if therapy_duration_min is not None and therapy_duration_min > 0:
+        total = float(therapy_duration_min)
+    else:
+        total = float(profile.therapy_duration_min)
 
     if profile.profile_type == ProfileType.LINEAR:
         return linear_interpolate(

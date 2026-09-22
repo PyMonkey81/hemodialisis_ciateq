@@ -196,12 +196,24 @@ def exp_interpolate(start: float, end: float, elapsed_min: float, total_min: flo
     return clamp_uf(value)
 
 
-def calculate_target_uf(profile: UFProfile, elapsed_min: float) -> Optional[float]:
-    """Devuelve el valor objetivo de UF en L/h, o None si el perfil no aplica."""
+def calculate_target_uf(profile: UFProfile, elapsed_min: float, therapy_duration_min: Optional[float] = None) -> Optional[float]:
+    """Devuelve el valor objetivo de UF en L/h, o None si el perfil no aplica.
+    
+    Args:
+        profile: Perfil de UF
+        elapsed_min: Minutos transcurridos de terapia
+        therapy_duration_min: Duración real de terapia en minutos. Si se proporciona y es > 0,
+                             se usa en lugar de profile.therapy_duration_min (que es un snapshot
+                             congelado en el JSON).
+    """
     if not profile.enabled or profile.profile_type == ProfileType.NONE:
         return None
 
-    total = float(profile.therapy_duration_min)
+    # Usar duración real si se proporciona, sino el snapshot del perfil
+    if therapy_duration_min is not None and therapy_duration_min > 0:
+        total = float(therapy_duration_min)
+    else:
+        total = float(profile.therapy_duration_min)
 
     if profile.profile_type == ProfileType.LINEAR:
         return linear_interpolate(

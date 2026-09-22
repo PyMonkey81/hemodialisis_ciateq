@@ -135,6 +135,11 @@ class ConductivityProfileScreen(QWidget):
         main_layout.setContentsMargins(24, 20, 24, 20)
         main_layout.setSpacing(18)
 
+        self.lbl_screen = QLabel("Perfil Na+")
+        self.lbl_screen.setStyleSheet("font-size: 26px; font-weight: bold; color: #1e3a8a;")
+        self.lbl_screen.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.lbl_screen)
+        
         self.lbl_therapy_time = QLabel("Tiempo de terapia: 00:00 (0 min)")
         self.lbl_therapy_time.setStyleSheet("font-size: 22px; font-weight: 600; color: #1e3a8a;")
         self.lbl_therapy_time.setAlignment(Qt.AlignCenter)
