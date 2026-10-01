@@ -10,10 +10,11 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QFrame, QLabel,
     QComboBox, QCheckBox, QPushButton, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QTimer
 import json
 import logging
 
+from gui.components.floating_confirm import FloatingConfirmDialog
 from utilities.platform_runtime import get_runtime_config_path, safe_json_load
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class NibpConfigScreen(QWidget):
     settings_applied = Signal(dict)
     measure_now_requested = Signal()
     reset_requested = Signal()
+    history_requested = Signal()
     spo2_on_requested = Signal()
     spo2_off_requested = Signal()
 
@@ -266,13 +268,15 @@ class NibpConfigScreen(QWidget):
 
         grid.addWidget(spo2_card, 1, 2, 1, 1)
 
-        # ─── CARD 7: ACCIONES (span completo para no recortar los botones) ─
+        # ─── CARD 7: ACCIONES (grid único sin huecos) ─────────────────────
         actions_card, actions_layout = self._make_card("Acciones", _CARD_ROW0_MIN_HEIGHT, fixed_width=False)
 
-        buttons_row = QHBoxLayout()
-        buttons_row.setSpacing(16)
+        # Grid: Fila 0 (Medir ahora, Aplicar, Reset), Fila 1 (Historial)
+        buttons_grid = QGridLayout()
+        buttons_grid.setSpacing(10)
+        buttons_grid.setContentsMargins(0, 0, 0, 0)
 
-        self.btn_measure_now = QPushButton("Medir\n ahora")  # DEFINIR SI MIDE AMBOS (PRESION Y SPO2)
+        self.btn_measure_now = QPushButton("Medir\n ahora")
         self.btn_measure_now.setStyleSheet(btn_style)
         self.btn_measure_now.clicked.connect(self.measure_now_requested.emit)
 
@@ -282,16 +286,23 @@ class NibpConfigScreen(QWidget):
 
         self.btn_reset = QPushButton("Reset\n módulo")
         self.btn_reset.setStyleSheet(btn_style)
-        self.btn_reset.clicked.connect(self.reset_requested.emit)
+        self.btn_reset.clicked.connect(self._on_reset_clicked)
 
-        buttons_row.addWidget(self.btn_measure_now)
-        buttons_row.addWidget(self.btn_apply)
-        buttons_row.addWidget(self.btn_reset)
-        buttons_row.addStretch()
-        actions_layout.addLayout(buttons_row)
-        actions_layout.addStretch()
+        self.btn_history = QPushButton("Historial")
+        self.btn_history.setStyleSheet(btn_style)
+        self.btn_history.clicked.connect(self.history_requested.emit)
 
-        grid.addWidget(actions_card, 2, 0, 1, 1)
+        # Fila 0: botones en columnas 0, 1, 2
+        buttons_grid.addWidget(self.btn_measure_now, 0, 0)
+        buttons_grid.addWidget(self.btn_apply, 0, 1)
+        buttons_grid.addWidget(self.btn_reset, 0, 2)
+
+        # Fila 1: Historial en columna 0
+        buttons_grid.addWidget(self.btn_history, 0, 3)
+
+        actions_layout.addLayout(buttons_grid)
+
+        grid.addWidget(actions_card, 2, 0, 1, 2)
 
         grid.setRowStretch(0, 0)
         grid.setRowStretch(1, 0)
@@ -352,6 +363,23 @@ class NibpConfigScreen(QWidget):
     def _on_apply_clicked(self):
         # NO cambia enabled/port: eso solo lo edita CommPortScreen.
         # patient_mode siempre es "adult" (forzado internamente)
+        
+        # Mostrar diálogo de confirmación
+        dialog = FloatingConfirmDialog(self.parent_window if self.parent_window else self)
+        title = "Aplicar configuración del baumanómetro"
+        message = (
+            "Se enviarán al módulo el método, la presión de arranque,\n"
+            "el intervalo y el estado de SpO2.\n"
+            "¿Aplica estos parámetros?"
+        )
+        result = dialog.show_confirm(message, accept_text="Aplicar", cancel_text="Cancelar")
+        
+        if not result:
+            # Usuario canceló: no guardar configuración ni emitir señal
+            logger.info("[NIBP] Aplicación de configuración cancelada por usuario")
+            return
+        
+        # Usuario confirmó: guardar y emitir
         self._config["patient_mode"] = "adult"
         self._config["method"] = self.cmb_method.currentData()
         self._config["start_pressure_mmhg"] = self.cmb_start_pressure.currentData()
@@ -361,6 +389,39 @@ class NibpConfigScreen(QWidget):
 
         self._save_config()
         self.settings_applied.emit(dict(self._config))
+
+    def _on_reset_clicked(self):
+        # Mostrar diálogo de confirmación antes de resetear el módulo
+        dialog = FloatingConfirmDialog(self.parent_window if self.parent_window else self)
+        title = "Reiniciar módulo de presión"
+        message = (
+            "Se reiniciará el baumanómetro. Si hay una medición\n"
+            "en curso se cancelará. ¿Continúa?"
+        )
+        result = dialog.show_confirm(message, accept_text="Reiniciar", cancel_text="Cancelar")
+        
+        if result:
+            # Usuario confirmó reset
+            logger.info("[NIBP] Reset del módulo solicitado por usuario")
+            
+            # Poner las mediciones en "—"
+            self.lbl_sys.setText("SYS: —")
+            self.lbl_dia.setText("DIA: —")
+            self.lbl_map.setText("MAP: —")
+            self.lbl_hr.setText("FC: —")
+            
+            # Dejar el error visible (no limpiar aquí)
+            # Deshabilitar "Medir ahora" durante el reset
+            self.btn_measure_now.setEnabled(False)
+            
+            # Emitir señal de reset
+            self.reset_requested.emit()
+            
+            # Habilitar botón a los 3s (después de que el módulo complete el reset)
+            QTimer.singleShot(3000, self.clear_error)
+        else:
+            # Usuario canceló
+            logger.info("[NIBP] Reset del módulo cancelado por usuario")
 
     def _on_chk_spo2_toggled(self, checked: bool):
         self._config["spo2_enabled"] = checked
@@ -391,17 +452,34 @@ class NibpConfigScreen(QWidget):
     def update_error(self, error_code: str, error_text: str):
         # NO pisar "Conectado": el error de medición va en una línea aparte.
         self.lbl_nibp_error.setText(f"Error {error_code}: {error_text}")
+        # Deshabilitar "Medir ahora" SOLO si es M15 con "fallo repetido"
+        # (contador llegó a 3 y se detuvo el reintento automático)
+        if error_code == "M15" and "fallo repetido" in error_text:
+            self.btn_measure_now.setEnabled(False)
+        else:
+            # M10, M07, etc.: el botón queda habilitado (operador puede lanzar otra toma)
+            self.btn_measure_now.setEnabled(True)
 
     def clear_error(self):
         self.lbl_nibp_error.setText("")
+        # Habilitar "Medir ahora" cuando se limpia el error
+        self.btn_measure_now.setEnabled(True)
 
     def update_measurement(self, sys_mmhg: int, dia_mmhg: int, map_mmhg: int, hr_bpm: int):
-        if sys_mmhg >= 0 or dia_mmhg >= 0 or map_mmhg >= 0 or hr_bpm >= 0:
+        # Mostrar SYS/DIA/MAP/FC solo si los CUATRO son >= 0. Si alguno < 0, mostrar "—" en los cuatro.
+        all_valid = all(v >= 0 for v in [sys_mmhg, dia_mmhg, map_mmhg, hr_bpm])
+        
+        if all_valid:
             self._mark_connected_if_needed()
-        self.lbl_sys.setText(f"SYS: {sys_mmhg if sys_mmhg >= 0 else '—'}")
-        self.lbl_dia.setText(f"DIA: {dia_mmhg if dia_mmhg >= 0 else '—'}")
-        self.lbl_map.setText(f"MAP: {map_mmhg if map_mmhg >= 0 else '—'}")
-        self.lbl_hr.setText(f"FC: {hr_bpm if hr_bpm >= 0 else '—'}")
+            self.lbl_sys.setText(f"SYS: {sys_mmhg}")
+            self.lbl_dia.setText(f"DIA: {dia_mmhg}")
+            self.lbl_map.setText(f"MAP: {map_mmhg}")
+            self.lbl_hr.setText(f"FC: {hr_bpm}")
+        else:
+            self.lbl_sys.setText("SYS: —")
+            self.lbl_dia.setText("DIA: —")
+            self.lbl_map.setText("MAP: —")
+            self.lbl_hr.setText("FC: —")
 
     def update_cuff(self, mmhg: int, caution: int, status: int):
         self._mark_connected_if_needed()

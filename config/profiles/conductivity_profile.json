@@ -1,20 +1,20 @@
 {
-  "enabled": false,
-  "profile_type": "none",
-  "therapy_duration_min": 180,
-  "start_conductivity": 15.59999999999999,
-  "end_conductivity": 12.8,
-  "step_high": 15.59999999999999,
-  "step_low": 12.8,
+  "enabled": true,
+  "profile_type": "linear",
+  "therapy_duration_min": 30,
+  "start_conductivity": 15.499999999999995,
+  "end_conductivity": 12.900000000000004,
+  "step_high": 15.499999999999995,
+  "step_low": 12.900000000000004,
   "step_change_at_percent": 50.0,
   "points": [
-    15.59999999999999,
-    12.8,
-    15.59999999999999,
-    12.8,
-    15.59999999999999,
-    12.8
+    15.499999999999995,
+    14.979999999999997,
+    14.459999999999999,
+    13.94,
+    13.420000000000002,
+    12.900000000000004
   ],
-  "created_at": "2026-09-22T12:36:27",
+  "created_at": "2026-09-25T10:47:59",
   "notes": ""
 }

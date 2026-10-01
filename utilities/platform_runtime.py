@@ -27,25 +27,47 @@ def get_runtime_config_dir() -> Path:
     """
     Devuelve un directorio de configuración escribible en runtime.
     Prioridad:
-    1) CIATEQ_CONFIG_DIR (si existe)
-    2) <dir_del_exe>/config cuando corre congelado
-    3) <repo>/config en desarrollo
+    1) CIATEQ_CONFIG_DIR (si existe y se puede escribir)
+    2) Si frozen:
+       a) <exe>/config (si es escribible)
+       b) Windows: %LOCALAPPDATA%/CIATEQ/Hemodialisis/config
+       c) Linux: $XDG_CONFIG_HOME/CIATEQ/Hemodialisis/config o ~/.config/CIATEQ/Hemodialisis/config
+    3) Si no frozen: <repo>/config
+    
+    Loguea la ruta elegida. Si los fallbacks fallan, retorna config del repo sin fallar en import.
     """
+    # Intento 1: Variable de entorno explícita
     env_dir = os.environ.get("CIATEQ_CONFIG_DIR", "").strip()
     if env_dir:
         config_dir = _ensure_config_dir(Path(env_dir))
         if config_dir is not None:
+            logger.info("Usando configuración desde CIATEQ_CONFIG_DIR: %s", config_dir)
             return config_dir
         logger.warning("No se pudo usar CIATEQ_CONFIG_DIR: %s", env_dir)
 
+    # Intento 2: Si está congelado (empaquetado)
     if getattr(sys, "frozen", False):
+        # Primero: junto al ejecutable
         executable_config_dir = Path(sys.executable).resolve().parent / "config"
         config_dir = _ensure_config_dir(executable_config_dir)
         if config_dir is not None:
+            logger.info("Usando configuración junto al ejecutable: %s", config_dir)
             return config_dir
 
-        app_data_dir = Path(os.environ.get("LOCALAPPDATA", Path.home()))
-        fallback_dir = app_data_dir / "CIATEQ" / "Hemodialisis" / "config"
+        # Fallback por SO
+        if is_windows():
+            # Windows: LOCALAPPDATA
+            app_data_dir = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+            fallback_dir = app_data_dir / "CIATEQ" / "Hemodialisis" / "config"
+        else:
+            # Linux: XDG_CONFIG_HOME o ~/.config
+            xdg_config = os.environ.get("XDG_CONFIG_HOME", "").strip()
+            if xdg_config:
+                base_dir = Path(xdg_config)
+            else:
+                base_dir = Path.home() / ".config"
+            fallback_dir = base_dir / "CIATEQ" / "Hemodialisis" / "config"
+
         config_dir = _ensure_config_dir(fallback_dir)
         if config_dir is not None:
             logger.warning(
@@ -55,7 +77,17 @@ def get_runtime_config_dir() -> Path:
             )
             return config_dir
 
-    return Path(__file__).resolve().parent.parent / "config"
+        # Último recurso si todo falla: repo config (no fatal)
+        logger.warning(
+            "No se pudo crear configuración en %s ni en %s; usando config del repo.",
+            executable_config_dir,
+            fallback_dir,
+        )
+
+    # Intento 3: Si no está congelado, o si todo lo anterior falló
+    repo_config = Path(__file__).resolve().parent.parent / "config"
+    logger.info("Usando configuración del repositorio: %s", repo_config)
+    return repo_config
 
 
 def get_runtime_config_path(file_name: str) -> Path:
@@ -175,7 +207,15 @@ def get_operation_mode(simulation_enabled: bool | None = None) -> str:
 
 
 def sanitize_port_for_platform(port_value: str | None) -> str:
-    """Normaliza puertos inválidos para Linux. Mantiene Windows intacto."""
+    """
+    Normaliza puertos inválidos para Linux. Mantiene Windows intacto.
+    
+    En Linux:
+    - "COMn" (formato Windows) → "Auto" + warning
+    - Valores que NO sean "Auto" ni empiecen con "/dev/" → "Auto" + warning
+    
+    En Windows: sin cambios.
+    """
     port = (port_value or "Auto").strip() or "Auto"
     if not is_linux():
         return port
@@ -183,7 +223,14 @@ def sanitize_port_for_platform(port_value: str | None) -> str:
     if not feature_enabled("sanitize_linux_com_ports", True):
         return port
 
+    # Rechazar patrón COM (formato Windows)
     if COM_PORT_PATTERN.match(port):
-        logger.warning("Puerto '%s' no es válido en Linux. Se usa 'Auto'.", port)
+        logger.warning("Puerto '%s' no es válido en Linux (formato COM). Se usa 'Auto'.", port)
         return "Auto"
+
+    # Si no es "Auto" ni empieza con "/dev/", rechazar
+    if port != "Auto" and not port.startswith("/dev/"):
+        logger.warning("Puerto '%s' no parece ser un puerto Linux válido (/dev/*). Se usa 'Auto'.", port)
+        return "Auto"
+
     return port

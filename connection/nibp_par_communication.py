@@ -18,7 +18,6 @@ from queue import PriorityQueue, Empty
 from typing import Optional
 
 import serial
-import serial.tools.list_ports
 from PySide6.QtCore import QObject, Signal
 
 from connection.nibp_protocol import (
@@ -60,7 +59,7 @@ NIBP_BAUDRATE = 19200
 _RECONNECT_INTERVAL_S = 2.0
 _READ_TIMEOUT_S = 0.2
 _MAX_RX_BUFFER = 256
-_SPO2_ACTIVATION_DELAY_S = 0.5
+_SPO2_ACTIVATION_DELAY_S = 2.5
 _NIBP_CONFIG_PATH = get_runtime_config_path("nibp_config.json")
 
 # Prioridades de la cola de comandos: menor número = mayor prioridad.
@@ -79,6 +78,7 @@ class NibpParCommunication(QObject):
     measurement_ready = Signal(int, int, int, int)
     status_changed = Signal(int, str)
     error_message = Signal(str, str)
+    error_cleared = Signal()
     version_received = Signal(str)
     raw_frame_received = Signal(bytes)
     spo2_updated = Signal(object)
@@ -93,12 +93,20 @@ class NibpParCommunication(QObject):
         self._command_seq = 0
         self._rx_buffer = bytearray()
 
+        self._last_status_digit: Optional[int] = None
+        self._measurement_active: bool = False
+
         self._user_selected_port: Optional[str] = None  # None -> "Auto"
         self._is_enabled: bool = False
         self.is_connected = False
 
         self._spo2_enabled: bool = False
         self._spo2_activation_deadline: Optional[float] = None
+        self._spo2_activation_start_time: Optional[float] = None
+
+        # Rastreo de errores para recuperación controlada
+        self._last_error_code: Optional[str] = None
+        self._m15_consecutive_count: int = 0
 
     @property
     def running(self) -> bool:
@@ -227,12 +235,16 @@ class NibpParCommunication(QObject):
             self._spo2_activation_deadline = (
                 time.monotonic() + _SPO2_ACTIVATION_DELAY_S if self._spo2_enabled else None
             )
+            self._spo2_activation_start_time = time.monotonic() if self._spo2_enabled else None
             logger.info(
                 "[NIBP] Conectado. OS: %s | Puerto: %s | Baud: %s | NIBP2020 UP",
                 current_os,
                 port_name,
                 NIBP_BAUDRATE,
             )
+            # Encolar software reset (cmd 16) con prioridad alta, sin esperar respuesta
+            self._measurement_active = False
+            self._enqueue_command(CMD_SOFTWARE_RESET, _PRIORITY_HIGH)
             return True
         except Exception as exc:
             logger.error("[NIBP] Error de conexión en %s: %s", port_name, exc)
@@ -255,6 +267,8 @@ class NibpParCommunication(QObject):
     def _close_port_resource(self):
         self.is_connected = False
         self._spo2_activation_deadline = None
+        self._spo2_activation_start_time = None
+        self._last_status_digit = None
         port = self.serial_port
         if port is not None:
             try:
@@ -297,15 +311,46 @@ class NibpParCommunication(QObject):
         logger.info("[NIBP] Hilo de comunicación NIBP finalizado.")
 
     def _maybe_activate_pending_spo2(self):
-        """Activa el stream SpO2 ~500 ms después de abrir el puerto (no en el mismo tick del open)."""
+        """Activa el stream SpO2 ~2.5 s después de abrir el puerto, esperando S1 (standby).
+        
+        Si pasan 8s sin ver S1, activa SpO2 igual (el módulo está tardando).
+        """
         if self._spo2_activation_deadline is None:
             return
-        if time.monotonic() < self._spo2_activation_deadline:
+        
+        now = time.monotonic()
+        
+        # Revisar tope: si pasan 8s desde open, activa SpO2 igual (sin esperar S1)
+        if self._spo2_activation_start_time is not None:
+            elapsed = now - self._spo2_activation_start_time
+            if elapsed >= 8.0:
+                logger.warning(
+                    "[NIBP] Tope de 8s alcanzado sin recibir S1 (standby). "
+                    "Activando SpO2 igual (módulo puede estar en autotest extendido)."
+                )
+                self._spo2_activation_deadline = None
+                self._spo2_activation_start_time = None
+                if self._spo2_enabled and self.is_connected:
+                    self.spo2_on()
+                return
+        
+        # Esperar deadline de 2.5s
+        if now < self._spo2_activation_deadline:
             return
+        
+        # Deadline cumplido: revisar si ya vimos un status y no es S1
+        if self._last_status_digit is not None and self._last_status_digit != 1:
+            # Aún en autotest o cebado: reprogramar +0.5s
+            self._spo2_activation_deadline = now + 0.5
+            return
+        
+        # Status S1 o no hemos visto ninguno: activar SpO2
         self._spo2_activation_deadline = None
+        self._spo2_activation_start_time = None
         if self._spo2_enabled and self.is_connected:
             logger.info("[NIBP] Activando stream SpO2 tras la conexión.")
             self.spo2_on()
+
 
     def _flush_pending_commands(self):
         """Envía todos los comandos encolados (mayor prioridad primero)."""
@@ -434,25 +479,75 @@ class NibpParCommunication(QObject):
             self.cuff_pressure.emit(parsed["pressure_mmhg"], parsed["caution"], parsed["status"])
         elif frame_type == "end":
             logger.debug("[NIBP] Fin de medición detectado. Solicitando status (cmd 18).")
+            self._measurement_active = False
             self.request_status()
         elif frame_type == "status":
             status_text = STATUS_TEXTS_ES.get(parsed["status_digit"], "desconocido")
             self.status_changed.emit(parsed["status_digit"], status_text)
+            self._last_status_digit = parsed["status_digit"]
 
+            # ORDEN OBLIGATORIO según TD Rev. 2.14 §12.6:
+            # 1. Revisar checksum
             if not parsed["checksum_ok"]:
                 logger.warning(
                     "[NIBP] Checksum inválido en trama de status (recibido=%s). No se emite measurement_ready.",
                     parsed["checksum_received"],
                 )
-            else:
+                return
+            
+            # 2. Revisar error_code (P/R en trama de error son residuales de toma anterior)
+            error_code = parsed.get("error_code")
+            if error_code:
+                error_text = parsed.get("error_text") or "código de error desconocido"
+                
+                # Si _measurement_active es False, es error residual al inicio:
+                # no emitir error_message ni contar M15
+                if not self._measurement_active:
+                    logger.debug(
+                        "[NIBP] M%s residual al inicio (sin medición activa), ignorado. "
+                        "Valores residuales en trama: sys=%s dia=%s map=%s hr=%s",
+                        error_code,
+                        parsed["sys"],
+                        parsed["dia"],
+                        parsed["map"],
+                        parsed["hr"],
+                    )
+                    return
+                
+                # Medición activa: manejo normal de error
+                logger.warning(
+                    "[NIBP] Error M%s: %s (valores P/R en trama son residuales de toma anterior: sys=%s dia=%s map=%s hr=%s). No se emite measurement_ready.",
+                    error_code,
+                    error_text,
+                    parsed["sys"],
+                    parsed["dia"],
+                    parsed["map"],
+                    parsed["hr"],
+                )
+                self.error_message.emit(f"M{error_code}", error_text)
+                self._handle_measurement_error(error_code)
+                return
+            
+            # 3. Revisar valores válidos (todos >= 0)
+            if all(v >= 0 for v in [parsed["sys"], parsed["dia"], parsed["map"], parsed["hr"]]):
+                # Medición válida: emitir
                 self.measurement_ready.emit(
                     parsed["sys"], parsed["dia"], parsed["map"], parsed["hr"]
                 )
-
-            if parsed.get("error_code"):
-                error_text = parsed.get("error_text") or "código de error desconocido"
-                logger.warning("[NIBP] Error M%s: %s", parsed["error_code"], error_text)
-                self.error_message.emit(f"M{parsed['error_code']}", error_text)
+                # Limpiar estado de error en medición exitosa
+                self._m15_consecutive_count = 0
+                self._last_error_code = None
+                self._measurement_active = False
+                self.error_cleared.emit()
+            else:
+                # Alguno de los valores es < 0 (ausente): no emitir
+                logger.debug(
+                    "[NIBP] Valores de trama de status inválidos o ausentes: sys=%s dia=%s map=%s hr=%s",
+                    parsed["sys"],
+                    parsed["dia"],
+                    parsed["map"],
+                    parsed["hr"],
+                )
         else:
             logger.debug("[NIBP] Trama desconocida recibida: %s", frame.hex())
             self.raw_frame_received.emit(frame)
@@ -490,6 +585,46 @@ class NibpParCommunication(QObject):
             return "Señal débil"
         return ""
 
+    def _handle_measurement_error(self, error_code: str):
+        """
+        Maneja recuperación tras error de medición.
+        - Error 02/03: return sin hacer nada (el módulo ya se reinicia).
+        - Error 15 (falla neumática): contar M15 consecutivos.
+          Emitir error_message SOLO cuando contador == 3 (tercera vez), no en 4ta o 5ta.
+          NO encolar CMD_SOFTWARE_RESET (solo sale de btn Reset y conexión).
+        - Otros errores: log informativo, poner contador a 0.
+          No encolar reset; módulo queda en standby.
+        """
+        if error_code in ("02", "03"):
+            # Estos códigos: el módulo ya se reinicia automáticamente
+            return
+
+        if error_code == "15":
+            # Error M15: falla neumática. Contar consecutivos sin spam.
+            if error_code == self._last_error_code:
+                self._m15_consecutive_count += 1
+            else:
+                self._m15_consecutive_count = 1
+            
+            # Emitir error_message SOLO en la tercera ocurrencia (no en la 4ta, 5ta, etc.)
+            if self._m15_consecutive_count == 3:
+                logger.error(
+                    "[NIBP] M15 x3: no más reintentos; ciclo de energía o reset de hardware"
+                )
+                self.error_message.emit("M15", "fallo repetido; revisar circuito neumático")
+            
+            self._last_error_code = error_code
+        else:
+            # Otros errores (M06–M14, M16+, etc.): módulo en standby.
+            # El operador puede lanzar otra toma.
+            logger.warning(
+                "[NIBP] Error M%s: módulo en standby, se puede volver a medir.",
+                error_code,
+            )
+            # Resetear contador M15 (solo cuenta M15 consecutivos)
+            self._m15_consecutive_count = 0
+            self._last_error_code = error_code
+
     # ------------------------------------------------------------------
     # Envío de comandos (API pública)
     # ------------------------------------------------------------------
@@ -499,6 +634,7 @@ class NibpParCommunication(QObject):
         self._command_queue.put((priority, self._command_seq, frame))
 
     def start_measurement(self):
+        self._measurement_active = True
         self._enqueue_command(CMD_START_MEASUREMENT, _PRIORITY_HIGH)
 
     def set_manual_mode(self):
@@ -540,6 +676,7 @@ class NibpParCommunication(QObject):
         self._enqueue_command(CMD_REQUEST_DATA, _PRIORITY_HIGH)
 
     def software_reset(self):
+        self._measurement_active = False
         self._enqueue_command(CMD_SOFTWARE_RESET)
 
     def request_version(self):
@@ -550,5 +687,6 @@ class NibpParCommunication(QObject):
         self._enqueue_command(CMD_SPO2_ON)
 
     def spo2_off(self):
+        self._spo2_enabled = False
         self._enqueue_command(CMD_SPO2_OFF)
         self._reset_spo2_ui_state()

@@ -114,6 +114,8 @@ from gui.therapy.heparin_config_screenV2 import (
     HEPARIN_AUTO_STOP_MINUTES_TAG,
 )
 from gui.therapy.nibp_config_screen import NibpConfigScreen
+from gui.therapy.nibp_history_screen import NibpHistoryScreen
+from core.nibp_pressure_history import NibpPressureHistory
 from pathlib import Path
 
 from logic.calculos import (
@@ -449,6 +451,7 @@ class HemodialysisHMI(QMainWindow):
         self._nibp_auto_spo2_active = False
         self._nibp_auto_last_interval_index = -1
         self._nibp_measuring = False
+        self._prev_treatment_phase = None  # Para detectar transición de no-PAUSED a RUNNING
         self._load_nibp_config_and_apply()
 
         # lectura de sensores de bioimpedancia
@@ -567,16 +570,22 @@ class HemodialysisHMI(QMainWindow):
         self.nibp_screen = NibpConfigScreen(parent=self)
         self.nibp_screen.settings_applied.connect(self._on_nibp_settings_applied)
         self.nibp_screen.measure_now_requested.connect(self._on_nibp_measure_requested)
-        self.nibp_screen.reset_requested.connect(self.nibp.software_reset)
+        self.nibp_screen.reset_requested.connect(self._on_nibp_reset_requested)
         self.nibp_screen.spo2_on_requested.connect(self.nibp.spo2_on)
         self.nibp_screen.spo2_off_requested.connect(self.nibp.spo2_off)
         self.nibp.connected_changed.connect(self.nibp_screen.update_connection)
         self.nibp.error_message.connect(self.nibp_screen.update_error)
+        self.nibp.error_cleared.connect(self.nibp_screen.clear_error)
         self.nibp.measurement_ready.connect(self.nibp_screen.update_measurement)
         self.nibp.cuff_pressure.connect(self.nibp_screen.update_cuff)
         self.nibp.spo2_updated.connect(self.nibp_screen.update_spo2)
         self.nibp.measurement_ready.connect(self.dialysis_screen.update_nibp_measurement)
         self.nibp.spo2_updated.connect(self.dialysis_screen.update_spo2)
+
+        # Conexiones para el historial de presión arterial
+        self.nibp_screen.measure_now_requested.connect(self._on_nibp_measure_requested_for_history)
+        self.nibp_screen.history_requested.connect(self.show_nibp_history_screen)
+        self.nibp.measurement_ready.connect(self._on_nibp_measurement_ready_for_history)
 
         self.maintenance_screen = MaintenanceScreen(parent=self)  # PANTALLA NUEVA DE MANTENIMIENTO 
 
@@ -603,6 +612,11 @@ class HemodialysisHMI(QMainWindow):
 
         self.KTVScreen = KTVScreen(parent=self, values_dict=self.current_values) # Pantalla de cálculo de Kt/V en tiempo real, con gráficos y todo el rollo.
 
+        # === HISTORIAL DE PRESIÓN ARTERIAL NIBP ===
+        self.nibp_pressure_history = NibpPressureHistory()
+        self.nibp_history_screen = NibpHistoryScreen(parent=self, history=self.nibp_pressure_history)
+        self._nibp_measure_is_manual = False  # Flag para marcar si la próxima medición es manual
+
         # Add all screens to stacked widget (order matters)
         self.screen_stack.addWidget(self._main_screen)                 # 0 - Home
         self.screen_stack.addWidget(self.dialysis_screen)              # 1   funciona
@@ -628,6 +642,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.history_screen)               # 20
         self.screen_stack.addWidget(self.KTVScreen)                    # 21
         self.screen_stack.addWidget(self.nibp_screen)                  # 22
+        self.screen_stack.addWidget(self.nibp_history_screen)          # 23
 
 
         # self.master_timer.timeout.connect(self.KTVScreen.on_master_tick)
@@ -666,6 +681,18 @@ class HemodialysisHMI(QMainWindow):
         """Callback principal de cambio de estado"""
         logger.info(f"Estado global cambiado: {phase.name} | {reason}")
         logger.debug("Fase actual: %s", phase.name)
+        
+        # Limpiar historial de presión arterial al entrar a RUNNING desde no-PAUSED
+        # Usar el estado anterior guardado en _prev_treatment_phase
+        if phase == TreatmentPhase.RUNNING:
+            prev_phase = getattr(self, '_prev_treatment_phase', None)
+            if prev_phase != TreatmentPhase.PAUSED:
+                logger.info(f"[NIBP History] Limpiando historial al entrar a RUNNING desde {prev_phase.name if prev_phase else 'None'}")
+                self.nibp_pressure_history.clear()
+        
+        # Guardar el estado actual para la próxima comparación
+        self._prev_treatment_phase = phase
+        
         self._update_buttons_state()
         self._refresh_navigation_bar()
         self.screen_state_manager.update_all_screens(phase) # MODIFICADO: Esto llamará a KTVScreen.update_state
@@ -1392,6 +1419,21 @@ class HemodialysisHMI(QMainWindow):
         # Al abrir módulo: set_adult_mode() (cmd 24)
         self.nibp.set_adult_mode()
         self.screen_stack.setCurrentWidget(self.nibp_screen)
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Diálisis")
+
+    def show_nibp_history_screen(self):
+        """Muestra la pantalla del historial de presión arterial."""
+        # Actualizar duración programada
+        hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
+        minutes = safe_int(self.current_values.get("heparineTherapyMinutes", 0), 0)
+        self.nibp_history_screen.set_programmed_duration(hours, minutes)
+        
+        # Actualizar tabla y gráfica desde el historial
+        self.nibp_history_screen.update_from_history()
+        
+        self.screen_stack.setCurrentWidget(self.nibp_history_screen)
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Diálisis")
@@ -3196,6 +3238,37 @@ class HemodialysisHMI(QMainWindow):
         logger.info(f"[NIBP] Medición lista: SYS={sys_mmhg} DIA={dia_mmhg} MAP={map_mmhg} HR={hr_bpm}")
         self._nibp_measuring = False
 
+    def _on_nibp_measure_requested_for_history(self):
+        """Se llama cuando se presiona "Medir ahora": marca la próxima medición como manual."""
+        self._nibp_measure_is_manual = True
+
+    def _on_nibp_measurement_ready_for_history(self, sys_mmhg: int, dia_mmhg: int, map_mmhg: int, hr_bpm: int):
+        """Registra la medición en el historial (validación ya hecha por measurement_ready)."""
+        # Validar que sea una medición válida (sys, dia, hr >= 0)
+        if sys_mmhg < 0 or dia_mmhg < 0 or hr_bpm < 0:
+            return
+        
+        # Calcular elapsed_s (tiempo desde inicio de RUNNING)
+        elapsed_s = None
+        if self.state.current_phase == TreatmentPhase.RUNNING:
+            elapsed_s = self.treatment_controller.current_elapsed
+        
+        # Determinar origen (manual o auto)
+        origen = "manual" if self._nibp_measure_is_manual else "auto"
+        self._nibp_measure_is_manual = False  # Reset para la próxima medición
+        
+        # Agregar al historial (spo2 será None por ahora)
+        self.nibp_pressure_history.add_measurement(
+            sys=sys_mmhg,
+            dia=dia_mmhg,
+            map_mmhg=map_mmhg,
+            hr=hr_bpm,
+            elapsed_s=elapsed_s,
+            spo2=None,
+            origen=origen
+        )
+        logger.info(f"[NIBP History] Medición registrada: origen={origen}, elapsed_s={elapsed_s}")
+
     def _on_nibp_settings_applied(self, config: dict):
         """Aplica patient_mode/method/start_pressure/spo2 al módulo; el ciclo queda en manual (otro ticket)."""
         # patient_mode siempre es "adult" en esta entrega (UI + default NIBP)
@@ -3211,6 +3284,10 @@ class HemodialysisHMI(QMainWindow):
             self.nibp.spo2_off()
 
         logger.info(f"[NIBP] Configuración clínica aplicada: {config}")
+
+    def _on_nibp_reset_requested(self):
+        """Reset manual del módulo NIBP solicitado por el usuario."""
+        self.nibp.software_reset()
 
     # ====================== PERSISTENCIA DE HORAS DE HARDWARE ======================
 
