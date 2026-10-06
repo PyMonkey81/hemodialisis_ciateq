@@ -116,6 +116,7 @@ from gui.therapy.heparin_config_screenV2 import (
 from gui.therapy.nibp_config_screen import NibpConfigScreen
 from gui.therapy.nibp_history_screen import NibpHistoryScreen
 from core.nibp_pressure_history import NibpPressureHistory
+from logic.heparin_time import reference_minutes, clamp_heparin_time, was_clamped
 from pathlib import Path
 
 from logic.calculos import (
@@ -1137,7 +1138,148 @@ class HemodialysisHMI(QMainWindow):
         """Actualiza displays de tiempo (delegado)"""
         self.treatment_controller.update_therapy_times()
     
+    def _validate_and_clamp_heparin_auto_stop_time(self):
+        """
+        Valida y ajusta el tiempo de paro automático de heparina según la regla clínica.
+        
+        Si el tiempo guardado excede el máximo permitido:
+        - Lo recorta al máximo
+        - Persiste heparineAutoStopHours, heparineAutoStopMinutes
+        - Recalcula y persiste heparineTherapyDosage
+        - Actualiza la pantalla de heparina (si existe)
+        - Muestra un aviso
+        
+        Al terminar, loguea el estado en los tres sitios para verificar sincronía:
+        1. Tags del padre (appMainHemodialysis.current_values)
+        2. Tags de la pantalla (HeparinConfigScreen.current_values)
+        3. Texto del widget (input_heparin_auto_stop)
+        """
+        try:
+            # Obtener tiempos actuales guardados
+            auto_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
+            auto_m = int(self.current_values.get("heparineAutoStopMinutes", 0) or 0)
+            
+            # Calcular tiempo de referencia (usa duración programada, NO está RUNNING)
+            therapy_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+            therapy_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+            programmed_minutes = (therapy_h * 60) + therapy_m
+            
+            # Obtener tiempo restante si está disponible (para futuro)
+            remaining_seconds = 0
+            if hasattr(self, 'treatment_controller'):
+                remaining_seconds = getattr(self.treatment_controller, 'remaining', 0) or 0
+            
+            # Calcular referencia según fase
+            ref_min = reference_minutes(
+                phase=self.state.current_phase,
+                programmed_minutes=programmed_minutes,
+                remaining_seconds=remaining_seconds
+            )
+            
+            # Validar y recortar
+            if was_clamped(auto_h, auto_m, ref_min):
+                clamped_h, clamped_m = clamp_heparin_time(auto_h, auto_m, ref_min)
+                
+                logger.warning(
+                    f"[HEPARIN-VALIDATION] Tiempo {auto_h:02d}:{auto_m:02d} "
+                    f"excede máximo {clamped_h:02d}:{clamped_m:02d}. Acotando."
+                )
+                
+                # 1. Escribe heparineAutoStopHours=0 y heparineAutoStopMinutes=30 
+                # en current_values del padre y en current_values de HeparinConfigScreen
+                self.current_values["heparineAutoStopHours"] = float(clamped_h)
+                self.current_values["heparineAutoStopMinutes"] = float(clamped_m)
+                
+                # Persistir en la base de datos/controlador
+                self._persist_therapy_config_tag("heparineAutoStopHours", float(clamped_h))
+                self._persist_therapy_config_tag("heparineAutoStopMinutes", float(clamped_m))
+                
+                # 2. Llama input_heparin_auto_stop.setText("00:30")
+                # 3. Recalcula heparineTherapyDosage con 0.5 h por el flujo y escríbelo 
+                # en los dos diccionarios y en el controlador
+                time_hours = clamped_h + (clamped_m / 60.0)
+                flow_ml_per_h = self._get_heparin_flow_ml_per_h()
+                dosage_ml = round(time_hours * flow_ml_per_h, 2)
+                
+                self.current_values["heparineTherapyDosage"] = dosage_ml
+                self._persist_therapy_config_tag("heparineTherapyDosage", dosage_ml)
+                
+                # Actualizar pantalla de heparina si existe
+                if (hasattr(self, 'heparin_config_screen') and 
+                    self.heparin_config_screen is not None):
+                    # Actualizar el widget de texto
+                    self.heparin_config_screen.input_heparin_auto_stop.setText(
+                        f"{clamped_h:02d}:{clamped_m:02d}"
+                    )
+                    # Actualizar current_values de la pantalla (IMPORTANTE: antes de setText)
+                    self.heparin_config_screen.current_values["heparineAutoStopHours"] = float(clamped_h)
+                    self.heparin_config_screen.current_values["heparineAutoStopMinutes"] = float(clamped_m)
+                    self.heparin_config_screen.current_values["heparineTherapyDosage"] = dosage_ml
+                
+                # 4. Registra en el log las tres cosas: tags del padre, tags de la pantalla 
+                # y el texto del widget. Si no coinciden, el bug sigue.
+                padre_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
+                padre_m = int(self.current_values.get("heparineAutoStopMinutes", 0) or 0)
+                padre_dosage = float(self.current_values.get("heparineTherapyDosage", 0.0) or 0.0)
+                
+                pantalla_h = pantalla_m = pantalla_dosage = None
+                widget_text = None
+                
+                if (hasattr(self, 'heparin_config_screen') and 
+                    self.heparin_config_screen is not None):
+                    pantalla_h = int(self.heparin_config_screen.current_values.get(
+                        "heparineAutoStopHours", 0) or 0)
+                    pantalla_m = int(self.heparin_config_screen.current_values.get(
+                        "heparineAutoStopMinutes", 0) or 0)
+                    pantalla_dosage = float(self.heparin_config_screen.current_values.get(
+                        "heparineTherapyDosage", 0.0) or 0.0)
+                    widget_text = self.heparin_config_screen.input_heparin_auto_stop.text()
+                
+                # Verificar consistencia
+                sync_ok = (
+                    padre_h == clamped_h and
+                    padre_m == clamped_m and
+                    padre_dosage == dosage_ml and
+                    (pantalla_h is None or (pantalla_h == clamped_h and pantalla_m == clamped_m and pantalla_dosage == dosage_ml)) and
+                    (widget_text is None or widget_text == f"{clamped_h:02d}:{clamped_m:02d}")
+                )
+                
+                logger.info(
+                    f"[HEPARIN-SYNC] Padre: {padre_h:02d}:{padre_m:02d} dosage={padre_dosage:.2f}ml | "
+                    f"Pantalla: {pantalla_h:02d}:{pantalla_m:02d} dosage={pantalla_dosage:.2f}ml | "
+                    f"Widget: '{widget_text}' | "
+                    f"Sincronizado: {sync_ok}"
+                )
+                
+                if not sync_ok:
+                    logger.error(
+                        f"[HEPARIN-SYNC-ERROR] Inconsistencia detectada después del recorte. "
+                        f"Esperado: {clamped_h:02d}:{clamped_m:02d} dosage={dosage_ml:.2f}ml"
+                    )
+                
+                # 5. Mostrar aviso
+                msg = (
+                    f"Tiempo de heparina limitado a {clamped_h:02d}:{clamped_m:02d}. "
+                    "No se infunde durante los últimos 30 minutos de la terapia."
+                )
+                self.show_warning_message(msg, 5000)
+        
+        except Exception as e:
+            logger.error(f"Error validando tiempo de heparina: {e}", exc_info=True)
     
+    def _get_heparin_flow_ml_per_h(self) -> float:
+        """Obtiene el flujo de heparina del combo en ml/h."""
+        try:
+            if (hasattr(self, 'heparin_config_screen') and 
+                self.heparin_config_screen is not None and
+                hasattr(self.heparin_config_screen, 'heparin_flow_combo')):
+                flow_text = self.heparin_config_screen.heparin_flow_combo.currentText()
+                return float(flow_text)
+        except (AttributeError, ValueError):
+            pass
+        
+        # Default a 1.0 ml/h si no se puede obtener
+        return 1.0
     
     def start_priming(self):
         """
@@ -1927,13 +2069,13 @@ class HemodialysisHMI(QMainWindow):
 
         if enabled:
             if self._heparin_infusion_forced_stop_latched:
-                self._write_boolean_command("heparinePumpsStopButton", False)
+                # self._write_boolean_command("heparinePumpsStopButton", False)
                 self._heparin_infusion_forced_stop_latched = False
             return
 
         if not self._heparin_infusion_forced_stop_latched:
             self._write_setpoint("heparineTherapyFlow", 0.0)
-            self._write_boolean_command("heparinePumpsStopButton", True)
+            # self._write_boolean_command("heparinePumpsStopButton", True)
             self._heparin_infusion_forced_stop_latched = True
             logger.info("[HEPARIN] disabled")
 
@@ -2997,6 +3139,9 @@ class HemodialysisHMI(QMainWindow):
                 
                 # Actualizar displays inmediatamente
                 self._update_therapy_time_displays()
+                
+                # Validar y acotar el tiempo de heparina si es necesario
+                self._validate_and_clamp_heparin_auto_stop_time()
                 
                 logger.info(f"[THERAPY-TIME] set_min={total_min} remaining={hours:02d}:{minutes:02d}:00 source=config")
             

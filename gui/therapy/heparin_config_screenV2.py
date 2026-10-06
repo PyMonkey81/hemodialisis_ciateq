@@ -11,6 +11,7 @@ from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.components.ui_components import ClickableLineEdit
 from core.state_manager import TreatmentPhase
+from logic.heparin_time import reference_minutes, clamp_heparin_time, was_clamped
 from utilities.platform_runtime import safe_float
 
 import logging
@@ -420,26 +421,46 @@ class HeparinConfigScreen(QWidget):
                         self._recalculate_therapy_dosage()
 
     def _coerce_heparin_auto_stop_time(self, hours: int, minutes: int) -> tuple[int, int]:
-        requested_minutes = max(0, (int(hours) * 60) + int(minutes))
-
-        therapy_hours = int(self.current_values.get("heparineTherapyHours", 0) or 0)
-        therapy_minutes = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
-        therapy_total_minutes = (therapy_hours * 60) + therapy_minutes
-        max_allowed_minutes = max(0, therapy_total_minutes - 30)
-
-        clamped_minutes = min(requested_minutes, max_allowed_minutes)
-        if requested_minutes != clamped_minutes:
-            max_h = max_allowed_minutes // 60
-            max_m = max_allowed_minutes % 60
+        """
+        Valida y ajusta el tiempo de heparina según la regla clínica.
+        Delegado a logic/heparin_time.py para lógica pura.
+        """
+        # Obtener tiempo de referencia según fase
+        therapy_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+        therapy_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+        programmed_minutes = (therapy_h * 60) + therapy_m
+        
+        # Obtener tiempo restante si está disponible
+        remaining_seconds = 0
+        if (self.parent_window and hasattr(self.parent_window, "state") and 
+            hasattr(self.parent_window, "treatment_controller")):
+            phase = self.parent_window.state.current_phase
+            if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+                remaining_seconds = getattr(self.parent_window.treatment_controller, 'remaining', 0) or 0
+        else:
+            phase = TreatmentPhase.PREPARING  # default
+        
+        # Calcular referencia y validar
+        ref_minutes = reference_minutes(
+            phase=self.parent_window.state.current_phase if self.parent_window and hasattr(self.parent_window, "state") else TreatmentPhase.PREPARING,
+            programmed_minutes=programmed_minutes,
+            remaining_seconds=remaining_seconds
+        )
+        
+        # Ajustar al máximo permitido
+        clamped_h, clamped_m = clamp_heparin_time(hours, minutes, ref_minutes)
+        
+        # Mostrar aviso si fue recortado
+        if was_clamped(hours, minutes, ref_minutes):
             msg = (
-                f"Tiempo de heparina limitado a {max_h:02d}:{max_m:02d} "
-                "(terapia menos 30 minutos)."
+                f"Tiempo de heparina limitado a {clamped_h:02d}:{clamped_m:02d}. "
+                "No se infunde durante los últimos 30 minutos de la terapia."
             )
             logger.warning(msg)
             if self.parent_window and hasattr(self.parent_window, "show_warning_message"):
                 self.parent_window.show_warning_message(msg, 4000)
-
-        return clamped_minutes // 60, clamped_minutes % 60
+        
+        return clamped_h, clamped_m
 
     def _toggle_heparin_pause_resume(self):
         """Alterna PAUSE/CONTINUAR para la bomba de heparina con comando latch."""
@@ -660,7 +681,13 @@ class HeparinConfigScreen(QWidget):
         widget.setText(f"{value:.{precision}f}")
 
     def update_values(self, new_values: dict):
-        self.current_values = new_values
+        # IMPORTANTE: No reemplaces la referencia de current_values
+        # para evitar perder cambios hechos en otros lugares.
+        # En su lugar, actualiza los valores dentro del diccionario existente.
+        if self.current_values is not new_values:
+            # Solo actualiza si son diccionarios diferentes
+            self.current_values.update(new_values)
+        
         # Nota: heparineTherapyDosage ahora se calcula automáticamente, no se actualiza directamente
         self._update_input_display(self.input_bolus, "heparineBolusQuantity")
         auto_h = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
@@ -680,8 +707,8 @@ class HeparinConfigScreen(QWidget):
         }
 
         for tag, widget in variables_to_update.items():
-            if tag in new_values:
-                value = new_values[tag]
+            if tag in self.current_values:
+                value = self.current_values[tag]
                 if isinstance(widget, QComboBox):
                     # Para combobox, buscar el índice que coincide con el valor
                     index = widget.findText(f"{value:.1f}")
