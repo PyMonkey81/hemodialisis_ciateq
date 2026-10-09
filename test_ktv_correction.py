@@ -62,9 +62,11 @@ def test_ktv_correction():
     print(f"  Tiempo última medición: {calc.tiempo_ultima_medicion:.2f}")
     
     # Segunda medición a t=50 min: D=100
-    # delta_ef = 0.1, delta_sf = 0.07 (ratio 0.7)
+    # D = (Qd + Qf) * (1 - delta_sf / delta_ef) = 100
+    # Qd + Qf = 666.666..., 100 / 666.666... = 0.15, delta_sf / delta_ef = 0.85
+    # delta_ef = 0.20, delta_sf = 0.17
     calc.store_conductivity_t1(13.7, 13.59)
-    calc.store_conductivity_t2(13.8, 13.66)
+    calc.store_conductivity_t2(13.9, 13.76)
     
     d_test2 = calc.calculate_d_ionic(qd, qf, qb, r)
     print(f"\nt=50 min: D calculada = {d_test2:.1f} mL/min (esperado ≈100)")
@@ -73,16 +75,23 @@ def test_ktv_correction():
     calc.update_kt(50.0, qd, qf, qb, r)
     print(f"  D_vigente actualizada: {calc.d_vigente:.1f}")
     print(f"  Kt acumulado: {calc.kt_acumulado:.1f} (esperado 200*30=6000)")
-    print(f"  Kt/V entregado: {calc.get_ktv_delivered(50.0):.3f} (esperado 0.200)")
-    
-    # Simular paro a t=80 min: suma con D_vigente (100)
+    delivered_50 = calc.get_ktv_delivered(50.0)
+    print(f"  Kt/V entregado: {delivered_50:.3f} (esperado 0.200)")
+    assert abs(calc.kt_acumulado - 6000) < 1, f"Kt a los 50 min: esperado 6000, got {calc.kt_acumulado}"
+    assert abs(delivered_50 - 0.200) < 0.001, f"KTV a los 50: esperado 0.200, got {delivered_50}"
+
+    # Simular paro a t=80 min: suma con D_vigente (100), sin modificar Kt todavía
     ktv_final = calc.get_ktv_delivered(80.0)
     print(f"\nt=80 min (paro): Kt/V entregado = {ktv_final:.3f} (esperado 0.300)")
-    
-    # Validaciones
-    assert abs(calc.kt_acumulado - 6000) < 1, f"Kt a los 50 min: esperado 6000, got {calc.kt_acumulado}"
-    assert abs(calc.get_ktv_delivered(50.0) - 0.200) < 0.001, f"KTV a los 50: esperado 0.200"
     assert abs(ktv_final - 0.300) < 0.001, f"KTV a los 80: esperado 0.300, got {ktv_final}"
+
+    committed = calc.commit_final_interval(80.0)
+    print(f"  commit_final_interval = {committed:.3f} (esperado 0.300)")
+    again = calc.commit_final_interval(80.0)
+    print(f"  segundo cierre = {again:.3f} (no debe sumar otra vez)")
+    assert abs(committed - 0.300) < 0.001, f"Cierre: esperado 0.300, got {committed}"
+    assert abs(again - 0.300) < 0.001, f"Segundo cierre cambió el valor: {again}"
+    assert abs(calc.kt_acumulado - 9000) < 1, f"Kt al cierre: esperado 9000, got {calc.kt_acumulado}"
     
     print("\n✓ TODAS LAS VALIDACIONES PASARON")
 

@@ -614,7 +614,55 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             self.pause_measurement()
         elif phase == TreatmentPhase.RUNNING:
             self.resume_measurement()
-        elif phase == TreatmentPhase.IDLE or phase == TreatmentPhase.CLEANING:
-            if self.grafcet.step not in (KtvStep.IDLE, KtvStep.FINISHED, KtvStep.ERROR):
-                self.abort(f"Terapia finalizada/cambio de fase a {phase.name}")
+        else:
+            # Salir de RUNNING/PAUSED (READY, IDLE, FINISHING, CLEANING, ERROR).
+            # No cierra en pausa: el reloj se congela y la D vigente sigue.
+            self.finalize_delivered_dose()
+            if phase in (TreatmentPhase.IDLE, TreatmentPhase.CLEANING):
+                if self.grafcet.step not in (KtvStep.IDLE, KtvStep.FINISHED, KtvStep.ERROR):
+                    self.abort(f"Terapia finalizada/cambio de fase a {phase.name}")
+
+    def finalize_delivered_dose(self) -> float:
+        """Suma el último tramo y publica el Kt/V entregado.
+
+        Durante la sesión la etiqueta sigue el proyectado. Al salir de la
+        terapia el número que queda, en pantalla y en el registro, es el entregado.
+        """
+        if self.calculadora_ktv._cierre_hecho:
+            if self.calculadora_ktv.volumen_distribucion_v <= 0:
+                return 0.0
+            return self.calculadora_ktv.kt_acumulado / self.calculadora_ktv.volumen_distribucion_v
+
+        had_measurement = self.calculadora_ktv.tiempo_ultima_medicion is not None
+        t_elapsed_min = self._get_elapsed_therapy_minutes()
+        delivered = self.calculadora_ktv.commit_final_interval(t_elapsed_min)
+
+        current_values = {}
+        if self._current_values_accessor is not None:
+            current_values = self._current_values_accessor() or {}
+        if isinstance(current_values, dict):
+            current_values["ktv_acumulado"] = delivered
+            # La etiqueta de diálisis lee este tag. Al cerrar debe mostrar el entregado.
+            current_values["ktv_projectado"] = delivered
+
+        if had_measurement:
+            results_dict = {
+                "ktv_acumulado": delivered,
+                "ktv_projectado": delivered,
+                "heitmann_value": current_values.get("heitmann_value", 0.0) if isinstance(current_values, dict) else 0.0,
+                "d_ionic": self.calculadora_ktv.d_vigente,
+                "kt_total": self.calculadora_ktv.kt_acumulado,
+                "type": "Cierre",
+                "therapy_minutes": t_elapsed_min,
+                "calculation_event": True,
+                "event_id": f"{QDateTime.currentMSecsSinceEpoch()}_CIERRE",
+            }
+            logger.info(
+                "[KtvController] Cierre Kt/V entregado=%.3f | Kt=%.1f | t=%.2f min",
+                delivered,
+                self.calculadora_ktv.kt_acumulado,
+                t_elapsed_min,
+            )
+            self.ktv_calculated.emit(results_dict)
+        return delivered
 

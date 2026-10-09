@@ -660,11 +660,12 @@ class DialysisScreen(QWidget):
             "UF Total":                  self.uf_rem_val,
             "uf_goal_liters":            self.uf_goal_val,
             # "heparineBolusQuantity":     self.bolus_display,   # no esta en pantalla 
-            "ktv_acumulado":             self.ktv_val,
+            # Durante RUNNING/PAUSED este número es el proyectado.
+            # Al cerrar la sesión el controlador escribe aquí el entregado.
+            "ktv_projectado":            self.ktv_val,
             "airBubbleInBloodDetected":  self.air_indicator,  
             # "dialyLinePresProcessData":  self.pt_3_display,  # Placeholder para futura métrica de depuración PT-3
             # "dialyBChamPresProcessData": self.pt_7_display,  # Placeholder para futura métrica de depuración PT-7
-            # "ktv_projectado":            self.ktv_display,  
         }
 
 
@@ -771,7 +772,7 @@ class DialysisScreen(QWidget):
             except (TypeError, ValueError):
                 return str(val_float)
 
-        if tag == "ktv_acumulado":
+        if tag in {"ktv_acumulado", "ktv_projectado"}:
             try:
                 return f"{val_float:.2f}"
             except (TypeError, ValueError):

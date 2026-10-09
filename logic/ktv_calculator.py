@@ -18,6 +18,7 @@ class CalculadoraKtV:
         self.kt_acumulado: float = 0.0
         self.tiempo_ultima_medicion: Optional[float] = None
         self.d_vigente: float = 0.0  # D que cierra el intervalo anterior
+        self._cierre_hecho: bool = False
         
         self.volumen_distribucion_v = 0.0 
         self.parametros_antropometricos = {} 
@@ -170,6 +171,10 @@ class CalculadoraKtV:
             current_time_minutes: Tiempo total transcurrido de terapia en minutos
             qd, qf, qb, r: Parámetros para calculate_d_ionic()
         """
+        if self._cierre_hecho:
+            logger.debug("[KTV_CALC] Kt/V ya cerrado. No se acumula otra D.")
+            return
+
         d_nueva = self.calculate_d_ionic(qd, qf, qb, r)
         
         # Si D no se calcula (delta_EF < 0.05), no hacemos nada
@@ -221,6 +226,34 @@ class CalculadoraKtV:
             )
         
         return kt_total / self.volumen_distribucion_v
+
+    def commit_final_interval(self, current_time_minutes: float) -> float:
+        """Cierra el tramo abierto hasta el tiempo efectivo y deja el entregado.
+
+        Es idempotente: una segunda llamada no vuelve a sumar el mismo intervalo.
+        Si no hubo ninguna D válida, el entregado es 0.
+        """
+        if self.volumen_distribucion_v <= 0:
+            self._cierre_hecho = True
+            return 0.0
+
+        if not self._cierre_hecho:
+            if (
+                self.tiempo_ultima_medicion is not None
+                and current_time_minutes > self.tiempo_ultima_medicion
+            ):
+                dt_final = current_time_minutes - self.tiempo_ultima_medicion
+                self.kt_acumulado += self.d_vigente * dt_final
+                self.tiempo_ultima_medicion = current_time_minutes
+                logger.info(
+                    "[KTV_CALC] Cierre: dt_final=%.2f min, D_vigente=%.1f, Kt=%.1f",
+                    dt_final,
+                    self.d_vigente,
+                    self.kt_acumulado,
+                )
+            self._cierre_hecho = True
+
+        return self.kt_acumulado / self.volumen_distribucion_v
 
     def get_ktv_projected(self, current_time_minutes: float, t_total_minutes: float) -> float:
         """

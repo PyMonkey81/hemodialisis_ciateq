@@ -796,6 +796,9 @@ class HemodialysisHMI(QMainWindow):
         self.is_treatment_running = False
         self.therapy_start_time = None
         self._heparin_auto_stop_latched = False
+        # Cerrar el último tramo de Kt/V antes de guardar el reporte.
+        # El proyectado no sustituye al entregado.
+        self.ktv_controller.finalize_delivered_dose()
         # 1. Guardar reporte Kt/V PRIMERO, antes de abortar (abort → reset_screen_data limpia ktv_records)
         self.KTVScreen.save_final_report()
         # 2. Abortar medición en curso (puede disparar reset_screen_data, ya sin datos)
