@@ -60,6 +60,7 @@ class KTVScreen(QWidget):
 
         label_style = "color: #000000; font-size: 22px; font-weight: bold; border: none; background: transparent;"
         indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #1e293b; border-radius: 6px; padding: 6px;"
+        value_style = "color: #1e293b; font-size: 20px; font-weight: bold; border: 2px solid #1e293b; border-radius: 6px; padding: 6px;"
 
         button_style = """
             QPushButton { 
@@ -87,7 +88,7 @@ class KTVScreen(QWidget):
             }
         """
 
-        # ==================== DATOS DEL PACIENTE ====================
+        # ==================== FILA 0, COLUMNA 0: DATOS DEL PACIENTE ====================
         data_container = QFrame()
         data_container.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
         data_layout = QGridLayout(data_container)
@@ -106,11 +107,11 @@ class KTVScreen(QWidget):
             data_layout.addWidget(lbl, i, 0)
         
         for i, widget in enumerate([self.display_name, self.display_age, self.display_height, self.display_weight]):
-            widget.setStyleSheet(indicator_style)
+            widget.setStyleSheet(value_style)
             widget.setAlignment(Qt.AlignCenter)
             data_layout.addWidget(widget, i, 1)
 
-        # ==================== BIOIMPEDANCIA + HEITMANN ====================
+        # ==================== FILA 0, COLUMNA 1: BIOIMPEDANCIA + HEITMANN ====================
         data_container0 = QFrame()
         data_container0.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
         dl0 = QGridLayout(data_container0)
@@ -133,7 +134,7 @@ class KTVScreen(QWidget):
         self.display_heitmann.setAlignment(Qt.AlignCenter)
         dl0.addWidget(self.display_heitmann, 1, 1)
 
-        # ==================== CONFIGURACIÓN Y RESULTADOS ====================
+        # ==================== FILA 1, COLUMNA 0: CONFIGURACIÓN ====================
         data_container1 = QFrame()
         data_container1.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
         dl1 = QGridLayout(data_container1)
@@ -152,9 +153,9 @@ class KTVScreen(QWidget):
         self.lbl_freq_indicator.setAlignment(Qt.AlignCenter)
 
         self.combo_freq = QComboBox()
-        self.combo_freq.addItems(["15 minutos", "30 minutos", "Deshabilitado"]) # Añadir opción de deshabilitar
+        self.combo_freq.addItems(["15 minutos", "30 minutos", "Deshabilitado"])
         self.combo_freq.setStyleSheet(combo_style)
-        self.combo_freq.setCurrentIndex(2) # Valor por defecto: Deshabilitado
+        self.combo_freq.setCurrentIndex(2)
         self._selected_frequency_index = self.combo_freq.currentIndex()
         self.combo_freq.currentIndexChanged.connect(self._on_frequency_changed)
 
@@ -165,8 +166,20 @@ class KTVScreen(QWidget):
         self.lbl_next_schedule = QLabel("Próxima medición: No programado")
         self.lbl_next_schedule.setStyleSheet(label_style)
 
+        dl1.addWidget(freq_label, 0, 0)
+        dl1.addWidget(self.combo_freq, 0, 1)
+        dl1.addWidget(self.lbl_freq_indicator, 0, 2)
+        dl1.addWidget(self.btn_run_ktv, 0, 3)
+        dl1.addWidget(self.lbl_next_schedule, 1, 0, 1, 4)
+
+        # ==================== FILA 1, COLUMNA 1: RESULTADOS ====================
+        data_container2 = QFrame()
+        data_container2.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
+        dl2 = QGridLayout(data_container2)
+        dl2.setSpacing(8)
+        dl2.setContentsMargins(15, 15, 15, 15)
+
         self.results_list = QListWidget()
-        self.results_list.setMaximumHeight(140)
         self.results_list.setStyleSheet("""
             QListWidget {
                 background: #f8fafc;
@@ -200,24 +213,25 @@ class KTVScreen(QWidget):
                 background: none;
             }
         """)
+        dl2.addWidget(self.results_list, 0, 0)
 
-        dl1.addWidget(freq_label, 0, 0)
-        dl1.addWidget(self.combo_freq, 0, 1)
-        dl1.addWidget(self.lbl_freq_indicator, 0, 2)
-        dl1.addWidget(self.btn_run_ktv, 0, 3)
-        dl1.addWidget(self.lbl_next_schedule, 1, 0, 1, 4)
-        dl1.addWidget(self.results_list, 2, 0, 1, 4)
+        # ==================== FILA 2, COLUMNAS 0-1: GRÁFICA ====================
+        plot_frame = QFrame()
+        plot_frame.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
+        plot_layout = QGridLayout(plot_frame)
+        plot_layout.setSpacing(0)
+        plot_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Panels superiores de datos y configuración
+        self.plot_widget = pg.PlotWidget()
+        plot_layout.addWidget(self.plot_widget, 0, 0)
+
+        # ==================== AÑADIR CARDS AL GRID PRINCIPAL ====================
         layout.addWidget(data_container, 0, 0)
         layout.addWidget(data_container0, 0, 1)
-        layout.addWidget(data_container1, 1, 0, 1, 2)
+        layout.addWidget(data_container1, 1, 0)
+        layout.addWidget(data_container2, 1, 1)
+        layout.addWidget(plot_frame, 2, 0, 1, 2)
 
-        # ==================== GRÁFICA ====================
-        self.plot_widget = pg.PlotWidget() # Se inicializa en init_plot
-        layout.addWidget(self.plot_widget, 2, 0, 1, 2)
-
-        # Reparto de espacio vertical: prioridad a la gráfica sin ocultar paneles.
         layout.setRowStretch(0, 2)
         layout.setRowStretch(1, 2)
         layout.setRowStretch(2, 6)
@@ -226,13 +240,11 @@ class KTVScreen(QWidget):
 
     def init_plot(self):
         """Inicializa los parámetros de la gráfica pyqtgraph con dos ejes Y."""
-        self.plot_widget.setBackground("#1e2421")
-        self.plot_widget.setTitle("Kt/V y Heitmann durante la terapia", 
-                                color="#ffffff", size="16pt")
-        self.plot_widget.setLabel('left', 'Kt/V', color='#00aaff', size="14pt")
+        self.plot_widget.setBackground("#ffffff")
+        self.plot_widget.setLabel('left', 'Kt/V', color='#0f172a', size="14pt")
         self.plot_widget.setLabel('bottom', 'Tiempo de terapia (min)', 
-                                color='#ffffff', size="14pt")
-        self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
+                                color='#0f172a', size="14pt")
+        self.plot_widget.showGrid(x=True, y=True, alpha=0.25)
 
         # Eje derecho para Heitmann
         right_axis = self.plot_widget.plotItem.getAxis('right')
