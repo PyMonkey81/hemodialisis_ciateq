@@ -17,24 +17,20 @@ class CalculadoraKtV:
         # Acumulación de Kt
         self.kt_acumulado: float = 0.0
         self.tiempo_ultima_medicion: Optional[float] = None
-        self.d_actual: float = 0.0
+        self.d_vigente: float = 0.0  # D que cierra el intervalo anterior
         
         self.volumen_distribucion_v = 0.0 
         self.parametros_antropometricos = {} 
 
-        # Almacenamiento de conductividades y temperaturas para los dos puntos
+        # Almacenamiento de conductividades para los dos puntos
+        # Las conductividades YA vienen compensadas a 25°C desde el firmware
         self._cd_in_t1: float = 0.0
         self._cd_out_t1: float = 0.0
-        self._temp_ef_t1: float = 0.0  # Temperatura EF (entrada) en T1
-        self._temp_sf_t1: float = 0.0  # Temperatura SF (salida) en T1
 
         self._cd_in_t2: float = 0.0
         self._cd_out_t2: float = 0.0
-        self._temp_ef_t2: float = 0.0  # Temperatura EF (entrada) en T2
-        self._temp_sf_t2: float = 0.0  # Temperatura SF (salida) en T2
         
-        logger.debug("[KTV_CALC] CalculadoraKtV reiniciada.")
-        logger.debug("[KTV_CALC] Kt=0, t_última_medición=None, D_actual=0")
+        logger.debug("[KTV_CALC] CalculadoraKtV reiniciada. Kt=0, D_vigente=0")
 
     def config_paciente(self, peso: float, altura: float, edad: int, genero: int):
         """
@@ -71,46 +67,41 @@ class CalculadoraKtV:
             logger.warning(f"[KTV_CALC] Volumen de Bioimpedancia no válido: {v_bis_litros} L. No se actualizará V.")
 
 
-    def store_conductivity_t1(self, cd_in: float, cd_out: float, temp_ef: float, temp_sf: float):
+    def store_conductivity_t1(self, cd_in: float, cd_out: float):
         """
-        Almacena las lecturas de conductividad (entrada, salida) y temperaturas específicas
-        para EF (entrada) y SF (salida) en el tiempo 1.
+        Almacena las lecturas de conductividad (entrada, salida) en el tiempo 1.
+        
+        Las conductividades YA vienen compensadas a 25°C desde el firmware.
+        No se requiere compensación adicional en Python.
         
         Args:
-            cd_in: Conductividad EF (entrada del filtro) en mS/cm
-            cd_out: Conductividad SF (salida del filtro) en mS/cm
-            temp_ef: Temperatura EF (entrada) en °C
-            temp_sf: Temperatura SF (salida) en °C
+            cd_in: Conductividad EF (entrada del filtro) en mS/cm, ya a 25°C
+            cd_out: Conductividad SF (salida del filtro) en mS/cm, ya a 25°C
         """
         self._cd_in_t1 = cd_in
         self._cd_out_t1 = cd_out
-        self._temp_ef_t1 = temp_ef
-        self._temp_sf_t1 = temp_sf
-        logger.debug(f"[KTV_CALC] T1 almacenado: CdEF={cd_in:.2f}, CdSF={cd_out:.2f}, TempEF={temp_ef:.2f}, TempSF={temp_sf:.2f}")
+        logger.debug(f"[KTV_CALC] T1 almacenado: CdEF={cd_in:.2f}, CdSF={cd_out:.2f} (ya a 25°C)")
 
-    def store_conductivity_t2(self, cd_in: float, cd_out: float, temp_ef: float, temp_sf: float):
+    def store_conductivity_t2(self, cd_in: float, cd_out: float):
         """
-        Almacena las lecturas de conductividad (entrada, salida) y temperaturas específicas
-        para EF (entrada) y SF (salida) en el tiempo 2.
+        Almacena las lecturas de conductividad (entrada, salida) en el tiempo 2.
+        
+        Las conductividades YA vienen compensadas a 25°C desde el firmware.
         
         Args:
-            cd_in: Conductividad EF (entrada del filtro) en mS/cm
-            cd_out: Conductividad SF (salida del filtro) en mS/cm
-            temp_ef: Temperatura EF (entrada) en °C
-            temp_sf: Temperatura SF (salida) en °C
+            cd_in: Conductividad EF (entrada del filtro) en mS/cm, ya a 25°C
+            cd_out: Conductividad SF (salida del filtro) en mS/cm, ya a 25°C
         """
         self._cd_in_t2 = cd_in
         self._cd_out_t2 = cd_out
-        self._temp_ef_t2 = temp_ef
-        self._temp_sf_t2 = temp_sf
-        logger.debug(f"[KTV_CALC] T2 almacenado: CdEF={cd_in:.2f}, CdSF={cd_out:.2f}, TempEF={temp_ef:.2f}, TempSF={temp_sf:.2f}")
+        logger.debug(f"[KTV_CALC] T2 almacenado: CdEF={cd_in:.2f}, CdSF={cd_out:.2f} (ya a 25°C)")
 
     def calculate_d_ionic(self, qd: float, qf: float, qb: float, r: float = 0.0) -> float:
         """
-        Calcula D (dialisancia iónica efectiva) utilizando el método de dos puntos
-        de conductividad con compensación individual de temperatura.
+        Calcula D (dialisancia iónica) utilizando el método de dos puntos de conductividad.
         
-        Solo devuelve D; no multiplica por tiempo. La acumulación ocurre en update_kt().
+        Las conductividades YA vienen compensadas a 25°C desde el firmware.
+        No se realiza compensación de temperatura en Python.
         
         Args:
             qd: Flujo de dializado en mL/min
@@ -131,20 +122,13 @@ class CalculadoraKtV:
         cd_ef_t2 = self._cd_in_t2
         cd_sf_t2 = self._cd_out_t2
 
-        # Compensar cada lectura a 25°C individualmente
-        alpha = 0.021
-        cd_ef_t1_25 = cd_ef_t1 / (1 + alpha * (self._temp_ef_t1 - 25))
-        cd_sf_t1_25 = cd_sf_t1 / (1 + alpha * (self._temp_sf_t1 - 25))
-        cd_ef_t2_25 = cd_ef_t2 / (1 + alpha * (self._temp_ef_t2 - 25))
-        cd_sf_t2_25 = cd_sf_t2 / (1 + alpha * (self._temp_sf_t2 - 25))
-
-        # Deltas a 25°C
-        delta_ef = cd_ef_t2_25 - cd_ef_t1_25
-        delta_sf = cd_sf_t2_25 - cd_sf_t1_25
+        # Deltas de conductividad (ya compensadas a 25°C en el firmware)
+        delta_ef = cd_ef_t2 - cd_ef_t1
+        delta_sf = cd_sf_t2 - cd_sf_t1
 
         # Protección: si abs(delta_ef) < 0.05 mS/cm, no calculamos D
         if abs(delta_ef) < 0.05:
-            logger.warning(f"[KTV_CALC] abs(delta_EF) = {abs(delta_ef):.4f} < 0.05 mS/cm. D = 0.0")
+            logger.warning(f"[KTV_CALC] abs(delta_EF) = {abs(delta_ef):.4f} < 0.05 mS/cm. D no se calcula.")
             return 0.0
 
         # Convertir Qf de L/h a mL/min (solo una vez)
@@ -169,50 +153,56 @@ class CalculadoraKtV:
 
         logger.debug(
             f"[KTV_CALC] D_ionic: delta_EF={delta_ef:.4f}, delta_SF={delta_sf:.4f}, "
-            f"D_raw={d_raw:.1f}, D_limited={d:.1f}, D_efectiva={d_efectiva:.1f}"
+            f"D_raw={d_raw:.1f}, D={d:.1f}, D_efectiva={d_efectiva:.1f}"
         )
 
         return d_efectiva
 
     def update_kt(self, current_time_minutes: float, qd: float, qf: float, qb: float, r: float = 0.0) -> None:
         """
-        Actualiza Kt acumulado en base a D y el tiempo transcurrido desde la última medición.
+        Actualiza Kt acumulado usando el intervalo cerrado con la D vigente anterior.
         
-        - Primera D válida: dt = 0 (no cubre tiempo ya transcurrido)
-        - Mediciones siguientes: dt = tiempo real desde última medición, en minutos
-        - Kt = Kt + D * dt
+        - Primera D válida: No suma Kt, solo se guarda como D_vigente
+        - D siguientes válidas: Suma Kt con la D_vigente anterior, luego actualiza D_vigente
+        - Si abs(delta_EF) < 0.05: No calcula D, mantiene D_vigente igual
         
         Args:
             current_time_minutes: Tiempo total transcurrido de terapia en minutos
             qd, qf, qb, r: Parámetros para calculate_d_ionic()
         """
-        d_actual = self.calculate_d_ionic(qd, qf, qb, r)
-        self.d_actual = d_actual
+        d_nueva = self.calculate_d_ionic(qd, qf, qb, r)
         
-        if d_actual <= 0:
-            logger.debug("[KTV_CALC] D_actual <= 0. No se actualiza Kt.")
+        # Si D no se calcula (delta_EF < 0.05), no hacemos nada
+        if d_nueva == 0.0:
+            logger.debug("[KTV_CALC] D no calculada (delta_EF < 0.05). D_vigente se mantiene.")
             return
 
-        # Primera medición: dt = 0
+        # Primera medición válida: solo se guarda, no suma Kt
         if self.tiempo_ultima_medicion is None:
-            dt = 0.0
-            logger.debug("[KTV_CALC] Primera D válida: dt=0, Kt permanece en 0")
-        else:
-            dt = max(0.0, current_time_minutes - self.tiempo_ultima_medicion)
-            self.kt_acumulado += d_actual * dt
+            self.d_vigente = d_nueva
+            self.tiempo_ultima_medicion = current_time_minutes
+            logger.debug(f"[KTV_CALC] Primera D válida: D_vigente={d_nueva:.1f}, t={current_time_minutes:.2f}, Kt permanece en {self.kt_acumulado:.1f}")
+            return
+
+        # Mediciones siguientes: suma con D_vigente anterior, luego actualiza D_vigente
+        dt = current_time_minutes - self.tiempo_ultima_medicion
+        if dt > 0:
+            self.kt_acumulado += self.d_vigente * dt
             logger.debug(
-                f"[KTV_CALC] Actualización Kt: dt={dt:.2f} min, D={d_actual:.1f} mL/min, "
+                f"[KTV_CALC] Acumulación: dt={dt:.2f} min, D_vigente={self.d_vigente:.1f} mL/min, "
                 f"Kt_acumulado={self.kt_acumulado:.1f}"
             )
-
-        self.tiempo_ultima_medicion = current_time_minutes
-
-    def get_ktv_delivered(self, current_time_minutes: float, qd: float, qf: float, qb: float, r: float = 0.0) -> float:
-        """
-        Devuelve Kt/V acumulado real hasta current_time_minutes.
         
-        Si aún no se ha alcanzado current_time_minutes desde la última medición,
-        suma el último tramo (D * dt_restante) al Kt acumulado.
+        self.d_vigente = d_nueva
+        self.tiempo_ultima_medicion = current_time_minutes
+        logger.debug(f"[KTV_CALC] D_vigente actualizada a {d_nueva:.1f}")
+
+    def get_ktv_delivered(self, current_time_minutes: float) -> float:
+        """
+        Devuelve Kt/V acumulado real hasta current_time_minutes (sin proyectar).
+        
+        Si aún hay tiempo entre la última medición y current_time_minutes,
+        suma el tramo final (D_vigente * dt_final) al Kt acumulado.
         
         Returns: Kt/V entregado = Kt / V
         """
@@ -224,7 +214,7 @@ class CalculadoraKtV:
         # Si hay una última medición y el tiempo actual es posterior, sumar tramo final
         if self.tiempo_ultima_medicion is not None and current_time_minutes > self.tiempo_ultima_medicion:
             dt_final = current_time_minutes - self.tiempo_ultima_medicion
-            kt_total += self.d_actual * dt_final
+            kt_total += self.d_vigente * dt_final
             logger.debug(
                 f"[KTV_CALC] Kt/V entregado: dt_final={dt_final:.2f} min, "
                 f"Kt_total={kt_total:.1f}, Kt/V={kt_total / self.volumen_distribucion_v:.3f}"
@@ -232,12 +222,11 @@ class CalculadoraKtV:
         
         return kt_total / self.volumen_distribucion_v
 
-    def get_ktv_projected(self, current_time_minutes: float, t_total_minutes: float, 
-                         qd: float, qf: float, qb: float, r: float = 0.0) -> float:
+    def get_ktv_projected(self, current_time_minutes: float, t_total_minutes: float) -> float:
         """
         Devuelve Kt/V proyectado al final de la sesión.
         
-        Proyectado = (Kt + D_actual * t_restante) / V
+        Proyectado = (Kt + D_vigente * t_restante) / V
         donde t_restante = max(0, t_total - t_actual)
         
         Returns: Kt/V proyectado
@@ -246,11 +235,11 @@ class CalculadoraKtV:
             return 0.0
 
         t_restante = max(0.0, t_total_minutes - current_time_minutes)
-        kt_proyectado = self.kt_acumulado + (self.d_actual * t_restante)
+        kt_proyectado = self.kt_acumulado + (self.d_vigente * t_restante)
         
         logger.debug(
             f"[KTV_CALC] Kt/V proyectado: t_restante={t_restante:.2f} min, "
-            f"D_actual={self.d_actual:.1f}, Kt_proyectado={kt_proyectado:.1f}, "
+            f"D_vigente={self.d_vigente:.1f}, Kt_proyectado={kt_proyectado:.1f}, "
             f"Kt/V={kt_proyectado / self.volumen_distribucion_v:.3f}"
         )
         

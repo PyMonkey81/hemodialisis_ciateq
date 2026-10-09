@@ -424,10 +424,8 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         current_values = self._current_values_accessor()
         cd_in_t1 = current_values.get("dialyConductIFProcessData", 0.0)
         cd_out_t1 = current_values.get("dialyConductOFProcessData", 0.0)
-        temp_ef_t1 = current_values.get("dialyTempIFProcessData", 25.0)
-        temp_sf_t1 = current_values.get("dialyTempIOFProcessData", 25.0)
-        self.calculadora_ktv.store_conductivity_t1(cd_in_t1, cd_out_t1, temp_ef_t1, temp_sf_t1)
-        logger.info(f"[KtvController] T1 capturado: CdEF={cd_in_t1:.2f}, CdSF={cd_out_t1:.2f}, TempEF={temp_ef_t1:.2f}, TempSF={temp_sf_t1:.2f}")
+        self.calculadora_ktv.store_conductivity_t1(cd_in_t1, cd_out_t1)
+        logger.info(f"[KtvController] T1 capturado: CdEF={cd_in_t1:.2f}, CdSF={cd_out_t1:.2f} (ya a 25°C desde firmware)")
 
         # Guardar el setpoint original de conductividad antes de modificarlo
         self._original_conductivity_setpoint = current_values.get("dialyCondControlSetPoint", 13.5)
@@ -451,14 +449,12 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
 
 
     def _perform_capture_t2(self) -> None:
-        """Callback: Captura conductividades T2 con temperaturas individuales de cada sensor."""
+        """Callback: Captura conductividades T2."""
         current_values = self._current_values_accessor()
         cd_in_t2 = current_values.get("dialyConductIFProcessData", 0.0)
         cd_out_t2 = current_values.get("dialyConductOFProcessData", 0.0)
-        temp_ef_t2 = current_values.get("dialyTempIFProcessData", 25.0)
-        temp_sf_t2 = current_values.get("dialyTempIOFProcessData", 25.0)
-        self.calculadora_ktv.store_conductivity_t2(cd_in_t2, cd_out_t2, temp_ef_t2, temp_sf_t2)
-        logger.info(f"[KtvController] T2 capturado: CdEF={cd_in_t2:.2f}, CdSF={cd_out_t2:.2f}, TempEF={temp_ef_t2:.2f}, TempSF={temp_sf_t2:.2f}")
+        self.calculadora_ktv.store_conductivity_t2(cd_in_t2, cd_out_t2)
+        logger.info(f"[KtvController] T2 capturado: CdEF={cd_in_t2:.2f}, CdSF={cd_out_t2:.2f} (ya a 25°C desde firmware)")
 
     def _perform_restore_conductivity(self) -> None:
         """Callback: Restaura el setpoint de conductividad original."""
@@ -474,7 +470,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             self.grafcet.abort("Error interno: Callback de escritura no disponible.")
 
     def _perform_calculate_ktv(self) -> None:
-        """Callback: Realiza el cálculo final de Kt/V con acumulación incremental."""
+        """Callback: Realiza el cálculo de Kt/V con acumulación correcta."""
         current_values = self._current_values_accessor()
         
         qd = current_values.get("balanceChamberSetTiming", 500)  # ml/min
@@ -511,15 +507,15 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
                             current_values.get("heparineTherapyMinutes", 0))
         t_elapsed_min = self._get_elapsed_therapy_minutes()
 
-        # Actualizar Kt acumulado en base a la nueva medición D
+        # Actualizar Kt acumulado con la D vigente anterior, luego D_vigente = D nueva
         self.calculadora_ktv.update_kt(t_elapsed_min, qd, qf, qb, r)
 
         # Obtener Kt/V entregado y proyectado
-        ktv_delivered = self.calculadora_ktv.get_ktv_delivered(t_elapsed_min, qd, qf, qb, r)
-        ktv_projected = self.calculadora_ktv.get_ktv_projected(t_elapsed_min, t_programmed_min, qd, qf, qb, r)
+        ktv_delivered = self.calculadora_ktv.get_ktv_delivered(t_elapsed_min)
+        ktv_projected = self.calculadora_ktv.get_ktv_projected(t_elapsed_min, t_programmed_min)
 
-        # Obtener D actual para logging
-        d_actual = self.calculadora_ktv.d_actual
+        # Obtener D vigente para logging
+        d_vigente = self.calculadora_ktv.d_vigente
         kt_acumulado = self.calculadora_ktv.kt_acumulado
 
         results_dict = {
@@ -527,7 +523,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             "ktv_projectado": ktv_projected,
             "heitmann_value": v_bis_litros,
             "bioz_resistance": z_resistencia,
-            "d_ionic": d_actual,
+            "d_ionic": d_vigente,
             "kt_total": kt_acumulado,
             "type": "Automatic" if self.grafcet.is_auto_trigger else "Manual",
             "therapy_minutes": t_elapsed_min,
@@ -540,7 +536,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         current_values["ktv_acumulado"] = ktv_delivered
         current_values["heitmann_value"] = v_bis_litros
         current_values["bioz_resistance"] = z_resistencia
-        current_values["d_ionic"] = d_actual
+        current_values["d_ionic"] = d_vigente
         current_values["kt_total"] = kt_acumulado
         current_values["type"] = results_dict["type"]
         current_values["therapy_minutes"] = t_elapsed_min
@@ -548,7 +544,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         current_values["event_id"] = results_dict["event_id"]
 
         logger.info(
-            f"[KtvController] Cálculo Kt/V: D={d_actual:.1f} mL/min | "
+            f"[KtvController] Cálculo Kt/V: D_vigente={d_vigente:.1f} mL/min | "
             f"Kt={kt_acumulado:.1f} | Entregado={ktv_delivered:.3f} | Proyectado={ktv_projected:.3f}"
         )
 
