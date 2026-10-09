@@ -90,7 +90,7 @@ class KTVScreen(QWidget):
 
         # ==================== FILA 0, COLUMNA 0: DATOS DEL PACIENTE ====================
         data_container = QFrame()
-        data_container.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
+        data_container.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 1px solid #cbd5e1;")
         data_layout = QGridLayout(data_container)
         data_layout.setSpacing(8)
         data_layout.setContentsMargins(15, 15, 15, 15)
@@ -113,7 +113,7 @@ class KTVScreen(QWidget):
 
         # ==================== FILA 0, COLUMNA 1: BIOIMPEDANCIA + HEITMANN ====================
         data_container0 = QFrame()
-        data_container0.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
+        data_container0.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 1px solid #cbd5e1;")
         dl0 = QGridLayout(data_container0)
         dl0.setSpacing(8)
         dl0.setContentsMargins(15, 15, 15, 15)
@@ -136,7 +136,7 @@ class KTVScreen(QWidget):
 
         # ==================== FILA 1, COLUMNA 0: CONFIGURACIÓN ====================
         data_container1 = QFrame()
-        data_container1.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
+        data_container1.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 1px solid #cbd5e1;")
         dl1 = QGridLayout(data_container1)
         dl1.setSpacing(10)
         dl1.setContentsMargins(15, 15, 15, 15)
@@ -174,7 +174,7 @@ class KTVScreen(QWidget):
 
         # ==================== FILA 1, COLUMNA 1: RESULTADOS ====================
         data_container2 = QFrame()
-        data_container2.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
+        data_container2.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 1px solid #cbd5e1;")
         dl2 = QGridLayout(data_container2)
         dl2.setSpacing(8)
         dl2.setContentsMargins(15, 15, 15, 15)
@@ -217,7 +217,7 @@ class KTVScreen(QWidget):
 
         # ==================== FILA 2, COLUMNAS 0-1: GRÁFICA ====================
         plot_frame = QFrame()
-        plot_frame.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 4px solid #1e293b;")
+        plot_frame.setStyleSheet("background: #FCFCFC; border-radius: 12px; border: 1px solid #cbd5e1;")
         plot_layout = QGridLayout(plot_frame)
         plot_layout.setSpacing(0)
         plot_layout.setContentsMargins(0, 0, 0, 0)
