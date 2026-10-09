@@ -2,32 +2,39 @@
         
 import math
 import logging 
-logger = logging.getLogger(__name__) # Inicializa el logger para esta clase
+from typing import Optional
+logger = logging.getLogger(__name__)
 
 class CalculadoraKtV:
     def __init__(self, parent=None, values_dict=None):
         
-        self.parent_windows = parent # Si necesitas referencia a la ventana principal
-        self.current_values = values_dict if values_dict is not None else {} # Para valores iniciales si los hay
+        self.parent_windows = parent
+        self.current_values = values_dict if values_dict is not None else {}
         self.reset()
 
     def reset(self):
         """Reinicia todos los valores acumulados para un nuevo ciclo de cálculo de Kt/V."""
-        self.dilisancias_acumuladas = [] 
-        self.tiempo_inicio = None 
+        # Acumulación de Kt
+        self.kt_acumulado: float = 0.0
+        self.tiempo_ultima_medicion: Optional[float] = None
+        self.d_actual: float = 0.0
+        
         self.volumen_distribucion_v = 0.0 
         self.parametros_antropometricos = {} 
 
-        # --- Variables CRÍTICAS para almacenar las conductividades de los dos puntos ---
+        # Almacenamiento de conductividades y temperaturas para los dos puntos
         self._cd_in_t1: float = 0.0
         self._cd_out_t1: float = 0.0
-        self._temp_t1: float = 0.0 # Temperatura del dializado en el punto T1
+        self._temp_ef_t1: float = 0.0  # Temperatura EF (entrada) en T1
+        self._temp_sf_t1: float = 0.0  # Temperatura SF (salida) en T1
 
         self._cd_in_t2: float = 0.0
         self._cd_out_t2: float = 0.0
-        self._temp_t2: float = 0.0 # Temperatura del dializado en el punto T2
+        self._temp_ef_t2: float = 0.0  # Temperatura EF (entrada) en T2
+        self._temp_sf_t2: float = 0.0  # Temperatura SF (salida) en T2
         
         logger.debug("[KTV_CALC] CalculadoraKtV reiniciada.")
+        logger.debug("[KTV_CALC] Kt=0, t_última_medición=None, D_actual=0")
 
     def config_paciente(self, peso: float, altura: float, edad: int, genero: int):
         """
@@ -64,25 +71,190 @@ class CalculadoraKtV:
             logger.warning(f"[KTV_CALC] Volumen de Bioimpedancia no válido: {v_bis_litros} L. No se actualizará V.")
 
 
-    def store_conductivity_t1(self, cd_in: float, cd_out: float, temp: float):
+    def store_conductivity_t1(self, cd_in: float, cd_out: float, temp_ef: float, temp_sf: float):
         """
-        Almacena las lecturas de conductividad (entrada, salida) y temperatura
-        en el tiempo 1 (conductividad inicial del dializado).
+        Almacena las lecturas de conductividad (entrada, salida) y temperaturas específicas
+        para EF (entrada) y SF (salida) en el tiempo 1.
+        
+        Args:
+            cd_in: Conductividad EF (entrada del filtro) en mS/cm
+            cd_out: Conductividad SF (salida del filtro) en mS/cm
+            temp_ef: Temperatura EF (entrada) en °C
+            temp_sf: Temperatura SF (salida) en °C
         """
         self._cd_in_t1 = cd_in
         self._cd_out_t1 = cd_out
-        self._temp_t1 = temp
-        logger.debug(f"[KTV_CALC] T1 almacenado: CdIn={cd_in:.2f}, CdOut={cd_out:.2f}, Temp={temp:.2f}")
+        self._temp_ef_t1 = temp_ef
+        self._temp_sf_t1 = temp_sf
+        logger.debug(f"[KTV_CALC] T1 almacenado: CdEF={cd_in:.2f}, CdSF={cd_out:.2f}, TempEF={temp_ef:.2f}, TempSF={temp_sf:.2f}")
 
-    def store_conductivity_t2(self, cd_in: float, cd_out: float, temp: float):
+    def store_conductivity_t2(self, cd_in: float, cd_out: float, temp_ef: float, temp_sf: float):
         """
-        Almacena las lecturas de conductividad (entrada, salida) y temperatura
-        en el tiempo 2 (conductividad del dializado después del 'paso' de cambio).
+        Almacena las lecturas de conductividad (entrada, salida) y temperaturas específicas
+        para EF (entrada) y SF (salida) en el tiempo 2.
+        
+        Args:
+            cd_in: Conductividad EF (entrada del filtro) en mS/cm
+            cd_out: Conductividad SF (salida del filtro) en mS/cm
+            temp_ef: Temperatura EF (entrada) en °C
+            temp_sf: Temperatura SF (salida) en °C
         """
         self._cd_in_t2 = cd_in
         self._cd_out_t2 = cd_out
-        self._temp_t2 = temp
-        logger.debug(f"[KTV_CALC] T2 almacenado: CdIn={cd_in:.2f}, CdOut={cd_out:.2f}, Temp={temp:.2f}")
+        self._temp_ef_t2 = temp_ef
+        self._temp_sf_t2 = temp_sf
+        logger.debug(f"[KTV_CALC] T2 almacenado: CdEF={cd_in:.2f}, CdSF={cd_out:.2f}, TempEF={temp_ef:.2f}, TempSF={temp_sf:.2f}")
+
+    def calculate_d_ionic(self, qd: float, qf: float, qb: float, r: float = 0.0) -> float:
+        """
+        Calcula D (dialisancia iónica efectiva) utilizando el método de dos puntos
+        de conductividad con compensación individual de temperatura.
+        
+        Solo devuelve D; no multiplica por tiempo. La acumulación ocurre en update_kt().
+        
+        Args:
+            qd: Flujo de dializado en mL/min
+            qf: Flujo de filtración en L/h (será convertido a mL/min)
+            qb: Flujo de sangre en mL/min
+            r: Factor de recirculación (0.0 a 1.0)
+        
+        Returns:
+            D en mL/min, o 0.0 si no es posible calcular
+        """
+        # Validaciones iniciales
+        if self.volumen_distribucion_v <= 0:
+            logger.error("[KTV_CALC] Error: Volumen de distribución (V) no válido. D = 0.0")
+            return 0.0
+
+        cd_ef_t1 = self._cd_in_t1
+        cd_sf_t1 = self._cd_out_t1
+        cd_ef_t2 = self._cd_in_t2
+        cd_sf_t2 = self._cd_out_t2
+
+        # Compensar cada lectura a 25°C individualmente
+        alpha = 0.021
+        cd_ef_t1_25 = cd_ef_t1 / (1 + alpha * (self._temp_ef_t1 - 25))
+        cd_sf_t1_25 = cd_sf_t1 / (1 + alpha * (self._temp_sf_t1 - 25))
+        cd_ef_t2_25 = cd_ef_t2 / (1 + alpha * (self._temp_ef_t2 - 25))
+        cd_sf_t2_25 = cd_sf_t2 / (1 + alpha * (self._temp_sf_t2 - 25))
+
+        # Deltas a 25°C
+        delta_ef = cd_ef_t2_25 - cd_ef_t1_25
+        delta_sf = cd_sf_t2_25 - cd_sf_t1_25
+
+        # Protección: si abs(delta_ef) < 0.05 mS/cm, no calculamos D
+        if abs(delta_ef) < 0.05:
+            logger.warning(f"[KTV_CALC] abs(delta_EF) = {abs(delta_ef):.4f} < 0.05 mS/cm. D = 0.0")
+            return 0.0
+
+        # Convertir Qf de L/h a mL/min (solo una vez)
+        qf_ml_min = (qf * 1000) / 60
+
+        # Calcular D usando la fórmula iónica
+        d_raw = (qd + qf_ml_min) * (1 - delta_sf / delta_ef)
+
+        # Limitar 0 <= D <= Qd + Qf (sin margen extra)
+        d = max(0.0, min(d_raw, qd + qf_ml_min))
+
+        # Corrección por recirculación (D efectiva no debe superar D)
+        d_efectiva = d
+        if qb > 50 and d > 0 and r > 0.0:
+            denom = 1 - r * (1 - d / qb)
+            if abs(denom) > 0.001:
+                d_efectiva = d * ((1 - r) / denom)
+            else:
+                logger.warning("[KTV_CALC] Denominador de recirculación cercano a cero.")
+        
+        d_efectiva = min(d_efectiva, d)
+
+        logger.debug(
+            f"[KTV_CALC] D_ionic: delta_EF={delta_ef:.4f}, delta_SF={delta_sf:.4f}, "
+            f"D_raw={d_raw:.1f}, D_limited={d:.1f}, D_efectiva={d_efectiva:.1f}"
+        )
+
+        return d_efectiva
+
+    def update_kt(self, current_time_minutes: float, qd: float, qf: float, qb: float, r: float = 0.0) -> None:
+        """
+        Actualiza Kt acumulado en base a D y el tiempo transcurrido desde la última medición.
+        
+        - Primera D válida: dt = 0 (no cubre tiempo ya transcurrido)
+        - Mediciones siguientes: dt = tiempo real desde última medición, en minutos
+        - Kt = Kt + D * dt
+        
+        Args:
+            current_time_minutes: Tiempo total transcurrido de terapia en minutos
+            qd, qf, qb, r: Parámetros para calculate_d_ionic()
+        """
+        d_actual = self.calculate_d_ionic(qd, qf, qb, r)
+        self.d_actual = d_actual
+        
+        if d_actual <= 0:
+            logger.debug("[KTV_CALC] D_actual <= 0. No se actualiza Kt.")
+            return
+
+        # Primera medición: dt = 0
+        if self.tiempo_ultima_medicion is None:
+            dt = 0.0
+            logger.debug("[KTV_CALC] Primera D válida: dt=0, Kt permanece en 0")
+        else:
+            dt = max(0.0, current_time_minutes - self.tiempo_ultima_medicion)
+            self.kt_acumulado += d_actual * dt
+            logger.debug(
+                f"[KTV_CALC] Actualización Kt: dt={dt:.2f} min, D={d_actual:.1f} mL/min, "
+                f"Kt_acumulado={self.kt_acumulado:.1f}"
+            )
+
+        self.tiempo_ultima_medicion = current_time_minutes
+
+    def get_ktv_delivered(self, current_time_minutes: float, qd: float, qf: float, qb: float, r: float = 0.0) -> float:
+        """
+        Devuelve Kt/V acumulado real hasta current_time_minutes.
+        
+        Si aún no se ha alcanzado current_time_minutes desde la última medición,
+        suma el último tramo (D * dt_restante) al Kt acumulado.
+        
+        Returns: Kt/V entregado = Kt / V
+        """
+        if self.volumen_distribucion_v <= 0:
+            return 0.0
+
+        kt_total = self.kt_acumulado
+        
+        # Si hay una última medición y el tiempo actual es posterior, sumar tramo final
+        if self.tiempo_ultima_medicion is not None and current_time_minutes > self.tiempo_ultima_medicion:
+            dt_final = current_time_minutes - self.tiempo_ultima_medicion
+            kt_total += self.d_actual * dt_final
+            logger.debug(
+                f"[KTV_CALC] Kt/V entregado: dt_final={dt_final:.2f} min, "
+                f"Kt_total={kt_total:.1f}, Kt/V={kt_total / self.volumen_distribucion_v:.3f}"
+            )
+        
+        return kt_total / self.volumen_distribucion_v
+
+    def get_ktv_projected(self, current_time_minutes: float, t_total_minutes: float, 
+                         qd: float, qf: float, qb: float, r: float = 0.0) -> float:
+        """
+        Devuelve Kt/V proyectado al final de la sesión.
+        
+        Proyectado = (Kt + D_actual * t_restante) / V
+        donde t_restante = max(0, t_total - t_actual)
+        
+        Returns: Kt/V proyectado
+        """
+        if self.volumen_distribucion_v <= 0:
+            return 0.0
+
+        t_restante = max(0.0, t_total_minutes - current_time_minutes)
+        kt_proyectado = self.kt_acumulado + (self.d_actual * t_restante)
+        
+        logger.debug(
+            f"[KTV_CALC] Kt/V proyectado: t_restante={t_restante:.2f} min, "
+            f"D_actual={self.d_actual:.1f}, Kt_proyectado={kt_proyectado:.1f}, "
+            f"Kt/V={kt_proyectado / self.volumen_distribucion_v:.3f}"
+        )
+        
+        return kt_proyectado / self.volumen_distribucion_v
 
     def calculate_ktv_ionic(
         self, 
@@ -93,75 +265,8 @@ class CalculadoraKtV:
         r: float = 0.0
     ) -> float:
         """
-        Calcula el Kt/V iónico utilizando el método de dos puntos de conductividad.
-        Versión mejorada con límites realistas y mayor robustez.
+        DEPRECATED: Use update_kt(), get_ktv_delivered(), get_ktv_projected() instead.
+        
+        Kept for backward compatibility. Computes D only; does not accumulate.
         """
-        if self.volumen_distribucion_v <= 0:
-            logger.error("[KTV_CALC] Error: Volumen de distribución (V) no válido. Kt/V = 0.0")
-            return 0.0
-
-        # Usar valores almacenados
-        cd_in_1 = self._cd_in_t1
-        cd_in_2 = self._cd_in_t2
-        cd_out_1 = self._cd_out_t1
-        cd_out_2 = self._cd_out_t2
-
-        # Validación importante: ¿Tenemos los dos puntos?
-        if abs(cd_in_2 - cd_in_1) < 0.1:
-            logger.warning("[KTV_CALC] Delta de conductividad de entrada demasiado pequeño. "
-                          f"Delta Cd_in = {cd_in_2 - cd_in_1:.3f}")
-            return 0.0
-
-        # Temperatura: usamos promedio si ambos puntos tienen temperatura
-        if self._temp_t1 > 0 and self._temp_t2 > 0:
-            temp = (self._temp_t1 + self._temp_t2) / 2
-        else:
-            temp = self._temp_t2 if self._temp_t2 > 0 else 37.0
-
-        # Delta de conductividad
-        delta_cd_in = cd_in_2 - cd_in_1
-        delta_cd_out = cd_out_2 - cd_out_1
-
-        # Corrección por temperatura (alpha ≈ 2.1% por °C)
-        alpha = 0.021
-        delta_cd_in_cor = delta_cd_in * (1 + alpha * (temp - 25))
-        delta_cd_out_cor = delta_cd_out * (1 + alpha * (temp - 25))
-
-        # Cálculo de la dialisancia iónica básica
-        if abs(delta_cd_in_cor) < 0.05:   # Protección extra contra división por cero o ruido
-            logger.warning("[KTV_CALC] Delta Cd_in corregido muy pequeño. No se puede calcular D.")
-            return 0.0
-        
-        qf = (qf * 1000) / 60
-        d = (qd + qf) * (1 - (delta_cd_out_cor / delta_cd_in_cor))
-
-        # ==================== LÍMITE SUPERIOR REALISTA ====================
-        d_max = qd + qf + 40.0          # Margen físico razonable (difusión + convección)
-    
-        # Limitamos la dialisancia
-        d = max(0.0, min(d, d_max))
-
-        # ==================== CORRECCIÓN POR RECIRCULACIÓN ====================
-        d_efectiva = d
-        
-        if qb > 50 and d > 0 and r > 0.0:        # Solo aplicar si hay recirculación significativa
-            denom = 1 - r * (1 - d / qb)
-            if abs(denom) > 0.001:               # Evitar división por cero
-                d_efectiva = d * ((1 - r) / denom)
-            else:
-                logger.warning("[KTV_CALC] Denominador de recirculación cercano a cero.")
-
-        # Evitamos que la recirculación haga que D_efectiva sea mayor que D
-        d_efectiva = min(d_efectiva, d)
-
-        # ==================== CÁLCULO FINAL Kt/V ====================
-        ktv = (d_efectiva * t_min) / self.volumen_distribucion_v
-
-        # Logging útil para debugging
-        logger.info(f"[KTV_CALC] D={d:.1f} mL/min | D_efectiva={d_efectiva:.1f} mL/min | "
-                    f"QF={qf:.1f} | Temp={temp:.1f}°C | Kt/V={ktv:.3f}")
-        
-        print(f"[KTV_CALC] D={d:.1f} mL/min | D_efectiva={d_efectiva:.1f} mL/min | "
-              f"QF={qf:.1f} | Temp={temp:.1f}°C | Kt/V={ktv:.3f}")
-
-        return max(0.0, round(ktv, 2))
+        return self.calculate_d_ionic(qd, qf, qb, r)

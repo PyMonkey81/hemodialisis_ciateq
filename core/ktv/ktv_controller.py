@@ -424,9 +424,10 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         current_values = self._current_values_accessor()
         cd_in_t1 = current_values.get("dialyConductIFProcessData", 0.0)
         cd_out_t1 = current_values.get("dialyConductOFProcessData", 0.0)
-        temp_t1 = current_values.get("dialyTempIFProcessData", 25.0)
-        self.calculadora_ktv.store_conductivity_t1(cd_in_t1, cd_out_t1, temp_t1)
-        logger.info(f"[KtvController] T1 capturado: CdIn={cd_in_t1}, CdOut={cd_out_t1}, Temp={temp_t1}")
+        temp_ef_t1 = current_values.get("dialyTempIFProcessData", 25.0)
+        temp_sf_t1 = current_values.get("dialyTempIOFProcessData", 25.0)
+        self.calculadora_ktv.store_conductivity_t1(cd_in_t1, cd_out_t1, temp_ef_t1, temp_sf_t1)
+        logger.info(f"[KtvController] T1 capturado: CdEF={cd_in_t1:.2f}, CdSF={cd_out_t1:.2f}, TempEF={temp_ef_t1:.2f}, TempSF={temp_sf_t1:.2f}")
 
         # Guardar el setpoint original de conductividad antes de modificarlo
         self._original_conductivity_setpoint = current_values.get("dialyCondControlSetPoint", 13.5)
@@ -450,13 +451,14 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
 
 
     def _perform_capture_t2(self) -> None:
-        """Callback: Captura conductividades T2."""
+        """Callback: Captura conductividades T2 con temperaturas individuales de cada sensor."""
         current_values = self._current_values_accessor()
         cd_in_t2 = current_values.get("dialyConductIFProcessData", 0.0)
         cd_out_t2 = current_values.get("dialyConductOFProcessData", 0.0)
-        temp_t2 = current_values.get("dialyTempIFProcessData", 25.0)
-        self.calculadora_ktv.store_conductivity_t2(cd_in_t2, cd_out_t2, temp_t2)
-        logger.info(f"[KtvController] T2 capturado: CdIn={cd_in_t2}, CdOut={cd_out_t2}, Temp={temp_t2}")
+        temp_ef_t2 = current_values.get("dialyTempIFProcessData", 25.0)
+        temp_sf_t2 = current_values.get("dialyTempIOFProcessData", 25.0)
+        self.calculadora_ktv.store_conductivity_t2(cd_in_t2, cd_out_t2, temp_ef_t2, temp_sf_t2)
+        logger.info(f"[KtvController] T2 capturado: CdEF={cd_in_t2:.2f}, CdSF={cd_out_t2:.2f}, TempEF={temp_ef_t2:.2f}, TempSF={temp_sf_t2:.2f}")
 
     def _perform_restore_conductivity(self) -> None:
         """Callback: Restaura el setpoint de conductividad original."""
@@ -472,12 +474,13 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             self.grafcet.abort("Error interno: Callback de escritura no disponible.")
 
     def _perform_calculate_ktv(self) -> None:
-        """Callback: Realiza el cálculo final de Kt/V."""
+        """Callback: Realiza el cálculo final de Kt/V con acumulación incremental."""
         current_values = self._current_values_accessor()
         
-        qd = current_values.get("balanceChamberSetTiming", 500) # ml/min
-        qf = current_values.get("ultraFilterPumpSpeed", 10) # L/h
-        qb = current_values.get("bloodFlowVariableData", 300) # ml/min
+        qd = current_values.get("balanceChamberSetTiming", 500)  # ml/min
+        qf = current_values.get("ultraFilterPumpSpeed", 10)  # L/h
+        qb = current_values.get("bloodFlowVariableData", 300)  # ml/min
+        r = current_values.get("recirculation_rate", 0.0)  # Factor de recirculación
 
         z_resistencia = current_values.get("bioz_resistance", 0.0)
         
@@ -485,7 +488,7 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
             "patient_pre_weight_kg": current_values.get("patient_pre_weight_kg", 70),
             "patient_height_cm": current_values.get("patient_height_cm", 170),
             "patient_age": current_values.get("patient_age", 40),
-            "patient_gender": current_values.get("patient_gender", 1), # 1=Masculino, 2=Femenino
+            "patient_gender": current_values.get("patient_gender", 1),  # 1=Masculino, 2=Femenino
         }
 
         peso = patient_data["patient_pre_weight_kg"]
@@ -493,50 +496,61 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         edad = patient_data["patient_age"]
         genero = patient_data["patient_gender"]
 
-        genero_heitmann = 0 if genero == 2 else 1 # 1 = Hombre, 0 = Mujer para Heitmann
+        genero_heitmann = 0 if genero == 2 else 1  # 1 = Hombre, 0 = Mujer para Heitmann
         v_bis_litros = heitmann(z_resistencia, altura, peso, genero_heitmann, edad) 
         
-        # Almacenar el volumen Heitmann calculado en el diccionario global para la UI
-        # Esto es importante para que la KTVScreen tenga acceso a estos valores
         current_values["heitmann_value"] = v_bis_litros 
         
         if v_bis_litros and v_bis_litros > 0:
             self.calculadora_ktv.set_volumen_bioimpedancia(v_bis_litros)
         else:
-            self.calculadora_ktv.config_paciente(peso, altura, edad, genero) # Fallback a Watson
+            self.calculadora_ktv.config_paciente(peso, altura, edad, genero)
 
-        # tiempo total programado y tiempo transcurrido para cálculos
+        # Tiempos: total programado y transcurrido
         t_programmed_min = (current_values.get("heparineTherapyHours", 0) * 60 + 
                             current_values.get("heparineTherapyMinutes", 0))
         t_elapsed_min = self._get_elapsed_therapy_minutes()
 
-        ktv_projected = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_programmed_min)
-        ktv_accumulated = self.calculadora_ktv.calculate_ktv_ionic(qd, qf, qb, t_elapsed_min)
+        # Actualizar Kt acumulado en base a la nueva medición D
+        self.calculadora_ktv.update_kt(t_elapsed_min, qd, qf, qb, r)
 
-        # Emitir y persistir el evento para que KTVScreen pueda consumirlo
-        # aunque el cálculo automático ocurra fuera de la pantalla activa.
+        # Obtener Kt/V entregado y proyectado
+        ktv_delivered = self.calculadora_ktv.get_ktv_delivered(t_elapsed_min, qd, qf, qb, r)
+        ktv_projected = self.calculadora_ktv.get_ktv_projected(t_elapsed_min, t_programmed_min, qd, qf, qb, r)
+
+        # Obtener D actual para logging
+        d_actual = self.calculadora_ktv.d_actual
+        kt_acumulado = self.calculadora_ktv.kt_acumulado
+
         results_dict = {
-            "ktv_acumulado": ktv_accumulated,
+            "ktv_acumulado": ktv_delivered,
             "ktv_projectado": ktv_projected,
             "heitmann_value": v_bis_litros,
             "bioz_resistance": z_resistencia,
-            "type": "Automatic" if self.grafcet.is_auto_trigger else "Manual", # Pasar si fue automático o manual
-            "therapy_minutes": t_elapsed_min, # Incluir los minutos de terapia para la gráfica
+            "d_ionic": d_actual,
+            "kt_total": kt_acumulado,
+            "type": "Automatic" if self.grafcet.is_auto_trigger else "Manual",
+            "therapy_minutes": t_elapsed_min,
             "calculation_event": True,
             "event_id": f"{QDateTime.currentMSecsSinceEpoch()}_{'A' if self.grafcet.is_auto_trigger else 'M'}",
         }
 
-        # Actualizar los valores en el diccionario global para la UI
+        # Actualizar diccionario global para UI
         current_values["ktv_projectado"] = ktv_projected
-        current_values["ktv_acumulado"] = ktv_accumulated
+        current_values["ktv_acumulado"] = ktv_delivered
         current_values["heitmann_value"] = v_bis_litros
         current_values["bioz_resistance"] = z_resistencia
+        current_values["d_ionic"] = d_actual
+        current_values["kt_total"] = kt_acumulado
         current_values["type"] = results_dict["type"]
         current_values["therapy_minutes"] = t_elapsed_min
         current_values["calculation_event"] = True
         current_values["event_id"] = results_dict["event_id"]
 
-        logger.info(f"[KtvController] Cálculo final: Proyectado={ktv_projected:.2f} | Acumulado={ktv_accumulated:.2f}")
+        logger.info(
+            f"[KtvController] Cálculo Kt/V: D={d_actual:.1f} mL/min | "
+            f"Kt={kt_acumulado:.1f} | Entregado={ktv_delivered:.3f} | Proyectado={ktv_projected:.3f}"
+        )
 
         self.ktv_calculated.emit(results_dict)
 
