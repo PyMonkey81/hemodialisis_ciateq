@@ -279,6 +279,11 @@ class HemodialysisHMI(QMainWindow):
         # Atributos críticos inicializados temprano para evitar fallos durante arranque parcial.
         self.current_values = {}
         self.bioz_urea_controller = None
+        
+        # Diccionario para ignorar lecturas de ciertos tags hasta un tiempo especificado (evita
+        # que la lectura vieja del firmware pise valores recién enviados).
+        # Formato: {tag: expiration_time_in_seconds_since_epoch}
+        self.ignore_tags_until = {}
 
         self.parameter_mapping = {  
             "dialyLinePresProcessData": "PT-3",
@@ -1146,6 +1151,8 @@ class HemodialysisHMI(QMainWindow):
         - Lo recorta al máximo
         - Persiste heparineAutoStopHours, heparineAutoStopMinutes
         - Recalcula y persiste heparineTherapyDosage
+        - Envía los valores al firmware via _write_setpoint (paso 2)
+        - Marca los tags para ignorar lecturas durante 3s (paso 3)
         - Actualiza la pantalla de heparina (si existe)
         - Muestra un aviso
         
@@ -1185,18 +1192,15 @@ class HemodialysisHMI(QMainWindow):
                     f"excede máximo {clamped_h:02d}:{clamped_m:02d}. Acotando."
                 )
                 
-                # 1. Escribe heparineAutoStopHours=0 y heparineAutoStopMinutes=30 
-                # en current_values del padre y en current_values de HeparinConfigScreen
+                # Paso 1: Escribe heparineAutoStopHours y heparineAutoStopMinutes en current_values
                 self.current_values["heparineAutoStopHours"] = float(clamped_h)
                 self.current_values["heparineAutoStopMinutes"] = float(clamped_m)
                 
-                # Persistir en la base de datos/controlador
+                # Persistir en la base de datos/configuración local
                 self._persist_therapy_config_tag("heparineAutoStopHours", float(clamped_h))
                 self._persist_therapy_config_tag("heparineAutoStopMinutes", float(clamped_m))
                 
-                # 2. Llama input_heparin_auto_stop.setText("00:30")
-                # 3. Recalcula heparineTherapyDosage con 0.5 h por el flujo y escríbelo 
-                # en los dos diccionarios y en el controlador
+                # Recalcular dosis con el tiempo recortado
                 time_hours = clamped_h + (clamped_m / 60.0)
                 flow_ml_per_h = self._get_heparin_flow_ml_per_h()
                 dosage_ml = round(time_hours * flow_ml_per_h, 2)
@@ -1207,17 +1211,29 @@ class HemodialysisHMI(QMainWindow):
                 # Actualizar pantalla de heparina si existe
                 if (hasattr(self, 'heparin_config_screen') and 
                     self.heparin_config_screen is not None):
-                    # Actualizar el widget de texto
                     self.heparin_config_screen.input_heparin_auto_stop.setText(
                         f"{clamped_h:02d}:{clamped_m:02d}"
                     )
-                    # Actualizar current_values de la pantalla (IMPORTANTE: antes de setText)
                     self.heparin_config_screen.current_values["heparineAutoStopHours"] = float(clamped_h)
                     self.heparin_config_screen.current_values["heparineAutoStopMinutes"] = float(clamped_m)
                     self.heparin_config_screen.current_values["heparineTherapyDosage"] = dosage_ml
                 
-                # 4. Registra en el log las tres cosas: tags del padre, tags de la pantalla 
-                # y el texto del widget. Si no coinciden, el bug sigue.
+                # Paso 2: Enviar los valores recortados al firmware mediante _write_setpoint
+                # (mismo camino que usa el numpad de Tiempo Heparina)
+                logger.info("[HEPARIN-VALIDATION] Enviando valores recortados al firmware...")
+                self._write_setpoint("heparineAutoStopHours", float(clamped_h))
+                self._write_setpoint("heparineAutoStopMinutes", float(clamped_m))
+                self._write_setpoint("heparineTherapyDosage", dosage_ml)
+                
+                # Paso 3: Marcar estos tags para ignorar lecturas durante 3 segundos
+                # (evita que la lectura vieja del firmware pise el nuevo valor)
+                ignore_until = time.time() + 3.0
+                self.ignore_tags_until["heparineAutoStopHours"] = ignore_until
+                self.ignore_tags_until["heparineAutoStopMinutes"] = ignore_until
+                self.ignore_tags_until["heparineTherapyDosage"] = ignore_until
+                logger.info(f"[HEPARIN-VALIDATION] Bloqueando lecturas de heparina durante 3s")
+                
+                # Log de verificación
                 padre_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
                 padre_m = int(self.current_values.get("heparineAutoStopMinutes", 0) or 0)
                 padre_dosage = float(self.current_values.get("heparineTherapyDosage", 0.0) or 0.0)
@@ -1235,7 +1251,6 @@ class HemodialysisHMI(QMainWindow):
                         "heparineTherapyDosage", 0.0) or 0.0)
                     widget_text = self.heparin_config_screen.input_heparin_auto_stop.text()
                 
-                # Verificar consistencia
                 sync_ok = (
                     padre_h == clamped_h and
                     padre_m == clamped_m and
@@ -1257,7 +1272,7 @@ class HemodialysisHMI(QMainWindow):
                         f"Esperado: {clamped_h:02d}:{clamped_m:02d} dosage={dosage_ml:.2f}ml"
                     )
                 
-                # 5. Mostrar aviso
+                # Mostrar aviso
                 msg = (
                     f"Tiempo de heparina limitado a {clamped_h:02d}:{clamped_m:02d}. "
                     "No se infunde durante los últimos 30 minutos de la terapia."
@@ -2475,6 +2490,15 @@ class HemodialysisHMI(QMainWindow):
         if tag in LOCAL_SETPOINT_TAGS:
             logger.debug("Ignorando actualización externa de setpoint local: %s=%s", tag, value)
             return
+
+        # Verificar si este tag debe ser ignorado hasta cierto tiempo (para evitar que la
+        # lectura vieja del firmware pise valores recién enviados)
+        if tag in self.ignore_tags_until:
+            if time.time() < self.ignore_tags_until[tag]:
+                logger.debug(f"[HEPARIN-SYNC] Ignorando lectura de {tag}={value} (bloqueado hasta reconf. firmware)")
+                return
+            else:
+                del self.ignore_tags_until[tag]
 
         # 1. Pre-procesamiento y conversión de unidades ANTES de guardar o enviar a alarmas
         if tag == "dialyCondControlOutput":

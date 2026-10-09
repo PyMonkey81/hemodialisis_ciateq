@@ -7,15 +7,15 @@ Pantalla de historial de mediciones de presión arterial (NIBP) para una sesión
 """
 
 import logging
-from timeit import main
-from typing import Optional, List
+from os import name
+from typing import Optional
 from PySide6.QtWidgets import (
-    QGridLayout, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QSplitter, QSizePolicy
+    QGridLayout, QWidget, QHBoxLayout, QLabel, QPushButton,
+    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
-from numpy.f2py import main
+
 import pyqtgraph as pg
 import numpy as np
 
@@ -48,12 +48,12 @@ class NibpHistoryScreen(QWidget):
     def setup_ui(self):
         """Construye la interfaz: encabezado, gráfica, tabla, botón."""
         main = QGridLayout(self)
-        main.setContentsMargins(10, 10, 10, 10)
+        
+        # Márgenes DPI-aware
+        dpi = self.logicalDpiX() / 96.0
+        margen = int(16 * max(dpi, 1.0))
+        main.setContentsMargins(margen, margen, margen, margen)
         main.setSpacing(10)
-
-        # main_layout = QVBoxLayout(self)
-        # main_layout.setContentsMargins(10, 10, 10, 10)
-        # main_layout.setSpacing(10)
         
         # ─── ENCABEZADO ───────────────────────────────────────────────
         header_layout = QHBoxLayout()
@@ -77,34 +77,49 @@ class NibpHistoryScreen(QWidget):
         btn_close.clicked.connect(self.on_close_clicked)
         header_layout.addWidget(btn_close)
         
-        main.addLayout(header_layout,0, 0, 1, 2)
+        main.addLayout(header_layout, 0, 0, 1, 4)
         
-        # ─── ÁREA DE CONTENIDO: GRÁFICA (izq) + TABLA (abajo) ────────
-        # Gráfica en la columna izquierda, ocupa mitad del ancho útil, mín 320px alto
+        # ─── GRÁFICA ───────────────────────────────────────────────────
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground("#ffffff")
         self.plot_widget.hideButtons()
-        # self.plot_widget.setMinimumHeight(250)
         self.plot_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        plot_item = self.plot_widget.plotItem
-        self.plot_item = plot_item 
-        plot_item.setLabel("left", "mmHg", color="#0f172a")
-        plot_item.setLabel("bottom", "Minutos de Terapia", color="#0f172a")
-        plot_item.showGrid(x=True, y=True, alpha=0.25)
-        plot_item.showAxis("right")
-        plot_item.getAxis("right").setLabel("lpm", color="#15803d")
-        for name in ("left", "bottom", "right"):
-            axis = plot_item.getAxis(name)
-            axis.enableAutoSIPrefix(False)
-            axis.setPen(pg.mkPen("#0f172a"))
-            axis.setTextPen(pg.mkPen("#0f172a"))
+        self.plot_item = self.plot_widget.plotItem
+        self.plot_item.setLabel("left", "mmHg", color="#0f172a")
+        self.plot_item.setLabel("bottom", "", color="#0f172a")
+        self.plot_item.showGrid(x=True, y=True, alpha=0.25)
+        
+        # Configurar eje izquierdo
+        left_axis = self.plot_item.getAxis("left")
+        left_axis.enableAutoSIPrefix(False)
+        left_axis.setPen(pg.mkPen("#0f172a"))
+        left_axis.setTextPen(pg.mkPen("#0f172a"))
+        left_axis.setStyle(tickTextOffset=7)
+        left_axis.setWidth(110)
 
-        plot_item.vb.setBackgroundColor("#ffffff")
-        plot_item.vb.enableAutoRange(False)
-        plot_item.vb.setYRange(40, 200, padding=0)
-        plot_item.vb.setXRange(0, max(self.programmed_therapy_minutes, 1), padding=0)
+     
+        # Configurar eje inferior
+        bottom_axis = self.plot_item.getAxis("bottom")
+        bottom_axis.enableAutoSIPrefix(False)
+        bottom_axis.setPen(pg.mkPen("#0f172a"))
+        bottom_axis.setTextPen(pg.mkPen("#0f172a"))
+        bottom_axis.setStyle(tickTextOffset=6)
+        
+        self.plot_item.hideAxis("top")
+        self.plot_item.hideAxis("right")
+        self.plot_item.vb.setBorder(pg.mkPen("#0f172a", width=1))
 
+
+
+        # ViewBox con rangos fijos
+        self.plot_item.vb.setBackgroundColor("#ffffff")
+        self.plot_item.vb.enableAutoRange(False)
+        self.plot_item.vb.setYRange(40, 200, padding=0)
+        self.plot_item.vb.setXRange(0, max(self.programmed_therapy_minutes, 1), padding=0)
+        
+
+        # Crear las tres curvas
         self.curve_sys = self.plot_widget.plot(
             [], [], pen=pg.mkPen("#dc2626", width=2),
             symbol="o", symbolSize=7, symbolBrush="#dc2626", name="Sistólica",
@@ -113,42 +128,30 @@ class NibpHistoryScreen(QWidget):
             [], [], pen=pg.mkPen("#2563eb", width=2),
             symbol="o", symbolSize=7, symbolBrush="#2563eb", name="Diastólica",
         )
-
-        self.vb_hr = pg.ViewBox()
-        self.vb_hr.setBackgroundColor((0, 0, 0, 0))  # transparente: esto quita el negro
-        self.vb_hr.enableAutoRange(False)
-        self.vb_hr.setYRange(40, 160, padding=0)
-        plot_item.scene().addItem(self.vb_hr)
-        plot_item.getAxis("right").linkToView(self.vb_hr)
-        self.vb_hr.setXLink(plot_item)
-
-        self.curve_hr = pg.PlotDataItem(
+        self.curve_hr = self.plot_widget.plot(
             [], [], pen=pg.mkPen("#15803d", width=2),
-            symbol="o", symbolSize=7, symbolBrush="#15803d",
+            symbol="o", symbolSize=7, symbolBrush="#15803d", name="FC (lpm)",
         )
-        self.vb_hr.addItem(self.curve_hr)
 
-        legend = plot_item.addLegend(offset=(10, 10))
+        # Leyenda flotante dentro de la cuadrícula
+        legend = pg.LegendItem(offset=(8, 8))
+        legend.setParentItem(self.plot_item.vb)
         legend.addItem(self.curve_sys, "Sistólica")
         legend.addItem(self.curve_dia, "Diastólica")
-        legend.addItem(self.curve_hr, "FC")
+        legend.addItem(self.curve_hr, "FC (lpm)")
+        legend.setBrush(pg.mkBrush(255, 255, 255, 230))
+        legend.setPen(pg.mkPen("#cbd5e1"))
 
-        def update_views():
-            self.vb_hr.setGeometry(plot_item.vb.sceneBoundingRect())
-
-        update_views()
-        plot_item.vb.sigResized.connect(update_views)
-
-        plot_layout = QHBoxLayout()
-        plot_layout.setContentsMargins(0, 0, 0, 0)
-        plot_layout.addWidget(self.plot_widget, 1)
-        # plot_layout.addStretch(1)
-
-        plot_container = QFrame()
-        plot_container.setStyleSheet("background-color: #ffffff; border: none;")
-        plot_container.setLayout(plot_layout)
-
-        # main.addWidget(plot_container, 1, 0, 1, 2)
+        # Agregar plot a la fila 1, columnas 0-1
+        main.addWidget(self.plot_widget, 1, 0, 1, 2)
+        
+        # ─── LABEL DEL EJE X (separado) ───────────────────────────────
+        lbl_x_axis = QLabel("Minutos de Terapia")
+        lbl_x_axis.setStyleSheet("font-size: 13px; color: #0f172a; font-weight: normal;")
+        lbl_x_axis.setAlignment(Qt.AlignCenter)
+        
+        # Agregar label en fila 2, columnas 0-1 (solo bajo la gráfica)
+        main.addWidget(lbl_x_axis, 2, 0, 1, 2)
         
         # ─── TABLA ─────────────────────────────────────────────────────
         self.table = QTableWidget()
@@ -157,7 +160,7 @@ class NibpHistoryScreen(QWidget):
             "No.", "Tiempo", "SYS", "DIA", "MAP", "FC", "SpO2", "Origen"
         ])
         
-        # Estilos de la tabla: tema claro, sin barra negra en el encabezado
+        # Estilos de la tabla
         self.table.setStyleSheet("""
             QTableWidget {
                 background-color: #ffffff;
@@ -195,30 +198,35 @@ class NibpHistoryScreen(QWidget):
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
         header.setStretchLastSection(False)
         
-        # self.table.setMaximumHeight(280)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         
-        # main.addWidget(self.table, 2, 0, 2, 1)
+        # Agregar tabla en fila 3, 4 columnas
+        main.addWidget(self.table, 3, 0, 1, 4)
         
-        # ─── PIE DE PÁGINA ────────────────────────────────────────────
+        # ─── PIE DE PÁGINA ─────────────────────────────────────────────
         footer_layout = QHBoxLayout()
         self.lbl_count = QLabel("Total: 0 mediciones")
         self.lbl_count.setStyleSheet("font-size: 14px; color: #0f172a;")
         footer_layout.addWidget(self.lbl_count)
         footer_layout.addStretch()
-
-        self.plot_widget.setMinimumHeight(330)
-        self.plot_widget.setMaximumHeight(350)
         
-        main.addWidget(plot_container, 1, 0, 1, 2)
-        main.addWidget(self.table, 2, 0, 1, 2)
-        main.addLayout(footer_layout, 3, 0, 1, 2)
+        # Agregar pie en fila 4, 4 columnas
+        main.addLayout(footer_layout, 4, 0, 1, 4)
 
-        main.setRowStretch(0, 0)
-        main.setRowStretch(1, 0)
-        main.setRowStretch(2, 1)
-        main.setRowStretch(3, 0)
+        # ─── CONFIGURAR STRETCH FACTORS ────────────────────────────────
+        # Columnas: igual stretch para 0, 1, 2, 3
+        main.setColumnStretch(0, 1)
+        main.setColumnStretch(1, 1)
+        main.setColumnStretch(2, 1)
+        main.setColumnStretch(3, 1)
+        
+        # Filas: gráfica 3, tabla 2
+        main.setRowStretch(0, 0)  # Encabezado: auto
+        main.setRowStretch(1, 3)  # Gráfica: 3 partes
+        main.setRowStretch(2, 0)  # Label eje X: auto
+        main.setRowStretch(3, 2)  # Tabla: 2 partes
+        main.setRowStretch(4, 0)  # Footer: auto
         
         self.setLayout(main)
     
@@ -262,12 +270,10 @@ class NibpHistoryScreen(QWidget):
             self.curve_dia.clear()
             self.curve_hr.clear()
 
-            # Rangos fijos (se aplican siempre, con o sin datos)
+        # Rangos fijos (se aplican siempre, con o sin datos)
         self.plot_item.vb.enableAutoRange(False)
         self.plot_item.vb.setXRange(0, max(self.programmed_therapy_minutes, 1), padding=0)
         self.plot_item.vb.setYRange(40, 200, padding=0)
-        self.vb_hr.enableAutoRange(False)
-        self.vb_hr.setYRange(40, 160, padding=0)
 
         self.lbl_count.setText(f"Total: {len(measurements)} mediciones")
     
@@ -279,4 +285,3 @@ class NibpHistoryScreen(QWidget):
         """Vuelve a la pantalla del baumanómetro."""
         if self.parent_window and hasattr(self.parent_window, "show_nibp_screen"):
             self.parent_window.show_nibp_screen()
-

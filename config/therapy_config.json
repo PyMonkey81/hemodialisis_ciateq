@@ -3,7 +3,7 @@
   "local": {
     "heparineInfusionEnabled": 1.0,
     "heparineTherapyHours": 0.0,
-    "heparineTherapyMinutes": 30.0
+    "heparineTherapyMinutes": 2.0
   },
   "firmware": {
     "balanceChamberSetTiming": 0.0,
