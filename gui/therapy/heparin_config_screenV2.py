@@ -95,6 +95,11 @@ class HeparinConfigScreen(QWidget):
                 border: 2px solid #3b82f6;
                 background: #ffffff;
             }
+            ClickableLineEdit:disabled {
+                color: #94a3b8;
+                background-color: #f1f5f9;
+                border: 2px solid #cbd5e1;
+            }
         """
 
         combo_style = """
@@ -286,10 +291,11 @@ class HeparinConfigScreen(QWidget):
                 setattr(self, widget_name, w)
 
             elif widget_name == "syringe_combo":
-                w = QComboBox()
-                w.addItems(["10 ml", "20 ml", "30 ml", "50 ml"])
-                w.setStyleSheet(combo_style)
-                w.currentIndexChanged.connect(self._on_syringe_changed)
+                # Jeringa fija a 20 ml (no editable)
+                w = QLabel("20 ml")
+                w.setStyleSheet("font-size: 24px; color: #0f172a; background-color: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 5px; padding: 5px; min-width: 150px; text-align: center;")
+                w.setAlignment(Qt.AlignCenter)
+                w.setFixedSize(150, 52)
                 setattr(self, widget_name, w)
 
             h.addWidget(w)
@@ -321,31 +327,6 @@ class HeparinConfigScreen(QWidget):
             self.on_user_input_setpoint("heparineTherapyFlow", flujo_value)
             # Recalcular dosage cuando cambia el flujo
             self._recalculate_therapy_dosage()
-
-
-    def _on_syringe_changed(self, index):
-        self._selected_syringe_index = index
-        if hasattr(self, "syringe_combo") and self.syringe_combo is not None:
-            syringe_text = self.syringe_combo.currentText() # Ejemplo: "10 ml"
-            
-            try:
-                # Extraemos solo el número (limpiamos el " ml")
-                # split()[0] toma "10" de "10 ml", "20" de "20 ml" etc
-                syringe_value = float(syringe_text.split()[0])
-            except (ValueError, IndexError):
-                syringe_value = 0.0
-                logger.error(f"Error convirtiendo tamaño de jeringa: {syringe_text}")
-
-            self.current_values["heparineSyringeSize"] = syringe_value
-            
-            if self.parent_window and hasattr(self.parent_window, "current_values"):
-                self.parent_window.current_values["heparineSyringeSize"] = syringe_value
-            
-            # enviamos un float, no un string
-            self.on_user_input_setpoint("heparineSyringeSize", syringe_value)
-
-
-
 
 
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
@@ -392,6 +373,14 @@ class HeparinConfigScreen(QWidget):
     def open_time_numpad(self, input_widget: ClickableLineEdit,
                          tag_hours: str = None, tag_minutes: str = None,
                          title: str = "Config. Tiempo"):
+        # Bloquear si estamos en RUNNING o PAUSED
+        if self.parent_window and hasattr(self.parent_window, "state"):
+            phase = self.parent_window.state.current_phase
+            if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+                # Campo bloqueado: no abrir numpad
+                logger.info("Tiempo de heparina bloqueado en fase %s", phase)
+                return
+        
         dialog = TimeNumpadDialog(self, initial_hh_mm="", title=title)
 
         if dialog.exec():
@@ -433,10 +422,12 @@ class HeparinConfigScreen(QWidget):
         # Obtener tiempo restante si está disponible
         remaining_seconds = 0
         if (self.parent_window and hasattr(self.parent_window, "state") and 
-            hasattr(self.parent_window, "treatment_controller")):
+            hasattr(self.parent_window, "get_remaining_therapy_minutes")):
             phase = self.parent_window.state.current_phase
             if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
-                remaining_seconds = getattr(self.parent_window.treatment_controller, 'remaining', 0) or 0
+                # Usar get_remaining_therapy_minutes() basado en get_elapsed_seconds()
+                remaining_minutes = self.parent_window.get_remaining_therapy_minutes()
+                remaining_seconds = int(max(0, remaining_minutes * 60))
         else:
             phase = TreatmentPhase.PREPARING  # default
         
@@ -555,6 +546,11 @@ class HeparinConfigScreen(QWidget):
                 ClickableLineEdit:focus {
                     border: 2px solid #3b82f6;
                     background: #ffffff;
+                }
+                ClickableLineEdit:disabled {
+                    color: #94a3b8;
+                    background-color: #f1f5f9;
+                    border: 2px solid #cbd5e1;
                 }
             """
             combo_style = """
@@ -688,6 +684,11 @@ class HeparinConfigScreen(QWidget):
             # Solo actualiza si son diccionarios diferentes
             self.current_values.update(new_values)
         
+        # Asegurar que heparineSyringeSize siempre es 20.0
+        self.current_values["heparineSyringeSize"] = 20.0
+        if self.parent_window and hasattr(self.parent_window, "current_values"):
+            self.parent_window.current_values["heparineSyringeSize"] = 20.0
+        
         # Nota: heparineTherapyDosage ahora se calcula automáticamente, no se actualiza directamente
         self._update_input_display(self.input_bolus, "heparineBolusQuantity")
         auto_h = int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0) or 0)
@@ -701,27 +702,20 @@ class HeparinConfigScreen(QWidget):
             self.chk_heparin_enabled.blockSignals(False)
         self._update_heparin_dose_fields_enabled(heparin_enabled)
 
+        # Solo actualizar input_vol_hep, no syringe_combo (que ahora es una etiqueta)
         variables_to_update = {
-            "heparineSyringeSize": self.syringe_combo,
             "heparineSyringeVolume": self.input_vol_hep
         }
 
         for tag, widget in variables_to_update.items():
             if tag in self.current_values:
                 value = self.current_values[tag]
-                if isinstance(widget, QComboBox):
-                    # Para combobox, buscar el índice que coincide con el valor
-                    index = widget.findText(f"{value:.1f}")
-                    if index != -1:
-                        widget.setCurrentIndex(index)
-                elif isinstance(widget, ClickableLineEdit):
+                if isinstance(widget, ClickableLineEdit):
                     widget.setText(f"{value:.1f}")
 
     def _syringe_max_volume_ml(self) -> float:
-        try:
-            return float(self.syringe_combo.currentText().split()[0])
-        except (AttributeError, IndexError, ValueError):
-            return safe_float(self.current_values.get("heparineSyringeSize"), 0.0)
+        # Jeringa siempre fija a 20 ml
+        return 20.0
 
     def _validate_syringe_fill_volume(self, fill_volume: float) -> bool:
         if fill_volume < 0:
@@ -832,6 +826,12 @@ class HeparinConfigScreen(QWidget):
         self.input_bolus.setEnabled(enabled)
         if not bool(self.current_values.get("heparineInfusionEnabled", 1.0)):
             self._update_heparin_dose_fields_enabled(False)
+        
+        # En RUNNING o PAUSED, el campo de tiempo de heparina debe estar bloqueado
+        if phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            self.input_heparin_auto_stop.setEnabled(False)
+        elif phase not in (TreatmentPhase.CLEANING, TreatmentPhase.ERROR):
+            self.input_heparin_auto_stop.setEnabled(True)
 
     def showEvent(self, event):
         super().showEvent(event)

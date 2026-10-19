@@ -58,6 +58,11 @@ except ImportError:
     def calculo_ptm(a, b, c, d): return 0.0
 
 try:
+    from logic.uf_volume import litros_removidos
+except ImportError:
+    def litros_removidos(pulsos): return 0.0
+
+try:
     from core.variables_map import VARIABLES
 except ImportError:
     VARIABLES = {0x01: {}, 0x02: {}}
@@ -612,26 +617,27 @@ class DialysisScreen(QWidget):
         """Update all displayed values."""
         self.current_values = new_values
 
-         # 1. Obtener valores necesarios
-        uf_goal = float(self.current_values.get("uf_goal_liters", 0.0))
-        uf_removed = float(self.current_values.get("UF Total", 0.0))
-    
-        # 2. Obtener el tiempo restante (esto suele venir del state_manager o del timer)
-        # Supongamos que lo guardamos en una variable de clase al actualizar tiempos
-        time_text = self.remaining_time_display.label_value.text() # Lee "02:30"
-        hours_left = self._time_to_decimal_hours(time_text)
-    
-        # 3. Calcular la Tasa (UFR)
-        if hours_left > 0:
-            ufr_calculated = (uf_goal - uf_removed) / hours_left
-            # Asegurarse de que no sea negativa si ya se pasó de la meta
-            ufr_calculated = max(0.0, ufr_calculated)
-        else:
-            ufr_calculated = 0.0
+        # ===== CARD UF: Tasa, Objetivo, UF Removida =====
+        # Tasa: se toma directamente de ultraFilterPumpSpeed (L/h)
+        uf_rate = float(self.current_values.get("ultraFilterPumpSpeed", 0.0))
+        self.uf_rate_val.setText(f"{uf_rate:.2f}")
         
-        # 4. Mostrar el valor en el label
-        self.uf_rate_val.setText(f"{ufr_calculated:.2f}")
-
+        # Objetivo: tasa × duración programada (horas + minutos/60)
+        # Si hay perfil de UF activo, solo usar el producto cuando no hay perfil
+        uf_therapy_hours = float(self.current_values.get("heparineTherapyHours", 0.0))
+        uf_therapy_minutes = float(self.current_values.get("heparineTherapyMinutes", 0.0))
+        therapy_duration_hours = uf_therapy_hours + (uf_therapy_minutes / 60.0)
+        
+        # TODO: Si está activo el perfil de UF, ajustar el cálculo del objetivo
+        # Para ahora, usar el producto directo
+        uf_goal = uf_rate * therapy_duration_hours
+        self.uf_goal_val.setText(f"{uf_goal:.2f} L")
+        
+        # UF Removida: usar los pulsos acumulados de la bomba UF
+        uf_pulse_count = float(self.current_values.get("ufPumpPulseCount", 0.0))
+        uf_removed = litros_removidos(int(uf_pulse_count))
+        self.uf_rem_val.setText(f"{uf_removed:.2f} L")
+    
         # Actualizar gráfico
         venous_pressure = self.current_values.get("bloodVenousPressureData", 0.0)
         arterial_pressure = self.current_values.get("bloodArteryPressureData", 0.0)   
@@ -656,16 +662,8 @@ class DialysisScreen(QWidget):
             "bloodFlowVariableData":     self.bfr_value,
             "balanceChamberSetTiming":   self.dfr_val_label,  #verificar la salida 
             "dialyTempIFProcessData":    self.temp_value, 
-            # "ultraFilterPumpSpeed":      self.uf_rate_display,  # no esta aun
-            "UF Total":                  self.uf_rem_val,
-            "uf_goal_liters":            self.uf_goal_val,
-            # "heparineBolusQuantity":     self.bolus_display,   # no esta en pantalla 
-            # Durante RUNNING/PAUSED este número es el proyectado.
-            # Al cerrar la sesión el controlador escribe aquí el entregado.
             "ktv_projectado":            self.ktv_val,
             "airBubbleInBloodDetected":  self.air_indicator,  
-            # "dialyLinePresProcessData":  self.pt_3_display,  # Placeholder para futura métrica de depuración PT-3
-            # "dialyBChamPresProcessData": self.pt_7_display,  # Placeholder para futura métrica de depuración PT-7
         }
 
 
