@@ -503,6 +503,11 @@ class HeparinConfigScreen(QWidget):
         self.heparin_enabled_changed.emit(checked)
 
     def _update_heparin_dose_fields_enabled(self, enabled: bool):
+        # Detectar si estamos en RUNNING o PAUSED
+        is_running_or_paused = False
+        if self.parent_window and hasattr(self.parent_window, "state"):
+            is_running_or_paused = self.parent_window.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED)
+        
         # Deshabilitar/habilitar tarjeta de bolo completa
         self.bolus_card.setEnabled(enabled)
         self.input_bolus.setEnabled(enabled)
@@ -513,7 +518,11 @@ class HeparinConfigScreen(QWidget):
         for widget_name in ("heparin_flow_combo", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
             widget = getattr(self, widget_name, None)
             if widget is not None and hasattr(widget, "setEnabled"):
-                widget.setEnabled(enabled)
+                # En RUNNING/PAUSED, input_heparin_auto_stop siempre queda deshabilitado
+                if widget_name == "input_heparin_auto_stop" and is_running_or_paused:
+                    widget.setEnabled(False)
+                else:
+                    widget.setEnabled(enabled)
         
         # Aplicar estilos QSS para estado disabled
         self._apply_disabled_styles(enabled)
@@ -615,8 +624,12 @@ class HeparinConfigScreen(QWidget):
                     continue
                 
                 # Si estamos en RUNNING/PAUSED, el input_heparin_auto_stop debe mantenerse gris
-                if widget_name == "input_heparin_auto_stop" and is_running_or_paused:
-                    widget.setStyleSheet(input_heparin_auto_stop_style)
+                # Verificar el estado actual del widget, no solo la flag de enabled
+                if widget_name == "input_heparin_auto_stop":
+                    if is_running_or_paused or not widget.isEnabled():
+                        widget.setStyleSheet(input_heparin_auto_stop_style)
+                    else:
+                        widget.setStyleSheet(input_style)
                 elif isinstance(widget, QComboBox):
                     widget.setStyleSheet(combo_style)
                 elif isinstance(widget, ClickableLineEdit):

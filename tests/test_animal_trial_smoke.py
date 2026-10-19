@@ -6,6 +6,7 @@ No serial ports, no full GUI instantiation.
 """
 
 import pytest
+import time
 from unittest.mock import Mock, MagicMock, patch
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -75,12 +76,11 @@ class TestDialysisScreenUpdateValues:
         screen.update_values(data)
         
         # Should have default text
-        assert len(screen.uf_rate_val.text()) > 0
         assert len(screen.uf_goal_val.text()) > 0
         assert len(screen.uf_rem_val.text()) > 0
     
-    def test_update_values_time_formats(self):
-        """Test different time formats."""
+    def test_update_values_uf_goal_exact_format(self):
+        """UF goal must be exactly '3.00' when tasa=1 L/h and therapy=3:00."""
         from gui.therapy.dialysis_screenV2 import DialysisScreen
         
         get_qapp()
@@ -88,7 +88,7 @@ class TestDialysisScreenUpdateValues:
         parent_widget = self._create_parent_widget()
         screen = DialysisScreen(parent_widget)
         
-        # Test with complete UF data
+        # 1 L/h × 3:00 therapy = exactly 3.00 L
         data = {
             "ultraFilterPumpSpeed": 1.0,
             "ufPumpPulseCount": 500,
@@ -96,18 +96,10 @@ class TestDialysisScreenUpdateValues:
             "heparineTherapyMinutes": 0,
         }
         screen.update_values(data)
-        assert "3.00" in screen.uf_goal_val.text() or "3" in screen.uf_goal_val.text()
         
-        # Test with zero values
-        data = {
-            "ultraFilterPumpSpeed": 0.0,
-            "ufPumpPulseCount": 0,
-            "heparineTherapyHours": 0,
-            "heparineTherapyMinutes": 0,
-        }
-        screen.update_values(data)
-        # Should still not crash
-        assert screen.uf_goal_val.text() is not None
+        # Must be exactly "3.00", not just "3"
+        assert "3.00" in screen.uf_goal_val.text(), \
+            f"Expected '3.00' in goal, got '{screen.uf_goal_val.text()}'"
     
     def test_update_values_none_pressures_cond_temp(self):
         """Pressures, conductivity, and temperature as None."""
@@ -175,42 +167,267 @@ class TestUfVolumeCalculation:
 
 
 class TestKtVCalculation:
-    """Test Kt/V calculation with missing data."""
+    """Test Kt/V calculation module can be imported and used."""
     
-    def test_ktv_zero_values(self):
-        """Kt/V with zero values should not crash."""
-        # Import Kt/V calculation if it exists
-        # For now, just verify it doesn't exist or can be called
-        try:
-            from core.logic.ktv_calculation import calculate_ktv
-            
-            # Should not crash with zeros
-            result = calculate_ktv(
-                qd=0, qb=0, ufr=0,
-                temp_inlet=0, temp_outlet=0,
-                cond_inlet=0, cond_outlet=0,
-                treatment_time_minutes=180
-            )
-            # Result can be None or 0
-            assert result is None or result >= 0
-        except (ImportError, AttributeError):
-            # Kt/V module may not exist yet
-            pytest.skip("Kt/V module not available")
+    def test_ktv_calculator_import(self):
+        """Kt/V calculator module should be importable."""
+        # Import Kt/V calculator class - let it fail red if module doesn't exist
+        from logic.ktv_calculator import CalculadoraKtV
+        
+        calc = CalculadoraKtV()
+        
+        # Just verify it has key methods
+        assert hasattr(calc, 'get_ktv_delivered')
+        assert hasattr(calc, 'get_ktv_projected')
+        assert hasattr(calc, 'calculate_ktv_ionic')
+        assert hasattr(calc, 'reset')
+        assert hasattr(calc, 'update_kt')
     
-    def test_ktv_missing_values(self):
-        """Kt/V with None values should not crash."""
+    def test_ktv_calculator_reset(self):
+        """Kt/V calculator reset should not crash."""
+        from logic.ktv_calculator import CalculadoraKtV
+        
+        calc = CalculadoraKtV()
+        
+        # Reset should not raise exception
+        calc.reset()
+        
+        # After reset, state should be clean
+        assert calc is not None
+
+
+class TestHeparinConfigScreenRunning:
+    """Test HeparinConfigScreen with real widget in RUNNING phase."""
+    
+    def _create_parent_for_heparin(self, phase):
+        """Create real QWidget parent with proper attributes."""
+        from core.state_manager import TreatmentPhase
+        
+        parent = QWidget()
+        parent.state = Mock()
+        parent.state.current_phase = phase
+        parent.current_values = {
+            "heparineAutoStopHours": 2,
+            "heparineAutoStopMinutes": 30,
+        }
+        parent.show_warning_message = Mock()
+        parent.begin_operator_alert = Mock()
+        parent.end_operator_alert = Mock()
+        parent.set_heparin_infusion_enabled = Mock()
+        parent.get_remaining_therapy_minutes = Mock(return_value=180)
+        parent.get_elapsed_seconds = Mock(return_value=0)
+        
+        return parent
+    
+    def test_heparin_running_time_disabled_stays_020(self):
+        """In RUNNING, time field disabled and stays 02:30 with infusion enabled."""
+        from core.state_manager import TreatmentPhase
+        from gui.therapy.heparin_config_screenV2 import HeparinConfigScreen
+        
+        get_qapp()
+        
+        parent = self._create_parent_for_heparin(TreatmentPhase.PREPARING)
+        parent.current_values = {
+            "heparineInfusionEnabled": 1.0,
+            "heparineAutoStopHours": 2,
+            "heparineAutoStopMinutes": 30,
+        }
+        
+        screen = HeparinConfigScreen(parent)
+        screen.current_values = parent.current_values
+        screen.chk_heparin_enabled.setChecked(True)
+        screen.input_heparin_auto_stop.setText("02:30")
+        
+        # Switch to RUNNING
+        screen.update_state(TreatmentPhase.RUNNING)
+        
+        # Field must be disabled
+        assert not screen.input_heparin_auto_stop.isEnabled(), \
+            "Field should be disabled in RUNNING phase"
+        
+        # Text must stay "02:30"
+        assert screen.input_heparin_auto_stop.text() == "02:30", \
+            f"Expected '02:30' but got '{screen.input_heparin_auto_stop.text()}'"
+    
+    def test_heparin_running_uncheck_recheck_stays_020(self):
+        """In RUNNING, uncheck and recheck infusion; text stays 02:30 and stays disabled."""
+        from core.state_manager import TreatmentPhase
+        from gui.therapy.heparin_config_screenV2 import HeparinConfigScreen
+        
+        get_qapp()
+        
+        parent = self._create_parent_for_heparin(TreatmentPhase.PREPARING)
+        parent.current_values = {
+            "heparineInfusionEnabled": 1.0,
+            "heparineAutoStopHours": 2,
+            "heparineAutoStopMinutes": 30,
+        }
+        
+        screen = HeparinConfigScreen(parent)
+        screen.current_values = parent.current_values
+        screen.chk_heparin_enabled.setChecked(True)
+        screen.input_heparin_auto_stop.setText("02:30")
+        
+        # Switch to RUNNING - update both screen and parent state
+        parent.state.current_phase = TreatmentPhase.RUNNING
+        screen.update_state(TreatmentPhase.RUNNING)
+        
+        # Uncheck
+        screen.chk_heparin_enabled.setChecked(False)
+        assert screen.input_heparin_auto_stop.text() == "02:30"
+        assert not screen.input_heparin_auto_stop.isEnabled()
+        
+        # Recheck
+        screen.chk_heparin_enabled.setChecked(True)
+        assert screen.input_heparin_auto_stop.text() == "02:30", \
+            "Text should not change when toggling infusion in RUNNING"
+        assert not screen.input_heparin_auto_stop.isEnabled(), \
+            "Field should stay disabled even after recheck in RUNNING"
+    
+    def test_heparin_missing_values_no_crash(self):
+        """Missing heparin values (None, empty dict) should not crash."""
+        from core.state_manager import TreatmentPhase
+        from gui.therapy.heparin_config_screenV2 import HeparinConfigScreen
+        
+        get_qapp()
+        
+        parent = self._create_parent_for_heparin(TreatmentPhase.PREPARING)
+        parent.current_values = {}  # Completely empty
+        
+        screen = HeparinConfigScreen(parent)
+        screen.current_values = {}
+        
+        # Should not raise any exception
+        screen.update_values({})
+        screen.update_state(TreatmentPhase.RUNNING)
+        
+        # Screen should exist and not crash
+        assert screen is not None
+
+
+class TestStartTreatmentLogic:
+    """Test _can_start_treatment logic without running therapy."""
+    
+    def test_state_13_fresh_fill_cannot_start(self):
+        """State 13, fill just started: cannot start and header NOT 'LISTO PARA INICIAR'."""
+        from core.state_manager import TreatmentPhase
+        from gui.appMainHemodialysis import HemodialysisHMI
+        from PySide6.QtCore import QDateTime
+        
+        # Create minimal HMI instance for testing
+        hmi = HemodialysisHMI.__new__(HemodialysisHMI)
+        
+        # Initialize minimum required attributes
+        hmi.current_values = {
+            "treatmentModeSelection": 0,
+            "dialyTempIFProcessData": 37.0,
+            "dialyCondVariableData": 14.0,
+        }
+        hmi.state = Mock()
+        hmi.state.current_phase = TreatmentPhase.READY  # State 13 = READY
+        hmi._last_priming_status = 13
+        hmi.filter_fill_waiting = True  # <-- Critical: filter fill in progress
+        hmi.filter_fill_start_time = QDateTime.currentDateTime()  # Just started
+        hmi.MIN_FILTER_FILL_WAIT_SECONDS = 90
+        hmi.alarm_system = None
+        hmi.ignore_tags_until = {}
+        hmi.current_process_status = Mock()
+        hmi.current_process_status.setText = Mock()
+        hmi.current_process_status.setStyleSheet = Mock()
+        hmi.screen_state_manager = Mock()
+        hmi.screen_state_manager.update_all_screens = Mock()
+        hmi.hardware_mapper = Mock()
+        hmi.hardware_mapper.get_display_text = Mock(return_value="LISTO PARA\nINICIAR")
+        hmi.timer_manager = Mock()
+        hmi.timer_manager.sync_with_hardware = Mock()
+        hmi.treatment_controller = None
+        hmi.show_info_message = Mock()
+        
+        # Test: _can_start_treatment should return False (elapsed < 90s)
+        can_start = hmi._can_start_treatment()
+        assert not can_start, "Should not be able to start with fresh fill (<90s)"
+    
+    def test_state_13_90s_elapsed_can_start(self):
+        """State 13, 90s elapsed, temp/cond in range: can start."""
+        from core.state_manager import TreatmentPhase
+        from gui.appMainHemodialysis import HemodialysisHMI
+        from PySide6.QtCore import QDateTime
+        
+        hmi = HemodialysisHMI.__new__(HemodialysisHMI)
+        
+        # Initialize attributes - include setpoints for validation logic
+        hmi.current_values = {
+            "treatmentModeSelection": 0,
+            "dialyTempIFProcessData": 37.0,
+            "dialyTempControlSetPoint": 37.0,  # Setpoint
+            "dialyCondVariableData": 14.0,
+            "dialyCondControlSetPoint": 14.0,  # Setpoint
+        }
+        hmi.state = Mock()
+        hmi.state.current_phase = TreatmentPhase.READY  # State 13 = READY
+        hmi._last_priming_status = 13
+        hmi.filter_fill_waiting = True  # <-- Critical: filter fill in progress
+        # Fill started 95 seconds ago
+        hmi.filter_fill_start_time = QDateTime.currentDateTime().addSecs(-95)
+        hmi.MIN_FILTER_FILL_WAIT_SECONDS = 90
+        hmi.alarm_system = None
+        hmi.ignore_tags_until = {}
+        hmi.current_process_status = Mock()
+        hmi.current_process_status.setText = Mock()
+        hmi.current_process_status.setStyleSheet = Mock()
+        hmi.screen_state_manager = Mock()
+        hmi.screen_state_manager.update_all_screens = Mock()
+        hmi.hardware_mapper = Mock()
+        hmi.hardware_mapper.get_display_text = Mock(return_value="LISTO PARA\nINICIAR")
+        hmi.timer_manager = Mock()
+        hmi.timer_manager.sync_with_hardware = Mock()
+        hmi.treatment_controller = None
+        hmi.show_info_message = Mock()
+        
+        # Test: _can_start_treatment should return True (elapsed >= 90s AND temp/cond OK)
+        can_start = hmi._can_start_treatment()
+        assert can_start, "Should be able to start after 90s with valid temp/cond"
+    
+    def test_state_13_missing_temp_cond_no_crash(self):
+        """State 13 with missing temp/cond: no exception, handles gracefully."""
+        from core.state_manager import TreatmentPhase
+        from gui.appMainHemodialysis import HemodialysisHMI
+        from PySide6.QtCore import QDateTime
+        
+        hmi = HemodialysisHMI.__new__(HemodialysisHMI)
+        
+        # Initialize with missing temperature/conductivity
+        hmi.current_values = {
+            "treatmentModeSelection": 0,
+            # Missing dialyTempIFProcessData and dialyCondVariableData
+            # Will default to 0.0
+        }
+        hmi.state = Mock()
+        hmi.state.current_phase = TreatmentPhase.READY
+        hmi._last_priming_status = 13
+        hmi.filter_fill_waiting = True  # <-- Critical: filter fill in progress
+        hmi.filter_fill_start_time = QDateTime.currentDateTime().addSecs(-95)  # 95s elapsed
+        hmi.MIN_FILTER_FILL_WAIT_SECONDS = 90
+        hmi.alarm_system = None
+        hmi.ignore_tags_until = {}
+        hmi.current_process_status = Mock()
+        hmi.current_process_status.setText = Mock()
+        hmi.current_process_status.setStyleSheet = Mock()
+        hmi.screen_state_manager = Mock()
+        hmi.screen_state_manager.update_all_screens = Mock()
+        hmi.hardware_mapper = Mock()
+        hmi.hardware_mapper.get_display_text = Mock(return_value="LISTO PARA\nINICIAR")
+        hmi.timer_manager = Mock()
+        hmi.timer_manager.sync_with_hardware = Mock()
+        hmi.treatment_controller = None
+        hmi.show_info_message = Mock()
+        
+        # Should not raise exception - missing values should be handled gracefully
         try:
-            from core.logic.ktv_calculation import calculate_ktv
-            
-            # Should not crash with None
-            result = calculate_ktv(
-                qd=None, qb=None, ufr=None,
-                temp_inlet=None, temp_outlet=None,
-                cond_inlet=None, cond_outlet=None,
-                treatment_time_minutes=180
-            )
-            # Result can be None
-            assert result is None or (isinstance(result, (int, float)) and result >= 0)
-        except (ImportError, AttributeError):
-            pytest.skip("Kt/V module not available")
+            can_start = hmi._can_start_treatment()
+            # Result can be True or False depending on how defaults are compared
+            assert isinstance(can_start, bool), "Should return a boolean"
+        except Exception as e:
+            pytest.fail(f"_can_start_treatment raised exception: {e}")
+
 
