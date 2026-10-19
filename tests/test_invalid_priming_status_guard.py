@@ -12,6 +12,7 @@ class InvalidPrimingStatusGuardTest(unittest.TestCase):
         hmi.current_values = {"treatmentModeSelection": 0}
         hmi._last_priming_status = -1
         hmi.alarm_system = None
+        hmi.ignore_tags_until = {}  # Initialize missing attribute
         hmi.current_process_status = type(
             "StatusLabel",
             (),

@@ -1,0 +1,622 @@
+From 238052a717d3be9b5967ea3cdf4e3a16971c14ed Mon Sep 17 00:00:00 2001
+From: Miguel de Jesus Cuauhtemoc Espinoza Calderon <miguel.espinoza@ciateq.mx>
+Date: Fri, 9 Oct 2026 19:16:19 +0000
+Subject: [PATCH] fix: Show projected Kt/V during therapy and save delivered
+ dose on stop
+
+The dialysis label keeps its text and now reads ktv_projectado while the
+session runs. Leaving the session closes the open interval with the
+current dialysance and stores that delivered Kt/V. The correction test
+uses a real second D of 100 mL/min, so the 80 min stop is 0.30.
+---
+ core/ktv/ktv_controller.py         |  54 ++++-
+ gui/appMainHemodialysis.py         |   3 +
+ gui/therapy/dialysis_screenV2.py   |   7 +-
+ logic/ktv_calculator.py            |  33 +++
+ test_ktv_correction.py             |  27 ++-
+ tests/test_ktv_calculator_ionic.py | 362 +++++++----------------------
+ 6 files changed, 190 insertions(+), 296 deletions(-)
+
+diff --git a/core/ktv/ktv_controller.py b/core/ktv/ktv_controller.py
+index c0ea3bb..65469a3 100644
+--- a/core/ktv/ktv_controller.py
++++ b/core/ktv/ktv_controller.py
+@@ -614,7 +614,55 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
+             self.pause_measurement()
+         elif phase == TreatmentPhase.RUNNING:
+             self.resume_measurement()
+-        elif phase == TreatmentPhase.IDLE or phase == TreatmentPhase.CLEANING:
+-            if self.grafcet.step not in (KtvStep.IDLE, KtvStep.FINISHED, KtvStep.ERROR):
+-                self.abort(f"Terapia finalizada/cambio de fase a {phase.name}")
++        else:
++            # Salir de RUNNING/PAUSED (READY, IDLE, FINISHING, CLEANING, ERROR).
++            # No cierra en pausa: el reloj se congela y la D vigente sigue.
++            self.finalize_delivered_dose()
++            if phase in (TreatmentPhase.IDLE, TreatmentPhase.CLEANING):
++                if self.grafcet.step not in (KtvStep.IDLE, KtvStep.FINISHED, KtvStep.ERROR):
++                    self.abort(f"Terapia finalizada/cambio de fase a {phase.name}")
++
++    def finalize_delivered_dose(self) -> float:
++        """Suma el último tramo y publica el Kt/V entregado.
++
++        Durante la sesión la etiqueta sigue el proyectado. Al salir de la
++        terapia el número que queda, en pantalla y en el registro, es el entregado.
++        """
++        if self.calculadora_ktv._cierre_hecho:
++            if self.calculadora_ktv.volumen_distribucion_v <= 0:
++                return 0.0
++            return self.calculadora_ktv.kt_acumulado / self.calculadora_ktv.volumen_distribucion_v
++
++        had_measurement = self.calculadora_ktv.tiempo_ultima_medicion is not None
++        t_elapsed_min = self._get_elapsed_therapy_minutes()
++        delivered = self.calculadora_ktv.commit_final_interval(t_elapsed_min)
++
++        current_values = {}
++        if self._current_values_accessor is not None:
++            current_values = self._current_values_accessor() or {}
++        if isinstance(current_values, dict):
++            current_values["ktv_acumulado"] = delivered
++            # La etiqueta de diálisis lee este tag. Al cerrar debe mostrar el entregado.
++            current_values["ktv_projectado"] = delivered
++
++        if had_measurement:
++            results_dict = {
++                "ktv_acumulado": delivered,
++                "ktv_projectado": delivered,
++                "heitmann_value": current_values.get("heitmann_value", 0.0) if isinstance(current_values, dict) else 0.0,
++                "d_ionic": self.calculadora_ktv.d_vigente,
++                "kt_total": self.calculadora_ktv.kt_acumulado,
++                "type": "Cierre",
++                "therapy_minutes": t_elapsed_min,
++                "calculation_event": True,
++                "event_id": f"{QDateTime.currentMSecsSinceEpoch()}_CIERRE",
++            }
++            logger.info(
++                "[KtvController] Cierre Kt/V entregado=%.3f | Kt=%.1f | t=%.2f min",
++                delivered,
++                self.calculadora_ktv.kt_acumulado,
++                t_elapsed_min,
++            )
++            self.ktv_calculated.emit(results_dict)
++        return delivered
+ 
+diff --git a/gui/appMainHemodialysis.py b/gui/appMainHemodialysis.py
+index 7337e39..93f00ce 100644
+--- a/gui/appMainHemodialysis.py
++++ b/gui/appMainHemodialysis.py
+@@ -796,6 +796,9 @@ class HemodialysisHMI(QMainWindow):
+         self.is_treatment_running = False
+         self.therapy_start_time = None
+         self._heparin_auto_stop_latched = False
++        # Cerrar el último tramo de Kt/V antes de guardar el reporte.
++        # El proyectado no sustituye al entregado.
++        self.ktv_controller.finalize_delivered_dose()
+         # 1. Guardar reporte Kt/V PRIMERO, antes de abortar (abort → reset_screen_data limpia ktv_records)
+         self.KTVScreen.save_final_report()
+         # 2. Abortar medición en curso (puede disparar reset_screen_data, ya sin datos)
+diff --git a/gui/therapy/dialysis_screenV2.py b/gui/therapy/dialysis_screenV2.py
+index 3bd5b68..975998c 100644
+--- a/gui/therapy/dialysis_screenV2.py
++++ b/gui/therapy/dialysis_screenV2.py
+@@ -660,11 +660,12 @@ class DialysisScreen(QWidget):
+             "UF Total":                  self.uf_rem_val,
+             "uf_goal_liters":            self.uf_goal_val,
+             # "heparineBolusQuantity":     self.bolus_display,   # no esta en pantalla 
+-            "ktv_acumulado":             self.ktv_val,
++            # Durante RUNNING/PAUSED este número es el proyectado.
++            # Al cerrar la sesión el controlador escribe aquí el entregado.
++            "ktv_projectado":            self.ktv_val,
+             "airBubbleInBloodDetected":  self.air_indicator,  
+             # "dialyLinePresProcessData":  self.pt_3_display,  # Placeholder para futura métrica de depuración PT-3
+             # "dialyBChamPresProcessData": self.pt_7_display,  # Placeholder para futura métrica de depuración PT-7
+-            # "ktv_projectado":            self.ktv_display,  
+         }
+ 
+ 
+@@ -771,7 +772,7 @@ class DialysisScreen(QWidget):
+             except (TypeError, ValueError):
+                 return str(val_float)
+ 
+-        if tag == "ktv_acumulado":
++        if tag in {"ktv_acumulado", "ktv_projectado"}:
+             try:
+                 return f"{val_float:.2f}"
+             except (TypeError, ValueError):
+diff --git a/logic/ktv_calculator.py b/logic/ktv_calculator.py
+index 6ccacb4..56b6bcc 100644
+--- a/logic/ktv_calculator.py
++++ b/logic/ktv_calculator.py
+@@ -18,6 +18,7 @@ class CalculadoraKtV:
+         self.kt_acumulado: float = 0.0
+         self.tiempo_ultima_medicion: Optional[float] = None
+         self.d_vigente: float = 0.0  # D que cierra el intervalo anterior
++        self._cierre_hecho: bool = False
+         
+         self.volumen_distribucion_v = 0.0 
+         self.parametros_antropometricos = {} 
+@@ -170,6 +171,10 @@ class CalculadoraKtV:
+             current_time_minutes: Tiempo total transcurrido de terapia en minutos
+             qd, qf, qb, r: Parámetros para calculate_d_ionic()
+         """
++        if self._cierre_hecho:
++            logger.debug("[KTV_CALC] Kt/V ya cerrado. No se acumula otra D.")
++            return
++
+         d_nueva = self.calculate_d_ionic(qd, qf, qb, r)
+         
+         # Si D no se calcula (delta_EF < 0.05), no hacemos nada
+@@ -222,6 +227,34 @@ class CalculadoraKtV:
+         
+         return kt_total / self.volumen_distribucion_v
+ 
++    def commit_final_interval(self, current_time_minutes: float) -> float:
++        """Cierra el tramo abierto hasta el tiempo efectivo y deja el entregado.
++
++        Es idempotente: una segunda llamada no vuelve a sumar el mismo intervalo.
++        Si no hubo ninguna D válida, el entregado es 0.
++        """
++        if self.volumen_distribucion_v <= 0:
++            self._cierre_hecho = True
++            return 0.0
++
++        if not self._cierre_hecho:
++            if (
++                self.tiempo_ultima_medicion is not None
++                and current_time_minutes > self.tiempo_ultima_medicion
++            ):
++                dt_final = current_time_minutes - self.tiempo_ultima_medicion
++                self.kt_acumulado += self.d_vigente * dt_final
++                self.tiempo_ultima_medicion = current_time_minutes
++                logger.info(
++                    "[KTV_CALC] Cierre: dt_final=%.2f min, D_vigente=%.1f, Kt=%.1f",
++                    dt_final,
++                    self.d_vigente,
++                    self.kt_acumulado,
++                )
++            self._cierre_hecho = True
++
++        return self.kt_acumulado / self.volumen_distribucion_v
++
+     def get_ktv_projected(self, current_time_minutes: float, t_total_minutes: float) -> float:
+         """
+         Devuelve Kt/V proyectado al final de la sesión.
+diff --git a/test_ktv_correction.py b/test_ktv_correction.py
+index fda10e1..e048e59 100644
+--- a/test_ktv_correction.py
++++ b/test_ktv_correction.py
+@@ -62,9 +62,11 @@ def test_ktv_correction():
+     print(f"  Tiempo última medición: {calc.tiempo_ultima_medicion:.2f}")
+     
+     # Segunda medición a t=50 min: D=100
+-    # delta_ef = 0.1, delta_sf = 0.07 (ratio 0.7)
++    # D = (Qd + Qf) * (1 - delta_sf / delta_ef) = 100
++    # Qd + Qf = 666.666..., 100 / 666.666... = 0.15, delta_sf / delta_ef = 0.85
++    # delta_ef = 0.20, delta_sf = 0.17
+     calc.store_conductivity_t1(13.7, 13.59)
+-    calc.store_conductivity_t2(13.8, 13.66)
++    calc.store_conductivity_t2(13.9, 13.76)
+     
+     d_test2 = calc.calculate_d_ionic(qd, qf, qb, r)
+     print(f"\nt=50 min: D calculada = {d_test2:.1f} mL/min (esperado ≈100)")
+@@ -73,16 +75,23 @@ def test_ktv_correction():
+     calc.update_kt(50.0, qd, qf, qb, r)
+     print(f"  D_vigente actualizada: {calc.d_vigente:.1f}")
+     print(f"  Kt acumulado: {calc.kt_acumulado:.1f} (esperado 200*30=6000)")
+-    print(f"  Kt/V entregado: {calc.get_ktv_delivered(50.0):.3f} (esperado 0.200)")
+-    
+-    # Simular paro a t=80 min: suma con D_vigente (100)
++    delivered_50 = calc.get_ktv_delivered(50.0)
++    print(f"  Kt/V entregado: {delivered_50:.3f} (esperado 0.200)")
++    assert abs(calc.kt_acumulado - 6000) < 1, f"Kt a los 50 min: esperado 6000, got {calc.kt_acumulado}"
++    assert abs(delivered_50 - 0.200) < 0.001, f"KTV a los 50: esperado 0.200, got {delivered_50}"
++
++    # Simular paro a t=80 min: suma con D_vigente (100), sin modificar Kt todavía
+     ktv_final = calc.get_ktv_delivered(80.0)
+     print(f"\nt=80 min (paro): Kt/V entregado = {ktv_final:.3f} (esperado 0.300)")
+-    
+-    # Validaciones
+-    assert abs(calc.kt_acumulado - 6000) < 1, f"Kt a los 50 min: esperado 6000, got {calc.kt_acumulado}"
+-    assert abs(calc.get_ktv_delivered(50.0) - 0.200) < 0.001, f"KTV a los 50: esperado 0.200"
+     assert abs(ktv_final - 0.300) < 0.001, f"KTV a los 80: esperado 0.300, got {ktv_final}"
++
++    committed = calc.commit_final_interval(80.0)
++    print(f"  commit_final_interval = {committed:.3f} (esperado 0.300)")
++    again = calc.commit_final_interval(80.0)
++    print(f"  segundo cierre = {again:.3f} (no debe sumar otra vez)")
++    assert abs(committed - 0.300) < 0.001, f"Cierre: esperado 0.300, got {committed}"
++    assert abs(again - 0.300) < 0.001, f"Segundo cierre cambió el valor: {again}"
++    assert abs(calc.kt_acumulado - 9000) < 1, f"Kt al cierre: esperado 9000, got {calc.kt_acumulado}"
+     
+     print("\n✓ TODAS LAS VALIDACIONES PASARON")
+ 
+diff --git a/tests/test_ktv_calculator_ionic.py b/tests/test_ktv_calculator_ionic.py
+index 4bae242..979b4b1 100644
+--- a/tests/test_ktv_calculator_ionic.py
++++ b/tests/test_ktv_calculator_ionic.py
+@@ -1,302 +1,102 @@
+-"""
+-Test suite para validar el cálculo de Kt/V iónico con compensación de temperatura.
++"""Pruebas del Kt/V iónico sin compensación de temperatura en Python.
++
++La conductividad del tag ya viene a 25 °C desde el firmware de la celda.
+ """
+ 
+-import sys
+ import os
++import sys
+ import unittest
+ 
+-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
++sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+ 
+ from logic.ktv_calculator import CalculadoraKtV
+ 
++QD = 500.0
++QF_L_H = 10.0
++QB = 300.0
+ 
+-class TestKtvIonicCalculation(unittest.TestCase):
+-    """Pruebas del cálculo iónico de Kt/V con compensación individual de temperatura."""
+ 
++def _pair_for_d(d_target: float, ef1: float = 13.5, sf1: float = 13.45):
++    """Arma T2 para una D exacta con Qd=500 mL/min y Qf=10 L/h."""
++    qf_ml = QF_L_H * 1000.0 / 60.0
++    ratio = 1.0 - (d_target / (QD + qf_ml))
++    delta_ef = 0.20
++    delta_sf = ratio * delta_ef
++    return (ef1, sf1, ef1 + delta_ef, sf1 + delta_sf)
++
++
++class TestKtvIonicCalculation(unittest.TestCase):
+     def setUp(self):
+-        """Configurar una instancia fresca de CalculadoraKtV para cada test."""
+         self.calc = CalculadoraKtV()
+-        
+-        # Configurar paciente: 70 kg, 170 cm, 40 años, masculino
+-        self.calc.config_paciente(peso=70, altura=170, edad=40, genero=1)
+-        self.assertGreater(self.calc.volumen_distribucion_v, 0, "Watson V debe ser > 0")
++        self.calc.set_volumen_bioimpedancia(30.0)
+ 
+-    def test_reset_initializes_correctly(self):
+-        """Test: reset() debe inicializar todos los valores a cero."""
++    def _load(self, d_target, ef1=13.5, sf1=13.45):
++        ef1, sf1, ef2, sf2 = _pair_for_d(d_target, ef1, sf1)
++        self.calc.store_conductivity_t1(ef1, sf1)
++        self.calc.store_conductivity_t2(ef2, sf2)
++
++    def test_reset_clears_accumulation(self):
+         self.calc.kt_acumulado = 100.0
+         self.calc.tiempo_ultima_medicion = 5.0
+-        self.calc.d_actual = 200.0
+-        
++        self.calc.d_vigente = 200.0
++        self.calc._cierre_hecho = True
+         self.calc.reset()
+-        
+         self.assertEqual(self.calc.kt_acumulado, 0.0)
+         self.assertIsNone(self.calc.tiempo_ultima_medicion)
+-        self.assertEqual(self.calc.d_actual, 0.0)
+-        self.assertEqual(self.calc.volumen_distribucion_v, 0.0)
+-
+-    def test_temperature_compensation_single_point(self):
+-        """Test: Compensación a 25°C debe ser correcta para un punto."""
+-        # EF: 13.5 mS/cm a 37°C
+-        cd_ef_37 = 13.5
+-        temp_ef = 37.0
+-        alpha = 0.021
+-        
+-        # Fórmula: C25 = C_T / (1 + alpha * (T - 25))
+-        cd_ef_25 = cd_ef_37 / (1 + alpha * (temp_ef - 25))
+-        
+-        # A 37°C (2°C arriba de 25°C):
+-        # 13.5 / (1 + 0.021 * 12) = 13.5 / 1.252 ≈ 10.78
+-        expected = 13.5 / (1 + 0.021 * 12)
+-        self.assertAlmostEqual(cd_ef_25, expected, places=4)
+-
+-    def test_store_conductivity_t1_with_separate_temps(self):
+-        """Test: store_conductivity_t1 debe guardar EF y SF con temperaturas distintas."""
+-        cd_ef = 13.50
+-        cd_sf = 13.45
+-        temp_ef = 37.2
+-        temp_sf = 37.1
+-        
+-        self.calc.store_conductivity_t1(cd_ef, cd_sf, temp_ef, temp_sf)
+-        
+-        self.assertEqual(self.calc._cd_in_t1, cd_ef)
+-        self.assertEqual(self.calc._cd_out_t1, cd_sf)
+-        self.assertEqual(self.calc._temp_ef_t1, temp_ef)
+-        self.assertEqual(self.calc._temp_sf_t1, temp_sf)
+-
+-    def test_calculate_d_ionic_valid_measurement(self):
+-        """Test: calculate_d_ionic debe calcular D correctamente."""
+-        # Configurar dos puntos con diferencia clara
+-        # T1: EF=13.50, SF=13.45 a 37.0°C ambos
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.50, cd_out=13.45,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        
+-        # T2: EF=13.80, SF=13.60 a 37.0°C ambos (cambio más pronunciado)
+-        self.calc.store_conductivity_t2(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        
+-        # Parámetros típicos
+-        qd = 500  # mL/min
+-        qf = 10   # L/h
+-        qb = 300  # mL/min
+-        r = 0.0   # Sin recirculación
+-        
+-        d = self.calc.calculate_d_ionic(qd, qf, qb, r)
+-        
+-        self.assertGreater(d, 0, "D debe ser positivo")
+-        self.assertLessEqual(d, qd + (qf * 1000 / 60), "D no debe exceder Qd + Qf")
+-
+-    def test_calculate_d_ionic_small_delta_ef(self):
+-        """Test: Si abs(delta_EF) < 0.05, D debe ser 0."""
+-        # Conductividades prácticamente iguales
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.50, cd_out=13.45,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=13.51, cd_out=13.46,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        
+-        # delta_EF = 13.51 - 13.50 = 0.01 < 0.05
+-        d = self.calc.calculate_d_ionic(500, 10, 300, 0.0)
+-        
+-        self.assertEqual(d, 0.0, "D debe ser 0 cuando delta_EF < 0.05")
+-
+-    def test_accumulate_kt_first_measurement(self):
+-        """Test: Primera medición D válida debe tener dt=0."""
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.50, cd_out=13.45,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        
+-        current_time = 0.0  # Inicio
+-        self.calc.update_kt(current_time, 500, 10, 300, 0.0)
+-        
+-        self.assertEqual(self.calc.kt_acumulado, 0.0, "Primera medición: dt=0, Kt no cambia")
+-        self.assertIsNotNone(self.calc.tiempo_ultima_medicion, "Debe marcar el tiempo")
+-
+-    def test_accumulate_kt_second_measurement(self):
+-        """Test: Segunda medición debe acumular Kt con dt real."""
+-        # Primera medición
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.50, cd_out=13.45,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.update_kt(0.0, 500, 10, 300, 0.0)
+-        d1 = self.calc.d_actual
+-        
+-        # Segunda medición (después de 5 minutos)
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=14.10, cd_out=13.75,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.update_kt(5.0, 500, 10, 300, 0.0)
+-        d2 = self.calc.d_actual
+-        
+-        expected_kt = d1 * 5.0  # dt=5 minutos
+-        self.assertGreater(self.calc.kt_acumulado, 0, "Kt debe acumularse")
+-        self.assertAlmostEqual(self.calc.kt_acumulado, expected_kt, places=0)
+-
+-    def test_get_ktv_delivered(self):
+-        """Test: get_ktv_delivered debe devolver Kt/V acumulado."""
+-        # Configurar bioimpedancia conocida
+-        self.calc.set_volumen_bioimpedancia(40.0)  # 40 litros
+-        
+-        # Primera medición en t=0
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.50, cd_out=13.45,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.update_kt(0.0, 500, 10, 300, 0.0)
+-        
+-        # Segunda medición en t=5
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=14.10, cd_out=13.75,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.update_kt(5.0, 500, 10, 300, 0.0)
+-        
+-        ktv_delivered = self.calc.get_ktv_delivered(5.0, 500, 10, 300, 0.0)
+-        
+-        self.assertGreater(ktv_delivered, 0, "Kt/V entregado debe ser > 0")
+-        self.assertAlmostEqual(
+-            ktv_delivered,
+-            self.calc.kt_acumulado / 40000,  # V en mL
+-            places=4
+-        )
+-
+-    def test_get_ktv_projected(self):
+-        """Test: get_ktv_projected debe proyectar Kt/V al final de sesión."""
+-        self.calc.set_volumen_bioimpedancia(40.0)  # 40 litros
+-        
+-        # Medición en t=10 min de una sesión de 240 min (4 horas)
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.50, cd_out=13.45,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.update_kt(10.0, 500, 10, 300, 0.0)
+-        d_current = self.calc.d_actual
+-        
+-        t_current = 10.0
+-        t_total = 240.0
+-        
+-        ktv_projected = self.calc.get_ktv_projected(t_current, t_total, 500, 10, 300, 0.0)
+-        
+-        # Proyectado = (Kt + D * (t_total - t_current)) / V
+-        t_restante = t_total - t_current  # 230 min
+-        expected_kt_proj = self.calc.kt_acumulado + (d_current * t_restante)
+-        expected_ktv = expected_kt_proj / 40000
+-        
+-        self.assertAlmostEqual(ktv_projected, expected_ktv, places=3)
+-
+-    def test_temperature_difference_impact(self):
+-        """Test: Temperaturas distintas en EF y SF deben afectar D diferente."""
+-        # Caso 1: Ambas a 37°C
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.50, cd_out=13.45,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.0, temp_sf=37.0
+-        )
+-        d1 = self.calc.calculate_d_ionic(500, 10, 300, 0.0)
+-        
+-        # Caso 2: EF a 37.2°C, SF a 36.8°C (diferencia real)
+-        self.calc.reset()
+-        self.calc.config_paciente(70, 170, 40, 1)
+-        
+-        self.calc.store_conductivity_t1(
+-            cd_in=13.50, cd_out=13.45,
+-            temp_ef=37.2, temp_sf=36.8
+-        )
+-        self.calc.store_conductivity_t2(
+-            cd_in=13.80, cd_out=13.60,
+-            temp_ef=37.2, temp_sf=36.8
+-        )
+-        d2 = self.calc.calculate_d_ionic(500, 10, 300, 0.0)
+-        
+-        # Los valores pueden diferir debido a la compensación individual
+-        # Este test verifica que el código se ejecuta sin errores
+-        self.assertGreater(d1, 0)
+-        self.assertGreater(d2, 0)
+-
+-
+-class TestKtvEdgeCases(unittest.TestCase):
+-    """Pruebas de casos extremos y errores."""
+-
+-    def setUp(self):
+-        self.calc = CalculadoraKtV()
+-        self.calc.config_paciente(70, 170, 40, 1)
+-
+-    def test_invalid_volume(self):
+-        """Test: V <= 0 debe devolver D=0."""
+-        self.calc.volumen_distribucion_v = 0.0
+-        
+-        self.calc.store_conductivity_t1(13.50, 13.45, 37.0, 37.0)
+-        self.calc.store_conductivity_t2(13.80, 13.60, 37.0, 37.0)
+-        
+-        d = self.calc.calculate_d_ionic(500, 10, 300, 0.0)
+-        
+-        self.assertEqual(d, 0.0, "D debe ser 0 si V es inválido")
+-
+-    def test_qf_conversion(self):
+-        """Test: Qf debe convertirse correctamente de L/h a mL/min."""
+-        self.calc.store_conductivity_t1(13.50, 13.45, 37.0, 37.0)
+-        self.calc.store_conductivity_t2(13.80, 13.60, 37.0, 37.0)
+-        
+-        # Qf = 10 L/h = (10 * 1000) / 60 = 166.67 mL/min
+-        qd = 500  # mL/min
+-        qf = 10   # L/h
+-        qf_ml_min = (qf * 1000) / 60
+-        
+-        d = self.calc.calculate_d_ionic(qd, qf, 300, 0.0)
+-        
+-        # D debe estar limitado a Qd + Qf_mL_min = 500 + 166.67 = 666.67
+-        self.assertLessEqual(d, qd + qf_ml_min + 1e-6, "D no debe exceder Qd + Qf")
+-
+-    def test_no_division_by_zero(self):
+-        """Test: No debe haber división por cero aunque delta_EF sea cercano a 0."""
+-        self.calc.store_conductivity_t1(13.50, 13.45, 37.0, 37.0)
+-        # delta_EF muy pequeño pero no cero
+-        self.calc.store_conductivity_t2(13.5001, 13.4501, 37.0, 37.0)
+-        
+-        # Esto debería manejar el caso sin excepción
+-        try:
+-            d = self.calc.calculate_d_ionic(500, 10, 300, 0.0)
+-            self.assertEqual(d, 0.0, "D debe ser 0 cuando delta_EF < 0.05")
+-        except ZeroDivisionError:
+-            self.fail("No debe haber ZeroDivisionError")
++        self.assertEqual(self.calc.d_vigente, 0.0)
++        self.assertFalse(self.calc._cierre_hecho)
++
++    def test_d_does_not_use_temperature(self):
++        self._load(200.0)
++        d = self.calc.calculate_d_ionic(QD, QF_L_H, QB, 0.0)
++        self.assertAlmostEqual(d, 200.0, places=2)
++
++    def test_small_delta_returns_zero_and_keeps_previous_d(self):
++        self._load(200.0)
++        self.calc.update_kt(20.0, QD, QF_L_H, QB, 0.0)
++        self.calc.store_conductivity_t1(14.0, 13.9)
++        self.calc.store_conductivity_t2(14.02, 13.91)
++        d = self.calc.calculate_d_ionic(QD, QF_L_H, QB, 0.0)
++        self.assertEqual(d, 0.0)
++        self.calc.update_kt(50.0, QD, QF_L_H, QB, 0.0)
++        self.assertAlmostEqual(self.calc.d_vigente, 200.0, places=2)
++        self.assertEqual(self.calc.kt_acumulado, 0.0)
+ 
++    def test_interval_closes_with_previous_d(self):
++        self._load(200.0)
++        self.calc.update_kt(20.0, QD, QF_L_H, QB, 0.0)
++        self.assertEqual(self.calc.kt_acumulado, 0.0)
+ 
+-if __name__ == '__main__':
++        self._load(100.0, ef1=13.7, sf1=13.59)
++        self.calc.update_kt(50.0, QD, QF_L_H, QB, 0.0)
++        self.assertAlmostEqual(self.calc.kt_acumulado, 6000.0, places=1)
++        self.assertAlmostEqual(self.calc.get_ktv_delivered(50.0), 0.20, places=3)
++        self.assertAlmostEqual(self.calc.get_ktv_delivered(80.0), 0.30, places=3)
++
++    def test_commit_is_idempotent(self):
++        self._load(200.0)
++        self.calc.update_kt(20.0, QD, QF_L_H, QB, 0.0)
++        self._load(100.0, ef1=13.7, sf1=13.59)
++        self.calc.update_kt(50.0, QD, QF_L_H, QB, 0.0)
++        first = self.calc.commit_final_interval(80.0)
++        second = self.calc.commit_final_interval(90.0)
++        self.assertAlmostEqual(first, 0.30, places=3)
++        self.assertAlmostEqual(second, 0.30, places=3)
++        self.assertAlmostEqual(self.calc.kt_acumulado, 9000.0, places=1)
++
++    def test_d_is_clamped_to_qd_plus_qf(self):
++        self.calc.store_conductivity_t1(13.0, 13.0)
++        self.calc.store_conductivity_t2(14.0, 12.0)
++        d = self.calc.calculate_d_ionic(QD, QF_L_H, QB, 0.0)
++        qf_ml = QF_L_H * 1000.0 / 60.0
++        self.assertAlmostEqual(d, QD + qf_ml, places=2)
++
++    def test_projected_uses_remaining_time(self):
++        self._load(200.0)
++        self.calc.update_kt(20.0, QD, QF_L_H, QB, 0.0)
++        projected = self.calc.get_ktv_projected(20.0, 80.0)
++        self.assertAlmostEqual(projected, 200.0 * 60.0 / 30000.0, places=3)
++
++
++if __name__ == "__main__":
+     unittest.main()
+-- 
+2.39.5
+
