@@ -520,6 +520,11 @@ class HeparinConfigScreen(QWidget):
 
     def _apply_disabled_styles(self, enabled: bool):
         """Aplica estilos QSS para el estado enabled/disabled de controles de heparina."""
+        # Detectar si estamos en RUNNING o PAUSED
+        is_running_or_paused = False
+        if self.parent_window and hasattr(self.parent_window, "state"):
+            is_running_or_paused = self.parent_window.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED)
+        
         if enabled:
             # Restaurar estilos normales
             button_style = """
@@ -546,6 +551,29 @@ class HeparinConfigScreen(QWidget):
                 ClickableLineEdit:focus {
                     border: 2px solid #3b82f6;
                     background: #ffffff;
+                }
+                ClickableLineEdit:disabled {
+                    color: #94a3b8;
+                    background-color: #f1f5f9;
+                    border: 2px solid #cbd5e1;
+                }
+            """
+            # Estilo para input_heparin_auto_stop en RUNNING/PAUSED: mantener gris
+            input_heparin_auto_stop_style = """
+                ClickableLineEdit {
+                    font-family: Consolas, "Courier New", monospace;
+                    font-size: 24px;
+                    color: #94a3b8;
+                    background-color: #f1f5f9;
+                    border: 2px solid #cbd5e1;
+                    border-radius: 8px;
+                    padding: 5px;
+                    min-width: 120px;
+                }
+                ClickableLineEdit:focus {
+                    color: #94a3b8;
+                    background-color: #f1f5f9;
+                    border: 2px solid #cbd5e1;
                 }
                 ClickableLineEdit:disabled {
                     color: #94a3b8;
@@ -585,7 +613,11 @@ class HeparinConfigScreen(QWidget):
                 widget = getattr(self, widget_name, None)
                 if widget is None:
                     continue
-                if isinstance(widget, QComboBox):
+                
+                # Si estamos en RUNNING/PAUSED, el input_heparin_auto_stop debe mantenerse gris
+                if widget_name == "input_heparin_auto_stop" and is_running_or_paused:
+                    widget.setStyleSheet(input_heparin_auto_stop_style)
+                elif isinstance(widget, QComboBox):
                     widget.setStyleSheet(combo_style)
                 elif isinstance(widget, ClickableLineEdit):
                     widget.setStyleSheet(input_style)
