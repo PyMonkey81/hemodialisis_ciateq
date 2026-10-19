@@ -2008,6 +2008,9 @@ class HemodialysisHMI(QMainWindow):
 
                 self._update_heparin_auto_stop_timer()
                 self._update_heparin_infusion_enable_guard()
+                
+                # Actualizar encabezado durante la espera de 90 s después del llenado de filtro
+                self._update_header_during_filter_fill()
 
                 if self.screen_stack.currentWidget() == self.maintenance_screen:
                     self.timer_manager._update_maintenance_screen()
@@ -2358,6 +2361,48 @@ class HemodialysisHMI(QMainWindow):
         self.filter_fill_start_time = None
         self.filter_fill_waiting = False
         logger.info("Flags de llenado de filtro reiniciados")
+
+    def _update_header_during_filter_fill(self):
+        """
+        Actualiza el encabezado cada segundo durante la espera de 90 s después del llenado de filtro.
+        - Si estamos en estado 13 (READY) y aún no se cumplieron los 90 s: "PREPARANDO..."
+        - Si ya pasaron los 90 s y _can_start_treatment() es True: "LISTO PARA\nINICIAR"
+        - Si el estado deja de ser 13, no pisa el texto del mapa (hardware_state_mapper es la fuente de verdad)
+        """
+        # Solo actuar si estamos en estado 13 (READY)
+        if self._last_priming_status != 13:
+            return
+        
+        # Verificar si el hardware_mapper está disponible
+        if not hasattr(self, "hardware_mapper") or self.hardware_mapper is None:
+            return
+        
+        # Verificar si el label del encabezado está disponible
+        if not hasattr(self, "current_process_status") or self.current_process_status is None:
+            return
+        
+        # Si no estamos en la espera del llenado, no hacer nada
+        if not self.filter_fill_waiting or self.filter_fill_start_time is None:
+            return
+        
+        # Calcular tiempo transcurrido desde el inicio del llenado
+        elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
+        
+        # Determinar el texto que debe mostrar el encabezado
+        if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
+            # Aún no se han cumplido los 90 segundos: mostrar "PREPARANDO..."
+            desired_text = "PREPARANDO..."
+        elif self._can_start_treatment():
+            # Ya pasaron los 90 s y se pueden iniciar condiciones: mostrar "LISTO PARA\nINICIAR"
+            desired_text = "LISTO PARA\nINICIAR"
+        else:
+            # Pasaron los 90 s pero aún no hay condiciones de inicio: mantener "PREPARANDO..."
+            desired_text = "PREPARANDO..."
+        
+        # Actualizar el encabezado si el texto es diferente
+        current_text = self.current_process_status.text()
+        if current_text != desired_text:
+            self.current_process_status.setText(desired_text)
 
     def _set_button_style(self, button: QPushButton, style_type: str):
         """Aplica estilos predefinidos a los botones"""
