@@ -152,6 +152,27 @@ class TestDialysisScreenUpdateValues:
         assert screen.uf_rate_val.text() is not None, "UF rate label should have text"
         assert screen.uf_goal_val.text() is not None, "UF goal label should have text"
         assert screen.uf_rem_val.text() is not None, "UF removed label should have text"
+    
+    def test_heart_rate_display(self):
+        """Heart rate should display correctly and handle negative values."""
+        from gui.therapy.dialysis_screenV2 import DialysisScreen
+        
+        get_qapp()
+        
+        parent_widget = self._create_parent_widget()
+        screen = DialysisScreen(parent_widget)
+        
+        # Test valid heart rate
+        screen.update_nibp_measurement(sys_mmhg=120, dia_mmhg=80, map_mmhg=93, hr_bpm=72)
+        assert screen.hr_value.text() == "72", f"Expected '72', got '{screen.hr_value.text()}'"
+        
+        # Test negative heart rate shows "--"
+        screen.update_nibp_measurement(sys_mmhg=120, dia_mmhg=80, map_mmhg=93, hr_bpm=-1)
+        assert screen.hr_value.text() == "--", f"Expected '--', got '{screen.hr_value.text()}'"
+        
+        # Test zero heart rate is valid
+        screen.update_nibp_measurement(sys_mmhg=120, dia_mmhg=80, map_mmhg=93, hr_bpm=0)
+        assert screen.hr_value.text() == "0", f"Expected '0', got '{screen.hr_value.text()}'"
 
 
 class TestUfVolumeCalculation:

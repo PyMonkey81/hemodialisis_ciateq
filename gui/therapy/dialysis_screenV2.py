@@ -531,6 +531,18 @@ class DialysisScreen(QWidget):
         nibp_layout.addWidget(self.nibp_value)
         vitals_layout.addLayout(nibp_layout)
 
+        # Frecuencia Cardiaca (FC)
+        hr_layout = QHBoxLayout()
+        hr_layout.addWidget(QLabel("FC:"))
+        self.hr_value = QLabel("--")
+        self.hr_value.setStyleSheet("color: #dc2626; font-weight: bold; font-size: 22px; font-family: monospace;")
+        hr_layout.addStretch()
+        hr_layout.addWidget(self.hr_value)
+        hr_unit = QLabel("lpm")
+        hr_unit.setStyleSheet("color: #64748b; font-size: 14px; margin-left: 4px;")
+        hr_layout.addWidget(hr_unit)
+        vitals_layout.addLayout(hr_layout)
+
         # Saturación de Oxígeno (SpO2)
         spo2_layout = QHBoxLayout()
         spo2_layout.addWidget(QLabel("Saturación (SpO2):"))
@@ -899,6 +911,12 @@ class DialysisScreen(QWidget):
             self.nibp_value.setText(f"{sys_mmhg} / {dia_mmhg}")
         else:
             self.nibp_value.setText("-- / --")
+        
+        # Frecuencia cardiaca
+        if hr_bpm >= 0:
+            self.hr_value.setText(str(hr_bpm))
+        else:
+            self.hr_value.setText("--")
 
     def update_spo2(self, data):
         """Signos vitales - SpO2, conectado a nibp.spo2_updated (None si stream off)."""
