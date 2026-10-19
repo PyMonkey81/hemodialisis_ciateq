@@ -107,6 +107,9 @@ class PressureWaveformWidget(QWidget):
             painter.setPen(grid_pen)
 
             def to_y(val):
+                # Si val no es número, saltarlo (retornar None)
+                if val is None or not isinstance(val, (int, float)):
+                    return None
                 # Mapeo de presión [-300, 300] mmHg a coordenadas del widget
                 val_clamped = max(-300.0, min(300.0, val))
                 percentage = (val_clamped + 300.0) / 600.0
@@ -115,10 +118,11 @@ class PressureWaveformWidget(QWidget):
             # Líneas de presión de referencia
             for val in [-200, -100, 0, 100, 200]:
                 y_pos = to_y(val)
-                painter.drawLine(0, y_pos, width, y_pos)
-                painter.setPen(QPen(QColor("#334155"), 1))
-                painter.drawText(8, y_pos - 4, f"{val} mmHg")
-                painter.setPen(grid_pen)
+                if y_pos is not None:
+                    painter.drawLine(0, y_pos, width, y_pos)
+                    painter.setPen(QPen(QColor("#334155"), 1))
+                    painter.drawText(8, y_pos - 4, f"{val} mmHg")
+                    painter.setPen(grid_pen)
 
             for step in range(1, 6):
                 x_pos = int((step / 6) * graph_width)
@@ -127,19 +131,41 @@ class PressureWaveformWidget(QWidget):
             # 3. Dibujar las trayectorias de las ondas
             art_path = QPainterPath()
             if len(self.arterial_history) > 1:
-                art_path.moveTo(0, to_y(self.arterial_history[0]))
-                for i, val in enumerate(self.arterial_history):
-                    x = int((i / (self.max_points - 1)) * graph_width)
-                    art_path.lineTo(x, to_y(val))
+                first_valid = None
+                for val in self.arterial_history:
+                    if val is not None and isinstance(val, (int, float)):
+                        first_valid = val
+                        break
+                if first_valid is not None:
+                    y_pos = to_y(first_valid)
+                    if y_pos is not None:
+                        art_path.moveTo(0, y_pos)
+                        for i, val in enumerate(self.arterial_history):
+                            if val is not None and isinstance(val, (int, float)):
+                                y = to_y(val)
+                                if y is not None:
+                                    x = int((i / (self.max_points - 1)) * graph_width)
+                                    art_path.lineTo(x, y)
             painter.setPen(QPen(self.art_color, 2))
             painter.drawPath(art_path)
 
             ven_path = QPainterPath()
             if len(self.venous_history) > 1:
-                ven_path.moveTo(0, to_y(self.venous_history[0]))
-                for i, val in enumerate(self.venous_history):
-                    x = int((i / (self.max_points - 1)) * graph_width)
-                    ven_path.lineTo(x, to_y(val))
+                first_valid = None
+                for val in self.venous_history:
+                    if val is not None and isinstance(val, (int, float)):
+                        first_valid = val
+                        break
+                if first_valid is not None:
+                    y_pos = to_y(first_valid)
+                    if y_pos is not None:
+                        ven_path.moveTo(0, y_pos)
+                        for i, val in enumerate(self.venous_history):
+                            if val is not None and isinstance(val, (int, float)):
+                                y = to_y(val)
+                                if y is not None:
+                                    x = int((i / (self.max_points - 1)) * graph_width)
+                                    ven_path.lineTo(x, y)
             painter.setPen(QPen(self.ven_color, 2))
             painter.drawPath(ven_path)
 
@@ -150,12 +176,20 @@ class PressureWaveformWidget(QWidget):
             painter.setFont(QFont("Consolas", 16, QFont.Bold))
             painter.setPen(QPen(self.art_color))
             painter.drawText(right_panel_x + 5, 35, "ART (mmHg)")
-            painter.drawText(right_panel_x + 5, 55, f"{int(curr_art):+4d}")
+            # Solo mostrar si es número
+            if curr_art is not None and isinstance(curr_art, (int, float)):
+                painter.drawText(right_panel_x + 5, 55, f"{int(curr_art):+4d}")
+            else:
+                painter.drawText(right_panel_x + 5, 55, "   -- ")
 
             curr_ven = self.venous_history[-1]
             painter.setPen(QPen(self.ven_color))
             painter.drawText(right_panel_x + 5, height // 2 + 45, "VEN (mmHg)")
-            painter.drawText(right_panel_x + 5, height // 2 + 65, f"{int(curr_ven):+4d}")
+            # Solo mostrar si es número
+            if curr_ven is not None and isinstance(curr_ven, (int, float)):
+                painter.drawText(right_panel_x + 5, height // 2 + 65, f"{int(curr_ven):+4d}")
+            else:
+                painter.drawText(right_panel_x + 5, height // 2 + 65, "   -- ")
         finally:
             painter.end()
 
@@ -619,13 +653,18 @@ class DialysisScreen(QWidget):
 
         # ===== CARD UF: Tasa, Objetivo, UF Removida =====
         # Tasa: se toma directamente de ultraFilterPumpSpeed (L/h)
-        uf_rate = float(self.current_values.get("ultraFilterPumpSpeed", 0.0))
+        # Trata None como 0
+        uf_rate_val = self.current_values.get("ultraFilterPumpSpeed", 0.0)
+        uf_rate = float(uf_rate_val) if uf_rate_val is not None else 0.0
         self.uf_rate_val.setText(f"{uf_rate:.2f}")
         
         # Objetivo: tasa × duración programada (horas + minutos/60)
         # Si hay perfil de UF activo, solo usar el producto cuando no hay perfil
-        uf_therapy_hours = float(self.current_values.get("heparineTherapyHours", 0.0))
-        uf_therapy_minutes = float(self.current_values.get("heparineTherapyMinutes", 0.0))
+        # Trata None como 0
+        hep_hours_val = self.current_values.get("heparineTherapyHours", 0.0)
+        hep_minutes_val = self.current_values.get("heparineTherapyMinutes", 0.0)
+        uf_therapy_hours = float(hep_hours_val) if hep_hours_val is not None else 0.0
+        uf_therapy_minutes = float(hep_minutes_val) if hep_minutes_val is not None else 0.0
         therapy_duration_hours = uf_therapy_hours + (uf_therapy_minutes / 60.0)
         
         # TODO: Si está activo el perfil de UF, ajustar el cálculo del objetivo
@@ -633,14 +672,18 @@ class DialysisScreen(QWidget):
         uf_goal = uf_rate * therapy_duration_hours
         self.uf_goal_val.setText(f"{uf_goal:.2f} L")
         
-        # UF Removida: usar los pulsos acumulados de la bomba UF
-        uf_pulse_count = float(self.current_values.get("balanceChamberCycleCount", 0.0))
+        # UF Removida: usar los pulsos acumulados de la bomba UF (balanceChamberCycleCount)
+        # Trata None como 0
+        cycle_count_val = self.current_values.get("balanceChamberCycleCount", 0.0)
+        uf_pulse_count = float(cycle_count_val) if cycle_count_val is not None else 0.0
         uf_removed = litros_removidos(int(uf_pulse_count))
         self.uf_rem_val.setText(f"{uf_removed:.2f} L")
     
-        # Actualizar gráfico
-        venous_pressure = self.current_values.get("bloodVenousPressureData", 0.0)
-        arterial_pressure = self.current_values.get("bloodArteryPressureData", 0.0)   
+        # Actualizar gráfico - tratar None como 0
+        venous_pressure_val = self.current_values.get("bloodVenousPressureData", 0.0)
+        arterial_pressure_val = self.current_values.get("bloodArteryPressureData", 0.0)
+        venous_pressure = venous_pressure_val if venous_pressure_val is not None else 0.0
+        arterial_pressure = arterial_pressure_val if arterial_pressure_val is not None else 0.0
         self.pressure_plot.add_values(arterial_pressure, venous_pressure)
 
         # Calculo PTM

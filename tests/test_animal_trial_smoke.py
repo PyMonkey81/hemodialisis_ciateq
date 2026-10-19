@@ -126,6 +126,32 @@ class TestDialysisScreenUpdateValues:
         assert screen.ven_p_value.text() is not None
         assert screen.cond_val.text() is not None
         assert screen.temp_value.text() is not None
+    
+    def test_update_values_none_uf_and_therapy_fields(self):
+        """UF speed, therapy hours/minutes, and pulse count as None should not crash."""
+        from gui.therapy.dialysis_screenV2 import DialysisScreen
+        
+        get_qapp()
+        
+        parent_widget = self._create_parent_widget()
+        screen = DialysisScreen(parent_widget)
+        data = {
+            "ultraFilterPumpSpeed": None,      # None instead of float
+            "balanceChamberCycleCount": None,  # None instead of int
+            "heparineTherapyHours": None,      # None instead of int
+            "heparineTherapyMinutes": None,    # None instead of int
+        }
+        
+        # Should not raise exception
+        try:
+            screen.update_values(data)
+        except Exception as e:
+            pytest.fail(f"update_values raised exception with None UF/therapy values: {e}")
+        
+        # UF labels should have text (not crash when displaying)
+        assert screen.uf_rate_val.text() is not None, "UF rate label should have text"
+        assert screen.uf_goal_val.text() is not None, "UF goal label should have text"
+        assert screen.uf_rem_val.text() is not None, "UF removed label should have text"
 
 
 class TestUfVolumeCalculation:
@@ -194,6 +220,38 @@ class TestKtVCalculation:
         
         # After reset, state should be clean
         assert calc is not None
+
+
+class TestPressureWaveformGraphRobustness:
+    """Test PressureWaveformWidget can handle None values in history."""
+    
+    def test_pressure_plot_none_values_no_crash(self):
+        """Pressure plot should handle None values in history without crashing."""
+        from gui.therapy.dialysis_screenV2 import PressureWaveformWidget
+        
+        get_qapp()
+        
+        # Create a minimal parent widget for the graph
+        parent = QWidget()
+        graph = PressureWaveformWidget(parent)
+        
+        # Add some normal values
+        graph.add_values(90.0, 50.0)
+        graph.add_values(95.0, 52.0)
+        
+        # Add None values (simulating a communication error)
+        graph.add_values(None, None)
+        graph.add_values(100.0, None)
+        graph.add_values(None, 55.0)
+        
+        # Repaint should not crash
+        try:
+            graph.paintEvent(None)
+        except Exception as e:
+            pytest.fail(f"paintEvent raised exception with None values in history: {e}")
+        
+        # Graph should still be valid
+        assert graph is not None
 
 
 class TestHeparinConfigScreenRunning:
@@ -303,6 +361,40 @@ class TestHeparinConfigScreenRunning:
         
         # Screen should exist and not crash
         assert screen is not None
+    
+    def test_heparin_none_volume_values_no_crash(self):
+        """Syringe volume, bolus, and syringe size as None should not crash."""
+        from core.state_manager import TreatmentPhase
+        from gui.therapy.heparin_config_screenV2 import HeparinConfigScreen
+        
+        get_qapp()
+        
+        parent = self._create_parent_for_heparin(TreatmentPhase.PREPARING)
+        parent.current_values = {
+            "heparineInfusionEnabled": 1.0,
+            "heparineSyringeVolume": None,  # None instead of float
+            "heparineBolusQuantity": None,  # None instead of float
+            "heparineSyringeSize": None,    # None instead of float
+        }
+        
+        screen = HeparinConfigScreen(parent)
+        screen.current_values = parent.current_values
+        
+        # Should not raise any exception when updating with None values
+        try:
+            screen.update_values({
+                "heparineSyringeVolume": None,
+                "heparineBolusQuantity": None,
+                "heparineSyringeSize": None,
+            })
+        except Exception as e:
+            pytest.fail(f"update_values raised exception with None values: {e}")
+        
+        # Fields should display "0.0" (handled as default)
+        assert screen.input_vol_hep.text() == "0.0", \
+            "Syringe volume should display '0.0' when None"
+        assert screen.input_bolus.text() == "0.0", \
+            "Bolus quantity should display '0.0' when None"
 
 
 class TestStartTreatmentLogic:

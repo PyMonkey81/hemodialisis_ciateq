@@ -719,6 +719,9 @@ class HeparinConfigScreen(QWidget):
         if widget.hasFocus():
             return
         value = self.current_values.get(tag, 0.0)
+        # Tratar None como 0.0
+        if value is None:
+            value = 0.0
         widget.setText(f"{value:.{precision}f}")
 
     def update_values(self, new_values: dict):
@@ -755,6 +758,9 @@ class HeparinConfigScreen(QWidget):
         for tag, widget in variables_to_update.items():
             if tag in self.current_values:
                 value = self.current_values[tag]
+                # Tratar None como 0.0
+                if value is None:
+                    value = 0.0
                 if isinstance(widget, ClickableLineEdit):
                     widget.setText(f"{value:.1f}")
 
