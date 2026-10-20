@@ -196,21 +196,21 @@ class TestUfVolumeCalculation:
         """Large pulse counts should calculate correctly."""
         from logic.uf_volume import litros_removidos
         
-        # 1,000,000 pulses × 1.0 ml/pulse = 1000 liters
+        # 1,000,000 pulses × 0.94162 ml/pulse = 941.62 liters
         result = litros_removidos(1_000_000)
-        assert result == 1000.0
+        assert result == 941.62
     
     def test_uf_volume_rounding(self):
         """Result should round to 2 decimals."""
         from logic.uf_volume import litros_removidos
         
-        # 1234 pulses × 1.0 ml/pulse = 1.234 liters → 1.23 L
+        # 1234 pulses × 0.94162 ml/pulse = 1.161764 liters → 1.16 L
         result = litros_removidos(1234)
-        assert result == 1.23
+        assert result == 1.16
         
-        # 1235 pulses × 1.0 ml/pulse = 1.235 liters → 1.24 L (round half up)
+        # 1235 pulses × 0.94162 ml/pulse = 1.162702 liters → 1.16 L (round half up)
         result = litros_removidos(1235)
-        assert result == 1.24
+        assert result == 1.16
 
 
 class TestKtVCalculation:
