@@ -684,9 +684,9 @@ class DialysisScreen(QWidget):
         uf_goal = uf_rate * therapy_duration_hours
         self.uf_goal_val.setText(f"{uf_goal:.2f} L")
         
-        # UF Removida: usar los pulsos acumulados de la bomba UF (balanceChamberCycleCount)
+        # UF Removida: usar los pulsos acumulados de la bomba UF (ultraFilterCycleCount)
         # Trata None como 0
-        cycle_count_val = self.current_values.get("balanceChamberCycleCount", 0.0)
+        cycle_count_val = self.current_values.get("ultraFilterCycleCount", 0.0)
         uf_pulse_count = float(cycle_count_val) if cycle_count_val is not None else 0.0
         uf_removed = litros_removidos(int(uf_pulse_count))
         self.uf_rem_val.setText(f"{uf_removed:.2f} L")

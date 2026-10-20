@@ -9,7 +9,7 @@ acumulado de pulsos de la bomba.
 # Desplazamiento de la bomba UF
 # TODO: Reemplazar por el valor real del desplazamiento en ml por pulso
 # de la hoja de datos del fabricante de la bomba UF
-UF_PUMP_ML_PER_PULSE = 1.0  # ml por pulso
+UF_PUMP_ML_PER_PULSE = 0.94162 # ml por pulso
 
 
 def litros_removidos(pulsos: int) -> float:
@@ -27,7 +27,7 @@ def litros_removidos(pulsos: int) -> float:
         litros = pulsos × UF_PUMP_ML_PER_PULSE / 1000
     
     Ejemplos:
-        litros_removidos(1000) → 1.00 L (con 1.0 ml/pulso)
+        litros_removidos(1000) → 0.94 L (con 0.94162 ml/pulso)
         litros_removidos(-100) → 0.00 L (pulsos negativos devuelven 0)
     """
     if pulsos < 0:
