@@ -493,6 +493,17 @@ class DialysisScreen(QWidget):
         rem_layout.addWidget(self.uf_rem_val)
         uf_layout.addLayout(rem_layout)
 
+        # TEMPORAL: Indicador de pulsos crudos del firmware. Quitar al cerrar el contrato de esta versión.
+        pulse_layout = QHBoxLayout()
+        pulse_label = QLabel("Pulsos UF (temp):")
+        pulse_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        pulse_layout.addWidget(pulse_label)
+        self.uf_pulse_val = QLabel("0")
+        self.uf_pulse_val.setStyleSheet("color: #b45309; font-weight: bold; font-size: 28px; min-width: 180px; text-align: right;")
+        pulse_layout.addStretch()
+        pulse_layout.addWidget(self.uf_pulse_val)
+        uf_layout.addLayout(pulse_layout)
+
         ktv_layout = QHBoxLayout()
         ktv_label = QLabel("Kt/V Acumulado:")
         ktv_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
@@ -690,6 +701,10 @@ class DialysisScreen(QWidget):
         uf_pulse_count = float(cycle_count_val) if cycle_count_val is not None else 0.0
         uf_removed = litros_removidos(int(uf_pulse_count))
         self.uf_rem_val.setText(f"{uf_removed:.2f} L")
+        
+        # TEMPORAL: Mostrar el conteo crudo de pulsos. Quitar al cerrar el contrato de esta versión.
+        pulse_display = int(uf_pulse_count) if uf_pulse_count is not None else 0
+        self.uf_pulse_val.setText(str(pulse_display))
     
         # Actualizar gráfico - tratar None como 0
         venous_pressure_val = self.current_values.get("bloodVenousPressureData", 0.0)
