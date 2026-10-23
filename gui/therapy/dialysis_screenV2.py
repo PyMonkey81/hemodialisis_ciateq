@@ -271,6 +271,10 @@ class DialysisScreen(QWidget):
         palette.setColor(self.backgroundRole(), QColor("#edf3f9"))
         self.setPalette(palette)
 
+        # Listas para aplicar temas dinámicos
+        self.themed_sublabels = []
+        self.themed_unit_labels = []
+
         # Historial para gráficas
         self.history_length = 600
         nan_array = [np.nan] * self.history_length
@@ -453,56 +457,96 @@ class DialysisScreen(QWidget):
         uf_title.setObjectName("card_title")
         uf_layout.addWidget(uf_title)
 
-        ufr_layout = QHBoxLayout()
-        ufr_v = QVBoxLayout()
-        ufr_v.setSpacing(6)
-        ufr_v.addWidget(QLabel("TASA DE ULTRAFILTRACIÓN (UF)"))
-        ufr_value_row = QHBoxLayout()
-        ufr_value_row.setSpacing(6)
-        self.uf_rate_val = QLabel("0.60")
-        self.uf_rate_val.setObjectName("val_large_cyan")
-        uf_rate_unit = QLabel("L/hora")
-        uf_rate_unit.setStyleSheet("font-size: 22px; color: #475569; font-weight: 600;")
-        ufr_value_row.addWidget(self.uf_rate_val)
-        ufr_value_row.addWidget(uf_rate_unit)
-        ufr_value_row.addStretch()
-        ufr_v.addLayout(ufr_value_row)
+        # ufr_layout = QHBoxLayout()
+        # ufr_v = QVBoxLayout()
+        # ufr_v.setSpacing(6)
+        # ufr_v.addWidget(QLabel("TASA DE ULTRAFILTRACIÓN (UF)"))
+        # ufr_value_row = QHBoxLayout()
+        # ufr_value_row.setSpacing(6)
+        # self.uf_rate_val = QLabel("0.60")
+        # self.uf_rate_val.setObjectName("val_large_cyan")
+        # uf_rate_unit = QLabel("L/hora")
+        # uf_rate_unit.setStyleSheet("font-size: 22px; color: #475569; font-weight: 600;")
+        # ufr_value_row.addWidget(self.uf_rate_val)
+        # ufr_value_row.addWidget(uf_rate_unit)
+        # ufr_value_row.addStretch()
+        # ufr_v.addLayout(ufr_value_row)
         
-        ufr_layout.addLayout(ufr_v)
-        ufr_layout.addStretch()
-        uf_layout.addLayout(ufr_layout)
+        # ufr_layout.addLayout(ufr_v)
+        # ufr_layout.addStretch()
+        # uf_layout.addLayout(ufr_layout)
    
-        # Meta y Extraído
+        # # Meta y Extraído
+        # meta_layout = QHBoxLayout()
+        # meta_label = QLabel("Objetivo Total UF:")
+        # meta_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        # meta_layout.addWidget(meta_label)
+        # self.uf_goal_val = QLabel("2.50 L")
+        # self.uf_goal_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
+        # meta_layout.addStretch()
+        # meta_layout.addWidget(self.uf_goal_val)
+        # uf_layout.addLayout(meta_layout)
+
         meta_layout = QHBoxLayout()
-        meta_label = QLabel("Objetivo Total UF:")
-        meta_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
-        meta_layout.addWidget(meta_label)
-        self.uf_goal_val = QLabel("2.50 L")
-        self.uf_goal_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
+        meta_v = QVBoxLayout()
+        meta_v.setSpacing(4)
+        lbl_meta_cap = QLabel("OBJETIVO TOTAL UF")
+        lbl_meta_cap.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        self.themed_sublabels.append(lbl_meta_cap)
+        meta_v.addWidget(lbl_meta_cap)
+
+        meta_value_row = QHBoxLayout()
+        meta_value_row.setSpacing(6)
+        self.uf_goal_val = QLabel("0.00")
+        self.uf_goal_val.setObjectName("val_large_cyan")
+        uf_goal_unit = QLabel("L")
+        uf_goal_unit.setStyleSheet("font-size: 22px; color: #475569; font-weight: 600;")
+        self.themed_unit_labels.append(uf_goal_unit)
+        meta_value_row.addWidget(self.uf_goal_val)
+        meta_value_row.addWidget(uf_goal_unit)
+        meta_value_row.addStretch()
+        meta_v.addLayout(meta_value_row)
+        meta_layout.addLayout(meta_v)
         meta_layout.addStretch()
-        meta_layout.addWidget(self.uf_goal_val)
         uf_layout.addLayout(meta_layout)
+        
+        ufr_layout = QHBoxLayout()
+        ufr_label = QLabel("Tasa de UF:")
+        ufr_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        self.themed_sublabels.append(ufr_label)
+        ufr_layout.addWidget(ufr_label)
+        self.uf_rate_val = QLabel("0.00 L/hora")
+        self.uf_rate_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
+        self.ufr_val = self.uf_rate_val
+        ufr_layout.addStretch()
+        ufr_layout.addWidget(self.uf_rate_val)
+        uf_layout.addLayout(ufr_layout)
 
         rem_layout = QHBoxLayout()
         rem_label = QLabel("UF Removida:")
         rem_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        
         rem_layout.addWidget(rem_label)
-        self.uf_rem_val = QLabel("0.00 L")
+        self.uf_rem_val = QLabel("0.00")
         self.uf_rem_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
+        uf_rem_unit = QLabel("L")
+        uf_rem_unit.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 24px;")
+        
         rem_layout.addStretch()
         rem_layout.addWidget(self.uf_rem_val)
+        rem_layout.addWidget(uf_rem_unit)
         uf_layout.addLayout(rem_layout)
 
         # TEMPORAL: Indicador de pulsos crudos del firmware. Quitar al cerrar el contrato de esta versión.
-        pulse_layout = QHBoxLayout()
-        pulse_label = QLabel("Pulsos UF (temp):")
-        pulse_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
-        pulse_layout.addWidget(pulse_label)
-        self.uf_pulse_val = QLabel("0")
-        self.uf_pulse_val.setStyleSheet("color: #b45309; font-weight: bold; font-size: 28px; min-width: 180px; text-align: right;")
-        pulse_layout.addStretch()
-        pulse_layout.addWidget(self.uf_pulse_val)
-        uf_layout.addLayout(pulse_layout)
+        # pulse_layout = QHBoxLayout()
+        # pulse_label = QLabel("Pulsos UF (temp):")
+        # pulse_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        # pulse_layout.addWidget(pulse_label)
+        # self.uf_pulse_val = QLabel("0")
+        # self.uf_pulse_val.setStyleSheet("color: #b45309; font-weight: bold; font-size: 28px; min-width: 180px; text-align: right;")
+        # pulse_layout.addStretch()
+        # pulse_layout.addWidget(self.uf_pulse_val)
+        # uf_layout.addLayout(pulse_layout)
 
         ktv_layout = QHBoxLayout()
         ktv_label = QLabel("Kt/V Acumulado:")
@@ -679,7 +723,7 @@ class DialysisScreen(QWidget):
         # Trata None como 0
         uf_rate_val = self.current_values.get("ultraFilterPumpSpeed", 0.0)
         uf_rate = float(uf_rate_val) if uf_rate_val is not None else 0.0
-        self.uf_rate_val.setText(f"{uf_rate:.2f}")
+        self.uf_rate_val.setText(f"{uf_rate:.2f} L/hora")
         
         # Objetivo: tasa × duración programada (horas + minutos/60)
         # Si hay perfil de UF activo, solo usar el producto cuando no hay perfil
@@ -693,18 +737,18 @@ class DialysisScreen(QWidget):
         # TODO: Si está activo el perfil de UF, ajustar el cálculo del objetivo
         # Para ahora, usar el producto directo
         uf_goal = uf_rate * therapy_duration_hours
-        self.uf_goal_val.setText(f"{uf_goal:.2f} L")
+        self.uf_goal_val.setText(f"{uf_goal:.2f}")
         
         # UF Removida: usar los pulsos acumulados de la bomba UF (ultraFilterCycleCount)
         # Trata None como 0
         cycle_count_val = self.current_values.get("ultraFilterCycleCount", 0.0)
         uf_pulse_count = float(cycle_count_val) if cycle_count_val is not None else 0.0
         uf_removed = litros_removidos(int(uf_pulse_count))
-        self.uf_rem_val.setText(f"{uf_removed:.2f} L")
+        self.uf_rem_val.setText(f"{uf_removed:.2f}")
         
         # TEMPORAL: Mostrar el conteo crudo de pulsos. Quitar al cerrar el contrato de esta versión.
-        pulse_display = int(uf_pulse_count) if uf_pulse_count is not None else 0
-        self.uf_pulse_val.setText(str(pulse_display))
+        # pulse_display = int(uf_pulse_count) if uf_pulse_count is not None else 0
+        # self.uf_pulse_val.setText(str(pulse_display))
     
         # Actualizar gráfico - tratar None como 0
         venous_pressure_val = self.current_values.get("bloodVenousPressureData", 0.0)
