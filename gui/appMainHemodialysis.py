@@ -845,8 +845,6 @@ class HemodialysisHMI(QMainWindow):
         elif status_code == 14:
              self.state.set_phase(TreatmentPhase.RUNNING, reason)
              self.screen_state_manager.update_all_screens(TreatmentPhase.RUNNING)
-             # Recortar heparina UNA SOLA VEZ al entrar a RUNNING
-             self._apply_heparin_auto_trim_on_running()
         elif status_code == 15:
              self.state.set_phase(TreatmentPhase.PAUSED, reason)
              self.screen_state_manager.update_all_screens(TreatmentPhase.PAUSED)
@@ -1357,18 +1355,18 @@ class HemodialysisHMI(QMainWindow):
                 self.current_values["heparineTherapyDosage"] = dosage_ml
                 self._persist_therapy_config_tag("heparineTherapyDosage", dosage_ml)
                 
-                # Paso 2: Enviar los tres valores al firmware
-                logger.info("[HEPARIN-TRIM-RUNNING] Enviando valores recortados al firmware...")
-                self._write_setpoint("heparineAutoStopHours", float(trimmed_h))
-                self._write_setpoint("heparineAutoStopMinutes", float(trimmed_m))
-                self._write_setpoint("heparineTherapyDosage", dosage_ml)
-                
-                # Paso 3: Marcar para ignorar lecturas durante 3s
+                # Paso 2: Marcar para ignorar lecturas durante 3s ANTES de escribir
                 ignore_until = time.time() + 3.0
                 self.ignore_tags_until["heparineAutoStopHours"] = ignore_until
                 self.ignore_tags_until["heparineAutoStopMinutes"] = ignore_until
                 self.ignore_tags_until["heparineTherapyDosage"] = ignore_until
                 logger.info(f"[HEPARIN-TRIM-RUNNING] Bloqueando lecturas durante 3s")
+                
+                # Paso 3: Enviar los tres valores al firmware
+                logger.info("[HEPARIN-TRIM-RUNNING] Enviando valores recortados al firmware...")
+                self._write_setpoint("heparineAutoStopHours", float(trimmed_h))
+                self._write_setpoint("heparineAutoStopMinutes", float(trimmed_m))
+                self._write_setpoint("heparineTherapyDosage", dosage_ml)
                 
                 # Actualizar pantalla de heparina si existe
                 if (hasattr(self, 'heparin_config_screen') and 

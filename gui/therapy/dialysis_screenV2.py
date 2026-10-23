@@ -263,6 +263,7 @@ class DialysisScreen(QWidget):
         super().__init__(parent)
         self.parent_window = parent  # Referencia a HemodialysisHMI
         self.current_values = values_dict if values_dict is not None else {}
+        self.last_phase = None  # Para detectar transiciones de fase
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)        
 
@@ -717,6 +718,18 @@ class DialysisScreen(QWidget):
     def update_values(self, new_values: dict):
         """Update all displayed values."""
         self.current_values = new_values
+
+        # ===== DETECCIÓN DE TRANSICIÓN DE FASE =====
+        if hasattr(self.parent_window, 'state'):
+            new_phase = self.parent_window.state.current_phase
+            if (new_phase != self.last_phase and 
+                new_phase == TreatmentPhase.RUNNING and 
+                self.last_phase != TreatmentPhase.PAUSED):
+                # Transición a RUNNING (pero no desde PAUSED) → Recortar heparina UNA SOLA VEZ
+                if hasattr(self.parent_window, '_apply_heparin_auto_trim_on_running'):
+                    logger.info("[DialysisScreen] Detectada transición a RUNNING, aplicando recorte de heparina")
+                    self.parent_window._apply_heparin_auto_trim_on_running()
+            self.last_phase = new_phase
 
         # ===== CARD UF: Tasa, Objetivo, UF Removida =====
         # Tasa: se toma directamente de ultraFilterPumpSpeed (L/h)
