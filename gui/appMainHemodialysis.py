@@ -845,6 +845,8 @@ class HemodialysisHMI(QMainWindow):
         elif status_code == 14:
              self.state.set_phase(TreatmentPhase.RUNNING, reason)
              self.screen_state_manager.update_all_screens(TreatmentPhase.RUNNING)
+             # Recortar heparina UNA SOLA VEZ al entrar a RUNNING
+             self._apply_heparin_auto_trim_on_running()
         elif status_code == 15:
              self.state.set_phase(TreatmentPhase.PAUSED, reason)
              self.screen_state_manager.update_all_screens(TreatmentPhase.PAUSED)
@@ -1298,6 +1300,115 @@ class HemodialysisHMI(QMainWindow):
         
         # Default a 1.0 ml/h si no se puede obtener
         return 1.0
+    
+    def _apply_heparin_auto_trim_on_running(self):
+        """
+        Al entrar a RUNNING, recorta UNA SOLA VEZ el tiempo de heparina si es necesario.
+        
+        Regla: Si heparina_programada > terapia_programada - 30 minutos,
+        recorta heparina al máximo permitido.
+        
+        Ejemplo:
+        - Terapia 01:00 (60 min) → máximo heparina = max(0, 60-30) = 30 min
+        - Si heparina es 01:00, se recorta a 00:30
+        - Si heparina es 00:20, no se toca
+        
+        No vuelve a recortar mientras corre la terapia.
+        """
+        try:
+            # Obtener tiempos programados (no restantes)
+            therapy_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+            therapy_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+            programmed_minutes = (therapy_h * 60) + therapy_m
+            
+            auto_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
+            auto_m = int(self.current_values.get("heparineAutoStopMinutes", 0) or 0)
+            auto_minutes = (auto_h * 60) + auto_m
+            
+            # Calcular máximo permitido: terapia - 30 minutos
+            max_heparin_minutes = max(0, programmed_minutes - 30)
+            
+            # Si heparina excede el máximo, recortar
+            if auto_minutes > max_heparin_minutes:
+                # Convertir máximo a horas:minutos
+                trimmed_h = max_heparin_minutes // 60
+                trimmed_m = max_heparin_minutes % 60
+                
+                logger.info(
+                    f"[HEPARIN-TRIM-RUNNING] Terapia: {therapy_h:02d}:{therapy_m:02d} ({programmed_minutes} min) | "
+                    f"Heparina original: {auto_h:02d}:{auto_m:02d} ({auto_minutes} min) | "
+                    f"Máximo permitido: {trimmed_h:02d}:{trimmed_m:02d} ({max_heparin_minutes} min) | "
+                    f"Recortando..."
+                )
+                
+                # Paso 1: Actualizar current_values
+                self.current_values["heparineAutoStopHours"] = float(trimmed_h)
+                self.current_values["heparineAutoStopMinutes"] = float(trimmed_m)
+                
+                # Persistir en configuración local
+                self._persist_therapy_config_tag("heparineAutoStopHours", float(trimmed_h))
+                self._persist_therapy_config_tag("heparineAutoStopMinutes", float(trimmed_m))
+                
+                # Recalcular y persistir dosis
+                time_hours = trimmed_h + (trimmed_m / 60.0)
+                flow_ml_per_h = self._get_heparin_flow_ml_per_h()
+                dosage_ml = round(time_hours * flow_ml_per_h, 2)
+                
+                self.current_values["heparineTherapyDosage"] = dosage_ml
+                self._persist_therapy_config_tag("heparineTherapyDosage", dosage_ml)
+                
+                # Paso 2: Enviar los tres valores al firmware
+                logger.info("[HEPARIN-TRIM-RUNNING] Enviando valores recortados al firmware...")
+                self._write_setpoint("heparineAutoStopHours", float(trimmed_h))
+                self._write_setpoint("heparineAutoStopMinutes", float(trimmed_m))
+                self._write_setpoint("heparineTherapyDosage", dosage_ml)
+                
+                # Paso 3: Marcar para ignorar lecturas durante 3s
+                ignore_until = time.time() + 3.0
+                self.ignore_tags_until["heparineAutoStopHours"] = ignore_until
+                self.ignore_tags_until["heparineAutoStopMinutes"] = ignore_until
+                self.ignore_tags_until["heparineTherapyDosage"] = ignore_until
+                logger.info(f"[HEPARIN-TRIM-RUNNING] Bloqueando lecturas durante 3s")
+                
+                # Actualizar pantalla de heparina si existe
+                if (hasattr(self, 'heparin_config_screen') and 
+                    self.heparin_config_screen is not None):
+                    self.heparin_config_screen.input_heparin_auto_stop.setText(
+                        f"{trimmed_h:02d}:{trimmed_m:02d}"
+                    )
+                    self.heparin_config_screen.current_values["heparineAutoStopHours"] = float(trimmed_h)
+                    self.heparin_config_screen.current_values["heparineAutoStopMinutes"] = float(trimmed_m)
+                    self.heparin_config_screen.current_values["heparineTherapyDosage"] = dosage_ml
+                
+                # Log de sincronización
+                padre_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
+                padre_m = int(self.current_values.get("heparineAutoStopMinutes", 0) or 0)
+                padre_dosage = float(self.current_values.get("heparineTherapyDosage", 0.0) or 0.0)
+                
+                pantalla_text = None
+                if (hasattr(self, 'heparin_config_screen') and 
+                    self.heparin_config_screen is not None):
+                    pantalla_text = self.heparin_config_screen.input_heparin_auto_stop.text()
+                
+                logger.info(
+                    f"[HEPARIN-TRIM-SYNC] Padre: {padre_h:02d}:{padre_m:02d} dosage={padre_dosage:.2f}ml | "
+                    f"Widget: '{pantalla_text}'"
+                )
+                
+                # Mostrar aviso
+                msg = (
+                    f"Heparina recortada a {trimmed_h:02d}:{trimmed_m:02d} al iniciar terapia. "
+                    "No se infunde en los últimos 30 minutos."
+                )
+                self.show_warning_message(msg, 5000)
+            else:
+                logger.info(
+                    f"[HEPARIN-TRIM-RUNNING] Heparina {auto_h:02d}:{auto_m:02d} ({auto_minutes} min) "
+                    f"está dentro del límite ({max_heparin_minutes} min). No se modifica."
+                )
+        
+        except Exception as e:
+            logger.error(f"Error recortando heparina al iniciar RUNNING: {e}", exc_info=True)
     
     def start_priming(self):
         """
@@ -2025,6 +2136,13 @@ class HemodialysisHMI(QMainWindow):
             self._timer_lock = False
 
     def _coerce_heparin_auto_stop_seconds(self) -> int:
+        """
+        Calcula los segundos efectivos del paro automático de heparina,
+        respetando el límite clínico de 30 minutos antes del fin.
+        
+        SOLO CALCULA, no modifica current_values. La escritura se realiza
+        en _apply_heparin_auto_trim_on_running() al entrar a RUNNING.
+        """
         cfg_hours = safe_int(self.current_values.get(HEPARIN_AUTO_STOP_HOURS_TAG, 0), 0)
         cfg_minutes = safe_int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0), 0)
         requested_seconds = max(0, (cfg_hours * 3600) + (cfg_minutes * 60))
@@ -2037,13 +2155,11 @@ class HemodialysisHMI(QMainWindow):
         max_allowed_seconds = max(0, therapy_seconds - 1800)
         effective_seconds = min(requested_seconds, max_allowed_seconds)
 
-        if effective_seconds != requested_seconds:
-            eff_h = effective_seconds // 3600
-            eff_m = (effective_seconds % 3600) // 60
-            self.current_values[HEPARIN_AUTO_STOP_HOURS_TAG] = float(eff_h)
-            self.current_values[HEPARIN_AUTO_STOP_MINUTES_TAG] = float(eff_m)
+        # No escribir en current_values aquí. El recorte se realiza solo en RUNNING
+        # mediante _apply_heparin_auto_trim_on_running()
 
         return effective_seconds
+
 
     def _update_heparin_auto_stop_timer(self):
         phase = self.state.current_phase
