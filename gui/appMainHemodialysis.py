@@ -2746,6 +2746,10 @@ class HemodialysisHMI(QMainWindow):
                             if new_phase == TreatmentPhase.RUNNING:
                                 treatment_controller.start_therapy_timer()
                                 
+                                # Recortar heparina UNA SOLA VEZ al entrar a RUNNING (no desde PAUSED)
+                                if old_phase != TreatmentPhase.PAUSED:
+                                    self._apply_heparin_auto_trim_on_running()
+                                
                                 if not self.current_treatment_start:
                                     self.current_treatment_start = QDateTime.currentDateTime()
                                 # Logger: nueva sesión o reanudación
