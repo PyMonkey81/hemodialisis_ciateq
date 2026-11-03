@@ -151,9 +151,9 @@ class PatientConfigScreen(QWidget):
         selector_group = QGroupBox("Seleccionar o registrar paciente")
         selector_group.setStyleSheet("""
             QGroupBox {
-                font-size: 18px; font-weight: bold; color: #2563eb;
+                font-size: 26px; font-weight: bold; color: #2563eb;
                 border: 2px solid #cbd5e1; border-radius: 10px;
-                background-color: white;
+                background-color: #ffffff;
                 margin-top: 10px;
             }
             QGroupBox::title {
@@ -170,7 +170,7 @@ class PatientConfigScreen(QWidget):
         
         self.patient_list = QListWidget()
         self.patient_list.setFixedHeight(200)
-        self.patient_list.setStyleSheet("color: #0f172a; font-size: 16px; background-color: white; border: 1px solid #e2e8f0;")
+        self.patient_list.setStyleSheet("color: #0f172a; font-size: 24px; background-color: #ffffff; border: 1px solid #e2e8f0;")
         self._refresh_patient_list()
         self.patient_list.itemClicked.connect(self._load_selected_patient)
         list_and_buttons.addWidget(self.patient_list)
@@ -179,10 +179,10 @@ class PatientConfigScreen(QWidget):
         buttons_layout.setSpacing(12)
 
         btn_new = QPushButton("Nuevo\nPaciente")
-        btn_new.setFixedSize(210, 48)
+        btn_new.setFixedSize(210, 78)
         btn_new.setStyleSheet("""
             QPushButton {
-                font-size: 14px; background: #10b981; color: white;
+                font-size: 24px; background: #10b981; color: white;
                 border-radius: 6px; font-weight: bold;
             }
             QPushButton:hover { background: #059669; }
@@ -192,10 +192,10 @@ class PatientConfigScreen(QWidget):
         buttons_layout.addWidget(btn_new)
 
         self.btn_delete = QPushButton("Eliminar\nPaciente")
-        self.btn_delete.setFixedSize(210, 48)
+        self.btn_delete.setFixedSize(210, 78)
         self.btn_delete.setStyleSheet("""
             QPushButton {
-                font-size: 14px; background: #dc2626; color: white;
+                font-size: 24px; background: #dc2626; color: white;
                 border-radius: 6px; font-weight: bold;
             }
             QPushButton:hover { background: #b91c1c; }
@@ -215,9 +215,9 @@ class PatientConfigScreen(QWidget):
         self.form_group = QGroupBox("Datos Clínicos, Antropométricos y Prescripción Base")
         self.form_group.setStyleSheet("""
             QGroupBox {
-                font-size: 18px; font-weight: bold; color: #2563eb;
+                font-size: 26px; font-weight: bold; color: #2563eb;
                 border: 2px solid #cbd5e1; border-radius: 10px;
-                background-color: white;
+                background-color: #ffffff;
                 margin-top: 10px;
             }
             QGroupBox::title {
@@ -228,7 +228,7 @@ class PatientConfigScreen(QWidget):
             QLineEdit, QComboBox {
                 border: 1px solid #cbd5e1; border-radius: 4px;
                 padding: 6px; background-color: white; color: #0f172a;
-                font-size: 14px;
+                font-size: 24px;
             }
             QLineEdit:disabled, QComboBox:disabled {
                 background-color: #f1f5f9; color: #94a3b8;
@@ -244,11 +244,11 @@ class PatientConfigScreen(QWidget):
         def add_grid_field(row, col, label_text, field_key, field_type, col_span=1):
             """Helper para agregar un campo al grid. col_span permite ocupar 2 columnas."""
             label = QLabel(label_text)
-            label.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+            label.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
 
             if field_type == "combo":
                 widget = QComboBox()
-                widget.setStyleSheet("font-size: 14px;")
+                widget.setStyleSheet("font-size: 24px;")
                 if field_key == "gender":
                     widget.addItems(["", "Masculino (M)", "Femenino (F)"])
                 elif field_key == "access_type":
@@ -257,7 +257,7 @@ class PatientConfigScreen(QWidget):
                     widget.addItems(["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-", "No especificado"])
             else:
                 widget = QLineEdit()
-                widget.setStyleSheet("font-size: 14px;")
+                widget.setStyleSheet("font-size: 24px;")
                 widget.setReadOnly(True)
                 if field_type == "numeric":
                     if field_key == "age":
@@ -282,9 +282,9 @@ class PatientConfigScreen(QWidget):
         
         # Row 0, col 4-5: género
         label_g = QLabel("Género")
-        label_g.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_g.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_g = QComboBox()
-        widget_g.setStyleSheet("font-size: 14px;")
+        widget_g.setStyleSheet("font-size: 24px;")
         widget_g.addItems(["", "Masculino (M)", "Femenino (F)"])
         self.fields["gender"] = widget_g
         grid.addWidget(label_g, 0, 4)
@@ -292,9 +292,9 @@ class PatientConfigScreen(QWidget):
         
         # Edad
         label_a = QLabel("Edad")
-        label_a.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_a.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_a = QLineEdit()
-        widget_a.setStyleSheet("font-size: 14px;")
+        widget_a.setStyleSheet("font-size: 24px;")
         widget_a.setReadOnly(True)
         widget_a.setValidator(QIntValidator(18, 100))
         widget_a.mousePressEvent = lambda e, k="age", w=widget_a: \
@@ -305,9 +305,9 @@ class PatientConfigScreen(QWidget):
 
         # Row 1: Nombre (2 cols), Altura, Peso seco
         label_n = QLabel("Nombre")
-        label_n.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_n.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_n = QLineEdit()
-        widget_n.setStyleSheet("font-size: 14px;")
+        widget_n.setStyleSheet("font-size: 24px;")
         widget_n.setReadOnly(True)
         widget_n.mousePressEvent = lambda e, k="patient_name", w=widget_n: \
             self.open_touch_input(k, w, mode='text')
@@ -316,9 +316,9 @@ class PatientConfigScreen(QWidget):
         grid.addWidget(widget_n, 1, 1, 1, 3)  # spans 2 columns
 
         label_h = QLabel("Altura (cm)")
-        label_h.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_h.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_h = QLineEdit()
-        widget_h.setStyleSheet("font-size: 14px;")
+        widget_h.setStyleSheet("font-size: 24px;")
         widget_h.setReadOnly(True)
         widget_h.setValidator(QDoubleValidator(100.0, 250.0, 1))
         widget_h.mousePressEvent = lambda e, k="height_cm", w=widget_h: \
@@ -328,9 +328,9 @@ class PatientConfigScreen(QWidget):
         grid.addWidget(widget_h, 1, 5)
 
         label_ds = QLabel("Peso seco (kg)")
-        label_ds.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_ds.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_ds = QLineEdit()
-        widget_ds.setStyleSheet("font-size: 14px;")
+        widget_ds.setStyleSheet("font-size: 24px;")
         widget_ds.setReadOnly(True)
         widget_ds.setValidator(QDoubleValidator(30.0, 150.0, 1))
         widget_ds.mousePressEvent = lambda e, k="dry_weight_kg", w=widget_ds: \
@@ -341,9 +341,9 @@ class PatientConfigScreen(QWidget):
 
         # Row 2: Peso pre, Acceso, Grupo, Filtro
         label_pp = QLabel("Peso pre (kg)")
-        label_pp.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_pp.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_pp = QLineEdit()
-        widget_pp.setStyleSheet("font-size: 14px;")
+        widget_pp.setStyleSheet("font-size: 24px;")
         widget_pp.setReadOnly(True)
         widget_pp.setValidator(QDoubleValidator(30.0, 200.0, 1))
         widget_pp.mousePressEvent = lambda e, k="pre_weight_kg", w=widget_pp: \
@@ -353,27 +353,27 @@ class PatientConfigScreen(QWidget):
         grid.addWidget(widget_pp, 2, 1)
 
         label_acc = QLabel("Acceso")
-        label_acc.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_acc.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_acc = QComboBox()
-        widget_acc.setStyleSheet("font-size: 14px;")
+        widget_acc.setStyleSheet("font-size: 24px;")
         widget_acc.addItems(["Fístula AV (FAV)", "Catéter Perm-Cath", "Catéter Temporal (Mahurkar)", "Injerto Vascular (PTFE)"])
         self.fields["access_type"] = widget_acc
         grid.addWidget(label_acc, 2, 2)
         grid.addWidget(widget_acc, 2, 3)
 
         label_bg = QLabel("Grupo")
-        label_bg.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_bg.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_bg = QComboBox()
-        widget_bg.setStyleSheet("font-size: 14px;")
+        widget_bg.setStyleSheet("font-size: 24px;")
         widget_bg.addItems(["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-", "No especificado"])
         self.fields["blood_type"] = widget_bg
         grid.addWidget(label_bg, 2, 4)
         grid.addWidget(widget_bg, 2, 5)
 
         label_f = QLabel("Filtro")
-        label_f.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_f.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_f = QLineEdit()
-        widget_f.setStyleSheet("font-size: 14px;")
+        widget_f.setStyleSheet("font-size: 24px;")
         widget_f.setReadOnly(True)
         widget_f.mousePressEvent = lambda e, k="dialyzer", w=widget_f: \
             self.open_touch_input(k, w, mode='text')
@@ -383,9 +383,9 @@ class PatientConfigScreen(QWidget):
 
         # Row 3: Diagnóstico (2 cols), Médico (2 cols)
         label_diag = QLabel("Diagnóstico")
-        label_diag.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_diag.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_diag = QLineEdit()
-        widget_diag.setStyleSheet("font-size: 14px;")
+        widget_diag.setStyleSheet("font-size: 24px;")
         widget_diag.setReadOnly(True)
         widget_diag.mousePressEvent = lambda e, k="diagnosis", w=widget_diag: \
             self.open_touch_input(k, w, mode='text')
@@ -394,9 +394,9 @@ class PatientConfigScreen(QWidget):
         grid.addWidget(widget_diag, 3, 1, 1, 3)  # spans 2 columns
 
         label_phys = QLabel("Médico")
-        label_phys.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_phys.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_phys = QLineEdit()
-        widget_phys.setStyleSheet("font-size: 14px;")
+        widget_phys.setStyleSheet("font-size: 24px;")
         widget_phys.setReadOnly(True)
         widget_phys.mousePressEvent = lambda e, k="physician", w=widget_phys: \
             self.open_touch_input(k, w, mode='text')
@@ -406,9 +406,9 @@ class PatientConfigScreen(QWidget):
 
         # Row 4: Alergias (4 cols)
         label_allerg = QLabel("Alergias")
-        label_allerg.setStyleSheet("font-size: 14px; color: #475569; font-weight: 600;")
+        label_allerg.setStyleSheet("font-size: 24px; color: #475569; font-weight: 600;")
         widget_allerg = QLineEdit()
-        widget_allerg.setStyleSheet("font-size: 14px;")
+        widget_allerg.setStyleSheet("font-size: 24px;")
         widget_allerg.setReadOnly(True)
         widget_allerg.mousePressEvent = lambda e, k="allergies", w=widget_allerg: \
             self.open_touch_input(k, w, mode='text')
