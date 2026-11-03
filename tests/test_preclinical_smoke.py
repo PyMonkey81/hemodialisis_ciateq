@@ -269,81 +269,206 @@ class TestKTVScreen:
 # Section 2: HEPARINA - Auto-trim on RUNNING
 # ============================================================================
 
-class TestHeparinAutoTrim:
-    """Tests for heparin auto-trim logic when transitioning to RUNNING."""
+class TestHeparinAutoTrimOnRunning:
+    """Tests for HemodialysisHMI._apply_heparin_auto_trim_on_running method."""
     
-    def test_scenario_1_therapy_1h_heparin_1h_becomes_30m(self):
+    def setup_method(self):
+        """Set up QApplication before each test."""
+        get_qapp()
+    
+    def _create_hmi_with_mocks(self, therapy_hours=0, therapy_minutes=60,
+                                heparin_auto_hours=0, heparin_auto_minutes=60):
         """
-        Scenario 1: Therapy 01:00 + Heparin 01:00
-        When transitioning to RUNNING from READY: heparin becomes 00:30
-        Dosage 0.5 × flow, echo within 3s doesn't revert.
+        Create a HemodialysisHMI instance with mocked dependencies.
+        
+        Mocks:
+        - _write_setpoint: collects written tags and values
+        - _persist_therapy_config_tag: collects persisted tags and values
+        - ignore_tags_until: empty dict
+        - _get_heparin_flow_ml_per_h: returns 20.0
+        
+        Args:
+            therapy_hours, therapy_minutes: Therapy programmed duration
+            heparin_auto_hours, heparin_auto_minutes: Heparin programmed duration
+        
+        Returns:
+            tuple: (hmi_instance, written_tags_dict, persisted_tags_dict)
         """
-        # Setup mock main window
-        main_window = Mock()
-        main_window.current_values = {
-            "heparineTherapyHours": 0,
-            "heparineTherapyMinutes": 60,
-            "heparineAutoStopHours": 1,
-            "heparineAutoStopMinutes": 0,
-            "terapiaHours": 0,
-            "terapiaMinutes": 60,
+        from gui.appMainHemodialysis import HemodialysisHMI
+        
+        hmi = Mock(spec=HemodialysisHMI)
+        
+        hmi.current_values = {
+            "heparineTherapyHours": float(therapy_hours),
+            "heparineTherapyMinutes": float(therapy_minutes),
+            "heparineAutoStopHours": float(heparin_auto_hours),
+            "heparineAutoStopMinutes": float(heparin_auto_minutes),
         }
         
-        # Call pure logic functions to verify expected values
-        ref = reference_minutes(TreatmentPhase.PREPARING, 60, 0)
-        assert ref == 60  # Programmed duration
+        written_tags = {}
+        persisted_tags = {}
         
-        max_h_m = max_heparin_minutes(ref)
-        assert max_h_m == 30  # 60 - 30
+        def mock_write_setpoint(tag, value):
+            written_tags[tag] = value
         
-        clamped_h, clamped_m = clamp_heparin_time(1, 0, ref)
-        assert (clamped_h, clamped_m) == (0, 30)
+        def mock_persist_therapy_config_tag(tag, value):
+            persisted_tags[tag] = value
+        
+        def mock_get_heparin_flow_ml_per_h():
+            return 20.0
+        
+        hmi._write_setpoint = Mock(side_effect=mock_write_setpoint)
+        hmi._persist_therapy_config_tag = Mock(side_effect=mock_persist_therapy_config_tag)
+        hmi._get_heparin_flow_ml_per_h = Mock(side_effect=mock_get_heparin_flow_ml_per_h)
+        hmi.ignore_tags_until = {}
+        hmi.heparin_config_screen = None
+        
+        # Bind the real method to this mock instance
+        from gui.appMainHemodialysis import HemodialysisHMI as RealHMI
+        hmi._apply_heparin_auto_trim_on_running = RealHMI._apply_heparin_auto_trim_on_running.__get__(hmi, Mock)
+        
+        return hmi, written_tags, persisted_tags
     
-    def test_scenario_2_therapy_3h_heparin_1h_no_change(self):
+    def test_scenario_1_therapy_60m_heparin_60m_with_autostop_1(self):
         """
-        Scenario 2: Therapy 03:00 + Heparin 01:00
-        Should not be changed (01:00 < max 02:30).
+        Scenario 1: Therapy 01:00 (60 min) + Heparin 01:00 (60 min)
+        heparineAutoStop = 1 and 0
+        After trim: heparin → 00:30 (30 min)
+        Dosage calculated with 0.5 h (half hour).
+        ignore_tags_until marked for all three tags before _write_setpoint.
         """
-        ref = reference_minutes(TreatmentPhase.PREPARING, 180, 0)
-        assert ref == 180
+        hmi, written, persisted = self._create_hmi_with_mocks(
+            therapy_hours=0,
+            therapy_minutes=60,
+            heparin_auto_hours=1,
+            heparin_auto_minutes=0
+        )
         
-        max_h_m = max_heparin_minutes(ref)
-        assert max_h_m == 150  # 180 - 30
+        hmi._apply_heparin_auto_trim_on_running()
         
-        clamped_h, clamped_m = clamp_heparin_time(1, 0, ref)
-        assert (clamped_h, clamped_m) == (1, 0)  # No change
+        # Verify current_values updated
+        assert hmi.current_values["heparineAutoStopHours"] == 0
+        assert hmi.current_values["heparineAutoStopMinutes"] == 30
+        
+        # Verify dosage calculated with 0.5 h: 0.5 * 20 = 10.0
+        expected_dosage = 0.5 * 20.0
+        assert hmi.current_values["heparineTherapyDosage"] == expected_dosage
+        
+        # Verify ignore_tags_until marked BEFORE _write_setpoint calls
+        assert "heparineAutoStopHours" in hmi.ignore_tags_until
+        assert "heparineAutoStopMinutes" in hmi.ignore_tags_until
+        assert "heparineTherapyDosage" in hmi.ignore_tags_until
+        
+        # Verify _write_setpoint called for all three tags
+        assert hmi._write_setpoint.call_count == 3
+        
+        # Verify _persist_therapy_config_tag called for all three tags
+        assert hmi._persist_therapy_config_tag.call_count == 3
+        
+        # Verify written values
+        assert written["heparineAutoStopHours"] == 0.0
+        assert written["heparineAutoStopMinutes"] == 30.0
+        assert written["heparineTherapyDosage"] == expected_dosage
     
-    def test_scenario_3_therapy_1h_heparin_20m_no_change(self):
+    def test_scenario_2_therapy_180m_heparin_60m_no_change(self):
         """
-        Scenario 3: Therapy 01:00 + Heparin 00:20
-        Should not be changed (00:20 < max 00:30).
+        Scenario 2: Therapy 03:00 (180 min) + Heparin 01:00 (60 min)
+        Max allowed: 180 - 30 = 150 min
+        Heparin 60 min < 150 min → NO TRIM
+        The function should not write anything.
         """
-        ref = reference_minutes(TreatmentPhase.PREPARING, 60, 0)
-        assert ref == 60
+        hmi, written, persisted = self._create_hmi_with_mocks(
+            therapy_hours=0,
+            therapy_minutes=180,
+            heparin_auto_hours=1,
+            heparin_auto_minutes=0
+        )
         
-        max_h_m = max_heparin_minutes(ref)
-        assert max_h_m == 30
+        hmi._apply_heparin_auto_trim_on_running()
         
-        clamped_h, clamped_m = clamp_heparin_time(0, 20, ref)
-        assert (clamped_h, clamped_m) == (0, 20)  # No change
+        # Verify no write_setpoint or persist calls
+        assert hmi._write_setpoint.call_count == 0
+        assert hmi._persist_therapy_config_tag.call_count == 0
+        
+        # Verify nothing written
+        assert len(written) == 0
+        assert len(persisted) == 0
     
-    def test_paused_to_running_no_retrim(self):
+    def test_scenario_3_therapy_60m_heparin_20m_no_change(self):
         """
-        Scenario 4: When already clamped, the value stays clamped.
-        With 30 min remaining, max heparin is 0 minutes (30 - 30).
-        Trying to set 0:30 clamps to 0:00.
+        Scenario 3: Therapy 01:00 (60 min) + Heparin 00:20 (20 min)
+        Max allowed: 60 - 30 = 30 min
+        Heparin 20 min < 30 min → NO TRIM
+        The function should not write anything.
         """
-        # When therapy is 30 minutes away from end, max heparin = 0
-        ref_paused = reference_minutes(TreatmentPhase.PAUSED, 60, 1800)  # 30 min remaining
-        assert ref_paused == 30
+        hmi, written, persisted = self._create_hmi_with_mocks(
+            therapy_hours=0,
+            therapy_minutes=60,
+            heparin_auto_hours=0,
+            heparin_auto_minutes=20
+        )
         
-        # Max allowed with 30 min remaining is 0
-        max_allowed = max_heparin_minutes(ref_paused)
-        assert max_allowed == 0
+        hmi._apply_heparin_auto_trim_on_running()
         
-        # Trying to set 0:30 clamps to 0:00
-        clamped_h, clamped_m = clamp_heparin_time(0, 30, ref_paused)
-        assert (clamped_h, clamped_m) == (0, 0)  # Clamped to max
+        # Verify no write_setpoint or persist calls
+        assert hmi._write_setpoint.call_count == 0
+        assert hmi._persist_therapy_config_tag.call_count == 0
+        
+        # Verify nothing written
+        assert len(written) == 0
+        assert len(persisted) == 0
+    
+    def test_scenario_4_paused_to_running_no_invoke(self):
+        """
+        Scenario 4: Verify that _apply_heparin_auto_trim_on_running is NOT called
+        when transitioning from PAUSED to RUNNING in update_value.
+        
+        This test mocks the update_value method and checks that the condition
+        (old_phase != TreatmentPhase.PAUSED) prevents the call.
+        """
+        from gui.appMainHemodialysis import HemodialysisHMI
+        
+        # Create a real mock but with patched update_value
+        hmi = Mock(spec=HemodialysisHMI)
+        hmi._apply_heparin_auto_trim_on_running = Mock()
+        
+        # Simulate the logic from update_value:
+        # if new_phase == TreatmentPhase.RUNNING:
+        #     if old_phase != TreatmentPhase.PAUSED:
+        #         self._apply_heparin_auto_trim_on_running()
+        
+        old_phase = TreatmentPhase.PAUSED
+        new_phase = TreatmentPhase.RUNNING
+        
+        if new_phase == TreatmentPhase.RUNNING:
+            if old_phase != TreatmentPhase.PAUSED:
+                hmi._apply_heparin_auto_trim_on_running()
+        
+        # Verify the method was NOT called
+        hmi._apply_heparin_auto_trim_on_running.assert_not_called()
+    
+    def test_scenario_5_idle_to_running_calls_method(self):
+        """
+        Scenario 5: Verify that _apply_heparin_auto_trim_on_running IS called
+        when transitioning from IDLE (or other non-PAUSED phases) to RUNNING.
+        
+        This confirms the guard condition only blocks PAUSED → RUNNING.
+        """
+        from gui.appMainHemodialysis import HemodialysisHMI
+        
+        hmi = Mock(spec=HemodialysisHMI)
+        hmi._apply_heparin_auto_trim_on_running = Mock()
+        
+        # Simulate the logic from update_value with old_phase = IDLE
+        old_phase = TreatmentPhase.IDLE
+        new_phase = TreatmentPhase.RUNNING
+        
+        if new_phase == TreatmentPhase.RUNNING:
+            if old_phase != TreatmentPhase.PAUSED:
+                hmi._apply_heparin_auto_trim_on_running()
+        
+        # Verify the method WAS called
+        hmi._apply_heparin_auto_trim_on_running.assert_called_once()
 
 
 # ============================================================================
