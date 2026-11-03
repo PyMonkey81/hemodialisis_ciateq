@@ -1235,6 +1235,59 @@ class HemodialysisHMI(QMainWindow):
                 self._refresh_navigation_bar()
                 self.screen_state_manager.update_all_screens(self.state.current_phase)
 
+    def _show_filter_fill_dialog_main(self):
+        """
+        Muestra diálogo modal para confirmación de llenado de filtro.
+        Llamado desde primingProcessStatus = 7 con QTimer.singleShot.
+        
+        Flujo:
+        1. Primer diálogo: "Coloque el filtro..." (solo Aceptar, sin Cancelar)
+        2. Si acepta → Segundo diálogo: "¿Confirma...?" (Aceptar + Cancelar)
+           - Aceptar: manda dialyFilterFillButton=True, llama _start_filter()
+           - Cancelar: vuelve al primer diálogo
+        """
+        def show_first_dialog():
+            """Primer paso: instrucción simple sin Cancel"""
+            dialog = FloatingConfirmDialog(self)
+            
+            confirmed = dialog.show_confirm(
+                text="Coloque el filtro. Cuando esté colocado, presione Aceptar.",
+                accept_text="Aceptar",
+                cancel_text=""  # Sin botón Cancel (oculto)
+            )
+            
+            if not confirmed:
+                # Usuario no presionó Aceptar; reintentar
+                QTimer.singleShot(100, show_first_dialog)
+                return
+            
+            # Aceptar → mostrar segundo diálogo
+            show_second_dialog()
+        
+        def show_second_dialog():
+            """Segundo paso: confirmación con opción de cancelar"""
+            dialog = FloatingConfirmDialog(self)
+            
+            confirmed = dialog.show_confirm(
+                text="¿Confirma que el filtro ya está colocado?",
+                accept_text="Aceptar",
+                cancel_text="Cancelar"
+            )
+            
+            if confirmed:
+                # Aceptar: ejecutar el llenado
+                self.on_user_boolean_command("dialyFilterFillButton", True)
+                if hasattr(self, '_start_filter'):
+                    self._start_filter()
+                logger.info("Llenado de filtro confirmado por usuario")
+            else:
+                # Cancelar: volver al primer diálogo
+                logger.info("Usuario canceló; mostrando primer diálogo nuevamente")
+                QTimer.singleShot(100, show_first_dialog)
+        
+        # Iniciar con el primer diálogo
+        show_first_dialog()
+
     def pause_treatment(self):
         """Delegado al TreatmentController"""
         success = self.treatment_controller.pause_treatment()
@@ -2906,9 +2959,10 @@ class HemodialysisHMI(QMainWindow):
                 if timer_manager is not None:
                     timer_manager.sync_with_hardware(status_code)
 
-                # Mensaje especial para colocar filtro
+                # Diálogo modal para confirmación de filtro (estado 7)
                 if status_code == 7 and self._last_status_prompt != 7:
-                    self.show_info_message("Coloque el filtro y presione 'Llenado de Filtro'", 8000)
+                    # Usar QTimer.singleShot para no anidar diálogo dentro de lectura serial
+                    QTimer.singleShot(0, self._show_filter_fill_dialog_main)
                     self._last_status_prompt = 7
                 elif status_code != 7:
                     self._last_status_prompt = None

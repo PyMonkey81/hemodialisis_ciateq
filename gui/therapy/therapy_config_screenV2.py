@@ -12,7 +12,6 @@ from pyqtgraph import colors
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit
-from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.theme_manager import ThemeManager
 from logic.calculos import convertir_flujo_a_ciclos, convertir_litros_h_a_ml_min
 from core.state_manager import TreatmentPhase
@@ -64,10 +63,6 @@ class TherapyConfigScreen(QWidget):
         self.write_hold_off = {}
         self.toggle_hold_off = {}
         self.status_code = 0.0
-        
-        # Track filter fill dialog state (only show once per entry to state 7)
-        self._filter_fill_dialog_shown = False
-        self._last_filter_status = None
         
         self.setup_ui()
 
@@ -218,7 +213,7 @@ class TherapyConfigScreen(QWidget):
         filter_layout.setContentsMargins(20, 20, 20, 20)
         filter_layout.setSpacing(18)
 
-        title = QLabel("LLENADO DE FILTRO")
+        title = QLabel("")
         title.setObjectName("card_title")
         filter_layout.addWidget(title)
 
@@ -405,44 +400,6 @@ class TherapyConfigScreen(QWidget):
             self.btn_filter_fill.setStyleSheet(self.style_disabled)
             self.btn_filter_fill.hide()  # Mantener oculto cuando no se necesita
             logger.debug("Botón Llenado de Filtro → DESHABILITADO Y OCULTO")
-
-    def _show_filter_fill_dialog(self):
-        """
-        Muestra diálogo modal para confirmación de llenado de filtro.
-        
-        Primero: "Coloque el filtro. Cuando esté colocado, presione Aceptar." (solo Aceptar)
-        Después: "¿Confirma que el filtro ya está colocado?" (Aceptar y Cancelar)
-          - Aceptar: llama _start_filter_fill()
-          - Cancelar: vuelve a mostrar el primer aviso
-        """
-        dialog = FloatingConfirmDialog(self.parent_window or self)
-        
-        # Primer paso: instrucción simple
-        confirmed = dialog.show_confirm(
-            text="Coloque el filtro. Cuando esté colocado, presione Aceptar.",
-            accept_text="Aceptar",
-            cancel_text=""  # Sin botón Cancelar en el primer aviso
-        )
-        
-        if not confirmed:
-            # El usuario no presionó Aceptar; volver a mostrar (recursión)
-            return self._show_filter_fill_dialog()
-        
-        # Segundo paso: confirmación
-        confirmed = dialog.show_confirm(
-            text="¿Confirma que el filtro ya está colocado?",
-            accept_text="Aceptar",
-            cancel_text="Cancelar"
-        )
-        
-        if confirmed:
-            # Aceptar: ejecutar el llenado
-            self._start_filter_fill()
-            logger.info("Llenado de filtro confirmado por usuario")
-        else:
-            # Cancelar: volver a mostrar el primer aviso
-            logger.info("Usuario canceló el llenado de filtro; mostrando aviso nuevamente")
-            return self._show_filter_fill_dialog()
 
     def _update_bloop_pump_controls_state(self):   
         current_phase = None
@@ -775,24 +732,10 @@ class TherapyConfigScreen(QWidget):
 
         logger.debug(f"TherapyConfigScreen - update_state: Phase={phase.name}, Status={status_code}")
 
-        # ==================== DIÁLOGO DE FILTRO (ESTADO 7) ====================
+        # ==================== BOTÓN LLENADO DE FILTRO (ESTADO 7) ====================
         if phase == TreatmentPhase.PREPARING and status_code == 7:
-            # Solo mostrar una sola vez por entrada al estado 7
-            if status_code != self._last_filter_status:
-                self._last_filter_status = status_code
-                self._filter_fill_dialog_shown = False
-            
-            if not self._filter_fill_dialog_shown:
-                self._filter_fill_dialog_shown = True
-                self._show_filter_fill_dialog()
-            
-            self._update_filter_fill_button_state(True)   # Habilitar botón (aunque oculto)
+            self._update_filter_fill_button_state(True)   # Ocultar botón
         else:
-            # Cuando salimos del estado 7, resetear el flag
-            if status_code != 7:
-                self._filter_fill_dialog_shown = False
-                self._last_filter_status = None
-            
             self._update_filter_fill_button_state(False)
 
         # ==================== BOTONES BOMBA DE SANGRE ====================
