@@ -1247,13 +1247,17 @@ class HemodialysisHMI(QMainWindow):
            - Cancelar: vuelve al primer diálogo
         """
         def show_first_dialog():
-            """Primer paso: instrucción simple sin Cancel"""
+            """Primer paso: instrucción simple sin Cancel (botón oculto)"""
             dialog = FloatingConfirmDialog(self)
+            
+            # Ocultar el botón Cancel antes de mostrar el diálogo
+            if hasattr(dialog, 'btn_cancel'):
+                dialog.btn_cancel.setVisible(False)
             
             confirmed = dialog.show_confirm(
                 text="Coloque el filtro. Cuando esté colocado, presione Aceptar.",
                 accept_text="Aceptar",
-                cancel_text=""  # Sin botón Cancel (oculto)
+                cancel_text="Cancelar"  # Texto presente pero botón oculto
             )
             
             if not confirmed:
@@ -1268,6 +1272,10 @@ class HemodialysisHMI(QMainWindow):
             """Segundo paso: confirmación con opción de cancelar"""
             dialog = FloatingConfirmDialog(self)
             
+            # Mostrar el botón Cancel en el segundo diálogo
+            if hasattr(dialog, 'btn_cancel'):
+                dialog.btn_cancel.setVisible(True)
+            
             confirmed = dialog.show_confirm(
                 text="¿Confirma que el filtro ya está colocado?",
                 accept_text="Aceptar",
@@ -1276,9 +1284,8 @@ class HemodialysisHMI(QMainWindow):
             
             if confirmed:
                 # Aceptar: ejecutar el llenado
-                self.on_user_boolean_command("dialyFilterFillButton", True)
-                if hasattr(self, '_start_filter'):
-                    self._start_filter()
+                self._write_boolean_command("dialyFilterFillButton", True)
+                self._start_filter()
                 logger.info("Llenado de filtro confirmado por usuario")
             else:
                 # Cancelar: volver al primer diálogo
