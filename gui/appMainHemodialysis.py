@@ -93,6 +93,7 @@ from gui.components.real_time_variables import RealTimeVariablesMonitor
 from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
 from gui.components.floating_message import FloatingMessage
+from gui.components.floating_confirm import FloatingConfirmDialog
 
 from gui.configuration.alarm_screen_config import AlarmScreenConfig 
 from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
@@ -117,6 +118,7 @@ from gui.therapy.nibp_config_screen import NibpConfigScreen
 from gui.therapy.nibp_history_screen import NibpHistoryScreen
 from core.nibp_pressure_history import NibpPressureHistory
 from logic.heparin_time import reference_minutes, clamp_heparin_time, was_clamped
+from logic.start_checklist import missing_start_items
 from pathlib import Path
 
 from logic.calculos import (
@@ -1107,7 +1109,13 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
 
     def start_treatment(self):
-        """Delegado seguro"""
+        """
+        Delegado seguro con validación de checklist.
+        
+        - Si fase es PAUSED: procede a reanudar sin validación
+        - Si fase es READY: valida items requeridos, muestra faltas o diálogo de confirmación
+        - Si fase es RUNNING: retorna sin hacer nada
+        """
         if getattr(self, '_start_treatment_locked', False):
             return
         self._start_treatment_locked = True
@@ -1117,15 +1125,109 @@ class HemodialysisHMI(QMainWindow):
             
             if self.state.current_phase == TreatmentPhase.RUNNING:
                 return
-
+            
+            # Si es PAUSED: proceder sin validación (es reanudar)
+            if self.state.current_phase == TreatmentPhase.PAUSED:
+                success = self.treatment_controller.start_treatment()
+                if success:
+                    self._update_therapy_time_displays()
+                    self._refresh_navigation_bar()
+                    self.screen_state_manager.update_all_screens(self.state.current_phase)
+                return
+            
+            # Si es READY: validar checklist
+            if self.state.current_phase == TreatmentPhase.READY:
+                missing = missing_start_items(self.current_values)
+                
+                if missing:
+                    # Mostrar faltas una por línea
+                    msg = "\n".join(missing)
+                    self.show_warning_message(msg, 4500)
+                    return
+                
+                # Lista completa: mostrar diálogo de confirmación
+                self._show_start_confirmation_dialog()
+                return
+            
+        finally:
+            self._start_treatment_locked = False
+    
+    def _show_start_confirmation_dialog(self):
+        """
+        Muestra diálogo flotante de confirmación antes de iniciar tratamiento.
+        
+        Muestra:
+        - Paciente
+        - Qb en mL/min
+        - Temperatura
+        - Conductividad
+        - Tiempo de terapia (H:MM)
+        - UF en L/h (si existe, conversión: valor * 60 / 1000)
+        - Volumen jeringa si heparina encendida
+        - Qd como "programado"
+        """
+        dialog = FloatingConfirmDialog(self)
+        
+        # Construir texto de confirmación
+        lines = []
+        
+        # Paciente
+        patient_name = self.current_values.get("patient_name", "")
+        if patient_name:
+            lines.append(f"Paciente: {patient_name}")
+        
+        # Qb en mL/min
+        qb = self.current_values.get("bloodFlowControlSetPoint")
+        if qb:
+            lines.append(f"Qb: {qb} mL/min")
+        
+        # Temperatura
+        temp = self.current_values.get("dialyTempControlSetPoint")
+        if temp:
+            lines.append(f"Temperatura: {temp}°C")
+        
+        # Conductividad
+        cond = self.current_values.get("dialyCondControlSetPoint")
+        if cond:
+            lines.append(f"Conductividad: {cond} mS/cm")
+        
+        # Tiempo de terapia (H:MM)
+        therapy_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+        therapy_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+        lines.append(f"Tiempo de terapia: {therapy_h}:{therapy_m:02d}")
+        
+        # UF en L/h (conversión: mL/min -> L/h)
+        uf_ml_min = self.current_values.get("ultraFilterPumpSpeed")
+        if uf_ml_min:
+            uf_l_h = uf_ml_min * 60 / 1000.0
+            lines.append(f"UF: {uf_l_h:.2f} L/h")
+        
+        # Qd como "programado"
+        lines.append("Qd: Programado")
+        
+        # Volumen jeringa si heparina encendida
+        heparin_enabled = self.current_values.get("heparineInfusionEnabled")
+        if heparin_enabled != 0:
+            syringe_vol = self.current_values.get("heparineSyringeVolume")
+            if syringe_vol:
+                lines.append(f"Volumen jeringa: {syringe_vol} mL")
+        
+        confirmation_text = "\n".join(lines)
+        
+        # Mostrar diálogo
+        confirmed = dialog.show_confirm(
+            text=confirmation_text,
+            accept_text="Iniciar",
+            cancel_text="Cancelar"
+        )
+        
+        # Si se confirma, proceder con el arranque
+        if confirmed:
             success = self.treatment_controller.start_treatment()
             if success:
                 self._update_therapy_time_displays()
                 self._refresh_navigation_bar()
                 self.screen_state_manager.update_all_screens(self.state.current_phase)
-                
-        finally:
-            self._start_treatment_locked = False
 
     def pause_treatment(self):
         """Delegado al TreatmentController"""
