@@ -26,11 +26,13 @@ def missing_start_items(values: dict) -> list[str]:
         6. dialyCondControlSetPoint (conductivity)
         7. heparineTherapyHours and heparineTherapyMinutes (therapy time)
         8. heparineSyringeVolume (if heparin infusion enabled)
+        9. heparineAutoStopHours and heparineAutoStopMinutes (if heparin infusion enabled)
     
     Notes:
         - None and empty string both count as missing
         - Does not check UF flow, access, allergies, or Kt/V
         - balanceChamberSetTiming is Qd; no conversion is performed
+        - Heparin infusion time is only required if heparineInfusionEnabled != 0
     """
     missing = []
     
@@ -85,5 +87,20 @@ def missing_start_items(values: dict) -> list[str]:
         syringe_volume = values.get("heparineSyringeVolume")
         if syringe_volume is None or syringe_volume == "" or syringe_volume <= 0:
             missing.append("Falta el volumen de heparina en la jeringa")
+        
+        # 9. Check heparineAutoStopHours and heparineAutoStopMinutes (infusion time)
+        # Only if heparin infusion is enabled
+        infusion_hours = values.get("heparineAutoStopHours")
+        infusion_minutes = values.get("heparineAutoStopMinutes")
+        
+        try:
+            infusion_hours = int(infusion_hours) if infusion_hours is not None else 0
+            infusion_minutes = int(infusion_minutes) if infusion_minutes is not None else 0
+        except (ValueError, TypeError):
+            infusion_hours = 0
+            infusion_minutes = 0
+        
+        if infusion_hours == 0 and infusion_minutes == 0:
+            missing.append("Falta el tiempo de infusión de heparina")
     
     return missing

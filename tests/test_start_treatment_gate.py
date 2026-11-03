@@ -245,7 +245,7 @@ class TestStartTreatmentGate:
     
     def test_ready_heparin_enabled_shows_syringe_in_dialog(self):
         """
-        READY phase with heparin enabled: dialog shows syringe volume.
+        READY phase with heparin enabled: dialog shows syringe volume and infusion time.
         """
         values = {
             "patient_id": "12345",
@@ -258,6 +258,8 @@ class TestStartTreatmentGate:
             "heparineTherapyMinutes": 0,
             "heparineInfusionEnabled": 1,
             "heparineSyringeVolume": 10,
+            "heparineAutoStopHours": 1,
+            "heparineAutoStopMinutes": 30,
         }
         
         hmi, controller, warnings, confirm, _ = self._create_hmi_with_mocks(
@@ -280,10 +282,14 @@ class TestStartTreatmentGate:
         # Verify syringe volume is in the dialog text
         assert "jeringa" in dialog_text.lower()
         assert "10" in dialog_text
+        
+        # Verify infusion time is shown
+        assert "infusión" in dialog_text.lower()
+        assert "1:30" in dialog_text
     
     def test_ready_uf_flow_conversion_in_dialog(self):
         """
-        READY phase with UF flow: dialog shows converted L/h (mL/min * 60 / 1000).
+        READY phase with UF flow: dialog shows L/h (already in L/h, show with 2 decimals).
         """
         values = {
             "patient_id": "12345",
@@ -295,7 +301,7 @@ class TestStartTreatmentGate:
             "heparineTherapyHours": 4,
             "heparineTherapyMinutes": 0,
             "heparineInfusionEnabled": 0,
-            "ultraFilterPumpSpeed": 1000,  # 1000 mL/min = 60 L/h
+            "ultraFilterPumpSpeed": 0.1,  # 0.1 L/h (already in L/h)
         }
         
         hmi, controller, warnings, confirm, _ = self._create_hmi_with_mocks(
@@ -315,8 +321,8 @@ class TestStartTreatmentGate:
         call_args = mock_instance.show_confirm.call_args
         dialog_text = call_args[1]['text'] if 'text' in call_args[1] else call_args[0][0]
         
-        # Verify UF conversion: 1000 * 60 / 1000 = 60.0 L/h
-        assert "60.0" in dialog_text or "60" in dialog_text
+        # Verify UF is shown as 0.10 L/h (with 2 decimals)
+        assert "0.10" in dialog_text
         assert "L/h" in dialog_text or "l/h" in dialog_text.lower()
     
     def test_running_phase_no_start(self):

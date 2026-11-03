@@ -1162,9 +1162,10 @@ class HemodialysisHMI(QMainWindow):
         - Temperatura
         - Conductividad
         - Tiempo de terapia (H:MM)
-        - UF en L/h (si existe, conversión: valor * 60 / 1000)
-        - Volumen jeringa si heparina encendida
         - Qd como "programado"
+        - Infusión de heparina (H:MM) si está encendida
+        - UF en L/h (si existe, ya en L/h; mostrar con dos decimales)
+        - Volumen jeringa si heparina encendida
         """
         dialog = FloatingConfirmDialog(self)
         
@@ -1196,17 +1197,22 @@ class HemodialysisHMI(QMainWindow):
         therapy_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
         lines.append(f"Tiempo de terapia: {therapy_h}:{therapy_m:02d}")
         
-        # UF en L/h (conversión: mL/min -> L/h)
-        uf_ml_min = self.current_values.get("ultraFilterPumpSpeed")
-        if uf_ml_min:
-            uf_l_h = uf_ml_min * 60 / 1000.0
-            lines.append(f"UF: {uf_l_h:.2f} L/h")
-        
         # Qd como "programado"
         lines.append("Qd: Programado")
         
-        # Volumen jeringa si heparina encendida
+        # Infusión de heparina si está encendida (H:MM)
         heparin_enabled = self.current_values.get("heparineInfusionEnabled")
+        if heparin_enabled != 0:
+            infusion_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
+            infusion_m = int(self.current_values.get("heparineAutoStopMinutes", 0) or 0)
+            lines.append(f"Infusión de heparina: {infusion_h}:{infusion_m:02d}")
+        
+        # UF en L/h (ya está en L/h, solo mostrar con dos decimales)
+        uf_l_h = self.current_values.get("ultraFilterPumpSpeed")
+        if uf_l_h is not None:
+            lines.append(f"UF: {float(uf_l_h):.2f} L/h")
+        
+        # Volumen jeringa si heparina encendida
         if heparin_enabled != 0:
             syringe_vol = self.current_values.get("heparineSyringeVolume")
             if syringe_vol:

@@ -12,7 +12,7 @@ class TestStartChecklist:
     """Tests for missing_start_items validation function."""
     
     def test_empty_dict_returns_all_missing_items(self):
-        """Empty dict should return all 8 missing items."""
+        """Empty dict should return all missing items."""
         result = missing_start_items({})
         
         expected = [
@@ -24,6 +24,7 @@ class TestStartChecklist:
             "Falta la conductividad",
             "Falta el tiempo de terapia",
             "Falta el volumen de heparina en la jeringa",
+            "Falta el tiempo de infusión de heparina",
         ]
         
         assert result == expected
@@ -51,7 +52,7 @@ class TestStartChecklist:
     def test_heparin_enabled_with_zero_syringe_volume(self):
         """
         Heparin enabled, syringe volume is 0.
-        Should return ONLY the syringe volume missing item.
+        Should return syringe volume and infusion time missing items.
         """
         values = {
             "patient_id": "12345",
@@ -67,12 +68,15 @@ class TestStartChecklist:
         }
         
         result = missing_start_items(values)
-        assert result == ["Falta el volumen de heparina en la jeringa"]
+        assert result == [
+            "Falta el volumen de heparina en la jeringa",
+            "Falta el tiempo de infusión de heparina",
+        ]
     
     def test_heparin_enabled_with_none_syringe_volume(self):
         """
         Heparin enabled (1), syringe volume is None.
-        Should return ONLY the syringe volume missing item.
+        Should return syringe volume and infusion time missing items.
         """
         values = {
             "patient_id": "12345",
@@ -88,12 +92,15 @@ class TestStartChecklist:
         }
         
         result = missing_start_items(values)
-        assert result == ["Falta el volumen de heparina en la jeringa"]
+        assert result == [
+            "Falta el volumen de heparina en la jeringa",
+            "Falta el tiempo de infusión de heparina",
+        ]
     
     def test_heparin_enabled_default_with_zero_syringe_volume(self):
         """
         Heparin enabled (default/None counts as enabled), syringe volume is 0.
-        Should return ONLY the syringe volume missing item.
+        Should return syringe volume and infusion time missing items.
         """
         values = {
             "patient_id": "12345",
@@ -109,7 +116,10 @@ class TestStartChecklist:
         }
         
         result = missing_start_items(values)
-        assert result == ["Falta el volumen de heparina en la jeringa"]
+        assert result == [
+            "Falta el volumen de heparina en la jeringa",
+            "Falta el tiempo de infusión de heparina",
+        ]
     
     def test_heparin_disabled_ignores_syringe_volume(self):
         """
@@ -329,6 +339,7 @@ class TestStartChecklist:
             # dialyCondControlSetPoint missing
             # heparineTherapyHours/Minutes = 0:00
             # heparineSyringeVolume missing (heparin enabled)
+            # heparineAutoStopHours/Minutes missing (heparin enabled)
         }
         
         result = missing_start_items(values)
@@ -342,9 +353,112 @@ class TestStartChecklist:
             "Falta la conductividad",
             "Falta el tiempo de terapia",
             "Falta el volumen de heparina en la jeringa",
+            "Falta el tiempo de infusión de heparina",
         ]
         
         assert result == expected_order
+    
+    def test_heparin_infusion_time_required_when_enabled(self):
+        """Heparin infusion time required if heparin enabled and syringe volume set."""
+        values = {
+            "patient_id": "P001",
+            "patient_name": "John Doe",
+            "bloodFlowControlSetPoint": 300,
+            "balanceChamberSetTiming": 500,
+            "dialyTempControlSetPoint": 37,
+            "dialyCondControlSetPoint": 14,
+            "heparineTherapyHours": 1,
+            "heparineTherapyMinutes": 0,
+            "heparineInfusionEnabled": 1,
+            "heparineSyringeVolume": 15,
+            # heparineAutoStopHours/Minutes missing (defaults to 0:00)
+        }
+        
+        result = missing_start_items(values)
+        
+        assert result == ["Falta el tiempo de infusión de heparina"]
+    
+    def test_heparin_infusion_time_disabled_when_heparin_off(self):
+        """Heparin infusion time not required if heparin disabled."""
+        values = {
+            "patient_id": "P001",
+            "patient_name": "John Doe",
+            "bloodFlowControlSetPoint": 300,
+            "balanceChamberSetTiming": 500,
+            "dialyTempControlSetPoint": 37,
+            "dialyCondControlSetPoint": 14,
+            "heparineTherapyHours": 1,
+            "heparineTherapyMinutes": 0,
+            "heparineInfusionEnabled": 0,
+            # heparineAutoStopHours/Minutes and syringe missing, but not required
+        }
+        
+        result = missing_start_items(values)
+        
+        assert result == []
+    
+    def test_heparin_infusion_time_both_zero_fails(self):
+        """Both infusion hours and minutes must not both be zero if heparin enabled."""
+        values = {
+            "patient_id": "P001",
+            "patient_name": "John Doe",
+            "bloodFlowControlSetPoint": 300,
+            "balanceChamberSetTiming": 500,
+            "dialyTempControlSetPoint": 37,
+            "dialyCondControlSetPoint": 14,
+            "heparineTherapyHours": 1,
+            "heparineTherapyMinutes": 0,
+            "heparineInfusionEnabled": 1,
+            "heparineSyringeVolume": 15,
+            "heparineAutoStopHours": 0,
+            "heparineAutoStopMinutes": 0,
+        }
+        
+        result = missing_start_items(values)
+        
+        assert result == ["Falta el tiempo de infusión de heparina"]
+    
+    def test_heparin_infusion_time_hours_only(self):
+        """Infusion time valid with hours only."""
+        values = {
+            "patient_id": "P001",
+            "patient_name": "John Doe",
+            "bloodFlowControlSetPoint": 300,
+            "balanceChamberSetTiming": 500,
+            "dialyTempControlSetPoint": 37,
+            "dialyCondControlSetPoint": 14,
+            "heparineTherapyHours": 1,
+            "heparineTherapyMinutes": 0,
+            "heparineInfusionEnabled": 1,
+            "heparineSyringeVolume": 15,
+            "heparineAutoStopHours": 2,
+            "heparineAutoStopMinutes": 0,
+        }
+        
+        result = missing_start_items(values)
+        
+        assert result == []
+    
+    def test_heparin_infusion_time_minutes_only(self):
+        """Infusion time valid with minutes only."""
+        values = {
+            "patient_id": "P001",
+            "patient_name": "John Doe",
+            "bloodFlowControlSetPoint": 300,
+            "balanceChamberSetTiming": 500,
+            "dialyTempControlSetPoint": 37,
+            "dialyCondControlSetPoint": 14,
+            "heparineTherapyHours": 1,
+            "heparineTherapyMinutes": 0,
+            "heparineInfusionEnabled": 1,
+            "heparineSyringeVolume": 15,
+            "heparineAutoStopHours": 0,
+            "heparineAutoStopMinutes": 30,
+        }
+        
+        result = missing_start_items(values)
+        
+        assert result == []
     
     def test_multiple_missing_items(self):
         """Missing multiple items shows all in correct order."""
@@ -405,7 +519,7 @@ class TestStartChecklist:
         assert "Falta el flujo de sangre (Qb)" in result
     
     def test_heparin_with_valid_syringe_volume(self):
-        """Heparin enabled with valid syringe volume."""
+        """Heparin enabled with valid syringe volume and infusion time."""
         values = {
             "patient_id": "12345",
             "patient_name": "Juan Pérez",
@@ -417,6 +531,8 @@ class TestStartChecklist:
             "heparineTherapyMinutes": 0,
             "heparineInfusionEnabled": 1,
             "heparineSyringeVolume": 10,
+            "heparineAutoStopHours": 1,
+            "heparineAutoStopMinutes": 0,
         }
         
         result = missing_start_items(values)
