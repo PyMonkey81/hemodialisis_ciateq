@@ -12,6 +12,7 @@ from pyqtgraph import colors
 from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.ui_components import ClickableLineEdit
+from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.theme_manager import ThemeManager
 from logic.calculos import convertir_flujo_a_ciclos, convertir_litros_h_a_ml_min
 from core.state_manager import TreatmentPhase
@@ -63,6 +64,10 @@ class TherapyConfigScreen(QWidget):
         self.write_hold_off = {}
         self.toggle_hold_off = {}
         self.status_code = 0.0
+        
+        # Track filter fill dialog state (only show once per entry to state 7)
+        self._filter_fill_dialog_shown = False
+        self._last_filter_status = None
         
         self.setup_ui()
 
@@ -256,7 +261,7 @@ class TherapyConfigScreen(QWidget):
         fields = [
             ("Flujo de Sangre (Qb, mL/min):", self.input_blood_flow, "bloodFlowControlSetPoint", "Flujo de Sangre (Qb)"),
             ("Flujo Dializante (Qd, mL/min):", self.input_dialysate_flow, None, None),
-            ("Flujo UF (L/h):", self.lbl_input_UF, None, None),
+            ("Objetivo UF (L/h):", self.lbl_input_UF, None, None),
             ("Temperatura (°C):", self.input_temperature, "dialyTempControlSetPoint", "Temperatura"),
             ("Conductividad (mS/cm):", self.input_conductivity, "dialyCondControlSetPoint", "Conductividad"),
             ("Tiempo de Terapia (hh:mm)", self.input_duration, None, None),
@@ -386,15 +391,58 @@ class TherapyConfigScreen(QWidget):
             logger.error(f"Error en _stop_blood_pump: {e}", exc_info=True)
 
     def _update_filter_fill_button_state(self, enable: bool):
-        """Habilita/deshabilita botón de llenado de filtro"""
+        """
+        Habilita/deshabilita botón de llenado de filtro.
+        En estado 7, oculta el botón pero mantiene la tarjeta visible.
+        """
         if enable:
             self.btn_filter_fill.setEnabled(True)
             self.btn_filter_fill.setStyleSheet(self.style_enabled)
-            logger.info("Botón Llenado de Filtro → HABILITADO (Estado 7)")
+            self.btn_filter_fill.hide()  # Ocultar botón (la tarjeta se mantiene visible)
+            logger.info("Botón Llenado de Filtro → OCULTO (Estado 7, diálogo modal en control)")
         else:
             self.btn_filter_fill.setEnabled(False)
             self.btn_filter_fill.setStyleSheet(self.style_disabled)
-            logger.debug("Botón Llenado de Filtro → DESHABILITADO")
+            self.btn_filter_fill.hide()  # Mantener oculto cuando no se necesita
+            logger.debug("Botón Llenado de Filtro → DESHABILITADO Y OCULTO")
+
+    def _show_filter_fill_dialog(self):
+        """
+        Muestra diálogo modal para confirmación de llenado de filtro.
+        
+        Primero: "Coloque el filtro. Cuando esté colocado, presione Aceptar." (solo Aceptar)
+        Después: "¿Confirma que el filtro ya está colocado?" (Aceptar y Cancelar)
+          - Aceptar: llama _start_filter_fill()
+          - Cancelar: vuelve a mostrar el primer aviso
+        """
+        dialog = FloatingConfirmDialog(self.parent_window or self)
+        
+        # Primer paso: instrucción simple
+        confirmed = dialog.show_confirm(
+            text="Coloque el filtro. Cuando esté colocado, presione Aceptar.",
+            accept_text="Aceptar",
+            cancel_text=""  # Sin botón Cancelar en el primer aviso
+        )
+        
+        if not confirmed:
+            # El usuario no presionó Aceptar; volver a mostrar (recursión)
+            return self._show_filter_fill_dialog()
+        
+        # Segundo paso: confirmación
+        confirmed = dialog.show_confirm(
+            text="¿Confirma que el filtro ya está colocado?",
+            accept_text="Aceptar",
+            cancel_text="Cancelar"
+        )
+        
+        if confirmed:
+            # Aceptar: ejecutar el llenado
+            self._start_filter_fill()
+            logger.info("Llenado de filtro confirmado por usuario")
+        else:
+            # Cancelar: volver a mostrar el primer aviso
+            logger.info("Usuario canceló el llenado de filtro; mostrando aviso nuevamente")
+            return self._show_filter_fill_dialog()
 
     def _update_bloop_pump_controls_state(self):   
         current_phase = None
@@ -594,7 +642,7 @@ class TherapyConfigScreen(QWidget):
         # 1. Obtener el valor actual del widget para mostrarlo en el numpad
         current_text = ""
 
-        dialog = NumpadDialog(self, initial_value=current_text, title="Flujo UF (L/h)")
+        dialog = NumpadDialog(self, initial_value=current_text, title="objetivo UF (L/h)")
 
         if dialog.exec():
             new_value_str = dialog.get_value()
@@ -727,10 +775,24 @@ class TherapyConfigScreen(QWidget):
 
         logger.debug(f"TherapyConfigScreen - update_state: Phase={phase.name}, Status={status_code}")
 
-        # ==================== BOTÓN LLENADO DE FILTRO ====================
+        # ==================== DIÁLOGO DE FILTRO (ESTADO 7) ====================
         if phase == TreatmentPhase.PREPARING and status_code == 7:
-            self._update_filter_fill_button_state(True)   # Solo se habilita en estado 7
+            # Solo mostrar una sola vez por entrada al estado 7
+            if status_code != self._last_filter_status:
+                self._last_filter_status = status_code
+                self._filter_fill_dialog_shown = False
+            
+            if not self._filter_fill_dialog_shown:
+                self._filter_fill_dialog_shown = True
+                self._show_filter_fill_dialog()
+            
+            self._update_filter_fill_button_state(True)   # Habilitar botón (aunque oculto)
         else:
+            # Cuando salimos del estado 7, resetear el flag
+            if status_code != 7:
+                self._filter_fill_dialog_shown = False
+                self._last_filter_status = None
+            
             self._update_filter_fill_button_state(False)
 
         # ==================== BOTONES BOMBA DE SANGRE ====================

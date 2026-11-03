@@ -2586,15 +2586,14 @@ class HemodialysisHMI(QMainWindow):
 
     def _update_header_during_filter_fill(self):
         """
-        Actualiza el encabezado cada segundo durante la espera de 90 s después del llenado de filtro.
-        - Si estamos en estado 13 (READY) y aún no se cumplieron los 90 s: "PREPARANDO..."
-        - Si ya pasaron los 90 s y _can_start_treatment() es True: "LISTO PARA\nINICIAR"
-        - Si el estado deja de ser 13, no pisa el texto del mapa (hardware_state_mapper es la fuente de verdad)
-        """
-        # Solo actuar si estamos en estado 13 (READY)
-        if self._last_priming_status != 13:
-            return
+        Actualiza el encabezado en tiempo real basado en el estado del llenado de filtro.
         
+        Lógica:
+        - Estado 7 (filtro no confirmado): "COLOCAR FILTRO"
+        - Estado 13 (READY) con menos de 90 s: "PREPARANDO..."
+        - Estado 13 (READY) con 90 s+ y _can_start_treatment() es True: "LISTO PARA\nINICIAR"
+        - Si _can_start_treatment() es False, mantener "PREPARANDO..."
+        """
         # Verificar si el hardware_mapper está disponible
         if not hasattr(self, "hardware_mapper") or self.hardware_mapper is None:
             return
@@ -2603,23 +2602,33 @@ class HemodialysisHMI(QMainWindow):
         if not hasattr(self, "current_process_status") or self.current_process_status is None:
             return
         
-        # Si no estamos en la espera del llenado, no hacer nada
-        if not self.filter_fill_waiting or self.filter_fill_start_time is None:
-            return
+        status_code = self._last_priming_status
         
-        # Calcular tiempo transcurrido desde el inicio del llenado
-        elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
-        
-        # Determinar el texto que debe mostrar el encabezado
-        if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
-            # Aún no se han cumplido los 90 segundos: mostrar "PREPARANDO..."
-            desired_text = "PREPARANDO..."
-        elif self._can_start_treatment():
-            # Ya pasaron los 90 s y se pueden iniciar condiciones: mostrar "LISTO PARA\nINICIAR"
-            desired_text = "LISTO PARA\nINICIAR"
+        # Estado 7: Filtro no confirmado
+        if status_code == 7:
+            desired_text = "COLOCAR FILTRO"
+        # Estado 13: READY
+        elif status_code == 13:
+            # Si no estamos en la espera del llenado, no hacer nada
+            if not self.filter_fill_waiting or self.filter_fill_start_time is None:
+                return
+            
+            # Calcular tiempo transcurrido desde el inicio del llenado
+            elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
+            
+            # Determinar el texto que debe mostrar el encabezado
+            if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
+                # Aún no se han cumplido los 90 segundos: mostrar "PREPARANDO..."
+                desired_text = "PREPARANDO..."
+            elif self._can_start_treatment():
+                # Ya pasaron los 90 s y se pueden iniciar condiciones: mostrar "LISTO PARA\nINICIAR"
+                desired_text = "LISTO PARA\nINICIAR"
+            else:
+                # Pasaron los 90 s pero aún no hay condiciones de inicio: mantener "PREPARANDO..."
+                desired_text = "PREPARANDO..."
         else:
-            # Pasaron los 90 s pero aún no hay condiciones de inicio: mantener "PREPARANDO..."
-            desired_text = "PREPARANDO..."
+            # Para otros estados, no hacer nada (el mapa es la fuente de verdad)
+            return
         
         # Actualizar el encabezado si el texto es diferente
         current_text = self.current_process_status.text()
