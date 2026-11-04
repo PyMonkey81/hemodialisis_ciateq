@@ -834,28 +834,42 @@ class HemodialysisHMI(QMainWindow):
 
         logger.info(f"Sincronizando estado - Status: {status_code}, Mode: {treatment_mode}")
 
-        # Modo Limpieza
-        if treatment_mode == 3:
-            if status_code == 6:  # Infusión = limpieza activa
-                self.state.set_phase(TreatmentPhase.CLEANING, reason)
-            else:
-                self.state.reset_to_idle(reason)
-            return        
-        if status_code == 13:
-             self.state.set_phase(TreatmentPhase.READY, reason)
-             self.screen_state_manager.update_all_screens(TreatmentPhase.READY)
-        elif status_code == 14:
-             self.state.set_phase(TreatmentPhase.RUNNING, reason)
-             self.screen_state_manager.update_all_screens(TreatmentPhase.RUNNING)
-        elif status_code == 15:
-             self.state.set_phase(TreatmentPhase.PAUSED, reason)
-             self.screen_state_manager.update_all_screens(TreatmentPhase.PAUSED)
-        elif status_code in [2, 3, 4, 5, 6, 7,8,9,10,11,12]:
-             self.state.set_phase(TreatmentPhase.PREPARING, reason)
-             self.screen_state_manager.update_all_screens(TreatmentPhase.PREPARING)
+        # Usar HardwareStateMapper como autoridad única
+        if hasattr(self, 'hardware_mapper') and self.hardware_mapper:
+            new_phase = self.hardware_mapper.get_phase(status_code, treatment_mode)
+            display_text = self.hardware_mapper.get_display_text(status_code, treatment_mode)
+            
+            self.state.set_phase(new_phase, reason)
+            if hasattr(self, 'screen_state_manager') and self.screen_state_manager:
+                self.screen_state_manager.update_all_screens(new_phase)
+            
+            # Si la fase es CLEANING, actualizar el encabezado y refrescar barra
+            if new_phase == TreatmentPhase.CLEANING:
+                if hasattr(self, 'current_process_status') and self.current_process_status:
+                    self.current_process_status.setText(display_text)
+                logger.info(f"[CLEANING] Sincronizado - Estado: {display_text}")
         else:
-             self.state.set_phase(TreatmentPhase.IDLE, "Sincronización inicial - Sin actividad")
-             self.screen_state_manager.update_all_screens(TreatmentPhase.IDLE)
+            # Fallback si no hay mapper (no debería ocurrir, pero es seguro)
+            if treatment_mode == 3:
+                if status_code == 6:
+                    self.state.set_phase(TreatmentPhase.CLEANING, reason)
+                elif status_code in [2, 3, 4, 5]:
+                    self.state.set_phase(TreatmentPhase.PREPARING, reason)
+                else:
+                    self.state.set_phase(TreatmentPhase.IDLE, reason)
+            elif status_code == 13:
+                self.state.set_phase(TreatmentPhase.READY, reason)
+            elif status_code == 14:
+                self.state.set_phase(TreatmentPhase.RUNNING, reason)
+            elif status_code == 15:
+                self.state.set_phase(TreatmentPhase.PAUSED, reason)
+            elif status_code in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+                self.state.set_phase(TreatmentPhase.PREPARING, reason)
+            else:
+                self.state.set_phase(TreatmentPhase.IDLE, reason)
+            
+            if hasattr(self, 'screen_state_manager') and self.screen_state_manager:
+                self.screen_state_manager.update_all_screens(self.state.current_phase)
 
     
 
@@ -2873,6 +2887,31 @@ class HemodialysisHMI(QMainWindow):
         # Manejo del tratamiento seleccionado
         if tag == "treatmentModeSelection":
             self.refresh_treatment_selected() # Llama al nuevo método para actualizar el label
+            
+            # Recalcular fase y texto del encabezado con primingProcessStatus
+            # (importante si se reabre la app con limpieza ya corriendo)
+            try:
+                treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+                priming_status = safe_int(self.current_values.get("primingProcessStatus", 0), 0)
+                
+                if hasattr(self, 'hardware_mapper') and self.hardware_mapper:
+                    new_phase = self.hardware_mapper.get_phase(priming_status, treatment_mode)
+                    display_text = self.hardware_mapper.get_display_text(priming_status, treatment_mode)
+                    
+                    # Actualizar encabezado
+                    if hasattr(self, 'current_process_status') and self.current_process_status:
+                        self.current_process_status.setText(display_text)
+                    
+                    # Actualizar barra de navegación si la fase cambió
+                    old_phase = self.state.current_phase if hasattr(self, 'state') and self.state else None
+                    if new_phase != old_phase and hasattr(self, 'screen_state_manager') and self.screen_state_manager:
+                        self.screen_state_manager.update_all_screens(new_phase)
+                        reason = f"Treatment mode changed to {treatment_mode} → {display_text}"
+                        if hasattr(self, 'state') and self.state:
+                            self.state.set_phase(new_phase, reason)
+                        
+            except Exception as e:
+                logger.error(f"Error al recalcular fase por treatmentModeSelection: {e}")
         # ────────────────────────────────────────────────────────────────
         # Manejo de primingProcessStatus (estado del proceso + horas de operación)
         # ────────────────────────────────────────────────────────────────
@@ -3509,8 +3548,13 @@ class HemodialysisHMI(QMainWindow):
                 # Actualizar displays inmediatamente
                 self._update_therapy_time_displays()
                 
-                # Validar y acotar el tiempo de heparina si es necesario
-                self._validate_and_clamp_heparin_auto_stop_time()
+                # Validar y acotar el tiempo de heparina solo si NO es limpieza
+                # (limpieza usa heparineTherapyHours/Minutes como temporizador del ciclo, no como terapia)
+                current_phase = self.state.current_phase if hasattr(self, 'state') and self.state else None
+                treatment_mode = safe_int(self.current_values.get("treatmentModeSelection", 0), 0)
+                
+                if current_phase != TreatmentPhase.CLEANING and treatment_mode != 3:
+                    self._validate_and_clamp_heparin_auto_stop_time()
                 
                 logger.info(f"[THERAPY-TIME] set_min={total_min} remaining={hours:02d}:{minutes:02d}:00 source=config")
             
