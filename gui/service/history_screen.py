@@ -22,6 +22,7 @@ from PySide6.QtGui import QFont, QColor
 import json
 import os
 from datetime import datetime
+from utilities.platform_runtime import get_runtime_data_path
 
 
 class HistoryScreen(QWidget):
@@ -382,8 +383,10 @@ class HistoryScreen(QWidget):
 
         try:
             import csv
-            os.makedirs("exports", exist_ok=True)
-            filepath = f"exports/{filename}"
+            exports_dir = get_runtime_data_path("exports")
+            exports_dir.mkdir(parents=True, exist_ok=True)
+            
+            filepath = exports_dir / filename
 
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=list(data[0].keys()))

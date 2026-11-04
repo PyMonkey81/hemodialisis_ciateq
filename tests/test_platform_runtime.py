@@ -14,6 +14,8 @@ if PROJECT_ROOT not in sys.path:
 
 from utilities.platform_runtime import (
     get_runtime_config_dir,
+    get_runtime_data_dir,
+    get_runtime_data_path,
     sanitize_port_for_platform,
     is_linux,
     is_windows,
@@ -126,6 +128,78 @@ class TestGetRuntimeConfigDirBasic(unittest.TestCase):
         finally:
             if old_val:
                 os.environ["CIATEQ_CONFIG_DIR"] = old_val
+
+
+class TestGetRuntimeDataDir(unittest.TestCase):
+    """Tests para get_runtime_data_dir() - directorio de datos escribibles."""
+
+    def test_frozen_uses_executable_directory(self):
+        """Un programa congelado (PyInstaller) debe usar la carpeta del ejecutable."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_exe = Path(tmpdir) / "HemodialisisApp.exe"
+            fake_exe.touch()
+            
+            # Mock: sys.frozen = True, sys.executable = ruta del exe temporal
+            with patch.object(sys, "frozen", True, create=True):
+                with patch.object(sys, "executable", str(fake_exe)):
+                    # Limpiar CIATEQ_DATA_DIR para que no interfiera
+                    with patch.dict(os.environ, {}, clear=True):
+                        result = get_runtime_data_dir()
+                        # Debe ser el padre del ejecutable (tmpdir)
+                        self.assertEqual(result, Path(tmpdir))
+
+    def test_ciateq_data_dir_when_set(self):
+        """Debe usar CIATEQ_DATA_DIR cuando está definida y es escribible."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.dict(os.environ, {"CIATEQ_DATA_DIR": tmpdir}, clear=False):
+                result = get_runtime_data_dir()
+                self.assertEqual(result, Path(tmpdir))
+
+    def test_not_frozen_uses_repo_root(self):
+        """Sin frozen, debe usar la raíz del repositorio."""
+        # Garantizar que sys.frozen no existe o es False
+        with patch.object(sys, "frozen", False, create=True):
+            with patch.dict(os.environ, {}, clear=True):
+                result = get_runtime_data_dir()
+                expected = Path(__file__).resolve().parent.parent
+                self.assertEqual(result, expected)
+
+    def test_never_uses_meipass_for_writing(self):
+        """Incluso congelado, NUNCA debe usar sys._MEIPASS para escribir."""
+        # Verificar que la función NO menciona sys._MEIPASS en el path de escritura
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_exe = Path(tmpdir) / "app.exe"
+            fake_exe.touch()
+            
+            with patch.object(sys, "frozen", True, create=True):
+                with patch.object(sys, "executable", str(fake_exe)):
+                    with patch.object(sys, "_MEIPASS", "/fake/meipass", create=True):
+                        with patch.dict(os.environ, {}, clear=True):
+                            result = get_runtime_data_dir()
+                            # Nunca debe ser _MEIPASS
+                            self.assertNotEqual(result, Path("/fake/meipass"))
+                            # Debe ser la carpeta del ejecutable
+                            self.assertEqual(result, Path(tmpdir))
+
+
+class TestGetRuntimeDataPath(unittest.TestCase):
+    """Tests para get_runtime_data_path(*parts) - construir rutas de datos."""
+
+    def test_constructs_path_with_parts(self):
+        """Debe construir rutas correctamente con múltiples partes."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.dict(os.environ, {"CIATEQ_DATA_DIR": tmpdir}, clear=False):
+                result = get_runtime_data_path("logs", "tratamiento_hemodialisis", "file.csv")
+                expected = Path(tmpdir) / "logs" / "tratamiento_hemodialisis" / "file.csv"
+                self.assertEqual(result, expected)
+
+    def test_single_part(self):
+        """Debe funcionar con una sola parte."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.dict(os.environ, {"CIATEQ_DATA_DIR": tmpdir}, clear=False):
+                result = get_runtime_data_path("exports")
+                expected = Path(tmpdir) / "exports"
+                self.assertEqual(result, expected)
 
 
 if __name__ == "__main__":

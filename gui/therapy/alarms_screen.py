@@ -65,6 +65,7 @@ from gui.components.numpad_modal import NumpadDialog
 from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.components.floating_message import FloatingMessage
 from gui.components.floating_confirm import FloatingConfirmDialog
+from utilities.platform_runtime import get_runtime_data_path
 from typing import Dict
 import json 
 
@@ -72,8 +73,6 @@ import json
 
 import logging
 logger = logging.getLogger(__name__)
-
-PATH_ALAMRS_LOG = "logs/alarms_log.json"  # Archivo para guardar el historial de eventos de alarmas
 
 class AlarmsScreen(QWidget):
     """
@@ -91,12 +90,7 @@ class AlarmsScreen(QWidget):
         self.current_values = values_dict if values_dict is not None else {}
         self.alarm_system = alarm_system
 
-        # self.histroy_file = PATH_ALAMRS_LOG
-        # self.max_history_entries = 1000  # Máximo número de eventos a guardar en el historial (puede ajustarse)
-        # self.history_data = self._load_history_from_file()  # Cargar historial existente desde el archivo JSON
-        # self._refresh_history_display()  # Mostrar el historial cargado al iniciar la pantalla
-
-        self.history_file = "logs/alarm_history.json"
+        self.history_file = get_runtime_data_path("logs", "alarm_history.json")
         self.max_history_entries = 1000
         self.history_data = self._load_history_from_file()
         

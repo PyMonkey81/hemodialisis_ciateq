@@ -95,6 +95,89 @@ def get_runtime_config_path(file_name: str) -> Path:
     return get_runtime_config_dir() / file_name
 
 
+def _ensure_data_dir(path: Path) -> Path | None:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    except OSError:
+        return None
+
+
+def get_runtime_data_dir() -> Path:
+    """
+    Devuelve un directorio de datos escribible en runtime.
+    Prioridad:
+    1) CIATEQ_DATA_DIR (si existe y se puede escribir)
+    2) Si frozen:
+       a) <exe_dir> (si es escribible)
+       b) Windows: %LOCALAPPDATA%/CIATEQ/Hemodialisis
+       c) Linux: $XDG_STATE_HOME/CIATEQ/Hemodialisis o ~/.local/state/CIATEQ/Hemodialisis
+    3) Si no frozen: <repo_root>
+    
+    Los datos incluyen logs, exportes, historiales, etc.
+    Nunca usa __file__ ni sys._MEIPASS para escribir.
+    Loguea la ruta elegida. No truena al importar.
+    """
+    # Intento 1: Variable de entorno explícita
+    env_dir = os.environ.get("CIATEQ_DATA_DIR", "").strip()
+    if env_dir:
+        data_dir = _ensure_data_dir(Path(env_dir))
+        if data_dir is not None:
+            logger.info("Usando datos desde CIATEQ_DATA_DIR: %s", data_dir)
+            return data_dir
+        logger.warning("No se pudo usar CIATEQ_DATA_DIR: %s", env_dir)
+
+    # Intento 2: Si está congelado (empaquetado)
+    if getattr(sys, "frozen", False):
+        # Primero: junto al ejecutable (NUNCA __file__ ni sys._MEIPASS)
+        executable_data_dir = Path(sys.executable).resolve().parent
+        data_dir = _ensure_data_dir(executable_data_dir)
+        if data_dir is not None:
+            logger.info("Usando datos junto al ejecutable: %s", executable_data_dir)
+            return executable_data_dir
+
+        # Fallback por SO
+        if is_windows():
+            # Windows: LOCALAPPDATA
+            app_data_dir = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+            fallback_dir = app_data_dir / "CIATEQ" / "Hemodialisis"
+        else:
+            # Linux: XDG_STATE_HOME o ~/.local/state
+            xdg_state = os.environ.get("XDG_STATE_HOME", "").strip()
+            if xdg_state:
+                base_dir = Path(xdg_state)
+            else:
+                base_dir = Path.home() / ".local" / "state"
+            fallback_dir = base_dir / "CIATEQ" / "Hemodialisis"
+
+        data_dir = _ensure_data_dir(fallback_dir)
+        if data_dir is not None:
+            logger.warning(
+                "Datos junto al ejecutable no disponibles (%s); se usa %s",
+                executable_data_dir,
+                fallback_dir,
+            )
+            return fallback_dir
+
+        # Último recurso si todo falla: repo root (no fatal)
+        logger.warning(
+            "No se pudo crear datos en %s ni en %s; usando raíz del repositorio.",
+            executable_data_dir,
+            fallback_dir,
+        )
+
+    # Intento 3: Si no está congelado, o si todo lo anterior falló
+    repo_root = Path(__file__).resolve().parent.parent
+    logger.info("Usando datos del repositorio: %s", repo_root)
+    return repo_root
+
+
+def get_runtime_data_path(*parts) -> Path:
+    """Construye la ruta absoluta para un archivo/carpeta dentro de datos."""
+    data_dir = get_runtime_data_dir()
+    return data_dir.joinpath(*parts)
+
+
 def platform_name() -> str:
     return platform.system()
 
