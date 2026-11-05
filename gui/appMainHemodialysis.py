@@ -77,6 +77,7 @@ from connection.led_bar_controller import LedBarController
 from connection.bioz_urea_controller import BiozUreaController
 from connection.conductivity_sensor_comm import PatternConductivity
 from connection.nibp_par_communication import NibpParCommunication
+from utilities.platform_runtime import get_runtime_data_path
 
 
 from gui.screen_state_manager import ScreenStateManager
@@ -281,6 +282,9 @@ class HemodialysisHMI(QMainWindow):
         # Atributos críticos inicializados temprano para evitar fallos durante arranque parcial.
         self.current_values = {}
         self.bioz_urea_controller = None
+        
+        # Control de detención de terapia no limpia
+        self._checked_unclean_close = False  # Bandera para hacer la detención solo una vez
         
         # Diccionario para ignorar lecturas de ciertos tags hasta un tiempo especificado (evita
         # que la lectura vieja del firmware pise valores recién enviados).
@@ -2916,6 +2920,9 @@ class HemodialysisHMI(QMainWindow):
         # Manejo de primingProcessStatus (estado del proceso + horas de operación)
         # ────────────────────────────────────────────────────────────────
         if tag == "primingProcessStatus":
+            # Verificar cierre no limpio solo una vez
+            self._check_and_handle_unclean_close()
+            
             try:
                 status_code = int(value)
             except (TypeError, ValueError):
@@ -4043,9 +4050,85 @@ class HemodialysisHMI(QMainWindow):
         self.end_dialysis_session() # Cierra los loggers
         logger.error("[INFO] closeEvent → performing shutdown...")
         self.shutdown() # shutdown ya guarda las horas
+        
+        # Marcar cierre limpio para evitar detención de terapia al reiniciar
+        try:
+            clean_close_path = get_runtime_data_path("var", "log", "cierre_limpio")
+            with open(clean_close_path, "w") as f:
+                f.write("")
+            logger.info(f"Cierre limpio marcado en {clean_close_path}")
+        except Exception as e:
+            logger.error(f"No se pudo marcar cierre limpio: {e}")
+        
         # time.sleep(1.0) 
         event.accept()
         QApplication.quit()
+
+    def _check_and_handle_unclean_close(self):
+        """
+        Detecta si la app se cerró sin marcar cierre limpio.
+        Si no estaba marcado y hay terapia/limpieza en progreso, las detiene.
+        Se ejecuta solo una vez por arranque.
+        """
+        if self._checked_unclean_close:
+            return
+        
+        self._checked_unclean_close = True
+        
+        # Verificar si existe la marca de cierre limpio
+        try:
+            clean_close_path = get_runtime_data_path("var", "log", "cierre_limpio")
+            if os.path.exists(clean_close_path):
+                # Cierre limpio: borrar la marca y no hacer nada
+                try:
+                    os.remove(clean_close_path)
+                    logger.info("Marca de cierre limpio encontrada. Eliminada.")
+                except Exception as e:
+                    logger.warning(f"No se pudo borrar marca de cierre limpio: {e}")
+                return
+        except Exception as e:
+            logger.error(f"Error al verificar cierre limpio: {e}")
+            return
+        
+        # No había cierre limpio: revisar si hay terapia/limpieza en progreso
+        try:
+            priming_status = int(self.current_values.get("primingProcessStatus", 0))
+            treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
+            
+            logger.warning(f"Cierre no limpio detectado: primingProcessStatus={priming_status}, treatmentModeSelection={treatment_mode}")
+            
+            should_stop = False
+            stop_reason = ""
+            
+            # Estado 14 o 15 + mode != 3: terapia en progreso → detener
+            if priming_status in (14, 15) and treatment_mode != 3:
+                should_stop = True
+                stop_reason = "Terapia de diálisis"
+                logger.warning("Detectada terapia de diálisis en progreso. Deteniendo...")
+                if self.treatment_controller:
+                    self.treatment_controller.stop_treatment()
+            
+            # Mode 3 + estado 6: limpieza en progreso → detener
+            elif treatment_mode == 3 and priming_status == 6:
+                should_stop = True
+                stop_reason = "Limpieza"
+                logger.warning("Detectada limpieza en progreso. Deteniendo...")
+                # Enviar comandos de detener limpieza
+                self._write_setpoint("dialyStartDialysisButt", 0.0)
+                self._write_setpoint("dialyStopDialysisButt", 1.0)
+            
+            # Estados 1, 2-13, 16: no hacer nada
+            else:
+                logger.info(f"Estado {priming_status}: no se requiere detención")
+            
+            # Mostrar mensaje si se detuvo algo
+            if should_stop:
+                msg = "La aplicación se cerró de forma inesperada. El proceso en curso se detuvo. Hay que iniciarlo de nuevo."
+                logger.warning(f"Mostrando mensaje al usuario: {msg}")
+                self.show_operator_message(msg)
+        
+        except Exception as e:
+            logger.error(f"Error al verificar cierre no limpio: {e}")
 
 
 
