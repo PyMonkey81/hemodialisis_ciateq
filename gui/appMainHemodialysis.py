@@ -4122,9 +4122,9 @@ class HemodialysisHMI(QMainWindow):
             elif treatment_mode == 3 and priming_status_int == 6:
                 should_stop = True
                 logger.warning("Detectada limpieza en progreso. Deteniendo...")
-                # Enviar ambos comandos de detener limpieza
-                self._write_setpoint("dialyStartDialysisButt", 0.0)
-                self._write_setpoint("dialyStopDialysisButt", 1.0)
+                # Enviar ambos comandos de detener limpieza (booleanos)
+                self._write_boolean_command("dialyStartDialysisButt", False)
+                self._write_boolean_command("dialyStopDialysisButt", True)
             
             # Estados 1, 2-5, 7-13, 16: no hacer nada
             else:
