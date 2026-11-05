@@ -4069,52 +4069,51 @@ class HemodialysisHMI(QMainWindow):
         Detecta si la app se cerró sin marcar cierre limpio.
         Si no estaba marcado y hay terapia/limpieza en progreso, las detiene.
         Se ejecuta solo una vez por arranque, y solo cuando primingProcessStatus es válido (1-16).
+        Envuelto en try/except para no tumbar la ventana.
         """
-        if self._checked_unclean_close:
-            return
-        
-        # Validar que puerto esté abierto y primingProcessStatus sea válido (1-16)
-        if not self.port_reader or not self.port_reader.is_connected():
-            logger.debug("Puerto no abierto. Esperando conexión para revisar cierre abrupto.")
-            return
-        
-        priming_status = self.current_values.get("primingProcessStatus", 0)
-        if not isinstance(priming_status, (int, float)) or priming_status < 1 or priming_status > 16:
-            logger.debug(f"primingProcessStatus inválido ({priming_status}). Esperando estado válido.")
-            return
-        
-        # Primer estado válido: marcar como revisado
-        self._checked_unclean_close = True
-        
-        # Verificar si existe la marca de cierre limpio
         try:
-            clean_close_path = get_runtime_data_path("var", "log", "cierre_limpio")
-            if os.path.exists(clean_close_path):
-                # Cierre limpio: borrar la marca y no hacer nada
-                try:
-                    os.remove(clean_close_path)
-                    logger.info("Marca de cierre limpio encontrada. Eliminada.")
-                except Exception as e:
-                    logger.warning(f"No se pudo borrar marca de cierre limpio: {e}")
+            if self._checked_unclean_close:
                 return
-        except Exception as e:
-            logger.error(f"Error al verificar cierre limpio: {e}")
-            return
-        
-        # No había cierre limpio: revisar si hay terapia/limpieza en progreso
-        try:
+            
+            # Validar que puerto esté conectado y primingProcessStatus sea válido (1-16)
+            if not self.serial_comm or not self.serial_comm.is_connected:
+                logger.debug("Puerto no conectado. Esperando conexión para revisar cierre abrupto.")
+                return
+            
+            priming_status = self.current_values.get("primingProcessStatus", 0)
+            if not isinstance(priming_status, (int, float)) or priming_status < 1 or priming_status > 16:
+                logger.debug(f"primingProcessStatus inválido ({priming_status}). Esperando estado válido.")
+                return
+            
+            # Primer estado válido: marcar como revisado
+            self._checked_unclean_close = True
+            
+            # Verificar si existe la marca de cierre limpio
+            try:
+                clean_close_path = get_runtime_data_path("var", "log", "cierre_limpio")
+                if os.path.exists(clean_close_path):
+                    # Cierre limpio: borrar la marca y no hacer nada
+                    try:
+                        os.remove(clean_close_path)
+                        logger.info("Marca de cierre limpio encontrada. Eliminada.")
+                    except Exception as e:
+                        logger.warning(f"No se pudo borrar marca de cierre limpio: {e}")
+                    return
+            except Exception as e:
+                logger.error(f"Error al verificar cierre limpio: {e}")
+                return
+            
+            # No había cierre limpio: revisar si hay terapia/limpieza en progreso
             priming_status_int = int(priming_status)
             treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
             
             logger.warning(f"Cierre no limpio detectado: primingProcessStatus={priming_status_int}, treatmentModeSelection={treatment_mode}")
             
             should_stop = False
-            stop_reason = ""
             
             # Estado 14 o 15 + mode != 3: terapia en progreso → detener
             if priming_status_int in (14, 15) and treatment_mode != 3:
                 should_stop = True
-                stop_reason = "Terapia de diálisis"
                 logger.warning("Detectada terapia de diálisis en progreso. Deteniendo...")
                 if self.treatment_controller:
                     self.treatment_controller.stop_treatment()
@@ -4122,7 +4121,6 @@ class HemodialysisHMI(QMainWindow):
             # Mode 3 + estado 6: limpieza en progreso → detener
             elif treatment_mode == 3 and priming_status_int == 6:
                 should_stop = True
-                stop_reason = "Limpieza"
                 logger.warning("Detectada limpieza en progreso. Deteniendo...")
                 # Enviar ambos comandos de detener limpieza
                 self._write_setpoint("dialyStartDialysisButt", 0.0)
@@ -4139,7 +4137,9 @@ class HemodialysisHMI(QMainWindow):
                 self.show_operator_message(msg)
         
         except Exception as e:
-            logger.error(f"Error al verificar cierre no limpio: {e}")
+            logger.error(f"Error en _check_and_handle_unclean_close: {e}")
+            # No marcar como revisado si hubo excepción
+            # El siguiente evento puede intentarlo de nuevo
 
 
 
