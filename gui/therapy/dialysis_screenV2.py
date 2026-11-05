@@ -47,6 +47,7 @@ import numpy as np
 from collections import deque
 from gui.components.ui_components import LabeledParameterWidget, LabeledTimeInput
 from core.state_manager import TreatmentPhase
+from utilities.platform_runtime import safe_float
 import logging
 logger = logging.getLogger(__name__)
 
@@ -730,8 +731,8 @@ class DialysisScreen(QWidget):
         # Trata None como 0
         hep_hours_val = self.current_values.get("heparineTherapyHours", 0.0)
         hep_minutes_val = self.current_values.get("heparineTherapyMinutes", 0.0)
-        uf_therapy_hours = float(hep_hours_val) if hep_hours_val is not None else 0.0
-        uf_therapy_minutes = float(hep_minutes_val) if hep_minutes_val is not None else 0.0
+        uf_therapy_hours = safe_float(hep_hours_val, 0.0)
+        uf_therapy_minutes = safe_float(hep_minutes_val, 0.0)
         therapy_duration_hours = uf_therapy_hours + (uf_therapy_minutes / 60.0)
         
         # TODO: Si está activo el perfil de UF, ajustar el cálculo del objetivo
@@ -742,7 +743,7 @@ class DialysisScreen(QWidget):
         # UF Removida: usar los pulsos acumulados de la bomba UF (ultraFilterCycleCount)
         # Trata None como 0
         cycle_count_val = self.current_values.get("ultraFilterCycleCount", 0.0)
-        uf_pulse_count = float(cycle_count_val) if cycle_count_val is not None else 0.0
+        uf_pulse_count = safe_float(cycle_count_val, 0.0)
         uf_removed = litros_removidos(int(uf_pulse_count))
         self.uf_rem_val.setText(f"{uf_removed:.2f}")
         
@@ -753,8 +754,8 @@ class DialysisScreen(QWidget):
         # Actualizar gráfico - tratar None como 0
         venous_pressure_val = self.current_values.get("bloodVenousPressureData", 0.0)
         arterial_pressure_val = self.current_values.get("bloodArteryPressureData", 0.0)
-        venous_pressure = venous_pressure_val if venous_pressure_val is not None else 0.0
-        arterial_pressure = arterial_pressure_val if arterial_pressure_val is not None else 0.0
+        venous_pressure = safe_float(venous_pressure_val, 0.0)
+        arterial_pressure = safe_float(arterial_pressure_val, 0.0)
         self.pressure_plot.add_values(arterial_pressure, venous_pressure)
 
         # Calculo PTM
@@ -833,14 +834,8 @@ class DialysisScreen(QWidget):
             self.parent_window.show_nibp_screen()
 
     def _format_display_value(self, tag: str, value):
-        try:
-            # Si el valor es None, poner 0.0 por defecto
-            if value is None:
-                val_float = 0.0
-            else:
-                val_float = float(value)
-        except (TypeError, ValueError):
-            return str(value) # Si no es número, devolver el texto tal cual
+        # Usar safe_float para manejar None y texto sin lanzar excepción
+        val_float = safe_float(value, 0.0)
 
         if tag in {"bloodArteryPressureData", "bloodVenousPressureData"}:
             try:
