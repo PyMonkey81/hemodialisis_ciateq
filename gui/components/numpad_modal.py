@@ -19,9 +19,13 @@ Características principales:
   del sistema operativo.
 - **Soporte Decimal**: Permite la entrada de números decimales (punto flotante)
   con validación básica para evitar múltiples puntos.
+- **Soporte para Números Negativos**: Con `allow_negative=True`, muestra botón
+  +/− para cambiar el signo. El botón reemplaza el punto en la fila de abajo,
+  y el punto se mueve a otra columna sin encimar teclas.
 - **Tipado Dinámico de Retorno**: El método `get_value()` devuelve inteligentemente
-  un `int` o un `float` según lo que el usuario haya escrito, facilitando
-  su uso con diferentes tipos de variables del sistema.
+  un `int` o un `float` según lo que el usuario haya escrito. Retorna `None` para
+  valores inválidos (vacío, "-", ".", "-.", "--"), permitiendo que el diálogo
+  permanezca abierto para corrección.
 - **Estilo Visual**: Implementa un tema oscuro ("Dark Mode") consistente con
   el resto de la aplicación médica.
 
@@ -40,10 +44,17 @@ Uso:
 ----
 Generalmente se invoca desde un evento de clic en un campo editable:
 
-    dialog = NumpadDialog(parent, initial_value="12.5", title="Flujo de Sangre")
+    # Sin negativos (flujo de sangre, por ejemplo)
+    dialog = NumpadDialog(parent, initial_value="", title="Flujo de Sangre", 
+                          allow_negative=False)
     if dialog.exec():
-        valor = dialog.get_value()
-        # valor será int(12) o float(12.5) dependiendo de la entrada
+        valor = dialog.get_value()  # int o float
+
+    # Con negativos (presión arterial, por ejemplo: -100 a 400 mmHg)
+    dialog = NumpadDialog(parent, initial_value="", title="Presión Arterial",
+                          allow_negative=True)
+    if dialog.exec():
+        valor = dialog.get_value()  # int, float, o None si inválido
 """
 
 
@@ -120,11 +131,12 @@ class NumpadDialog(QDialog):
     }
 
 
-    def __init__(self, parent=None, initial_value: str = "", title: str = "Ingrese Valor", theme: str = "light"):
+    def __init__(self, parent=None, initial_value: str = "", title: str = "Ingrese Valor", theme: str = "light", allow_negative: bool = False):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.theme = theme  # ← AGREGAR
-        colors = self.THEMES[theme]  # ← AGREGAR
+        self.theme = theme
+        self.allow_negative = allow_negative
+        colors = self.THEMES[theme]
 
 
         # Frameless + modal for full touch experience
@@ -191,7 +203,6 @@ class NumpadDialog(QDialog):
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
             ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
-            ('.', 3, 0), ('0', 3, 1), ('⌫', 3, 2)
         ]
 
         button_font = QFont("Arial", 32, QFont.Bold)
@@ -200,39 +211,158 @@ class NumpadDialog(QDialog):
             btn = QPushButton(key)
             btn.setFixedSize(90, 90)
             btn.setFont(button_font)
-
-            if key == '⌫':
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {colors['backspace_bg']};
-                        color: {colors['backspace_color']};
-                        border-radius: 12px;
-                        border: none;
-                    }}
-                    QPushButton:hover {{ background-color: {colors['backspace_hover']}; }}
-                    QPushButton:pressed {{ background-color: {colors['backspace_pressed']}; }}
-                """)
-                btn.clicked.connect(self._backspace)  # ← AGREGAR
-
-            else:
-                
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        font-size: 32px;
-                        font-family: "Arial";
-                        font-weight: bold;                                  
-                        background-color: {colors['button_bg']};
-                        color: {colors['button_color']};
-                        border-radius: 12px;
-                        border: 2px solid {colors['button_border']};
-                    }}
-                    QPushButton:hover {{ background-color: {colors['button_hover']}; }}
-                    QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
-                """)
-                btn.clicked.connect(lambda _, k=key: self._add_digit(k))
-
-
+            
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 32px;
+                    font-family: "Arial";
+                    font-weight: bold;                                  
+                    background-color: {colors['button_bg']};
+                    color: {colors['button_color']};
+                    border-radius: 12px;
+                    border: 2px solid {colors['button_border']};
+                }}
+                QPushButton:hover {{ background-color: {colors['button_hover']}; }}
+                QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
+            """)
+            btn.clicked.connect(lambda _, k=key: self._add_digit(k))
             keypad_layout.addWidget(btn, row, col)
+
+        # Fila 3: ., 0, ⌫ (o +/−, ., 0, ⌫ si allow_negative=True)
+        if self.allow_negative:
+            # Botón +/−
+            sign_btn = QPushButton("+/−")
+            sign_btn.setFixedSize(90, 90)
+            sign_btn.setFont(button_font)
+            sign_btn.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 32px;
+                    font-family: "Arial";
+                    font-weight: bold;                                  
+                    background-color: {colors['button_bg']};
+                    color: {colors['button_color']};
+                    border-radius: 12px;
+                    border: 2px solid {colors['button_border']};
+                }}
+                QPushButton:hover {{ background-color: {colors['button_hover']}; }}
+                QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
+            """)
+            sign_btn.clicked.connect(self._toggle_sign)
+            keypad_layout.addWidget(sign_btn, 3, 0)
+
+            # Punto decimal
+            dot_btn = QPushButton('.')
+            dot_btn.setFixedSize(90, 90)
+            dot_btn.setFont(button_font)
+            dot_btn.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 32px;
+                    font-family: "Arial";
+                    font-weight: bold;                                  
+                    background-color: {colors['button_bg']};
+                    color: {colors['button_color']};
+                    border-radius: 12px;
+                    border: 2px solid {colors['button_border']};
+                }}
+                QPushButton:hover {{ background-color: {colors['button_hover']}; }}
+                QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
+            """)
+            dot_btn.clicked.connect(lambda _, k='.': self._add_digit(k))
+            keypad_layout.addWidget(dot_btn, 3, 1)
+
+            # Zero
+            zero_btn = QPushButton('0')
+            zero_btn.setFixedSize(90, 90)
+            zero_btn.setFont(button_font)
+            zero_btn.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 32px;
+                    font-family: "Arial";
+                    font-weight: bold;                                  
+                    background-color: {colors['button_bg']};
+                    color: {colors['button_color']};
+                    border-radius: 12px;
+                    border: 2px solid {colors['button_border']};
+                }}
+                QPushButton:hover {{ background-color: {colors['button_hover']}; }}
+                QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
+            """)
+            zero_btn.clicked.connect(lambda _, k='0': self._add_digit(k))
+            keypad_layout.addWidget(zero_btn, 3, 2)
+
+            # Backspace (nueva posición en columna 3)
+            backspace_btn = QPushButton('⌫')
+            backspace_btn.setFixedSize(90, 90)
+            backspace_btn.setFont(button_font)
+            backspace_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {colors['backspace_bg']};
+                    color: {colors['backspace_color']};
+                    border-radius: 12px;
+                    border: none;
+                }}
+                QPushButton:hover {{ background-color: {colors['backspace_hover']}; }}
+                QPushButton:pressed {{ background-color: {colors['backspace_pressed']}; }}
+            """)
+            backspace_btn.clicked.connect(self._backspace)
+            keypad_layout.addWidget(backspace_btn, 3, 3)
+        else:
+            # Sin allow_negative: configuración original
+            dot_btn = QPushButton('.')
+            dot_btn.setFixedSize(90, 90)
+            dot_btn.setFont(button_font)
+            dot_btn.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 32px;
+                    font-family: "Arial";
+                    font-weight: bold;                                  
+                    background-color: {colors['button_bg']};
+                    color: {colors['button_color']};
+                    border-radius: 12px;
+                    border: 2px solid {colors['button_border']};
+                }}
+                QPushButton:hover {{ background-color: {colors['button_hover']}; }}
+                QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
+            """)
+            dot_btn.clicked.connect(lambda _, k='.': self._add_digit(k))
+            keypad_layout.addWidget(dot_btn, 3, 0)
+
+            # Zero
+            zero_btn = QPushButton('0')
+            zero_btn.setFixedSize(90, 90)
+            zero_btn.setFont(button_font)
+            zero_btn.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 32px;
+                    font-family: "Arial";
+                    font-weight: bold;                                  
+                    background-color: {colors['button_bg']};
+                    color: {colors['button_color']};
+                    border-radius: 12px;
+                    border: 2px solid {colors['button_border']};
+                }}
+                QPushButton:hover {{ background-color: {colors['button_hover']}; }}
+                QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
+            """)
+            zero_btn.clicked.connect(lambda _, k='0': self._add_digit(k))
+            keypad_layout.addWidget(zero_btn, 3, 1)
+
+            # Backspace
+            backspace_btn = QPushButton('⌫')
+            backspace_btn.setFixedSize(90, 90)
+            backspace_btn.setFont(button_font)
+            backspace_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {colors['backspace_bg']};
+                    color: {colors['backspace_color']};
+                    border-radius: 12px;
+                    border: none;
+                }}
+                QPushButton:hover {{ background-color: {colors['backspace_hover']}; }}
+                QPushButton:pressed {{ background-color: {colors['backspace_pressed']}; }}
+            """)
+            backspace_btn.clicked.connect(self._backspace)
+            keypad_layout.addWidget(backspace_btn, 3, 2)
 
         main_layout.addLayout(keypad_layout)
 
@@ -275,7 +405,7 @@ class NumpadDialog(QDialog):
             QPushButton:hover { background-color: #16a34a; }
             QPushButton:pressed { background-color: #15803d; }
         """)
-        accept_btn.clicked.connect(self.accept)
+        accept_btn.clicked.connect(self._on_accept_clicked)
         action_layout.addWidget(accept_btn)
 
         main_layout.addLayout(action_layout)
@@ -288,8 +418,12 @@ class NumpadDialog(QDialog):
         if digit == '.' and '.' in current_text:
             return
 
-        # Replace leading zero with new digit (unless it's a decimal)
-        if current_text == "0" and digit != ".":
+        # Prevent dash if not allowed
+        if digit == '-' and not self.allow_negative:
+            return
+
+        # Replace leading zero with new digit (unless it's a decimal or dash)
+        if current_text == "0" and digit not in (".", "-"):
             current_text = ""
 
         self.display.setText(current_text + digit)
@@ -299,15 +433,49 @@ class NumpadDialog(QDialog):
         current_text = self.display.text()
         self.display.setText(current_text[:-1] if current_text else "")
 
-    def get_value(self): # Ya no necesita tipo hint float
+    def _toggle_sign(self):
+        """Toggle the sign (+ or -) at the beginning of the number."""
+        if not self.allow_negative:
+            return
+
+        current_text = self.display.text()
+
+        # Si está vacío, pone "-"
+        if not current_text:
+            self.display.setText("-")
+            return
+
+        # Si comienza con "-", lo quita
+        if current_text.startswith("-"):
+            self.display.setText(current_text[1:])
+        else:
+            # Si no comienza con "-", lo agrega
+            self.display.setText("-" + current_text)
+
+    def _on_accept_clicked(self):
+        """Validate the value before accepting the dialog."""
+        if self.get_value() is None:
+            # Valor inválido, rechaza el cierre del diálogo
+            return
+        # Valor válido, acepta el diálogo
+        self.accept()
+
+    def get_value(self):
         """
         Return the entered value as float or int, depending on if it contains a decimal point.
-        Returns 0 if empty or invalid.
+        Returns None if empty, invalid, or incomplete (like "-", ".", "-.", or "--").
+        This allows the dialog to stay open and reject the input.
         """
         text = self.display.text().strip()
-        if not text or text == ".":
-            return 0 # Default to int 0 if empty/invalid
-
+        
+        # Rechazar valores vacíos o inválidos
+        if not text or text == "-" or text == "." or text == "-.":
+            return None
+        
+        # Rechazar si tiene "--"
+        if "--" in text:
+            return None
+        
         try:
             # Si el texto contiene un punto, es un float
             if '.' in text:
@@ -316,5 +484,5 @@ class NumpadDialog(QDialog):
             else:
                 return int(text)
         except ValueError:
-            return 0 # Default to int 0 if conversion fails
+            return None
 

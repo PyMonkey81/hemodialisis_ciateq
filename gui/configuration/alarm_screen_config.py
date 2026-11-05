@@ -217,15 +217,17 @@ class AlarmScreenConfig(QWidget):
                 row += 1
 
     def open_numpad(self, line_edit, tag, field):
-        # dialog = NumpadDialog(self, initial_value=line_edit.text(), 
-                            #  title=f"Límite {field.upper()} \n {tag}")
+        # Obtener los límites de la variable para determinar allow_negative
+        min_val, max_val = self.config_manager.get_limits(tag)
+        allow_negative = min_val < 0
+        
         dialog = NumpadDialog(self, initial_value="", 
-                             title=f"Límite {field.upper()} \n {tag}")
+                             title=f"Límite {field.upper()} \n {tag}",
+                             allow_negative=allow_negative)
         
         if dialog.exec():
             val = dialog.get_value()
             line_edit.setText(f"{val:.1f}")
-            # line_edit.setText(" ")
 
     def show_floating_message(self, text: str, timeout_ms: int = 3800):
         """Método genérico (recomendado)"""
@@ -267,8 +269,19 @@ class AlarmScreenConfig(QWidget):
                     max_v = float(widgets['max'].text())
 
                     if min_v >= max_v:
-                        
                         self.show_warning_message("Límite inferior debe ser menor que el superior.", timeout_ms=2000)
+                        return
+
+                    # Obtener los límites permitidos de variables_map
+                    default_min, default_max = self.config_manager.get_default_limits_from_variables_map(tag)
+                    
+                    # Validar que cada valor esté dentro de los límites permitidos
+                    if min_v < default_min or min_v > default_max:
+                        self.show_warning_message(f"Límite inferior fuera de rango permitido ({default_min} - {default_max}).", timeout_ms=2000)
+                        return
+                    
+                    if max_v < default_min or max_v > default_max:
+                        self.show_warning_message(f"Límite superior fuera de rango permitido ({default_min} - {default_max}).", timeout_ms=2000)
                         return
 
                     self.config_manager.set_limits(tag, min_v, max_v)
