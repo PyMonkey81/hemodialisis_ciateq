@@ -195,8 +195,8 @@ class AlarmScreenConfig(QWidget):
                     min_edit.setFixedWidth(100)
                     max_edit.setFixedWidth(100)
 
-                    min_edit.clicked.connect(lambda c=False, e=min_edit, t=tag, f="min": self.open_numpad(e, t, f))
-                    max_edit.clicked.connect(lambda c=False, e=max_edit, t=tag, f="max": self.open_numpad(e, t, f))
+                    min_edit.clicked.connect(lambda c=False, e=min_edit, t=tag, n=name, f="min": self.open_numpad(e, t, n, f))
+                    max_edit.clicked.connect(lambda c=False, e=max_edit, t=tag, n=name, f="max": self.open_numpad(e, t, n, f))
 
                     self.grid_layout.addWidget(lbl_name, row, 0)
                     self.grid_layout.addWidget(min_edit, row, 1)
@@ -216,13 +216,14 @@ class AlarmScreenConfig(QWidget):
                 self.inputs[tag] = widget_dict
                 row += 1
 
-    def open_numpad(self, line_edit, tag, field):
+    def open_numpad(self, line_edit, tag, param_name, field):
         # Obtener los límites de la variable para determinar allow_negative
         min_val, max_val = self.config_manager.get_limits(tag)
         allow_negative = min_val < 0
         
+        # Título sin la unidad, mostrando el nombre legible del parámetro
         dialog = NumpadDialog(self, initial_value="", 
-                             title=f"Límite {field.upper()} \n {tag}",
+                             title=f"Límite {field.upper()} \n {param_name}",
                              allow_negative=allow_negative)
         
         if dialog.exec():
