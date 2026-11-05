@@ -195,8 +195,8 @@ class AlarmScreenConfig(QWidget):
                     min_edit.setFixedWidth(100)
                     max_edit.setFixedWidth(100)
 
-                    min_edit.clicked.connect(lambda c=False, e=min_edit, t=label_short, f="min": self.open_numpad(e, t, f))
-                    max_edit.clicked.connect(lambda c=False, e=max_edit, t=label_short, f="max": self.open_numpad(e, t, f))
+                    min_edit.clicked.connect(lambda c=False, e=min_edit, t=tag, f="min": self.open_numpad(e, t, f))
+                    max_edit.clicked.connect(lambda c=False, e=max_edit, t=tag, f="max": self.open_numpad(e, t, f))
 
                     self.grid_layout.addWidget(lbl_name, row, 0)
                     self.grid_layout.addWidget(min_edit, row, 1)

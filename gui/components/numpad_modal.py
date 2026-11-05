@@ -366,6 +366,14 @@ class NumpadDialog(QDialog):
 
         main_layout.addLayout(keypad_layout)
 
+        # Ajustar ancho del diálogo según el número de columnas
+        if self.allow_negative:
+            # 4 columnas: +/−, ., 0, ⌫
+            self.setMinimumWidth(420)
+        else:
+            # 3 columnas: ., 0, ⌫
+            self.setMinimumWidth(330)
+
         # ── Action Buttons (Cancel / Accept) ─────────────────────────────────────
         action_layout = QHBoxLayout()
         action_layout.setSpacing(20)
