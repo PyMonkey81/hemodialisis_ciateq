@@ -4068,11 +4068,22 @@ class HemodialysisHMI(QMainWindow):
         """
         Detecta si la app se cerró sin marcar cierre limpio.
         Si no estaba marcado y hay terapia/limpieza en progreso, las detiene.
-        Se ejecuta solo una vez por arranque.
+        Se ejecuta solo una vez por arranque, y solo cuando primingProcessStatus es válido (1-16).
         """
         if self._checked_unclean_close:
             return
         
+        # Validar que puerto esté abierto y primingProcessStatus sea válido (1-16)
+        if not self.port_reader or not self.port_reader.is_connected():
+            logger.debug("Puerto no abierto. Esperando conexión para revisar cierre abrupto.")
+            return
+        
+        priming_status = self.current_values.get("primingProcessStatus", 0)
+        if not isinstance(priming_status, (int, float)) or priming_status < 1 or priming_status > 16:
+            logger.debug(f"primingProcessStatus inválido ({priming_status}). Esperando estado válido.")
+            return
+        
+        # Primer estado válido: marcar como revisado
         self._checked_unclean_close = True
         
         # Verificar si existe la marca de cierre limpio
@@ -4092,16 +4103,16 @@ class HemodialysisHMI(QMainWindow):
         
         # No había cierre limpio: revisar si hay terapia/limpieza en progreso
         try:
-            priming_status = int(self.current_values.get("primingProcessStatus", 0))
+            priming_status_int = int(priming_status)
             treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
             
-            logger.warning(f"Cierre no limpio detectado: primingProcessStatus={priming_status}, treatmentModeSelection={treatment_mode}")
+            logger.warning(f"Cierre no limpio detectado: primingProcessStatus={priming_status_int}, treatmentModeSelection={treatment_mode}")
             
             should_stop = False
             stop_reason = ""
             
             # Estado 14 o 15 + mode != 3: terapia en progreso → detener
-            if priming_status in (14, 15) and treatment_mode != 3:
+            if priming_status_int in (14, 15) and treatment_mode != 3:
                 should_stop = True
                 stop_reason = "Terapia de diálisis"
                 logger.warning("Detectada terapia de diálisis en progreso. Deteniendo...")
@@ -4109,17 +4120,17 @@ class HemodialysisHMI(QMainWindow):
                     self.treatment_controller.stop_treatment()
             
             # Mode 3 + estado 6: limpieza en progreso → detener
-            elif treatment_mode == 3 and priming_status == 6:
+            elif treatment_mode == 3 and priming_status_int == 6:
                 should_stop = True
                 stop_reason = "Limpieza"
                 logger.warning("Detectada limpieza en progreso. Deteniendo...")
-                # Enviar comandos de detener limpieza
+                # Enviar ambos comandos de detener limpieza
                 self._write_setpoint("dialyStartDialysisButt", 0.0)
                 self._write_setpoint("dialyStopDialysisButt", 1.0)
             
-            # Estados 1, 2-13, 16: no hacer nada
+            # Estados 1, 2-5, 7-13, 16: no hacer nada
             else:
-                logger.info(f"Estado {priming_status}: no se requiere detención")
+                logger.info(f"Estado {priming_status_int}: no se requiere detención")
             
             # Mostrar mensaje si se detuvo algo
             if should_stop:
