@@ -17,6 +17,18 @@ from _version import __version__
 logger = logging.getLogger(__name__)
 
 
+class ClickableLabel(QLabel):
+    """Label clickeable personalizado para Yeztli."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setCursor(Qt.PointingHandCursor)
+        self.close_callback = None
+    
+    def mousePressEvent(self, event):
+        if self.close_callback:
+            self.close_callback()
+
+
 class MainScreen(QWidget):
     """
     Widget principal de bienvenida de la máquina de hemodiálisis.
@@ -41,9 +53,10 @@ class MainScreen(QWidget):
     """
 
 
-    def __init__(self):
+    def __init__(self, parent=None):
         super().__init__()
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.parent_window = parent
         self.setup_ui()
 
     def setup_ui(self):
@@ -70,8 +83,8 @@ class MainScreen(QWidget):
         title_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(title_label)
 
-        # Subtitle / Brand
-        subtitle_label = QLabel("Yeztli")
+        # Subtitle / Brand (clickeable para cerrar)
+        subtitle_label = ClickableLabel("Yeztli")
         subtitle_label.setStyleSheet("""
             font-size: 60px;
             font-weight: bold;
@@ -79,6 +92,8 @@ class MainScreen(QWidget):
             background: transparent;
         """)
         subtitle_label.setAlignment(Qt.AlignCenter)
+        if self.parent_window and hasattr(self.parent_window, 'close'):
+            subtitle_label.close_callback = self.parent_window.close
         main_layout.addWidget(subtitle_label)
 
         main_layout.addSpacing(40)

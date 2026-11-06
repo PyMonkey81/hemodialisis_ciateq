@@ -57,6 +57,7 @@ import time
 import logging
 import json
 from typing import List, Tuple
+from collections import deque
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
@@ -281,6 +282,10 @@ class HemodialysisHMI(QMainWindow):
         self.cleaning_logger = None
         # Atributos críticos inicializados temprano para evitar fallos durante arranque parcial.
         self.current_values = {}
+        
+        # Buffer para promediado de temperatura de display (3 segundos)
+        self.temp_display_buffer = deque(maxlen=30)  # 30 muestras ~= 3 segundos a 10 Hz
+        
         self.bioz_urea_controller = None
         
         # Control de detención de terapia no limpia
@@ -975,7 +980,7 @@ class HemodialysisHMI(QMainWindow):
         stack_palette = self.screen_stack.palette()
         stack_palette.setColor(self.screen_stack.backgroundRole(), QColor("#FCFCFC"))
         self.screen_stack.setPalette(stack_palette)
-        self._main_screen = MainScreen()    
+        self._main_screen = MainScreen(parent=self)    
         self.screen_stack.addWidget(self._main_screen)
         self.main_layout.addWidget(self.screen_stack, 1, 1, 1, 4)
         #==============================================2===========================================
@@ -1106,7 +1111,6 @@ class HemodialysisHMI(QMainWindow):
             ("Servicio", "#06298a", self.show_options_screen),
             ("Alarmas",             "#06298a", self.show_alarms_screen),
             ("Historial",            "#06298a", self.show_history_screen),
-            ("Salir",               "#dc2626", self.close),
         ]
 
         for text, color, callback in nav_items:
@@ -2479,10 +2483,7 @@ class HemodialysisHMI(QMainWindow):
             enabled = False
 
             # ==================== REGLAS POR BOTÓN ====================
-            if text == "Salir":
-                enabled = True  # Casi siempre disponible cuando hay conexión
-
-            elif text == "Servicio":
+            if text == "Servicio":
                 enabled = True  # Siempre accesible (configuración, mantenimiento, etc.)
 
             elif text == "Alarmas":
@@ -2543,7 +2544,7 @@ class HemodialysisHMI(QMainWindow):
 
             elif phase == TreatmentPhase.IDLE:
                 enabled = text in ["Diálisis", "Tipo de\nTratamiento", "Inicio", 
-                                 "Servicio", "Alarmas", "Historial", "Salir"]
+                                 "Servicio", "Alarmas", "Historial"]
                 if text == "Limpieza":
                     enabled = (treatment_mode == 3)
 
@@ -2559,8 +2560,6 @@ class HemodialysisHMI(QMainWindow):
                         btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
                     else:
                         btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
-                elif text == "Salir":
-                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
                 elif text == current_nav_text:
                     btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
                 else:
@@ -2574,10 +2573,7 @@ class HemodialysisHMI(QMainWindow):
     def _handle_disconnected_state(self):
         """Estado sin conexión"""
         for text, btn in self.navigation_buttons.items():
-            if text == "Salir":
-                btn.setEnabled(True)
-                btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
-            elif text == "Servicio":
+            if text == "Servicio":
                 btn.setEnabled(True)
                 btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
             else:
@@ -2719,8 +2715,6 @@ class HemodialysisHMI(QMainWindow):
             button.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
         elif style_type == "active":
             button.setStyleSheet(self.BTN_ACTIVE_STYLE)
-        elif style_type == "exit":
-            button.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
         else:
             button.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
 
@@ -2883,6 +2877,9 @@ class HemodialysisHMI(QMainWindow):
         # 2. Actualizar el valor centralizado (Ya convertido de manera segura)
         self.current_values[tag] = value
         
+        # Actualizar buffer de temperatura para promediado (solo para display)
+        if tag == "dialyTempIFProcessData":
+            self.temp_display_buffer.append(value)
                 
         # Actualizar sistema de alarmas si existe
         if self.alarm_system:
@@ -3043,6 +3040,13 @@ class HemodialysisHMI(QMainWindow):
                     }}
                 """)    
    
+    def _get_temperature_display_value(self):
+        """Retorna el promedio de temperatura de los últimos 3 segundos para display.
+        Mantiene el valor raw en current_values para alarmas y perfiles."""
+        if len(self.temp_display_buffer) > 0:
+            return sum(self.temp_display_buffer) / len(self.temp_display_buffer)
+        return self.current_values.get("dialyTempIFProcessData", 0.0)
+    
     def _update_gauges(self):
         
         gauge_mapping = {
@@ -3053,7 +3057,11 @@ class HemodialysisHMI(QMainWindow):
         }
         for tag, gauge in gauge_mapping.items():
             if gauge is not None:
-                value = self.current_values.get(tag, 0.0)
+                # Usar promedio de temperatura solo para display del gauge
+                if tag == "dialyTempIFProcessData":
+                    value = self._get_temperature_display_value()
+                else:
+                    value = self.current_values.get(tag, 0.0)
                 try:
                     gauge.setValue(value)
                 except Exception as e:

@@ -283,6 +283,9 @@ class DialysisScreen(QWidget):
         self.arterial_pressure_history = deque(nan_array, maxlen=self.history_length)
         self.time_axis = np.arange(-self.history_length + 1, 1, dtype=np.float32)
         
+        # Buffer para promediado de temperatura de display (3 segundos ~= 30 muestras a 10 Hz)
+        self.temp_buffer = deque(maxlen=30)
+        
         self.setup_ui()
     
 
@@ -681,7 +684,7 @@ class DialysisScreen(QWidget):
         buttons_layout = QGridLayout(buttons_container)
         buttons_layout.setSpacing(10)
         buttons_layout.setContentsMargins(14, 14, 14, 14)
-        for i in range(3):
+        for i in range(4):
             buttons_layout.setColumnStretch(i, 1)
 
         self.action_buttons = {} # guardar referencias de botones
@@ -690,6 +693,7 @@ class DialysisScreen(QWidget):
             ("INICIAR", "#39ec21", self.parent_window.start_treatment),
             ("PAUSAR", "#FFC400", self.parent_window.pause_treatment),
             ("DETENER", "#DD2911", self.parent_window.stop_treatment),
+            ("APLICAR\nBOLO", "#06298a", self.apply_bolus_clicked),
             ("MENÚ TERAPIA", "#06298a", self.show_therapy_config),
             ("MENÚ PACIENTE", "#06298a", self.show_patient_config),
             ("HEPARINA", "#06298a", self.show_heparin_config_screen),
@@ -705,8 +709,8 @@ class DialysisScreen(QWidget):
             btn.setStyleSheet(self._button_style(color))
             btn.clicked.connect(callback)
             self.action_buttons[text] = btn # === Guardar el botón en el diccionario ===
-            row = i // 3
-            col = i % 3
+            row = i // 4
+            col = i % 4
             buttons_layout.addWidget(btn, row, col)            
      
         layout.addWidget(buttons_container, 1, 0, 1, 1)
@@ -767,6 +771,12 @@ class DialysisScreen(QWidget):
             ptm_calculated = 0.0
         self.current_values["CALC_PTM"] = ptm_calculated
 
+        # Actualizar buffer de temperatura para promediado (solo display)
+        temp_raw = safe_float(self.current_values.get("dialyTempIFProcessData", 0.0), 0.0)
+        self.temp_buffer.append(temp_raw)
+        
+        # Calcular promedio de los últimos 3 segundos para display
+        temp_display_value = sum(self.temp_buffer) / len(self.temp_buffer) if len(self.temp_buffer) > 0 else temp_raw
 
         # Mapeo de variables
         parameter_mapping = {
@@ -783,7 +793,11 @@ class DialysisScreen(QWidget):
 
 
         for tag, widget in parameter_mapping.items():
-            value = self.current_values.get(tag, 0.0)
+            # Usar promedio de temperatura solo para display
+            if tag == "dialyTempIFProcessData":
+                value = temp_display_value
+            else:
+                value = self.current_values.get(tag, 0.0)
             self._set_label_value(tag, widget, value)
 
         air_bubble = self.current_values.get("airBubbleInBloodDetected", 0.0)
@@ -1057,8 +1071,11 @@ class DialysisScreen(QWidget):
             # Seguridad: deshabilitar todo en estados desconocidos
             self.set_priming_buttons_state(False, False)
             self.set_start_stop_buttons_state(False, False, False)
-        
-
     
+    def apply_bolus_clicked(self):
+        """Delegado para aplicar bolo desde botonera de Diálisis."""
+        if self.parent_window and hasattr(self.parent_window, 'heparin_config_screen'):
+            self.parent_window.heparin_config_screen.apply_bolus()
+        
 
 
