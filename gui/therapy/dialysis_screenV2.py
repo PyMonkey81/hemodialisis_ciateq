@@ -283,9 +283,6 @@ class DialysisScreen(QWidget):
         self.arterial_pressure_history = deque(nan_array, maxlen=self.history_length)
         self.time_axis = np.arange(-self.history_length + 1, 1, dtype=np.float32)
         
-        # Buffer para promediado de temperatura de display (3 segundos ~= 30 muestras a 10 Hz)
-        self.temp_buffer = deque(maxlen=30)
-        
         self.setup_ui()
     
 
@@ -771,13 +768,6 @@ class DialysisScreen(QWidget):
             ptm_calculated = 0.0
         self.current_values["CALC_PTM"] = ptm_calculated
 
-        # Actualizar buffer de temperatura para promediado (solo display)
-        temp_raw = safe_float(self.current_values.get("dialyTempIFProcessData", 0.0), 0.0)
-        self.temp_buffer.append(temp_raw)
-        
-        # Calcular promedio de los últimos 3 segundos para display
-        temp_display_value = sum(self.temp_buffer) / len(self.temp_buffer) if len(self.temp_buffer) > 0 else temp_raw
-
         # Mapeo de variables
         parameter_mapping = {
             "bloodArteryPressureData":   self.art_p_value,
@@ -793,9 +783,12 @@ class DialysisScreen(QWidget):
 
 
         for tag, widget in parameter_mapping.items():
-            # Usar promedio de temperatura solo para display
+            # Usar promedio de temperatura solo para display (pedir a ventana principal)
             if tag == "dialyTempIFProcessData":
-                value = temp_display_value
+                if hasattr(self, 'parent_window') and hasattr(self.parent_window, '_get_temperature_display_value'):
+                    value = self.parent_window._get_temperature_display_value()
+                else:
+                    value = self.current_values.get(tag, 0.0)
             else:
                 value = self.current_values.get(tag, 0.0)
             self._set_label_value(tag, widget, value)
