@@ -78,33 +78,36 @@ class MainScreen(QWidget):
     
     def _show_shutdown_dialog(self):
         """Muestra diálogo de confirmación de apagado con mensaje variable según fase."""
-        from gui.components.floating_message import FloatingConfirmDialog
-        from core.state_manager import TreatmentPhase
-        
-        if not self.parent_window:
-            return
-        
-        # Determinar el mensaje según la fase actual
-        current_phase = getattr(self.parent_window.state, 'current_phase', None) if hasattr(self.parent_window, 'state') else None
-        
-        if current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.CLEANING):
-            message = "Hay un tratamiento en curso.\nApagar lo detiene."
-        else:
-            message = "¿Apaga el sistema?"
-        
-        # Crear y mostrar el diálogo
-        dialog = FloatingConfirmDialog(
-            self.parent_window,
-            title="Apagar",
-            message=message,
-            yes_text="Apagar",
-            no_text="Cancelar"
-        )
-        
-        if dialog.exec():
-            # Si el usuario confirma, llamar a close()
-            if hasattr(self.parent_window, 'close'):
-                self.parent_window.close()
+        try:
+            from gui.components.floating_confirm import FloatingConfirmDialog
+            from core.state_manager import TreatmentPhase
+            
+            if not self.parent_window:
+                return
+            
+            # Determinar el mensaje según la fase actual
+            current_phase = getattr(self.parent_window.state, 'current_phase', None) if hasattr(self.parent_window, 'state') else None
+            
+            if current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.CLEANING):
+                texto = "Hay un tratamiento en curso.\nApagar lo detiene."
+            else:
+                texto = "¿Apaga el sistema?"
+            
+            # Crear y mostrar el diálogo
+            dialog = FloatingConfirmDialog(self.parent_window or self)
+            aceptado = dialog.show_confirm(
+                texto,
+                accept_text="Apagar",
+                cancel_text="Cancelar",
+            )
+            
+            if aceptado:
+                # Si el usuario confirma, llamar a close()
+                if hasattr(self.parent_window, 'close'):
+                    self.parent_window.close()
+        except Exception as e:
+            # Si el diálogo falla, no lanzar la excepción
+            logger.error(f"Error mostrando diálogo de apagado: {e}")
 
     def setup_ui(self):
         # Soft gradient background

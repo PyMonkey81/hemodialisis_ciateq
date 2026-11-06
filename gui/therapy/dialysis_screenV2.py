@@ -694,11 +694,11 @@ class DialysisScreen(QWidget):
             ("PAUSAR", "#FFC400", self.parent_window.pause_treatment),
             ("DETENER", "#DD2911", self.parent_window.stop_treatment),
             ("APLICAR\nBOLO", "#06298a", self.apply_bolus_clicked),
-            ("MENÚ TERAPIA", "#06298a", self.show_therapy_config),
-            ("MENÚ PACIENTE", "#06298a", self.show_patient_config),
+            ("MENÚ\nTERAPIA", "#06298a", self.show_therapy_config),
+            ("MENÚ\nPACIENTE", "#06298a", self.show_patient_config),            
+            ("INICIAR\nCEBADO", "#06298a", self.parent_window.start_priming),
+            ("DETENER\nCEBADO", "#06298a", self.parent_window.stop_priming),
             ("HEPARINA", "#06298a", self.show_heparin_config_screen),
-            ("INICIAR CEBADO", "#06298a", self.parent_window.start_priming),
-            ("DETENER CEBADO", "#06298a", self.parent_window.stop_priming),
             ("Kt/V", "#06298a", self.parent_window.show_ktv_screen),       
         ]
 
