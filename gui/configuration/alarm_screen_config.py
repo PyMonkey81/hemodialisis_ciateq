@@ -260,16 +260,18 @@ class AlarmScreenConfig(QWidget):
         self._floating_msg.show_error_message(text, timeout_ms)
         
     def save_configuration(self):
+        """Guarda la configuración de alarmas: primero valida todas las filas,
+        luego guarda si todo es válido, finalmente escribe en el dispositivo."""
+        
+        # PASO 1: Validar todas las filas sin guardar nada
         for tag, widgets in self.inputs.items():
             try:
-                level = widgets['level'].currentText()
-                self.config_manager.set_severity(tag, level)
-
-                # Solo guardar límites si es variable numérica
+                # Solo validar límites si es variable numérica
                 if widgets.get('type') == "double":
                     min_v = float(widgets['min'].text())
                     max_v = float(widgets['max'].text())
 
+                    # Validar relación entre min y max
                     if min_v >= max_v:
                         self.show_warning_message("Límite inferior debe ser menor que el superior.", timeout_ms=2000)
                         return
@@ -286,43 +288,74 @@ class AlarmScreenConfig(QWidget):
                         self.show_warning_message(f"Límite superior fuera de rango permitido ({default_min} - {default_max}).", timeout_ms=2000)
                         return
 
-                    self.config_manager.set_limits(tag, min_v, max_v)
-
             except ValueError:
                 self.show_error_message(f"Valor inválido en {tag}.", timeout_ms=3000)
                 return
         
+        # PASO 2: Si toda validación pasó, guardar severidad y límites
+        for tag, widgets in self.inputs.items():
+            try:
+                level = widgets['level'].currentText()
+                self.config_manager.set_severity(tag, level)
+
+                # Solo guardar límites si es variable numérica
+                if widgets.get('type') == "double":
+                    min_v = float(widgets['min'].text())
+                    max_v = float(widgets['max'].text())
+                    self.config_manager.set_limits(tag, min_v, max_v)
+
+            except ValueError:
+                # No debería llegar aquí si la validación pasó, pero por seguridad
+                self.show_error_message(f"Valor inválido en {tag}.", timeout_ms=3000)
+                return
+        
+        # PASO 3: Guardar en QSettings
         self.config_manager.save_config()
         
-        # Escribir límites de presión arterial, venosa y PTM al dispositivo si está conectado
+        # PASO 4: Escribir límites de presión arterial, venosa y PTM al dispositivo si está conectado
         self._write_pressure_limits_to_device()
         
         self.show_success_message("Configuración de alarmas guardada correctamente.", timeout_ms=2000)
 
     def _write_pressure_limits_to_device(self):
-        """Escribe los límites de presión arterial, venosa y PTM al dispositivo si está conectado."""
+        """Escribe los seis límites de presión al dispositivo.
+        Si alguno devolvió False, muestra aviso indicando que quedaron guardados
+        en la interfaz pero no se enviaron al control."""
         if not self.write_setpoint_callback:
             return  # No hay forma de escribir, solo guardar localmente
         
         try:
+            all_written = True
+            
             # Presión arterial
             art_min, art_max = self.config_manager.get_limits("bloodArteryPressureData")
-            self.write_setpoint_callback("artPresCircAlarmLoLimData", art_min)
-            self.write_setpoint_callback("artPresCircAlarmHiLimData", art_max)
+            all_written &= self.write_setpoint_callback("artPresCircAlarmLoLimData", art_min)
+            all_written &= self.write_setpoint_callback("artPresCircAlarmHiLimData", art_max)
             
             # Presión venosa
             ven_min, ven_max = self.config_manager.get_limits("bloodVenousPressureData")
-            self.write_setpoint_callback("venPresCircAlarmLoLimData", ven_min)
-            self.write_setpoint_callback("venPresCircAlarmHiLimData", ven_max)
+            all_written &= self.write_setpoint_callback("venPresCircAlarmLoLimData", ven_min)
+            all_written &= self.write_setpoint_callback("venPresCircAlarmHiLimData", ven_max)
             
             # PTM (Presión Transmembrana)
             ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
-            self.write_setpoint_callback("membPressAlarmLoLimData", ptm_min)
-            self.write_setpoint_callback("membPressAlarmHiLimData", ptm_max)
+            all_written &= self.write_setpoint_callback("membPressAlarmLoLimData", ptm_min)
+            all_written &= self.write_setpoint_callback("membPressAlarmHiLimData", ptm_max)
             
-            logger.info("Límites de presión escritos al dispositivo correctamente")
+            if not all_written:
+                logger.warning("Algunos límites de presión no se escribieron al dispositivo")
+                self.show_warning_message(
+                    "Límites guardados en la interfaz pero no se enviaron al control. "
+                    "Verifique que el dispositivo esté conectado.",
+                    timeout_ms=3000
+                )
+            
         except Exception as e:
             logger.warning(f"No se pudo escribir límites de presión al dispositivo: {e}")
+            self.show_warning_message(
+                "Límites guardados en la interfaz pero no se enviaron al control.",
+                timeout_ms=3000
+            )
 
     def restore_all_defaults(self):
         dialog = FloatingConfirmDialog(self)
@@ -349,6 +382,9 @@ class AlarmScreenConfig(QWidget):
         
         # Guardar todos los cambios al archivo JSON
         self.config_manager.save_config()
+        
+        # Escribir límites de presión arterial, venosa y PTM al dispositivo si está conectado
+        self._write_pressure_limits_to_device()
         
         self.show_info_message("Todos los límites y niveles han sido restaurados a sus valores por defecto.", timeout_ms=2000)
 

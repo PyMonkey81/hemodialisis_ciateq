@@ -3581,7 +3581,13 @@ class HemodialysisHMI(QMainWindow):
 
     # ====================== ESCRITURA HACIA HARDWARE ======================
 
-    def _write_setpoint(self, tag: str, value: float):
+    def _write_setpoint(self, tag: str, value: float) -> bool:
+        """
+        Escribe un setpoint en el dispositivo.
+        Devuelve True solo si llegó a write_double (éxito).
+        Devuelve False si el serial no está conectado o el tag no se encuentra.
+        No lanza excepciones.
+        """
         if tag in LOCAL_SETPOINT_TAGS:
             self.current_values[tag] = float(value)
             self._persist_therapy_config_tag(tag, float(value))
@@ -3610,22 +3616,22 @@ class HemodialysisHMI(QMainWindow):
                 logger.info(f"[THERAPY-TIME] set_min={total_min} remaining={hours:02d}:{minutes:02d}:00 source=config")
             
             logger.info(f"SETPOINT [LOCAL]: {tag} = {value}")
-            return
+            return False  # Local tags no se escriben al serial
 
         if not self.serial_comm or not self.serial_comm.is_connected:
             logger.warning(f"No se puede escribir setpoint '{tag}': serial desconectado")
-            return
+            return False
 
         try:
             group, address = self._resolve_tag(tag)
 
             if group is None or address is None:
-                logger.error(f"Tag double '{tag}' no encontrado en VARIABLES")
-                return
+                logger.warning(f"Tag '{tag}' no encontrado en VARIABLES")
+                return False
 
             if not VARIABLES[group][address].get("rw", False):
                 logger.warning(f"Tag '{tag}' es de solo lectura")
-                return
+                return False
 
             self.serial_comm.write_double(group, address, value)
 
@@ -3639,9 +3645,11 @@ class HemodialysisHMI(QMainWindow):
             self._persist_therapy_config_tag(tag, persist_value)
             group_str = hex(group) if isinstance(group, int) else str(group)
             logger.info(f"SETPOINT [DBL]: {tag} = {value} (G:{group_str}, ID:{address})")
+            return True  # write_double completado exitosamente
 
         except Exception as e:
             logger.error(f"Error escribiendo setpoint '{tag}': {e}")
+            return False
 
     def _write_pressure_limits_on_connection(self):
         """Escribe los límites de presión arterial, venosa y PTM al dispositivo cuando se conecta."""
@@ -3649,22 +3657,27 @@ class HemodialysisHMI(QMainWindow):
             return
         
         try:
+            all_written = True
+            
             # Presión arterial
             art_min, art_max = self.config_manager.get_limits("bloodArteryPressureData")
-            self._write_setpoint("artPresCircAlarmLoLimData", art_min)
-            self._write_setpoint("artPresCircAlarmHiLimData", art_max)
+            all_written &= self._write_setpoint("artPresCircAlarmLoLimData", art_min)
+            all_written &= self._write_setpoint("artPresCircAlarmHiLimData", art_max)
             
             # Presión venosa
             ven_min, ven_max = self.config_manager.get_limits("bloodVenousPressureData")
-            self._write_setpoint("venPresCircAlarmLoLimData", ven_min)
-            self._write_setpoint("venPresCircAlarmHiLimData", ven_max)
+            all_written &= self._write_setpoint("venPresCircAlarmLoLimData", ven_min)
+            all_written &= self._write_setpoint("venPresCircAlarmHiLimData", ven_max)
             
             # PTM (Presión Transmembrana)
             ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
-            self._write_setpoint("membPressAlarmLoLimData", ptm_min)
-            self._write_setpoint("membPressAlarmHiLimData", ptm_max)
+            all_written &= self._write_setpoint("membPressAlarmLoLimData", ptm_min)
+            all_written &= self._write_setpoint("membPressAlarmHiLimData", ptm_max)
             
-            logger.info("Límites de presión sincronizados con dispositivo al conectar")
+            if all_written:
+                logger.info("Límites de presión sincronizados con dispositivo al conectar")
+            else:
+                logger.warning("Algunos límites de presión no se pudieron sincronizar al conectar")
         except Exception as e:
             logger.warning(f"No se pudo sincronizar límites de presión al conectar: {e}")
 
