@@ -132,12 +132,12 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Iniciar Diálisis", "INICIO DIALISIS", "cian", "dialyStartDialysisButt"),              # 39 no mostrar en catalogo
                 ("Parar Diálisis", "PARO DIALISIS", "cian", "dialyStopDialysisButt"),                   # 40 no mostrar en catalogo
                 ("Protección Resistores Calefactor", "PROT CALEFACTOR", "cian", "watterTankHeaterProtect"), # 41     alarma que se activa constantemente pero no importante para usuario
-                ("Disponible para Función Digital 3", "RESERVA 3", "cian", "availableBoolVariable1"),       # 42
-                ("Disponible para Función Digital 4", "RESERVA 4", "cian", "availableBoolVariable2"),       # 43
-                ("Disponible para Función Digital 5", "RESERVA 5", "cian", "availableBoolVariable3"),       # 44
-                ("Disponible para Función Digital 6", "RESERVA 6", "cian", "availableBoolVariable4"),       # 45
-                ("Disponible para Función Digital 7", "RESERVA 7", "cian", "availableBoolVariable5"),       # 46
-                ("Disponible para Función Digital 8", "RESERVA 8", "cian", "availableBoolVariable6"),       # 47
+                ("Disponible para Función Digital 3", "RESERVA 3", "cian", "availableBoolVariable1"),       # 42  no mostrar en catalogo
+                ("Disponible para Función Digital 4", "RESERVA 4", "cian", "availableBoolVariable2"),       # 43  no mostrar en catalogo
+                ("Disponible para Función Digital 5", "RESERVA 5", "cian", "availableBoolVariable3"),       # 44  no mostrar en catalogo
+                ("Disponible para Función Digital 6", "RESERVA 6", "cian", "availableBoolVariable4"),       # 45  no mostrar en catalogo
+                ("Disponible para Función Digital 7", "RESERVA 7", "cian", "availableBoolVariable5"),       # 46  no mostrar en catalogo
+                ("Tanque de Agua Lleno", "FALTA AGUA", "cian", "dialyWaterTankFull"),       # 47  1 lleno, falta de agua 0
                 ("Detector Burbuja Aire en Sangre", "AIRE EN LINEA", "rojo", "airBubbleInBloodDetected"),   # 48 (ALARMA)
                 ("Detector Sangre en Dializante", "FUGA SANGRE", "rojo", "bloodInDialyCircDetected"),       # 49 (ALARMA)
                 ("Nivel Alto Tanque Agua", "NIVEL AGUA ALTO", "amarillo", "dialyTankHiLevelSwitch"),        # 50
@@ -246,12 +246,12 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x03: {"name": "Presión arterial del circuito de sangre", "label": "P. ART CIRC", "type": "double", "rw": False, "unit": "mmHg", "limites": (-300, 600), "tag": "bloodArteryPressureData", "nivel": "rojo"},   # 62 
         0x04: {"name": "Presión venosa del circuito de sangre", "label": "P. VEN CIRC", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 500), "tag": "bloodVenousPressureData", "nivel": "rojo"},     # 63
         0x05: {"name": "Contador de ciclos de dialización", "label": "CONT CICLOS", "type": "double", "rw": False, "unit": "ciclos", "limites": (0, 100000), "tag": "dialyCycleOperationCount", "nivel": "cian"},      # 64
-        0x06: {"name": "Factor calibración parámetro 7", "label": "CAL PARAM 7", "type": "double", "rw": True, "unit": "", "limites": (0.01, 100.0), "tag": "parameterCalFactData7", "nivel": "cian"},                 # 65
-        0x07: {"name": "Parámetro control 8", "label": "PARAM CTRL 8", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData8", "nivel": "cian"},                                # 66
-        0x08: {"name": "Parámetro control 9", "label": "PARAM CTRL 9", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData9", "nivel": "cian"},                                # 67
-        0x09: {"name": "Parámetro control 10", "label": "PARAM CTRL 10", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData10", "nivel": "cian"},                              # 68
-        0x0A: {"name": "Parámetro control 11", "label": "PARAM CTRL 11", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData11", "nivel": "cian"},                              # 69
-        0x0B: {"name": "Parámetro control 12", "label": "PARAM CTRL 12", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData12", "nivel": "cian"},                              # 70
+        0x06: {"name": "Limite alto presión arterial", "label": "PA ALTA", "type": "double", "rw": True, "unit": "", "limites": (-300, 300), "tag": "artPresCircAlarmHiLimData", "nivel": "rojo"},                 # 65
+        0x07: {"name": "Limite bajo presión arterial", "label": "PA BAJA", "type": "double", "rw": True, "unit": "", "limites": (-300, 300), "tag": "artPresCircAlarmLoLimData", "nivel": "rojo"},                                # 66
+        0x08: {"name": "Limite alto presión venosa", "label": "PV ALTA", "type": "double", "rw": True, "unit": "", "limites": (-100, 500), "tag": "venPresCircAlarmHiLimData", "nivel": "rojo"},                                # 67
+        0x09: {"name": "Limite bajo presión venosa", "label": "PV BAJA", "type": "double", "rw": True, "unit": "", "limites": (-100, 500), "tag": "venPresCircAlarmLoLimData", "nivel": "rojo"},                              # 68
+        0x0A: {"name": "limite alto presión transmembrana", "label": "PTM ALTA", "type": "double", "rw": True, "unit": "", "limites": (-100, 1000), "tag": "membPressAlarmHiLimData", "nivel": "rojo"},                              # 69
+        0x0B: {"name": "Limite bajo presión transmembrana", "label": "PTM BAJA", "type": "double", "rw": True, "unit": "", "limites": (-100, 1000), "tag": "membPressAlarmLoLimData", "nivel": "rojo"},                              # 70
     },
 
     # ================================================================
@@ -294,7 +294,17 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     0x0C: {
         0x00: {"name": "Mega conductivity sensor", "label": "MEGA_CONDUCTIVITY", "type": "double", "rw": True, "unit": "mS/cm","limites": (0, 20), "tag": "megaCondSensor", "nivel":"cian"},
         0x01: {"name": "Mega temperature sensor", "label": "MEGA_TEMPERATURE", "type": "double", "rw": True, "unit": "°C","limites": (0, 100), "tag": "megaTempSensor", "nivel":"cian"},
+    },
+
+    # ================================================================
+    # VARIABLES LOCALES (No se sincronizan por serial, solo en memoria)
+    # ================================================================
+    "LOCAL": {
+        0x00: {"name": "Presión transmembrana", "label": "PTM", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 1000), "tag": "CALC_PTM", "nivel": "rojo"},
     }
+  
+
+
 }
 
 # ================================================================
@@ -327,7 +337,9 @@ TVAR_TO_GROUP = {
     0x08: "Datos del paciente",
     0x09: "Sensor patron de conductividad",
     0x0A: "Modo de desinfección",
-    0x0B: "Tiempo de aplicación de bolo"
+    0x0B: "Tiempo de aplicación de bolo",
+    0x0C: "Sensores Mega",
+    "LOCAL": "Variables Locales"
 }
 
 

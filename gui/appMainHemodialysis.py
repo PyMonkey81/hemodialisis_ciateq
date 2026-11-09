@@ -128,6 +128,7 @@ from logic.calculos import (
     convertir_flujo_a_ciclos,
     convertir_litros_h_a_ml_min,
     convertir_ml_min_a_litros_h,
+    calculo_ptm,
 )
 from logic.conductivity_profile import (
     ConductivityProfile,
@@ -540,7 +541,8 @@ class HemodialysisHMI(QMainWindow):
         # Pantalla de configuración para Operador
         self.alarm_config_limits_screen = AlarmScreenConfig(
             config_manager=self.config_manager,
-            parent=self
+            parent=self,
+            write_setpoint_callback=self._write_setpoint
         )
 
         # Pantalla de configuración para Servicio Técnico
@@ -2879,11 +2881,27 @@ class HemodialysisHMI(QMainWindow):
         # 2. Actualizar el valor centralizado (Ya convertido de manera segura)
         self.current_values[tag] = value
         
-        # Actualizar sistema de alarmas si existe
+        # 2.5 Calcular PTM si cualquiera de las cuatro presiones cambió
+        if tag in ("dialyPresIFProcessData", "dialyPresOFProcessData", 
+                   "bloodArteryPressureData", "bloodVenousPressureData"):
+            pd_ef = self.current_values.get("dialyPresIFProcessData")
+            pd_sf = self.current_values.get("dialyPresOFProcessData")
+            pa = self.current_values.get("bloodArteryPressureData")
+            pv = self.current_values.get("bloodVenousPressureData")
+            
+            ptm_value = calculo_ptm(pd_ef, pd_sf, pa, pv)
+            self.current_values["CALC_PTM"] = ptm_value
+            logger.debug(f"[PTM-CALC] Updated: {ptm_value:.1f} mmHg (from {tag}={value})")
+            
+            # Actualizar alarma para CALC_PTM también
+            if self.alarm_system:
+                self.alarm_system.update_value_by_tag("CALC_PTM", ptm_value)
+        
+        # 3. Actualizar sistema de alarmas si existe
         if self.alarm_system:
             self.alarm_system.update_value_by_tag(tag, value)
         
-        # 3. Calcular promedio de temperatura SOLO PARA DISPLAY
+        # 4. Calcular promedio de temperatura SOLO PARA DISPLAY
         # Guardar cada lectura con timestamp, descartar las de más de 3 segundos
         if tag == "dialyTempIFProcessData":
             current_time = time.monotonic()
@@ -3401,6 +3419,8 @@ class HemodialysisHMI(QMainWindow):
             self._set_ui_connected_state(current_is_connected)
             if current_is_connected:
                 self._connection_just_established_ticks = 3
+                # Escribir límites de presión al dispositivo cuando se establece la conexión
+                self._write_pressure_limits_on_connection()
          
         self._is_connected_prev_state = current_is_connected
         current_widget = self.screen_stack.currentWidget()
@@ -3617,10 +3637,36 @@ class HemodialysisHMI(QMainWindow):
                 persist_value = float(convertir_ml_min_a_litros_h(value))
 
             self._persist_therapy_config_tag(tag, persist_value)
-            logger.info(f"SETPOINT [DBL]: {tag} = {value} (G:{hex(group)}, ID:{address})")
+            group_str = hex(group) if isinstance(group, int) else str(group)
+            logger.info(f"SETPOINT [DBL]: {tag} = {value} (G:{group_str}, ID:{address})")
 
         except Exception as e:
             logger.error(f"Error escribiendo setpoint '{tag}': {e}")
+
+    def _write_pressure_limits_on_connection(self):
+        """Escribe los límites de presión arterial, venosa y PTM al dispositivo cuando se conecta."""
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            return
+        
+        try:
+            # Presión arterial
+            art_min, art_max = self.config_manager.get_limits("bloodArteryPressureData")
+            self._write_setpoint("artPresCircAlarmLoLimData", art_min)
+            self._write_setpoint("artPresCircAlarmHiLimData", art_max)
+            
+            # Presión venosa
+            ven_min, ven_max = self.config_manager.get_limits("bloodVenousPressureData")
+            self._write_setpoint("venPresCircAlarmLoLimData", ven_min)
+            self._write_setpoint("venPresCircAlarmHiLimData", ven_max)
+            
+            # PTM (Presión Transmembrana)
+            ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
+            self._write_setpoint("membPressAlarmLoLimData", ptm_min)
+            self._write_setpoint("membPressAlarmHiLimData", ptm_max)
+            
+            logger.info("Límites de presión sincronizados con dispositivo al conectar")
+        except Exception as e:
+            logger.warning(f"No se pudo sincronizar límites de presión al conectar: {e}")
 
     def _build_therapy_config_payload(self) -> dict:
         local_cfg = {

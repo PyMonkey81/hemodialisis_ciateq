@@ -30,9 +30,10 @@ class AlarmScreenConfig(QWidget):
     Muestra tanto variables numéricas (con límites) como booleanas (solo severidad).
     """
 
-    def __init__(self, config_manager: AlarmConfigManager, parent=None):
+    def __init__(self, config_manager: AlarmConfigManager, parent=None, write_setpoint_callback=None):
         super().__init__(parent)
         self.config_manager = config_manager
+        self.write_setpoint_callback = write_setpoint_callback  # Callback para escribir setpoints al dispositivo
         self.inputs: Dict[str, dict] = {}   # tag -> {'min': widget, 'max': widget, 'level': widget, 'type': str}
 
         self.setObjectName("AlarmScreenConfig")
@@ -290,8 +291,38 @@ class AlarmScreenConfig(QWidget):
             except ValueError:
                 self.show_error_message(f"Valor inválido en {tag}.", timeout_ms=3000)
                 return
+        
         self.config_manager.save_config()
+        
+        # Escribir límites de presión arterial, venosa y PTM al dispositivo si está conectado
+        self._write_pressure_limits_to_device()
+        
         self.show_success_message("Configuración de alarmas guardada correctamente.", timeout_ms=2000)
+
+    def _write_pressure_limits_to_device(self):
+        """Escribe los límites de presión arterial, venosa y PTM al dispositivo si está conectado."""
+        if not self.write_setpoint_callback:
+            return  # No hay forma de escribir, solo guardar localmente
+        
+        try:
+            # Presión arterial
+            art_min, art_max = self.config_manager.get_limits("bloodArteryPressureData")
+            self.write_setpoint_callback("artPresCircAlarmLoLimData", art_min)
+            self.write_setpoint_callback("artPresCircAlarmHiLimData", art_max)
+            
+            # Presión venosa
+            ven_min, ven_max = self.config_manager.get_limits("bloodVenousPressureData")
+            self.write_setpoint_callback("venPresCircAlarmLoLimData", ven_min)
+            self.write_setpoint_callback("venPresCircAlarmHiLimData", ven_max)
+            
+            # PTM (Presión Transmembrana)
+            ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
+            self.write_setpoint_callback("membPressAlarmLoLimData", ptm_min)
+            self.write_setpoint_callback("membPressAlarmHiLimData", ptm_max)
+            
+            logger.info("Límites de presión escritos al dispositivo correctamente")
+        except Exception as e:
+            logger.warning(f"No se pudo escribir límites de presión al dispositivo: {e}")
 
     def restore_all_defaults(self):
         dialog = FloatingConfirmDialog(self)
