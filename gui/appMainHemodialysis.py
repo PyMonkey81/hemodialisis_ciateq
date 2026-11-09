@@ -3652,9 +3652,10 @@ class HemodialysisHMI(QMainWindow):
             return False
 
     def _write_pressure_limits_on_connection(self):
-        """Escribe los límites de presión al dispositivo cuando se conecta.
-        Solo escribe si los límites están en el cache (guardados previamente).
-        Si el cache está vacío, no escribe nada."""
+        """Escribe límites de presión al conectar usando valores del JSON.
+        Solo escribe tags que existen en el cache (guardados previamente).
+        Si el cache está vacío, no escribe nada.
+        No corta las demás escrituras si una falla."""
         if not self.serial_comm or not self.serial_comm.is_connected:
             return
         
@@ -3666,38 +3667,45 @@ class HemodialysisHMI(QMainWindow):
             return
         
         try:
-            all_written = True
+            results = []
             
             # Presión arterial
             if "bloodArteryPressureData" in limits_cache:
                 art_min, art_max = limits_cache["bloodArteryPressureData"]
-                result_lo = self._write_setpoint("artPresCircAlarmLoLimData", art_min)
-                result_hi = self._write_setpoint("artPresCircAlarmHiLimData", art_max)
-                all_written &= (result_lo and result_hi)
-                logger.info(f"CONEXIÓN: artPresCircAlarm inferior={art_min}, superior={art_max} ({result_lo}, {result_hi})")
+                r1 = self._write_setpoint("artPresCircAlarmLoLimData", art_min)
+                r2 = self._write_setpoint("artPresCircAlarmHiLimData", art_max)
+                logger.info(f"CONEXIÓN: artPresCircAlarmLoLimData = {art_min} ({r1})")
+                logger.info(f"CONEXIÓN: artPresCircAlarmHiLimData = {art_max} ({r2})")
+                results.append(r1 and r2)
             
             # Presión venosa
             if "bloodVenousPressureData" in limits_cache:
                 ven_min, ven_max = limits_cache["bloodVenousPressureData"]
-                result_lo = self._write_setpoint("venPresCircAlarmLoLimData", ven_min)
-                result_hi = self._write_setpoint("venPresCircAlarmHiLimData", ven_max)
-                all_written &= (result_lo and result_hi)
-                logger.info(f"CONEXIÓN: venPresCircAlarm inferior={ven_min}, superior={ven_max} ({result_lo}, {result_hi})")
+                r1 = self._write_setpoint("venPresCircAlarmLoLimData", ven_min)
+                r2 = self._write_setpoint("venPresCircAlarmHiLimData", ven_max)
+                logger.info(f"CONEXIÓN: venPresCircAlarmLoLimData = {ven_min} ({r1})")
+                logger.info(f"CONEXIÓN: venPresCircAlarmHiLimData = {ven_max} ({r2})")
+                results.append(r1 and r2)
             
             # PTM (Presión Transmembrana)
             if "CALC_PTM" in limits_cache:
                 ptm_min, ptm_max = limits_cache["CALC_PTM"]
-                result_lo = self._write_setpoint("membPressAlarmLoLimData", ptm_min)
-                result_hi = self._write_setpoint("membPressAlarmHiLimData", ptm_max)
-                all_written &= (result_lo and result_hi)
-                logger.info(f"CONEXIÓN: membPressAlarm inferior={ptm_min}, superior={ptm_max} ({result_lo}, {result_hi})")
+                r1 = self._write_setpoint("membPressAlarmLoLimData", ptm_min)
+                r2 = self._write_setpoint("membPressAlarmHiLimData", ptm_max)
+                logger.info(f"CONEXIÓN: membPressAlarmLoLimData = {ptm_min} ({r1})")
+                logger.info(f"CONEXIÓN: membPressAlarmHiLimData = {ptm_max} ({r2})")
+                results.append(r1 and r2)
+            
+            # Analizar resultados
+            all_written = all(results) if results else False
             
             if all_written:
                 logger.info("Límites de presión sincronizados con dispositivo al conectar")
-            else:
+            elif results:
                 logger.warning("Algunos límites de presión no se pudieron sincronizar al conectar")
+                
         except Exception as e:
-            logger.warning(f"No se pudo sincronizar límites de presión al conectar: {e}")
+            logger.warning(f"Error sincronizando límites de presión al conectar: {e}")
 
     def _build_therapy_config_payload(self) -> dict:
         local_cfg = {
