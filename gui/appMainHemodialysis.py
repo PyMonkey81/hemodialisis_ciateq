@@ -3651,61 +3651,45 @@ class HemodialysisHMI(QMainWindow):
             logger.error(f"Error escribiendo setpoint '{tag}': {e}")
             return False
 
+    def _emit_pressure_alarm_limits(self, art_min, art_max, ven_min, ven_max, ptm_min, ptm_max):
+        """Escribe los 6 límites de presión al dispositivo via write_double.
+        art_min/max: límites arteriales
+        ven_min/max: límites venosos
+        ptm_min/max: límites de presión transmembrana
+        """
+        pares = (
+            ("artPresCircAlarmLoLimData", art_min),
+            ("artPresCircAlarmHiLimData", art_max),
+            ("venPresCircAlarmLoLimData", ven_min),
+            ("venPresCircAlarmHiLimData", ven_max),
+            ("membPressAlarmLoLimData", ptm_min),
+            ("membPressAlarmHiLimData", ptm_max),
+        )
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            logger.warning("ALARMAS NO ENVIADAS: serial del control desconectado")
+            return
+        for tag, value in pares:
+            group, address = self._resolve_tag(tag)
+            if group is None or address is None:
+                logger.error("Tag de alarma no está en el mapa: %s", tag)
+                continue
+            self.serial_comm.write_double(group, address, float(value))
+            logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag, hex(group), address, value)
+
     def _write_pressure_limits_on_connection(self):
-        """Escribe límites de presión al conectar usando valores del JSON.
-        Solo escribe tags que existen en el cache (guardados previamente).
-        Si el cache está vacío, no escribe nada.
-        No corta las demás escrituras si una falla."""
+        """Escribe límites de presión al conectar leyendo de get_limits."""
         if not self.serial_comm or not self.serial_comm.is_connected:
             return
         
-        # Acceder directamente al cache de límites
-        limits_cache = self.config_manager._limits_cache
-        
-        if not limits_cache:
-            logger.info("Cache de límites vacío: no se escriben límites al conectar")
-            return
-        
         try:
-            results = []
+            # Leer valores de get_limits (que lee cache primero)
+            art_min, art_max = self.config_manager.get_limits("bloodArteryPressureData")
+            ven_min, ven_max = self.config_manager.get_limits("bloodVenousPressureData")
+            ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
             
-            # Presión arterial
-            if "bloodArteryPressureData" in limits_cache:
-                art_min, art_max = limits_cache["bloodArteryPressureData"]
-                r1 = self._write_setpoint("artPresCircAlarmLoLimData", art_min)
-                r2 = self._write_setpoint("artPresCircAlarmHiLimData", art_max)
-                logger.info(f"CONEXIÓN: artPresCircAlarmLoLimData = {art_min} ({r1})")
-                logger.info(f"CONEXIÓN: artPresCircAlarmHiLimData = {art_max} ({r2})")
-                results.append(r1 and r2)
-            
-            # Presión venosa
-            if "bloodVenousPressureData" in limits_cache:
-                ven_min, ven_max = limits_cache["bloodVenousPressureData"]
-                r1 = self._write_setpoint("venPresCircAlarmLoLimData", ven_min)
-                r2 = self._write_setpoint("venPresCircAlarmHiLimData", ven_max)
-                logger.info(f"CONEXIÓN: venPresCircAlarmLoLimData = {ven_min} ({r1})")
-                logger.info(f"CONEXIÓN: venPresCircAlarmHiLimData = {ven_max} ({r2})")
-                results.append(r1 and r2)
-            
-            # PTM (Presión Transmembrana)
-            if "CALC_PTM" in limits_cache:
-                ptm_min, ptm_max = limits_cache["CALC_PTM"]
-                r1 = self._write_setpoint("membPressAlarmLoLimData", ptm_min)
-                r2 = self._write_setpoint("membPressAlarmHiLimData", ptm_max)
-                logger.info(f"CONEXIÓN: membPressAlarmLoLimData = {ptm_min} ({r1})")
-                logger.info(f"CONEXIÓN: membPressAlarmHiLimData = {ptm_max} ({r2})")
-                results.append(r1 and r2)
-            
-            # Analizar resultados
-            all_written = all(results) if results else False
-            
-            if all_written:
-                logger.info("Límites de presión sincronizados con dispositivo al conectar")
-            elif results:
-                logger.warning("Algunos límites de presión no se pudieron sincronizar al conectar")
-                
+            self._emit_pressure_alarm_limits(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
         except Exception as e:
-            logger.warning(f"Error sincronizando límites de presión al conectar: {e}")
+            logger.warning(f"Error escribiendo límites de presión al conectar: {e}")
 
     def _build_therapy_config_payload(self) -> dict:
         local_cfg = {

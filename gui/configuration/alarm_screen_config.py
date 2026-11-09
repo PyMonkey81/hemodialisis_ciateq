@@ -261,7 +261,7 @@ class AlarmScreenConfig(QWidget):
         
     def save_configuration(self):
         """Guarda la configuración de alarmas: primero valida todas las filas,
-        luego guarda si todo es válido, finalmente escribe en el dispositivo."""
+        luego guarda en JSON, finalmente escribe los límites de presión al dispositivo."""
         
         # PASO 1: Validar todas las filas sin guardar nada
         for tag, widgets in self.inputs.items():
@@ -312,94 +312,33 @@ class AlarmScreenConfig(QWidget):
         # PASO 3: Guardar en QSettings
         self.config_manager.save_config()
         
-        # PASO 4: Escribir límites de presión arterial, venosa y PTM al dispositivo si está conectado
-        self._write_pressure_limits_to_device()
+        # PASO 4: Leer valores de las casillas para escribir al dispositivo
+        try:
+            # Arterial: siempre están en la pantalla
+            art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
+            art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+            
+            # Venosa: siempre están en la pantalla
+            ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
+            ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
+            
+            # PTM: si está en pantalla, leer de widget; si no, leer de get_limits
+            if "CALC_PTM" in self.inputs:
+                ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
+                ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
+            else:
+                ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
+            
+            # Llamar al método que escribe los 6 tags al dispositivo
+            if self.write_setpoint_callback:
+                # El callback es la referencia al método _emit_pressure_alarm_limits de appMainHemodialysis
+                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+            
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Error leyendo valores de casillas para escribir alarmas: {e}")
         
         self.show_success_message("Configuración de alarmas guardada correctamente.", timeout_ms=2000)
 
-    def _write_pressure_limits_to_device(self):
-        """Escribe los seis límites de presión al dispositivo usando valores de las casillas.
-        - bloodArteryPressureData: inferior → artPresCircAlarmLoLimData,
-                                   superior → artPresCircAlarmHiLimData
-        - bloodVenousPressureData: inferior → venPresCircAlarmLoLimData,
-                                   superior → venPresCircAlarmHiLimData
-        - CALC_PTM: si está en pantalla, lee de widgets; si no, usa valor guardado en JSON
-        
-        No corta las demás escrituras si una falla. Loguea cada tag y valor."""
-        if not self.write_setpoint_callback:
-            return  # No hay forma de escribir, solo guardar localmente
-        
-        try:
-            results = []
-            
-            # Presión arterial: lee de widgets si existen
-            if "bloodArteryPressureData" in self.inputs:
-                try:
-                    art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
-                    art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
-                    r1 = self.write_setpoint_callback("artPresCircAlarmLoLimData", art_min)
-                    r2 = self.write_setpoint_callback("artPresCircAlarmHiLimData", art_max)
-                    logger.info(f"GUARDAR: artPresCircAlarmLoLimData = {art_min} ({r1})")
-                    logger.info(f"GUARDAR: artPresCircAlarmHiLimData = {art_max} ({r2})")
-                    results.append(r1 and r2)
-                except (ValueError, KeyError) as e:
-                    logger.warning(f"No se pudo escribir bloodArteryPressureData: {e}")
-                    results.append(False)
-            
-            # Presión venosa: lee de widgets si existen
-            if "bloodVenousPressureData" in self.inputs:
-                try:
-                    ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
-                    ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
-                    r1 = self.write_setpoint_callback("venPresCircAlarmLoLimData", ven_min)
-                    r2 = self.write_setpoint_callback("venPresCircAlarmHiLimData", ven_max)
-                    logger.info(f"GUARDAR: venPresCircAlarmLoLimData = {ven_min} ({r1})")
-                    logger.info(f"GUARDAR: venPresCircAlarmHiLimData = {ven_max} ({r2})")
-                    results.append(r1 and r2)
-                except (ValueError, KeyError) as e:
-                    logger.warning(f"No se pudo escribir bloodVenousPressureData: {e}")
-                    results.append(False)
-            
-            # PTM (Presión Transmembrana): si está en pantalla, lee de widgets; si no, usa guardado
-            if "CALC_PTM" in self.inputs:
-                try:
-                    ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
-                    ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
-                    r1 = self.write_setpoint_callback("membPressAlarmLoLimData", ptm_min)
-                    r2 = self.write_setpoint_callback("membPressAlarmHiLimData", ptm_max)
-                    logger.info(f"GUARDAR: membPressAlarmLoLimData = {ptm_min} ({r1})")
-                    logger.info(f"GUARDAR: membPressAlarmHiLimData = {ptm_max} ({r2})")
-                    results.append(r1 and r2)
-                except (ValueError, KeyError) as e:
-                    logger.warning(f"No se pudo escribir CALC_PTM desde widgets: {e}")
-                    results.append(False)
-            else:
-                # CALC_PTM no está en pantalla, usar valor guardado en JSON
-                if "CALC_PTM" in self.config_manager._limits_cache:
-                    ptm_min, ptm_max = self.config_manager._limits_cache["CALC_PTM"]
-                    r1 = self.write_setpoint_callback("membPressAlarmLoLimData", ptm_min)
-                    r2 = self.write_setpoint_callback("membPressAlarmHiLimData", ptm_max)
-                    logger.info(f"GUARDAR: membPressAlarmLoLimData = {ptm_min} ({r1}) [desde JSON]")
-                    logger.info(f"GUARDAR: membPressAlarmHiLimData = {ptm_max} ({r2}) [desde JSON]")
-                    results.append(r1 and r2)
-            
-            # Analizar resultados
-            all_written = all(results) if results else False
-            
-            if not all_written and results:
-                logger.warning("Algunos límites de presión no se escribieron al dispositivo")
-                self.show_warning_message(
-                    "Límites guardados en la interfaz pero no se enviaron al control. "
-                    "Verifique que el dispositivo esté conectado.",
-                    timeout_ms=3000
-                )
-            
-        except Exception as e:
-            logger.warning(f"Error escribiendo límites de presión al dispositivo: {e}")
-            self.show_warning_message(
-                "Límites guardados en la interfaz pero no se enviaron al control.",
-                timeout_ms=3000
-            )
 
     def restore_all_defaults(self):
         dialog = FloatingConfirmDialog(self)
