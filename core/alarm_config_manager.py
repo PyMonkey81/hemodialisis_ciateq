@@ -13,14 +13,30 @@ class AlarmConfigManager:
     - enabled_tags: Qué variables están activadas para monitoreo (Servicio Técnico)
     - limits: Límite inferior y superior por tag (Operador)
     - severity: Nivel de alarma por tag (Operador)
+    
+    Los límites se guardan en memoria (diccionario) para evitar perder datos
+    al releer QSettings.
     """
     def __init__(self, organization: str = "HemodialisisApp", app_name: str = "AlarmSystem"):
         self.settings = QSettings(organization, app_name)
+        
+        # Diccionario en memoria para límites: tag -> [min, max]
+        # Se carga una sola vez al inicializar
+        self._limits_cache: Dict[str, list] = {}
+        self._load_limits_from_settings()
 
         # Claves
         self.KEY_ENABLED = "alarms/enabled_tags"
         self.KEY_LIMITS = "alarms/limits"      # dict: tag -> [min, max]
         self.KEY_SEVERITY = "alarms/severity"  # dict: tag -> "cian" | "naranja" | "amarillo" | "rojo"
+
+    def _load_limits_from_settings(self):
+        """Carga los límites de QSettings en el diccionario en memoria (una sola vez)."""
+        limits_dict_raw = self.settings.value(self.KEY_LIMITS, {})
+        if isinstance(limits_dict_raw, dict):
+            self._limits_cache = dict(limits_dict_raw)
+        else:
+            self._limits_cache = {}
 
     # ====================== Métodos para obtener valores por defecto del VARIABLES_MAP ======================
     def _get_default_info_from_variables_map(self, tag: str) -> dict:
@@ -77,22 +93,24 @@ class AlarmConfigManager:
 
     # ====================== LIMITS (Operador) ======================
     def get_limits(self, tag: str) -> Tuple[float, float]:
-        """Devuelve (min, max). Si no existe en QSettings → usa defaults de VARIABLES_MAP."""
-        limits_dict: Dict = self.settings.value(self.KEY_LIMITS, {})
-        if tag in limits_dict:
+        """Devuelve (min, max). Lee primero del diccionario en memoria.
+        Si no existe en memoria → usa defaults de VARIABLES_MAP."""
+        if tag in self._limits_cache:
             try:
-                minv, maxv = limits_dict[tag]
+                minv, maxv = self._limits_cache[tag]
                 return float(minv), float(maxv)
             except (ValueError, TypeError):
-                pass # Si el formato es incorrecto en QSettings, ignorar y usar el default
+                pass  # Si el formato es incorrecto, ignorar y usar el default
         
         return self.get_default_limits_from_variables_map(tag) 
 
     def set_limits(self, tag: str, min_val: float, max_val: float):
-        limits_dict_raw = self.settings.value(self.KEY_LIMITS, {})
-        limits_dict = dict(limits_dict_raw) if isinstance(limits_dict_raw, dict) else {}
-        limits_dict[tag] = [float(min_val), float(max_val)]
-        self.settings.setValue(self.KEY_LIMITS, limits_dict)
+        """Guarda límites en memoria y en QSettings. Actualiza el diccionario en memoria."""
+        # Actualizar el diccionario en memoria
+        self._limits_cache[tag] = [float(min_val), float(max_val)]
+        
+        # Guardar también en QSettings
+        self.settings.setValue(self.KEY_LIMITS, self._limits_cache)
         self.settings.sync()
     # ====================== SEVERITY ======================
     def get_severity(self, tag: str) -> str:

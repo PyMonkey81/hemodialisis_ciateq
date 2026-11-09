@@ -318,29 +318,58 @@ class AlarmScreenConfig(QWidget):
         self.show_success_message("Configuración de alarmas guardada correctamente.", timeout_ms=2000)
 
     def _write_pressure_limits_to_device(self):
-        """Escribe los seis límites de presión al dispositivo.
-        Si alguno devolvió False, muestra aviso indicando que quedaron guardados
-        en la interfaz pero no se enviaron al control."""
+        """Escribe los seis límites de presión al dispositivo usando valores de las casillas.
+        - bloodArteryPressureData: inferior → artPresCircAlarmLoLimData (0x07),
+                                   superior → artPresCircAlarmHiLimData (0x06)
+        - bloodVenousPressureData: inferior → venPresCircAlarmLoLimData (0x09),
+                                   superior → venPresCircAlarmHiLimData (0x08)
+        - CALC_PTM: si está en pantalla, inferior → membPressAlarmLoLimData (0x0B),
+                   superior → membPressAlarmHiLimData (0x0A);
+                   si no está, usa diccionario en memoria.
+        Si algún write devolvió False, muestra aviso."""
         if not self.write_setpoint_callback:
             return  # No hay forma de escribir, solo guardar localmente
         
         try:
             all_written = True
             
-            # Presión arterial
-            art_min, art_max = self.config_manager.get_limits("bloodArteryPressureData")
-            all_written &= self.write_setpoint_callback("artPresCircAlarmLoLimData", art_min)
-            all_written &= self.write_setpoint_callback("artPresCircAlarmHiLimData", art_max)
+            # Presión arterial: lee de widgets si existen
+            if "bloodArteryPressureData" in self.inputs:
+                try:
+                    art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
+                    art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+                    all_written &= self.write_setpoint_callback("artPresCircAlarmLoLimData", art_min)
+                    all_written &= self.write_setpoint_callback("artPresCircAlarmHiLimData", art_max)
+                except (ValueError, KeyError):
+                    logger.warning("No se pudo obtener límites de bloodArteryPressureData de los widgets")
+                    all_written = False
             
-            # Presión venosa
-            ven_min, ven_max = self.config_manager.get_limits("bloodVenousPressureData")
-            all_written &= self.write_setpoint_callback("venPresCircAlarmLoLimData", ven_min)
-            all_written &= self.write_setpoint_callback("venPresCircAlarmHiLimData", ven_max)
+            # Presión venosa: lee de widgets si existen
+            if "bloodVenousPressureData" in self.inputs:
+                try:
+                    ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
+                    ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
+                    all_written &= self.write_setpoint_callback("venPresCircAlarmLoLimData", ven_min)
+                    all_written &= self.write_setpoint_callback("venPresCircAlarmHiLimData", ven_max)
+                except (ValueError, KeyError):
+                    logger.warning("No se pudo obtener límites de bloodVenousPressureData de los widgets")
+                    all_written = False
             
-            # PTM (Presión Transmembrana)
-            ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
-            all_written &= self.write_setpoint_callback("membPressAlarmLoLimData", ptm_min)
-            all_written &= self.write_setpoint_callback("membPressAlarmHiLimData", ptm_max)
+            # PTM (Presión Transmembrana): si está en pantalla, lee de widgets; si no, usa diccionario
+            if "CALC_PTM" in self.inputs:
+                try:
+                    ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
+                    ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
+                    all_written &= self.write_setpoint_callback("membPressAlarmLoLimData", ptm_min)
+                    all_written &= self.write_setpoint_callback("membPressAlarmHiLimData", ptm_max)
+                except (ValueError, KeyError):
+                    logger.warning("No se pudo obtener límites de CALC_PTM de los widgets")
+                    all_written = False
+            else:
+                # CALC_PTM no está en pantalla, usar diccionario en memoria
+                ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
+                all_written &= self.write_setpoint_callback("membPressAlarmLoLimData", ptm_min)
+                all_written &= self.write_setpoint_callback("membPressAlarmHiLimData", ptm_max)
             
             if not all_written:
                 logger.warning("Algunos límites de presión no se escribieron al dispositivo")
