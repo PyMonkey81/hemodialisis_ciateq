@@ -19,16 +19,16 @@ class AlarmConfigManager:
     """
     def __init__(self, organization: str = "HemodialisisApp", app_name: str = "AlarmSystem"):
         self.settings = QSettings(organization, app_name)
-        
-        # Diccionario en memoria para límites: tag -> [min, max]
-        # Se carga una sola vez al inicializar
-        self._limits_cache: Dict[str, list] = {}
-        self._load_limits_from_settings()
 
         # Claves
         self.KEY_ENABLED = "alarms/enabled_tags"
         self.KEY_LIMITS = "alarms/limits"      # dict: tag -> [min, max]
         self.KEY_SEVERITY = "alarms/severity"  # dict: tag -> "cian" | "naranja" | "amarillo" | "rojo"
+        
+        # Diccionario en memoria para límites: tag -> [min, max]
+        # Se carga una sola vez al inicializar
+        self._limits_cache: Dict[str, list] = {}
+        self._load_limits_from_settings()
 
     def _load_limits_from_settings(self):
         """Carga los límites de QSettings en el diccionario en memoria (una sola vez)."""
