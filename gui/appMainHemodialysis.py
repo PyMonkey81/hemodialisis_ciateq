@@ -3652,27 +3652,45 @@ class HemodialysisHMI(QMainWindow):
             return False
 
     def _write_pressure_limits_on_connection(self):
-        """Escribe los límites de presión arterial, venosa y PTM al dispositivo cuando se conecta."""
+        """Escribe los límites de presión al dispositivo cuando se conecta.
+        Solo escribe si los límites están en el cache (guardados previamente).
+        Si el cache está vacío, no escribe nada."""
         if not self.serial_comm or not self.serial_comm.is_connected:
+            return
+        
+        # Acceder directamente al cache de límites
+        limits_cache = self.config_manager._limits_cache
+        
+        if not limits_cache:
+            logger.info("Cache de límites vacío: no se escriben límites al conectar")
             return
         
         try:
             all_written = True
             
             # Presión arterial
-            art_min, art_max = self.config_manager.get_limits("bloodArteryPressureData")
-            all_written &= self._write_setpoint("artPresCircAlarmLoLimData", art_min)
-            all_written &= self._write_setpoint("artPresCircAlarmHiLimData", art_max)
+            if "bloodArteryPressureData" in limits_cache:
+                art_min, art_max = limits_cache["bloodArteryPressureData"]
+                result_lo = self._write_setpoint("artPresCircAlarmLoLimData", art_min)
+                result_hi = self._write_setpoint("artPresCircAlarmHiLimData", art_max)
+                all_written &= (result_lo and result_hi)
+                logger.info(f"CONEXIÓN: artPresCircAlarm inferior={art_min}, superior={art_max} ({result_lo}, {result_hi})")
             
             # Presión venosa
-            ven_min, ven_max = self.config_manager.get_limits("bloodVenousPressureData")
-            all_written &= self._write_setpoint("venPresCircAlarmLoLimData", ven_min)
-            all_written &= self._write_setpoint("venPresCircAlarmHiLimData", ven_max)
+            if "bloodVenousPressureData" in limits_cache:
+                ven_min, ven_max = limits_cache["bloodVenousPressureData"]
+                result_lo = self._write_setpoint("venPresCircAlarmLoLimData", ven_min)
+                result_hi = self._write_setpoint("venPresCircAlarmHiLimData", ven_max)
+                all_written &= (result_lo and result_hi)
+                logger.info(f"CONEXIÓN: venPresCircAlarm inferior={ven_min}, superior={ven_max} ({result_lo}, {result_hi})")
             
             # PTM (Presión Transmembrana)
-            ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
-            all_written &= self._write_setpoint("membPressAlarmLoLimData", ptm_min)
-            all_written &= self._write_setpoint("membPressAlarmHiLimData", ptm_max)
+            if "CALC_PTM" in limits_cache:
+                ptm_min, ptm_max = limits_cache["CALC_PTM"]
+                result_lo = self._write_setpoint("membPressAlarmLoLimData", ptm_min)
+                result_hi = self._write_setpoint("membPressAlarmHiLimData", ptm_max)
+                all_written &= (result_lo and result_hi)
+                logger.info(f"CONEXIÓN: membPressAlarm inferior={ptm_min}, superior={ptm_max} ({result_lo}, {result_hi})")
             
             if all_written:
                 logger.info("Límites de presión sincronizados con dispositivo al conectar")

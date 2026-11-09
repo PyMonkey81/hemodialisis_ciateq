@@ -1,6 +1,7 @@
 # core/alarm_config_manager.py
 from PySide6.QtCore import QSettings
 from typing import List, Tuple, Dict, Set
+import json
 
 from core.variables_map import VARIABLES
 import logging
@@ -31,11 +32,23 @@ class AlarmConfigManager:
         self._load_limits_from_settings()
 
     def _load_limits_from_settings(self):
-        """Carga los límites de QSettings en el diccionario en memoria (una sola vez)."""
-        limits_dict_raw = self.settings.value(self.KEY_LIMITS, {})
-        if isinstance(limits_dict_raw, dict):
-            self._limits_cache = dict(limits_dict_raw)
-        else:
+        """Carga los límites desde JSON en QSettings al diccionario en memoria.
+        Si el JSON no es válido o está vacío, deja el cache vacío.
+        No rellena con valores del mapa."""
+        try:
+            limits_json_str = self.settings.value(self.KEY_LIMITS, "")
+            if not limits_json_str:
+                self._limits_cache = {}
+                return
+            
+            # Intentar parsear JSON
+            limits_dict = json.loads(limits_json_str)
+            if isinstance(limits_dict, dict):
+                self._limits_cache = dict(limits_dict)
+            else:
+                self._limits_cache = {}
+        except (json.JSONDecodeError, ValueError):
+            logger.warning(f"No se pudo parsear JSON de límites, cache vacío")
             self._limits_cache = {}
 
     # ====================== Métodos para obtener valores por defecto del VARIABLES_MAP ======================
@@ -105,12 +118,14 @@ class AlarmConfigManager:
         return self.get_default_limits_from_variables_map(tag) 
 
     def set_limits(self, tag: str, min_val: float, max_val: float):
-        """Guarda límites en memoria y en QSettings. Actualiza el diccionario en memoria."""
+        """Guarda límites en memoria y en QSettings como JSON.
+        Actualiza el diccionario en memoria, luego serializa a JSON."""
         # Actualizar el diccionario en memoria
         self._limits_cache[tag] = [float(min_val), float(max_val)]
         
-        # Guardar también en QSettings
-        self.settings.setValue(self.KEY_LIMITS, self._limits_cache)
+        # Guardar como JSON en QSettings
+        limits_json_str = json.dumps(self._limits_cache)
+        self.settings.setValue(self.KEY_LIMITS, limits_json_str)
         self.settings.sync()
     # ====================== SEVERITY ======================
     def get_severity(self, tag: str) -> str:
