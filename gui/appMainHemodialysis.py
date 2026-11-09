@@ -542,7 +542,7 @@ class HemodialysisHMI(QMainWindow):
         self.alarm_config_limits_screen = AlarmScreenConfig(
             config_manager=self.config_manager,
             parent=self,
-            write_setpoint_callback=self._write_setpoint
+            write_setpoint_callback=self._emit_pressure_alarm_limits
         )
 
         # Pantalla de configuración para Servicio Técnico
