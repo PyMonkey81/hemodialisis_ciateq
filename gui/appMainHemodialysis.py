@@ -3677,17 +3677,36 @@ class HemodialysisHMI(QMainWindow):
             logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag, hex(group), address, value)
 
     def _write_pressure_limits_on_connection(self):
-        """Escribe límites de presión al conectar leyendo de get_limits."""
+        """Escribe límites de presión al conectar leyendo SOLO del cache.
+        Si una fila no está guardada, NO la escribe."""
         if not self.serial_comm or not self.serial_comm.is_connected:
             return
         
         try:
-            # Leer valores de get_limits (que lee cache primero)
-            art_min, art_max = self.config_manager.get_limits("bloodArteryPressureData")
-            ven_min, ven_max = self.config_manager.get_limits("bloodVenousPressureData")
-            ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
+            cache = self.config_manager._limits_cache
             
-            self._emit_pressure_alarm_limits(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+            if not cache:
+                logger.info("Cache vacío: no hay límites guardados para escribir al conectar")
+                return
+            
+            # Escribir solo lo que está en el cache
+            tags_to_write = {
+                "bloodArteryPressureData": [("artPresCircAlarmLoLimData", 0), ("artPresCircAlarmHiLimData", 1)],
+                "bloodVenousPressureData": [("venPresCircAlarmLoLimData", 0), ("venPresCircAlarmHiLimData", 1)],
+                "CALC_PTM": [("membPressAlarmLoLimData", 0), ("membPressAlarmHiLimData", 1)],
+            }
+            
+            for tag_key, tags_to_emit in tags_to_write.items():
+                if tag_key in cache:
+                    min_val, max_val = cache[tag_key]
+                    for tag_name, idx in tags_to_emit:
+                        group, address = self._resolve_tag(tag_name)
+                        if group is None or address is None:
+                            logger.error("Tag no está en el mapa: %s", tag_name)
+                            continue
+                        val = min_val if idx == 0 else max_val
+                        self.serial_comm.write_double(group, address, float(val))
+                        logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag_name, hex(group), address, val)
         except Exception as e:
             logger.warning(f"Error escribiendo límites de presión al conectar: {e}")
 

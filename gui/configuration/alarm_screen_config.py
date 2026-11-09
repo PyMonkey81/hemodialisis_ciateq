@@ -322,16 +322,19 @@ class AlarmScreenConfig(QWidget):
             ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
             ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
             
-            # PTM: si está en pantalla, leer de widget; si no, leer de get_limits
+            # PTM: si está en pantalla, leer de widget; si no, solo envia 0 (no se escribe)
             if "CALC_PTM" in self.inputs:
                 ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
                 ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
             else:
-                ptm_min, ptm_max = self.config_manager.get_limits("CALC_PTM")
+                # No está en pantalla: no escribir PTM
+                ptm_min = 0
+                ptm_max = 0
             
-            # Llamar al método que escribe los 6 tags al dispositivo
+            # Llamar al método que escribe los tags al dispositivo
             if self.write_setpoint_callback:
-                # El callback es la referencia al método _emit_pressure_alarm_limits de appMainHemodialysis
+                # El callback es _emit_pressure_alarm_limits
+                # Los 0 se ignoran (no se escriben tags con ese valor)
                 self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
             
         except (ValueError, KeyError) as e:
