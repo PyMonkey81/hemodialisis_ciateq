@@ -32,23 +32,27 @@ class AlarmConfigManager:
         self._load_limits_from_settings()
 
     def _load_limits_from_settings(self):
-        """Carga los límites desde JSON en QSettings al diccionario en memoria.
-        Si el JSON no es válido o está vacío, deja el cache vacío.
+        """Carga los límites desde QSettings (puede ser dict viejo o JSON nuevo).
+        Si es diccionario, lo copia directamente.
+        Si es JSON string, lo parsea.
+        Si es vacío o inválido, deja el cache vacío.
         No rellena con valores del mapa."""
         try:
-            limits_json_str = self.settings.value(self.KEY_LIMITS, "")
-            if not limits_json_str:
-                self._limits_cache = {}
-                return
+            raw = self.settings.value(self.KEY_LIMITS, "")
             
-            # Intentar parsear JSON
-            limits_dict = json.loads(limits_json_str)
-            if isinstance(limits_dict, dict):
-                self._limits_cache = dict(limits_dict)
+            if isinstance(raw, dict):
+                # QSettings devolvió un diccionario (formato viejo)
+                self._limits_cache = dict(raw)
+            elif isinstance(raw, str) and raw.strip():
+                # QSettings devolvió un string, intentar parsear JSON
+                loaded = json.loads(raw)
+                self._limits_cache = dict(loaded) if isinstance(loaded, dict) else {}
             else:
+                # Vacío o no es dict ni string
                 self._limits_cache = {}
-        except (json.JSONDecodeError, ValueError):
-            logger.warning(f"No se pudo parsear JSON de límites, cache vacío")
+                
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            logger.warning(f"Error cargando límites de QSettings: {e}, cache vacío")
             self._limits_cache = {}
 
     # ====================== Métodos para obtener valores por defecto del VARIABLES_MAP ======================
