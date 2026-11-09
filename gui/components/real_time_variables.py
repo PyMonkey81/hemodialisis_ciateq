@@ -157,7 +157,10 @@ class RealTimeVariablesMonitor(QWidget):
         row_index = 0
 
         for group_key, vars_in_group in VARIABLES.items():
-            group_name = TVAR_TO_GROUP.get(group_key, f"0x{group_key:02X}")
+            if isinstance(group_key, int):
+                group_name = TVAR_TO_GROUP.get(group_key, f"0x{group_key:02X}")
+            else:
+                group_name = TVAR_TO_GROUP.get(group_key, str(group_key))
 
             for address, info in sorted(vars_in_group.items(), key=lambda x: x[0]):
                 display_name = info["name"]
