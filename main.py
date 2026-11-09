@@ -71,9 +71,9 @@ try:
     root_logger.setLevel(logging.INFO)
     root_logger.addHandler(handler)
     
-    # Activar faulthandler para capturar fallos nativos
-    faulthandler_log = open(str(LOG_FILE), "a", encoding="utf-8")
-    faulthandler.enable(faulthandler_log)
+    # Activar faulthandler usando el mismo stream del handler (sin otra apertura)
+    if handler.stream:
+        faulthandler.enable(handler.stream)
     
 except Exception as e:
     print(f"Error configurando logging: {e}", file=sys.stderr)
