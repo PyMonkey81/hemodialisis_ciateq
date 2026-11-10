@@ -305,14 +305,31 @@ class KTVScreen(QWidget):
         # -----------------------------------------------------------------
 
         # Cálculo manual solo en RUNNING.
-        active = phase == TreatmentPhase.RUNNING
-        btn.setEnabled(active)
+        btn.setEnabled(phase == TreatmentPhase.RUNNING)
 
-        # La frecuencia automática puede configurarse antes de iniciar terapia y en pausa.
-        combo.setEnabled(phase in (TreatmentPhase.IDLE, TreatmentPhase.PAUSED, TreatmentPhase.RUNNING))
+        # Habilitar combo_freq en IDLE, PREPARING, READY, PAUSED, RUNNING
+        # Deshabilitar en CLEANING, FINISHING, ERROR
+        enabled_phases = (
+            TreatmentPhase.IDLE,
+            TreatmentPhase.PREPARING,
+            TreatmentPhase.READY,
+            TreatmentPhase.PAUSED,
+            TreatmentPhase.RUNNING
+        )
+        combo.setEnabled(phase in enabled_phases)
 
-        # Solo resetear etiqueta al salir de modos de terapia (RUNNING/PAUSED).
-        if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+        # Actualizar etiqueta según fase y frecuencia seleccionada
+        if phase in (TreatmentPhase.PREPARING, TreatmentPhase.READY):
+            # Si frecuencia no es Deshabilitado, mostrar "Al iniciar: cada X min"
+            current_text = combo.currentText()
+            if current_text != "Deshabilitado":
+                freq_text = "cada 15 min" if current_text == "15 minutos" else "cada 30 min"
+                lbl_schedule.setText(f"Al iniciar: {freq_text}")
+            else:
+                # Si está deshabilitado, no mostrar nada especial
+                lbl_schedule.setText("Próxima medición: No programado")
+        elif phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            # En otros estados (CLEANING, FINISHING, ERROR, etc), resetear
             lbl_schedule.setText("Próxima medición: No programado")
 
     # ====================== ACTUALIZACIÓN DE DATOS DEL PACIENTE (Se llama desde appMainHemodialysis) ======================
