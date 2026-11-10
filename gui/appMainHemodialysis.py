@@ -3655,7 +3655,7 @@ class HemodialysisHMI(QMainWindow):
         """Escribe los 6 límites de presión al dispositivo via write_double.
         art_min/max: límites arteriales
         ven_min/max: límites venosos
-        ptm_min/max: límites de presión transmembrana
+        ptm_min/max: límites de presión transmembrana (None si no está en pantalla)
         """
         pares = (
             ("artPresCircAlarmLoLimData", art_min),
@@ -3669,6 +3669,10 @@ class HemodialysisHMI(QMainWindow):
             logger.warning("ALARMAS NO ENVIADAS: serial del control desconectado")
             return
         for tag, value in pares:
+            # No escribir si el valor es None (fila no está en pantalla)
+            if value is None:
+                logger.info("OMITO alarma %s: valor None (fila no en pantalla)", tag)
+                continue
             group, address = self._resolve_tag(tag)
             if group is None or address is None:
                 logger.error("Tag de alarma no está en el mapa: %s", tag)
@@ -4218,34 +4222,26 @@ class HemodialysisHMI(QMainWindow):
             priming_status_int = int(priming_status)
             treatment_mode = int(self.current_values.get("treatmentModeSelection", 0))
             
-            logger.warning(f"Cierre no limpio detectado: primingProcessStatus={priming_status_int}, treatmentModeSelection={treatment_mode}")
+            # Detectar si hay proceso en curso
+            has_process_running = False
             
-            should_stop = False
-            
-            # Estado 14 o 15 + mode != 3: terapia en progreso → detener
+            # Estado 14 o 15 + mode != 3: terapia en progreso
             if priming_status_int in (14, 15) and treatment_mode != 3:
-                should_stop = True
-                logger.warning("Detectada terapia de diálisis en progreso. Deteniendo...")
-                if self.treatment_controller:
-                    self.treatment_controller.stop_treatment()
+                has_process_running = True
+                logger.warning(f"Cierre no limpio detectado con terapia en progreso: primingProcessStatus={priming_status_int}")
             
-            # Mode 3 + estado 6: limpieza en progreso → detener
+            # Mode 3 + estado 6: limpieza en progreso
             elif treatment_mode == 3 and priming_status_int == 6:
-                should_stop = True
-                logger.warning("Detectada limpieza en progreso. Deteniendo...")
-                # Enviar ambos comandos de detener limpieza (booleanos)
-                self._write_boolean_command("dialyStartDialysisButt", False)
-                self._write_boolean_command("dialyStopDialysisButt", True)
+                has_process_running = True
+                logger.warning(f"Cierre no limpio detectado con limpieza en progreso: treatmentModeSelection={treatment_mode}, primingProcessStatus={priming_status_int}")
             
-            # Estados 1, 2-5, 7-13, 16: no hacer nada
-            else:
-                logger.info(f"Estado {priming_status_int}: no se requiere detención")
-            
-            # Mostrar mensaje si se detuvo algo
-            if should_stop:
-                msg = "La aplicación se cerró de forma inesperada. El proceso en curso se detuvo. Hay que iniciarlo de nuevo."
-                logger.warning(f"Mostrando mensaje al usuario: {msg}")
+            # Solo registrar aviso, no hacer nada de detención
+            if has_process_running:
+                msg = "La aplicación no cerró de forma limpia. Hay un proceso en curso y no se detuvo."
+                logger.warning(f"Aviso: {msg}")
                 self.show_operator_message(msg)
+            else:
+                logger.info(f"Cierre no limpio detectado pero no hay proceso en curso (primingStatus={priming_status_int}, mode={treatment_mode})")
         
         except Exception as e:
             logger.error(f"Error en _check_and_handle_unclean_close: {e}")

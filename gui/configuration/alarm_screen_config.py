@@ -322,14 +322,14 @@ class AlarmScreenConfig(QWidget):
             ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
             ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
             
-            # PTM: si está en pantalla, leer de widget; si no, solo envia 0 (no se escribe)
+            # PTM: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
             if "CALC_PTM" in self.inputs:
                 ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
                 ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
             else:
-                # No está en pantalla: no escribir PTM
-                ptm_min = 0
-                ptm_max = 0
+                # No está en pantalla: no escribir PTM (pasar None)
+                ptm_min = None
+                ptm_max = None
             
             # Llamar al método que escribe los tags al dispositivo
             if self.write_setpoint_callback:
