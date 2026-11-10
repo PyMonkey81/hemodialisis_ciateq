@@ -259,19 +259,36 @@ class CalculadoraKtV:
         """
         Devuelve Kt/V proyectado al final de la sesión.
         
-        Proyectado = (Kt + D_vigente * t_restante) / V
-        donde t_restante = max(0, t_total - t_actual)
+        Proyectado = (Kt_acumulado + D_vigente * (t_total - tiempo_de_última_medición)) / V
+        donde:
+          - Kt_acumulado es el Kt entregado hasta la última medición válida
+          - D_vigente es el clearance desde la última medición
+          - (t_total - tiempo_de_última_medición) es el tiempo desde la última medición válida hasta el final
+        
+        Entre mediciones, si D no cambió, el valor no baja.
+        Sin una D válida, el proyectado es 0.
         
         Returns: Kt/V proyectado
         """
         if self.volumen_distribucion_v <= 0:
             return 0.0
+        
+        # Sin una D válida, no podemos proyectar
+        if self.d_vigente <= 0 or self.tiempo_ultima_medicion is None:
+            return 0.0
 
-        t_restante = max(0.0, t_total_minutes - current_time_minutes)
-        kt_proyectado = self.kt_acumulado + (self.d_vigente * t_restante)
+        # Time from last valid measurement to end of session
+        tiempo_desde_ultima_medicion = t_total_minutes - self.tiempo_ultima_medicion
+        
+        # If we haven't reached the last measurement time yet, use current time
+        if current_time_minutes < self.tiempo_ultima_medicion:
+            tiempo_desde_ultima_medicion = t_total_minutes - current_time_minutes
+        
+        kt_proyectado = self.kt_acumulado + (self.d_vigente * tiempo_desde_ultima_medicion)
         
         logger.debug(
-            f"[KTV_CALC] Kt/V proyectado: t_restante={t_restante:.2f} min, "
+            f"[KTV_CALC] Kt/V proyectado: t_última_med={self.tiempo_ultima_medicion:.2f} min, "
+            f"t_total={t_total_minutes:.2f} min, tiempo_desde_última={tiempo_desde_ultima_medicion:.2f} min, "
             f"D_vigente={self.d_vigente:.1f}, Kt_proyectado={kt_proyectado:.1f}, "
             f"Kt/V={kt_proyectado / self.volumen_distribucion_v:.3f}"
         )

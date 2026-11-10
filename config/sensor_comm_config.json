@@ -14,7 +14,7 @@
     },
     "bioz_urea_sensor": {
         "port": "Auto",
-        "enabled": false
+        "enabled": true
     },
     "led_controller": {
         "port": "Auto",
