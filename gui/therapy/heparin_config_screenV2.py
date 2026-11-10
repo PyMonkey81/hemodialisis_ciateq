@@ -630,8 +630,6 @@ class HeparinConfigScreen(QWidget):
                     else:
                         widget.setStyleSheet(input_style)
                 elif isinstance(widget, ClickableLineEdit):
-                    widget.setStyleSheet(combo_style)
-                elif isinstance(widget, ClickableLineEdit):
                     widget.setStyleSheet(input_style)
         else:
             # Estilos para estado disabled (gris)
