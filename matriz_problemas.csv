@@ -1,0 +1,26 @@
+ID,Archivo,Línea,Tipo_Problema,Severidad,Descripción,Impacto,Escenario_Fallo,Complejidad_Fix,Horas_Estimadas,Status,Sprint,Priority
+1,main.py,47-57,I/O sin validación,CRÍTICA,Creación directorios sin validación,App sin logs si falla creación,Sistema de archivos lleno o permisos denegados,Media,2,Todo,S1,P0
+2,main.py,62-81,Excepción genérica,CRÍTICA,Logging falla silenciosamente,Errores no se registran después,Handler falla pero continúa ejecución,Media,2,Todo,S1,P0
+3,main.py,92-111,Excepción genérica,ALTA,detect_screen_size captura todo,UI escalada incorrectamente,Qt sin display o mock retorna None,Baja,1,Todo,S1,P1
+4,appMainHemodialysis.py,~450,I/O sin validación,CRÍTICA,Puerto serial sin validación,Aplicación sin conectividad hardware,Puerto COM/USB no disponible,Alta,4,Todo,S1,P0
+5,appMainHemodialysis.py,~470,Init sin validación,ALTA,BiozUreaController.start() sin error check,BioZ nunca funciona,Inicialización módulo falla,Media,3,Todo,S1,P1
+6,appMainHemodialysis.py,~470,Init sin validación,MEDIA,Dos sensores conductividad sin coordinación,Valores inconsistentes,Race condition entre PatternCond y MegaCond,Media,3,Todo,S2,P2
+7,appMainHemodialysis.py,~540,Config JSON,MEDIA,therapy_config.json sin validación,Valores default inseguros,JSON corrupted o no existe,Media,2,Todo,S2,P2
+8,appMainHemodialysis.py,~780,Estado inconsistente,CRÍTICA,set_phase llamada sin sincronización,Máquina desincronizada con UI,Múltiples threads escriben state,Alta,5,Todo,S1,P0
+9,appMainHemodialysis.py,~1100,None check,CRÍTICA,hardware_mapper acceso sin validación,Crash con AttributeError,hardware_mapper=None entre check y uso,Media,2,Todo,S1,P0
+10,appMainHemodialysis.py,~1230,Lock Boolean,MEDIA,_start_treatment_locked no-atomic,Doble-click ejecuta 2 veces,Usuario hace doble-click muy rápido,Baja,1,Todo,S2,P2
+11,appMainHemodialysis.py,~1395,Ciclo infinito,MEDIA,Diálogo filtro recursivo sin límite,Stack overflow eventual,Usuario cancela indefinidamente,Baja,1,Todo,S2,P2
+12,appMainHemodialysis.py,~1500,Truthiness check,ALTA,if qb: omite valor 0.0,Omite setpoint crítico de confirmación,Setpoint programado a 0,Baja,1,Todo,S1,P1
+13,appMainHemodialysis.py,~1540,int() sin validación,ALTA,int() sin tipo seguro,ValueError si valor es string,JSON retorna "abc" en lugar de número,Baja,1,Todo,S1,P1
+14,appMainHemodialysis.py,~1540,float() sin validación,ALTA,float(uf_l_h) sin null check,TypeError si None,ultraFilterPumpSpeed no inicializado,Baja,1,Todo,S1,P1
+15,appMainHemodialysis.py,~1950,Estado latched,ALTA,_heparin_auto_stop_latched nunca resetea,Heparina no reactiva en reanudar,Usuario pausa y reanuda terapia,Media,2,Todo,S1,P1
+16,appMainHemodialysis.py,~2300,None check,MEDIA,filter_fill_start_time race condition,Crash con AttributeError,Entre check y secsTo() otro thread pone None,Media,2,Todo,S2,P2
+17,appMainHemodialysis.py,~2395,Exception handling,MEDIA,gauge.setValue() exception logging,Log saturado con errores repetidos,gauge.setValue() falla 60 veces/min,Baja,1,Todo,S2,P2
+18,appMainHemodialysis.py,~2418,Lock Boolean,MEDIA,_timer_lock no-atomic,Reentrancia de _master_timer_tick,Code tarda más que interval (500ms),Baja,1,Todo,S2,P2
+19,appMainHemodialysis.py,~2470,Widget access,MEDIA,currentWidget puede retornar None,Comparación incorrecta,screen_stack vacío o None,Baja,1,Todo,S2,P2
+20,appMainHemodialysis.py,~3700,Destructor,MEDIA,__del__() hace logging sin validación,Crash durante cleanup,Logger destruído antes que __del__,Baja,1,Todo,S2,P2
+21,appMainHemodialysis.py,~600,Resource leak,MEDIA,CSV loggers sin cierre explícito,Archivos corruptos,App crash durante terapia,Media,2,Todo,S2,P2
+22,appMainHemodialysis.py,~450,Race condition,ALTA,update_value() llamada desde múltiples threads,Valores corruptos en current_values,BioZ+Serial actualizan simultáneamente,Alta,4,Todo,S1,P1
+23,appMainHemodialysis.py,~330,Chain init,CRÍTICA,KtvController sin validar BiozUreaController,Crash en ktv_controller.set_dependencies,BiozUreaController() falla silenciosamente,Media,3,Todo,S1,P0
+24,appMainHemodialysis.py,~380,Lazy init,ALTA,SerialCommunication puerto nunca se abre,Setpoints no se escriben nunca,Puerto lazy-init nunca es utilizado,Media,2,Todo,S1,P1
+25,appMainHemodialysis.py,~2695,Widget None,MEDIA,currentWidget setStyleSheet sin check,setStyleSheet crash,currentWidget None,Baja,1,Todo,S2,P2
