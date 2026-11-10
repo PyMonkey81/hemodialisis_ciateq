@@ -95,7 +95,11 @@ class AlarmSystem(QObject):
             # Lógica para boolean_triggers: si es tipo 'bool', trigger es True (activa en 1.0) por defecto.
             # Puedes añadir un campo 'boolean_active_on_false' en VARIABLES_MAP si necesitas invertir esto.
             if var_type_from_map == "bool":
-                self.boolean_triggers.append(True) # Activa si valor != 0.0 (es decir, 1.0)
+                # Caso especial: dialyWaterTankFull se invierte (activa en 0, no en 1)
+                if tag == "dialyWaterTankFull":
+                    self.boolean_triggers.append(False)
+                else:
+                    self.boolean_triggers.append(True) # Activa si valor != 0.0 (es decir, 1.0)
             else:
                 self.boolean_triggers.append(False) # No se usa para numéricas, es un placeholder.
             
@@ -106,7 +110,13 @@ class AlarmSystem(QObject):
         self.previous_emitted_levels = list(self.severity_levels)
 
         # Reiniciar el estado de valores y estados previos para la nueva configuración
-        self.current_values = [0.0] * self.alarm_count
+        # Inicializar dialyWaterTankFull en 1.0 (tanque lleno) para evitar alarma falsa
+        self.current_values = []
+        for tag in self.tags:
+            if tag == "dialyWaterTankFull":
+                self.current_values.append(1.0)  # Inicial: tanque lleno (no hay alarma)
+            else:
+                self.current_values.append(0.0)
         self.previous_states = [False] * self.alarm_count
         # event_history se mantiene, es un log.
 
@@ -165,7 +175,9 @@ class AlarmSystem(QObject):
 
                     current_time = time.strftime("%H:%M:%S")
                     status_text = "ACTIVADA" if is_active else "DESACTIVADA"
-                    event_msg = f"{status_text} - {self.display_names[i]}"
+                    # Usar etiqueta descriptiva para dialyWaterTankFull
+                    display_text = "FALTA AGUA" if tag == "dialyWaterTankFull" else self.display_names[i]
+                    event_msg = f"{status_text} - {display_text}"
 
                     with self.lock: # Proteger el acceso al historial
                         self.event_history.append((event_msg, value, current_time))
