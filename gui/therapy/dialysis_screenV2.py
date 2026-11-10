@@ -276,6 +276,10 @@ class DialysisScreen(QWidget):
         self.themed_sublabels = []
         self.themed_unit_labels = []
 
+        # Guardar última FC válida del manguito y pulso SpO2 para mostrar cuando sea apropiado
+        self.last_valid_nibp_hr = None
+        self.last_spo2_pulse = None
+
         # Historial para gráficas
         self.history_length = 600
         nan_array = [np.nan] * self.history_length
@@ -971,24 +975,34 @@ class DialysisScreen(QWidget):
         if sys_mmhg >= 0 and dia_mmhg >= 0:
             self.nibp_value.setText(f"{sys_mmhg} / {dia_mmhg}")
         else:
-            self.nibp_value.setText("-- / --")
+            self.nibp_value.setText("— / —")
         
-        # Frecuencia cardiaca
+        # Guardar FC válida del manguito y actualizar display según estado de SpO2
         if hr_bpm >= 0:
-            self.hr_value.setText(str(hr_bpm))
+            self.last_valid_nibp_hr = hr_bpm
+            self._update_hr_display()
         else:
-            self.hr_value.setText("--")
+            self._update_hr_display()
 
     def update_spo2(self, data):
         """Signos vitales - SpO2, conectado a nibp.spo2_updated (None si stream off)."""
         if not data:
-            self.spo2_value.setText("-- %")
+            self.spo2_value.setText("— %")
             self.spo2_status_label.setText("")
+            # Refrescar FC: si SpO2 sin dato, usar FC del manguito si está disponible
+            self._update_hr_display()
             return
 
         value = data.get("spo2")
-        self.spo2_value.setText(f"{value} %" if value is not None else "-- %")
+        self.spo2_value.setText(f"{value} %" if value is not None else "— %")
 
+        # Obtener pulso SpO2 si está disponible
+        pr = data.get("pr")
+        if pr is not None and isinstance(pr, (int, float)):
+            self.last_spo2_pulse = pr
+            # Si SpO2 está habilitado en config, mostrar este pulso
+            self._update_hr_display()
+        
         if data.get("sensor_off"):
             status_text = "Sensor desconectado"
         elif data.get("no_finger"):
@@ -1002,6 +1016,36 @@ class DialysisScreen(QWidget):
         else:
             status_text = ""
         self.spo2_status_label.setText(status_text)
+
+    def _update_hr_display(self):
+        """
+        Actualiza el display de FC según la configuración de SpO2 y valores disponibles.
+        - Si SpO2 habilitado y pr disponible: mostrar pulso SpO2
+        - Si SpO2 deshabilitado: mostrar FC última válida del manguito
+        - Si no hay datos: mostrar "—"
+        """
+        # Verificar si SpO2 está habilitado
+        spo2_enabled = False
+        if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'nibp_screen'):
+            nibp_screen = self.parent_window.nibp_screen
+            if hasattr(nibp_screen, '_config'):
+                spo2_enabled = nibp_screen._config.get("spo2_enabled", False)
+        
+        # Decidir qué mostrar
+        if spo2_enabled and hasattr(self, 'last_spo2_pulse') and self.last_spo2_pulse is not None:
+            # Mostrar pulso SpO2
+            self.hr_value.setText(str(int(self.last_spo2_pulse)))
+        elif self.last_valid_nibp_hr is not None:
+            # Mostrar FC del manguito
+            self.hr_value.setText(str(self.last_valid_nibp_hr))
+        else:
+            # Sin datos
+            self.hr_value.setText("—")
+
+    def on_spo2_checkbox_changed(self):
+        """Llamado cuando el checkbox SpO2 cambia en nibp_config_screen.
+        Refresca el display de FC sin necesidad de nueva medición."""
+        self._update_hr_display()
 
 
     def set_priming_buttons_state(self, enable_start_priming: bool, enable_stop_priming: bool):

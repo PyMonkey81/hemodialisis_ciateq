@@ -430,6 +430,12 @@ class NibpConfigScreen(QWidget):
             self.spo2_on_requested.emit()
         else:
             self.spo2_off_requested.emit()
+        
+        # Refrescar el display de FC en la pantalla de diálisis sin necesidad de nueva medición
+        if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'dialysis_screen'):
+            dialysis_screen = self.parent_window.dialysis_screen
+            if hasattr(dialysis_screen, 'on_spo2_checkbox_changed'):
+                dialysis_screen.on_spo2_checkbox_changed()
 
     def _on_close_clicked(self):
         if self.parent_window and hasattr(self.parent_window, "show_dialysis_screen"):
