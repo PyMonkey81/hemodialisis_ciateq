@@ -218,9 +218,10 @@ class AlarmScreenConfig(QWidget):
                 row += 1
 
     def open_numpad(self, line_edit, tag, param_name, field):
-        # Obtener los límites de la variable para determinar allow_negative
-        min_val, max_val = self.config_manager.get_limits(tag)
-        allow_negative = min_val < 0
+        # Obtener los límites INICIALES del mapa para determinar allow_negative
+        # Esto permite que presión arterial, venosa y PTM siempre puedan capturarse en negativo
+        min_val_default, max_val_default = self.config_manager.get_default_limits_from_variables_map(tag)
+        allow_negative = min_val_default < 0
         
         # Título sin la unidad, mostrando el nombre legible del parámetro
         dialog = NumpadDialog(self, initial_value="", 
@@ -273,23 +274,13 @@ class AlarmScreenConfig(QWidget):
 
                     # Validar relación entre min y max
                     if min_v >= max_v:
-                        self.show_warning_message("Límite inferior debe ser menor que el superior.", timeout_ms=2000)
-                        return
-
-                    # Obtener los límites permitidos de variables_map
-                    default_min, default_max = self.config_manager.get_default_limits_from_variables_map(tag)
-                    
-                    # Validar que cada valor esté dentro de los límites permitidos
-                    if min_v < default_min or min_v > default_max:
-                        self.show_warning_message(f"Límite inferior fuera de rango permitido ({default_min} - {default_max}).", timeout_ms=2000)
-                        return
-                    
-                    if max_v < default_min or max_v > default_max:
-                        self.show_warning_message(f"Límite superior fuera de rango permitido ({default_min} - {default_max}).", timeout_ms=2000)
+                        param_name = self.config_manager.get_parameter_name(tag)
+                        self.show_warning_message(f"{param_name}: límite inferior debe ser menor que el superior.", timeout_ms=2000)
                         return
 
             except ValueError:
-                self.show_error_message(f"Valor inválido en {tag}.", timeout_ms=3000)
+                param_name = self.config_manager.get_parameter_name(tag)
+                self.show_error_message(f"{param_name}: valor inválido.", timeout_ms=3000)
                 return
         
         # PASO 2: Si toda validación pasó, guardar severidad y límites
@@ -306,7 +297,8 @@ class AlarmScreenConfig(QWidget):
 
             except ValueError:
                 # No debería llegar aquí si la validación pasó, pero por seguridad
-                self.show_error_message(f"Valor inválido en {tag}.", timeout_ms=3000)
+                param_name = self.config_manager.get_parameter_name(tag)
+                self.show_error_message(f"{param_name}: valor inválido.", timeout_ms=3000)
                 return
         
         # PASO 3: Guardar en QSettings
@@ -369,8 +361,31 @@ class AlarmScreenConfig(QWidget):
         # Guardar todos los cambios al archivo JSON
         self.config_manager.save_config()
         
-        # Escribir límites de presión arterial, venosa y PTM al dispositivo si está conectado
-        self._write_pressure_limits_to_device()
+        # Escribir límites de presión arterial, venosa y PTM al dispositivo
+        try:
+            # Arterial: siempre están en la pantalla
+            art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
+            art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+            
+            # Venosa: siempre están en la pantalla
+            ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
+            ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
+            
+            # PTM: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "CALC_PTM" in self.inputs:
+                ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
+                ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
+            else:
+                # No está en pantalla: no escribir PTM (pasar None)
+                ptm_min = None
+                ptm_max = None
+            
+            # Llamar al callback para escribir los límites al dispositivo
+            if self.write_setpoint_callback:
+                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+            
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Error leyendo valores de casillas para escribir alarmas en restore_all_defaults: {e}")
         
         self.show_info_message("Todos los límites y niveles han sido restaurados a sus valores por defecto.", timeout_ms=2000)
 

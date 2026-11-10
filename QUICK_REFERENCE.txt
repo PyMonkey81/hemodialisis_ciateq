@@ -1,0 +1,94 @@
+═══════════════════════════════════════════════════════════════════════════════
+                  CUATRO CORRECCIONES - REFERENCIA RÁPIDA
+═══════════════════════════════════════════════════════════════════════════════
+
+CORRECCIÓN 1: restore_all_defaults() sin método no existente
+─────────────────────────────────────────────────────────────────────────────
+Archivo:     gui/configuration/alarm_screen_config.py (líneas 352-402)
+Cambio:      ❌ self._write_pressure_limits_to_device() [NO EXISTE]
+             ✅ Usa self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+Resultado:   ✅ Restaurar defaults sin error de cierre de aplicación
+
+CORRECCIÓN 2: Validación con nombre de parámetro
+─────────────────────────────────────────────────────────────────────────────
+Archivos:    gui/configuration/alarm_screen_config.py (líneas 261-310)
+             core/alarm_config_manager.py (línea 87)
+             
+Cambios:     
+  1. Nuevo método: get_parameter_name(tag: str) → str
+     Devuelve: "Temperatura (°C)", "Presión venosa del circuito de sangre (mmHg)", etc.
+  
+  2. save_configuration():
+     - PASO 1: Valida TODAS las filas sin guardar nada
+     - Si falla alguna fila: muestra nombre del parámetro en mensaje y RETURN
+     - Si pasan todas: continúa a PASO 2
+
+  3. Ejemplos de mensajes:
+     ✅ "Temperatura (°C): límite inferior fuera de rango permitido (35.0 - 39.0)."
+     ✅ "Presión venosa del circuito de sangre (mmHg): límite inferior debe ser menor que el superior."
+
+Negativos:   Presión venosa captura valores negativos (-100 a 500)
+             Presión arterial captura valores negativos (-300 a 300)
+             NumPad detecta automáticamente: si min < 0 → muestra botones +/−
+
+CORRECCIÓN 3: Temperatura rango sin cambios
+─────────────────────────────────────────────────────────────────────────────
+Archivo:     core/variables_map.py (línea 200)
+Verificado:  dialyTempControlSetPoint: (35, 39.0) °C
+Cambio:      ❌ NINGUNO — SE MANTIENE 35-39
+
+CORRECCIÓN 4: Logo CIATEQ como botón plano interactivo
+─────────────────────────────────────────────────────────────────────────────
+Archivo:     gui/appMainHemodialysis.py
+             • Líneas 217-263: Clase LogoButton
+             • Línea ~1054: Instanciación en header
+             • Línea 4217: Método _show_exit_confirmation()
+             • Línea ~4242: Protección en closeEvent()
+
+Clase LogoButton(QPushButton):
+  ✅ setFlat(True)                    → Botón plano
+  ✅ setFocusPolicy(Qt.NoFocus)       → Sin foco visual
+  ✅ setStyleSheet("border: none; ...") → Sin borde
+  ❌ setTextInteractionFlags()        → REMOVIDO (método no válido para QPushButton)
+
+Interactividad:
+  • Toque corto (<800ms):  Abre diálogo "¿Desea salir de la aplicación?"
+                           Si Sí  → closeEvent(None) → cierra app
+                           Si No  → continúa app
+  
+  • Toque largo (≥800ms):  Sin acción (sin recuadro, sin selección)
+
+═══════════════════════════════════════════════════════════════════════════════
+                            ÁREAS PROTEGIDAS
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ Kt/V:       NO MODIFICADO (ktv_screen.py, ktv_controller.py)
+✓ Heparina:   NO MODIFICADO (heparin_config_screenV2.py)
+✓ NIBP:       NO MODIFICADO (nibp_config_screen.py, nibp_par_communication.py, etc.)
+✓ Alarmas:    Cambios SOLO en alarm_screen_config.py y alarm_config_manager.py
+
+═══════════════════════════════════════════════════════════════════════════════
+                            VALIDACIÓN FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Sintaxis Python:                 OK
+✅ Imports:                         OK
+✅ Métodos QPushButton:             Válidos
+✅ closeEvent(event=None):          Protegido
+✅ Restauración de defaults:        Sin error de cierre
+✅ Nombres en mensajes:             Implementados
+✅ Valores negativos:               Capturados
+✅ Temperatura (35-39):             Mantiene rango
+
+═══════════════════════════════════════════════════════════════════════════════
+                         DOCUMENTACIÓN DISPONIBLE
+═══════════════════════════════════════════════════════════════════════════════
+
+📄 CAMBIOS_CORRECCION_4.md         → Descripción general de las 4 correcciones
+📄 IMPLEMENTACION_DETALLADA.md     → Detalles técnicos y diagramas
+📄 CAMBIOS_FINALES.md              → Matriz de cambios y validación
+📄 QUICK_REFERENCE.txt             → Este documento
+
+═══════════════════════════════════════════════════════════════════════════════
+Estado: ✅ COMPLETADO Y VALIDADO | Fecha: 2026-11-10
+═══════════════════════════════════════════════════════════════════════════════

@@ -83,6 +83,15 @@ class AlarmConfigManager:
             return severity_from_map
         return "cian" # Fallback general si no hay nivel en el mapa
     
+    def get_parameter_name(self, tag: str) -> str:
+        """Devuelve el nombre legible del parámetro para mostrar en mensajes."""
+        info = self._get_default_info_from_variables_map(tag)
+        name = info.get("name", info.get("label", tag))
+        unit = info.get("unit", "")
+        if unit:
+            return f"{name} ({unit})"
+        return name
+    
     # ====================== ENABLED TAGS (Servicio Técnico) ======================
     def get_enabled_tags(self) -> List[str]:
         """Devuelve lista de tags habilitados"""
