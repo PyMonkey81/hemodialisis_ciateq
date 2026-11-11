@@ -61,6 +61,9 @@ class HeparinConfigScreen(QWidget):
         # Seguimiento del bolo pendiente (dosaje al momento de enviarlo y volumen solicitado)
         self._pending_bolus_start_dosage = None
         self._pending_bolus_volume = 0.0
+        
+        # Seguimiento del agotamiento de heparina
+        self._heparin_depleted_alert_shown = False
 
         
         self.setup_ui()
@@ -785,9 +788,9 @@ class HeparinConfigScreen(QWidget):
         return True
 
     def _heparin_remaining_ml(self) -> tuple[float, float, float]:
-        syringe_volume = safe_float(self.current_values.get("heparineSyringeVolume"), 0.0)
+        syringe_size = safe_float(self.current_values.get("heparineSyringeSize"), 20.0)
         current_dosage = safe_float(self.current_values.get("heparineCurrentDosage"), 0.0)
-        return syringe_volume - current_dosage, syringe_volume, current_dosage
+        return syringe_size - current_dosage, syringe_size, current_dosage
 
     def _show_bolus_message(self, message: str):
         alert_owner = self.parent_window if self.parent_window is not None else self
@@ -902,11 +905,45 @@ class HeparinConfigScreen(QWidget):
             finally:
                 alert_owner._operator_dialog_open = False
 
+    def _check_heparin_depletion(self):
+        remaining, syringe_size, current_dosage = self._heparin_remaining_ml()
+        
+        # Si el restante es 0 (agotado)
+        if remaining <= HEPARIN_BOLUS_EPSILON_ML:
+            if not self._heparin_depleted_alert_shown:
+                self._heparin_depleted_alert_shown = True
+                logger.info(
+                    "Heparina agotada (jeringa=%.2f ml, dosificado=%.2f ml, restante=%.2f ml)",
+                    syringe_size,
+                    current_dosage,
+                    remaining,
+                )
+                alert_owner = self.parent_window if self.parent_window is not None else self
+                if not getattr(alert_owner, "_operator_dialog_open", False):
+                    alert_owner._operator_dialog_open = True
+                    try:
+                        dialog = FloatingConfirmDialog(alert_owner)
+                        dialog.btn_cancel.hide()
+                        dialog.show_confirm(
+                            "La heparina de la jeringa se agotó.",
+                            accept_text="Aceptar",
+                        )
+                    finally:
+                        alert_owner._operator_dialog_open = False
+        else:
+            # Si el tag baja de 20, permitir mostrar el aviso nuevamente
+            syringe_size = safe_float(self.current_values.get("heparineSyringeSize"), 20.0)
+            if syringe_size < 20.0:
+                self._heparin_depleted_alert_shown = False
+
     def _adjust_syringe_volume(self):
         # Firmware: se cambio el bit que avanza el driver al volumen de jeringa.
         self.on_user_boolean_command("heparineSynringeAct", True)
 
     def on_user_input_setpoint(self, tag, value):
+        # Si cambian el volumen cargado, permitir mostrar el aviso de agotamiento nuevamente
+        if tag == "heparineSyringeVolume":
+            self._heparin_depleted_alert_shown = False
         self.request_setpoint_change.emit(tag, value)
 
     def on_user_boolean_command(self, tag, state):

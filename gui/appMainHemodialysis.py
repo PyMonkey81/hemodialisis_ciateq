@@ -2937,10 +2937,11 @@ class HemodialysisHMI(QMainWindow):
         # 2. Actualizar el valor centralizado (Ya convertido de manera segura)
         self.current_values[tag] = value
         
-        # 2.4 Verificar si un bolo de heparina se completó
+        # 2.4 Verificar si un bolo de heparina se completó y si la heparina se agotó
         if tag == "heparineCurrentDosage":
             if hasattr(self, 'heparin_config_screen') and self.heparin_config_screen is not None:
                 self.heparin_config_screen._check_pending_bolus_completed()
+                self.heparin_config_screen._check_heparin_depletion()
         
         # 2.5 Calcular PTM si cualquiera de las cuatro presiones cambió
         if tag in ("dialyPresIFProcessData", "dialyPresOFProcessData", 
