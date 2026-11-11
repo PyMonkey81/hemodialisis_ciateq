@@ -2581,6 +2581,8 @@ class HemodialysisHMI(QMainWindow):
             elif phase == TreatmentPhase.PAUSED:
                 enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio", 
                              "Alarmas", "Historial"]
+                if text == "Iniciar\nTratamiento":
+                    enabled = self._can_start_treatment()
 
             elif phase == TreatmentPhase.READY:
                 enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio", 
@@ -2652,7 +2654,12 @@ class HemodialysisHMI(QMainWindow):
             btn.setEnabled(False)
         elif phase == TreatmentPhase.PAUSED:
             btn.setText("Reanudar\nTratamiento")
-            btn.setEnabled(True)
+            can_resume = self._can_start_treatment()
+            btn.setEnabled(can_resume)
+            if can_resume:
+                btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
+            else:
+                btn.setStyleSheet(self.BTN_DISABLED_STYLE)
         elif phase == TreatmentPhase.READY:
             btn.setText("Iniciar\nTratamiento")
             btn.setEnabled(self._can_start_treatment())
