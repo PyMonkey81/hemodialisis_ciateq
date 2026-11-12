@@ -45,14 +45,21 @@ class AppStateManager(QObject):
 
     # ===================== MÉTODOS PRINCIPALES =====================
 
-    def set_phase(self, new_phase: TreatmentPhase, reason: str = "") -> bool:
-        """Cambia de fase de forma segura y emite señales"""
+    def set_phase(self, new_phase: TreatmentPhase, reason: str = "", force_from_hardware: bool = False) -> bool:
+        """
+        Cambia de fase de forma segura y emite señales.
+        
+        Si force_from_hardware es True, aplica el cambio sin validar transiciones
+        (usado cuando el cambio viene directamente de primingProcessStatus del hardware).
+        """
         if self.current_phase == new_phase:
             logger.debug("Estado igual, no se cambia")
             return True
         
         logger.info(f"[STATE CHANGE] {self.current_phase.name} → {new_phase.name} | {reason}")
-        if not self._is_valid_transition(self.current_phase, new_phase):
+        
+        # Solo valida si NO viene del hardware; si viene del hardware se aplica siempre
+        if not force_from_hardware and not self._is_valid_transition(self.current_phase, new_phase):
             logger.error(f"Transición inválida: {self.current_phase.name} → {new_phase.name} | {reason}")
             self.error_occurred.emit(f"Transición inválida: {self.current_phase.name} → {new_phase.name}")
             return False

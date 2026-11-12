@@ -13,14 +13,14 @@ class HardwareStateMapper:
     """Mapeo oficial y único de estados del hardware"""
 
     STATUS_TO_PHASE = {
-        1: TreatmentPhase.IDLE,
-        13: TreatmentPhase.READY,
-        14: TreatmentPhase.RUNNING,
-        15: TreatmentPhase.PAUSED,
-        16: TreatmentPhase.IDLE,
+        1: TreatmentPhase.IDLE,         # 1 = IDLE
+        13: TreatmentPhase.READY,       # 13 = READY
+        14: TreatmentPhase.RUNNING,     # 14 = RUNNING
+        15: TreatmentPhase.PAUSED,      # 15 = PAUSED
+        16: TreatmentPhase.IDLE,        # 16 = IDLE (detención)
     }
 
-    PREPARING_STATUSES = set(range(2, 13))
+    PREPARING_STATUSES = set(range(2, 13))  # 2-12 = PREPARING
 
     @staticmethod
     def get_phase(status_code: int, treatment_mode: int = 0) -> TreatmentPhase:

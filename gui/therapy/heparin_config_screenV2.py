@@ -1,5 +1,6 @@
 # gui/therapy/heparin_config_screenV2.py
 
+import time
 from PySide6.QtWidgets import (
     QComboBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGridLayout, QFrame, QSizePolicy, QCheckBox
@@ -61,6 +62,9 @@ class HeparinConfigScreen(QWidget):
         # Seguimiento del bolo pendiente (dosaje al momento de enviarlo y volumen solicitado)
         self._pending_bolus_start_dosage = None
         self._pending_bolus_volume = 0.0
+        self._pending_bolus_last_dosage = None  # Para detectar si no hay progreso
+        self._pending_bolus_last_progress_time = None  # Timestamp del último progreso
+        self._pending_bolus_no_progress_timeout = 20.0  # Liberar si 20s sin avance
         
         # Seguimiento del agotamiento de heparina
         self._heparin_depleted_alert_shown = False
@@ -791,7 +795,7 @@ class HeparinConfigScreen(QWidget):
         return True
 
     def _heparin_remaining_ml(self) -> tuple[float, float, float]:
-        syringe_size = safe_float(self.current_values.get("heparineSyringeSize"), 20.0)
+        syringe_size = safe_float(self.current_values.get("heparineSyringeVolume"), 20.0)
         current_dosage = safe_float(self.current_values.get("heparineCurrentDosage"), 0.0)
         return syringe_size - current_dosage, syringe_size, current_dosage
 
@@ -883,15 +887,58 @@ class HeparinConfigScreen(QWidget):
         self.on_user_boolean_command("heparinApplyBolusDose", True)
 
     def _check_pending_bolus_completed(self):
+        """
+        Verifica si el bolo se ha completado o liberado.
+        
+        Corrección 2: Si heparineCurrentDosage no avanza (no hay progreso en 20 segundos),
+        se libera el bolo y se puede mandar otro. El restante usa heparineSyringeVolume.
+        """
         if self._pending_bolus_start_dosage is None:
             return
+        
         current_dosage = safe_float(self.current_values.get("heparineCurrentDosage"), 0.0)
         delivered = current_dosage - self._pending_bolus_start_dosage
+        current_time = time.time()
+        
+        # ========== CORRECCIÓN 2: LIBERAR BOLO SI NO HAY PROGRESO EN 20 SEGUNDOS ==========
+        # Detectar si el dosaje no ha avanzado
+        if self._pending_bolus_last_dosage is not None:
+            if abs(current_dosage - self._pending_bolus_last_dosage) < HEPARIN_BOLUS_EPSILON_ML:
+                # No hay progreso: verificar si han pasado 20 segundos
+                if self._pending_bolus_last_progress_time is None:
+                    self._pending_bolus_last_progress_time = current_time
+                    logger.debug(f"[BOLUS-NO-PROGRESS] Iniciando conteo de tiempo sin progreso")
+                elif (current_time - self._pending_bolus_last_progress_time) >= self._pending_bolus_no_progress_timeout:
+                    # Han pasado 20 segundos sin progreso: liberar el bolo
+                    bolus_volume = self._pending_bolus_volume
+                    logger.warning(f"[BOLUS-RELEASED] Bolo liberado por falta de progreso en {self._pending_bolus_no_progress_timeout}s (solicitado={bolus_volume:.2f}ml, entregado={delivered:.2f}ml)")
+                    
+                    self._pending_bolus_start_dosage = None
+                    self._pending_bolus_volume = 0.0
+                    self._pending_bolus_last_dosage = None
+                    self._pending_bolus_last_progress_time = None
+                    
+                    self._show_bolus_message(
+                        f"Bolo de {bolus_volume:.2f} ml no se completó.\n"
+                        f"Se entregaron {delivered:.2f} ml.\n"
+                        f"Bolo liberado. Puede intentar nuevamente."
+                    )
+                    return
+            else:
+                # Hay progreso: reiniciar tiempo
+                self._pending_bolus_last_progress_time = None
+                logger.debug(f"[BOLUS-PROGRESS] Progreso detectado: {delivered:.2f} ml / {self._pending_bolus_volume:.2f} ml")
+        
+        self._pending_bolus_last_dosage = current_dosage
+        
+        # ========== LÓGICA ORIGINAL: BOLO COMPLETADO ==========
         if delivered >= self._pending_bolus_volume - HEPARIN_BOLUS_EPSILON_ML:
             bolus_volume = self._pending_bolus_volume
             # Limpiar antes de mostrar el diálogo modal para evitar re-disparos
             self._pending_bolus_start_dosage = None
             self._pending_bolus_volume = 0.0
+            self._pending_bolus_last_dosage = None
+            self._pending_bolus_last_progress_time = None
             logger.info("Bolo completado (bolo=%.2f ml, dosificado=%.2f ml)", bolus_volume, delivered)
 
             alert_owner = self.parent_window if self.parent_window is not None else self

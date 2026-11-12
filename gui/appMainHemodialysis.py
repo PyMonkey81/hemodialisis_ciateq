@@ -2847,7 +2847,8 @@ class HemodialysisHMI(QMainWindow):
         Actualiza el encabezado en tiempo real basado en el estado del llenado de filtro.
         
         Lógica:
-        - Estado 7 (filtro no confirmado): "COLOCAR FILTRO"
+        - Estado 7 sin condiciones: "ESPERANDO CONDICIONES"
+        - Estado 7 con condiciones: "COLOCAR FILTRO"
         - Estado 13 (READY) con menos de 90 s: "PREPARANDO..."
         - Estado 13 (READY) con 90 s+ y _can_start_treatment() es True: "LISTO PARA\nINICIAR"
         - Si _can_start_treatment() es False, mantener "PREPARANDO..."
@@ -2864,7 +2865,21 @@ class HemodialysisHMI(QMainWindow):
         
         # Estado 7: Filtro no confirmado
         if status_code == 7:
-            desired_text = "COLOCAR FILTRO"
+            # Verificar si faltan condiciones
+            temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+            temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+            cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+            cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+            
+            temp_ok = (temp_set - 5 <= temp_actual <= temp_set + 3.0)
+            cond_ok = abs(cond_actual - cond_set) <= 2.0
+            
+            if not temp_ok or not cond_ok:
+                # Faltan condiciones
+                desired_text = "ESPERANDO\nCONDICIONES"
+            else:
+                # Condiciones en rango
+                desired_text = "COLOCAR FILTRO"
         # Estado 13: READY
         elif status_code == 13:
             # Si no estamos en la espera del llenado, no hacer nada
@@ -3150,6 +3165,14 @@ class HemodialysisHMI(QMainWindow):
 
             if status_code != self._last_priming_status:
                 logger.info(f"Cambio de estado hardware: {self._last_priming_status} → {status_code}")
+                
+                # ========== CORRECCIÓN 2: RESETEO DE TIMER DE 90S ==========
+                # Si el estado sale de 13 o vuelve a 7, reinicia el conteo
+                prev_status = self._last_priming_status
+                if (prev_status == 13 and status_code != 13) or (status_code == 7 and prev_status != 7):
+                    self._reset_filter_fill_flags()
+                    logger.info(f"[FILTER-RESET] Estado cambió de {prev_status} → {status_code}. Timer de 90s reiniciado.")
+                
                 self._last_priming_status = status_code
 
                 if not hasattr(self, "current_process_status") or self.current_process_status is None:
@@ -3179,7 +3202,7 @@ class HemodialysisHMI(QMainWindow):
                 if new_phase != old_phase:
                     if not (old_phase == TreatmentPhase.CLEANING and new_phase != TreatmentPhase.CLEANING):
                         reason = f"Hardware → {display_text}"
-                        self.state.set_phase(new_phase, reason)
+                        self.state.set_phase(new_phase, reason, force_from_hardware=True)
                         if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
                             self.screen_state_manager.update_all_screens(new_phase)
 
@@ -3232,11 +3255,29 @@ class HemodialysisHMI(QMainWindow):
                 if timer_manager is not None:
                     timer_manager.sync_with_hardware(status_code)
 
-                # Diálogo modal para confirmación de filtro (estado 7)
-                if status_code == 7 and self._last_status_prompt != 7:
-                    # Usar QTimer.singleShot para no anidar diálogo dentro de lectura serial
-                    QTimer.singleShot(0, self._show_filter_fill_dialog_main)
-                    self._last_status_prompt = 7
+                # ========== CORRECCIÓN 1: DIÁLOGO DE FILTRO SOLO SI CONDICIONES ESTÁN EN RANGO ==========
+                # No marcar _last_status_prompt si las condiciones no están
+                # Cuando temp y cond entran en rango y estado sigue en 7, abrir diálogo
+                # Si ya se confirmó y estado sigue en 7, permite confirmar otra vez
+                if status_code == 7:
+                    # Verificar condiciones
+                    temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+                    temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+                    cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+                    cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+                    
+                    temp_ok = (temp_set - 5 <= temp_actual <= temp_set + 3.0)
+                    cond_ok = abs(cond_actual - cond_set) <= 2.0
+                    
+                    if temp_ok and cond_ok:
+                        # Condiciones en rango: mostrar diálogo (permitir re-confirmar)
+                        if self._last_status_prompt != 7:
+                            QTimer.singleShot(0, self._show_filter_fill_dialog_main)
+                            self._last_status_prompt = 7
+                            logger.info("[FILTER-DIALOG] Condiciones OK. Mostrando diálogo de confirmación.")
+                    else:
+                        # Faltan condiciones: no mostrar diálogo, NO marcar _last_status_prompt
+                        logger.debug(f"[FILTER-DIALOG] Condiciones fuera de rango. Temp OK={temp_ok}, Cond OK={cond_ok}. Esperando condiciones.")
                 elif status_code != 7:
                     self._last_status_prompt = None
 
