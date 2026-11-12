@@ -313,6 +313,23 @@ class AlarmScreenConfig(QWidget):
             # Venosa: siempre están en la pantalla
             ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
             ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
+
+            # Conductividad: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "dialyConductHiLimitBand" in self.inputs and "dialyConductLoLimitBand" in self.inputs:
+                cond_min = float(self.inputs["dialyConductLoLimitBand"]['min'].text())
+                cond_max = float(self.inputs["dialyConductHiLimitBand"]['max'].text())
+            else:
+                cond_min = None
+                cond_max = None
+
+            # Agua: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "dialyLineWaterPresHiLimit" in self.inputs and "dialyLineWaterPresLoLimit" in self.inputs:
+                water_min = float(self.inputs["dialyLineWaterPresLoLimit"]['min'].text())
+                water_max = float(self.inputs["dialyLineWaterPresHiLimit"]['max'].text())
+            else:
+                water_min = None
+                water_max = None
+            
             
             # PTM: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
             if "CALC_PTM" in self.inputs:
@@ -323,11 +340,27 @@ class AlarmScreenConfig(QWidget):
                 ptm_min = None
                 ptm_max = None
             
+            # Agua: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "dialyLineWaterPresData" in self.inputs:
+                water_min = float(self.inputs["dialyLineWaterPresData"]['min'].text())
+                water_max = float(self.inputs["dialyLineWaterPresData"]['max'].text())
+            else:
+                water_min = None
+                water_max = None
+            
+            # Conductividad: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "dialyCondVariableData" in self.inputs:
+                cond_min = float(self.inputs["dialyCondVariableData"]['min'].text())
+                cond_max = float(self.inputs["dialyCondVariableData"]['max'].text())
+            else:
+                cond_min = None
+                cond_max = None
+            
             # Llamar al método que escribe los tags al dispositivo
             if self.write_setpoint_callback:
                 # El callback es _emit_pressure_alarm_limits
                 # Los 0 se ignoran (no se escriben tags con ese valor)
-                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max, water_min, water_max, cond_min, cond_max)
             
         except (ValueError, KeyError) as e:
             logger.warning(f"Error leyendo valores de casillas para escribir alarmas: {e}")
@@ -380,9 +413,25 @@ class AlarmScreenConfig(QWidget):
                 ptm_min = None
                 ptm_max = None
             
+            # Agua: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "dialyLineWaterPresData" in self.inputs:
+                water_min = float(self.inputs["dialyLineWaterPresData"]['min'].text())
+                water_max = float(self.inputs["dialyLineWaterPresData"]['max'].text())
+            else:
+                water_min = None
+                water_max = None
+            
+            # Conductividad: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "dialyCondVariableData" in self.inputs:
+                cond_min = float(self.inputs["dialyCondVariableData"]['min'].text())
+                cond_max = float(self.inputs["dialyCondVariableData"]['max'].text())
+            else:
+                cond_min = None
+                cond_max = None
+            
             # Llamar al callback para escribir los límites al dispositivo
             if self.write_setpoint_callback:
-                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max, water_min, water_max, cond_min, cond_max)
             
         except (ValueError, KeyError) as e:
             logger.warning(f"Error leyendo valores de casillas para escribir alarmas en restore_all_defaults: {e}")

@@ -3840,11 +3840,14 @@ class HemodialysisHMI(QMainWindow):
             logger.error(f"Error escribiendo setpoint '{tag}': {e}")
             return False
 
-    def _emit_pressure_alarm_limits(self, art_min, art_max, ven_min, ven_max, ptm_min, ptm_max):
-        """Escribe los 6 límites de presión al dispositivo via write_double.
+    def _emit_pressure_alarm_limits(self, art_min, art_max, ven_min, ven_max, ptm_min, ptm_max, water_min=None, water_max=None, cond_min=None, cond_max=None):
+        """Escribe los límites de presión y otros parámetros al dispositivo via write_double.
         art_min/max: límites arteriales
         ven_min/max: límites venosos
         ptm_min/max: límites de presión transmembrana (None si no está en pantalla)
+        water_min/max: límites de presión de agua (None si no está en pantalla)
+        cond_min/max: límites de conductividad (None si no está en pantalla)
+        None no se escribe, pero 0 sí se escribe.
         """
         pares = (
             ("artPresCircAlarmLoLimData", art_min),
@@ -3853,6 +3856,10 @@ class HemodialysisHMI(QMainWindow):
             ("venPresCircAlarmHiLimData", ven_max),
             ("membPressAlarmLoLimData", ptm_min),
             ("membPressAlarmHiLimData", ptm_max),
+            ("dialyLineWaterPresLoLimit", water_min),
+            ("dialyLineWaterPresHiLimit", water_max),
+            ("dialyConductLoLimitBand", cond_min),
+            ("dialyConductHiLimitBand", cond_max),
         )
         if not self.serial_comm or not self.serial_comm.is_connected:
             logger.warning("ALARMAS NO ENVIADAS: serial del control desconectado")
@@ -3867,10 +3874,10 @@ class HemodialysisHMI(QMainWindow):
                 logger.error("Tag de alarma no está en el mapa: %s", tag)
                 continue
             self.serial_comm.write_double(group, address, float(value))
-            logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag, hex(group), address, value)
+            logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag, hex(group), hex(address), value)
 
     def _write_pressure_limits_on_connection(self):
-        """Escribe límites de presión al conectar leyendo SOLO del cache.
+        """Escribe límites de presión, agua y conductividad al conectar leyendo SOLO del cache.
         Si una fila no está guardada, NO la escribe."""
         if not self.serial_comm or not self.serial_comm.is_connected:
             return
@@ -3887,6 +3894,8 @@ class HemodialysisHMI(QMainWindow):
                 "bloodArteryPressureData": [("artPresCircAlarmLoLimData", 0), ("artPresCircAlarmHiLimData", 1)],
                 "bloodVenousPressureData": [("venPresCircAlarmLoLimData", 0), ("venPresCircAlarmHiLimData", 1)],
                 "CALC_PTM": [("membPressAlarmLoLimData", 0), ("membPressAlarmHiLimData", 1)],
+                "dialyLineWaterPresData": [("dialyLineWaterPresLoLimit", 0), ("dialyLineWaterPresHiLimit", 1)],
+                "dialyCondVariableData": [("dialyConductLoLimitBand", 0), ("dialyConductHiLimitBand", 1)],
             }
             
             for tag_key, tags_to_emit in tags_to_write.items():
@@ -3899,7 +3908,7 @@ class HemodialysisHMI(QMainWindow):
                             continue
                         val = min_val if idx == 0 else max_val
                         self.serial_comm.write_double(group, address, float(val))
-                        logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag_name, hex(group), address, val)
+                        logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag_name, hex(group), hex(address), val)
         except Exception as e:
             logger.warning(f"Error escribiendo límites de presión al conectar: {e}")
 
