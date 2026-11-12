@@ -603,6 +603,7 @@ class HemodialysisHMI(QMainWindow):
         self._operator_alert_cmd = None
         self._operator_dialog_open = False
         self._last_status_prompt = None
+        self._filter_fill_button_sent = False  # Trackear si el pulso fue enviado
 
         self.led_bar = LedBarController()     
         self.led_bar.start()
@@ -1368,13 +1369,15 @@ class HemodialysisHMI(QMainWindow):
 
     def _show_filter_fill_dialog_main(self):
         """
-        Muestra diálogo modal para confirmación de llenado de filtro.
+        Muestra diálogo modal para confirmación de llenado de filtro con validación.
         Llamado desde primingProcessStatus = 7 con QTimer.singleShot.
         
         Flujo:
         1. Primer diálogo: "Coloque el filtro..." (solo Aceptar, sin Cancelar)
         2. Si acepta → Segundo diálogo: "¿Confirma...?" (Aceptar + Cancelar)
-           - Aceptar: manda dialyFilterFillButton=True, llama _start_filter()
+           - Aceptar: Valida temperatura y conductividad en banda
+             - Si OK: manda dialyFilterFillButton=True, llama _start_filter()
+             - Si NO: avisa, NO envía comando, mantiene ESPERANDO CONDICIONES
            - Cancelar: vuelve al primer diálogo
         """
         def show_first_dialog():
@@ -1400,7 +1403,7 @@ class HemodialysisHMI(QMainWindow):
             show_second_dialog()
         
         def show_second_dialog():
-            """Segundo paso: confirmación con opción de cancelar"""
+            """Segundo paso: confirmación con validación de conductividad"""
             dialog = FloatingConfirmDialog(self)
             
             # Mostrar el botón Cancel en el segundo diálogo
@@ -1414,10 +1417,47 @@ class HemodialysisHMI(QMainWindow):
             )
             
             if confirmed:
-                # Aceptar: ejecutar el llenado
+                # ========== CORRECCIÓN: Validar antes de enviar comando ==========
+                # Releer valores de conductividad y temperatura
+                temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+                temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+                cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+                cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+                cond_lo_band = self.current_values.get("dialyConductLoLimitBand", 0.0)
+                cond_hi_band = self.current_values.get("dialyConductHiLimitBand", 0.0)
+                
+                # Verificar temperatura
+                temp_ok = (temp_set - 5 <= temp_actual <= temp_set + 3.0)
+                
+                # Verificar conductividad dentro de banda
+                # Ventana: setpoint + banda_baja a setpoint + banda_alta
+                cond_lo = cond_set + cond_lo_band
+                cond_hi = cond_set + cond_hi_band
+                cond_ok = (cond_lo <= cond_actual <= cond_hi)
+                
+                logger.info(f"[FILTER-VALIDATION] Temp: {temp_actual:.1f}°C (set={temp_set:.1f}±5) OK={temp_ok}, Cond: {cond_actual:.2f} mS/cm (banda {cond_lo:.2f}-{cond_hi:.2f}) OK={cond_ok}")
+                
+                if not temp_ok:
+                    # Falta temperatura
+                    logger.warning(f"[FILTER-VALIDATION] Rechazo: Temperatura fuera de rango ({temp_actual:.1f}°C vs {temp_set:.1f}°C±5)")
+                    self._show_filter_validation_error("Temperatura fuera de rango.\nAjuste el calentamiento.")
+                    self._last_status_prompt = None  # Resetear para re-preguntar cuando esté OK
+                    return
+                
+                if not cond_ok:
+                    # Conductividad fuera de banda
+                    logger.warning(f"[FILTER-VALIDATION] Rechazo: Conductividad fuera de banda ({cond_actual:.2f} mS/cm vs {cond_lo:.2f}-{cond_hi:.2f})")
+                    self._show_filter_validation_error(f"Conductividad fuera de rango.\nBanda: {cond_lo:.2f}-{cond_hi:.2f} mS/cm\nMedida: {cond_actual:.2f} mS/cm")
+                    self._last_status_prompt = None  # Resetear para re-preguntar cuando esté OK
+                    return
+                
+                # Ambas condiciones OK: enviar comando
+                logger.info("[FILTER-VALIDATION] Validación OK. Enviando dialyFilterFillButton=True")
+                self._filter_fill_button_sent = True  # Marcar que se envió el pulso
                 self._write_boolean_command("dialyFilterFillButton", True)
                 self._start_filter()
-                logger.info("Llenado de filtro confirmado por usuario")
+                self._last_status_prompt = 7  # Marcar solo si se envió
+                logger.info("Llenado de filtro confirmado por usuario y validado")
             else:
                 # Cancelar: volver al primer diálogo
                 logger.info("Usuario canceló; mostrando primer diálogo nuevamente")
@@ -1425,6 +1465,13 @@ class HemodialysisHMI(QMainWindow):
         
         # Iniciar con el primer diálogo
         show_first_dialog()
+    
+    def _show_filter_validation_error(self, message: str):
+        """Muestra error de validación al usuario"""
+        dialog = FloatingConfirmDialog(self)
+        if hasattr(dialog, 'btn_cancel'):
+            dialog.btn_cancel.hide()
+        dialog.show_confirm(message, accept_text="Aceptar")
 
     def pause_treatment(self):
         """Delegado al TreatmentController"""
@@ -2842,6 +2889,42 @@ class HemodialysisHMI(QMainWindow):
         self.filter_fill_waiting = False
         logger.info("Flags de llenado de filtro reiniciados")
 
+    def _check_filter_fill_conditions_in_state_7(self):
+        """
+        Verifica si estamos en estado 7 y reevalúa las condiciones de temperatura y conductividad.
+        Si las condiciones son OK y no fue preguntado aún, muestra el cuadro de filtro.
+        Si las condiciones faltan, resetea _last_status_prompt para poder preguntar de nuevo.
+        """
+        status_code = self._last_priming_status
+        if status_code != 7:
+            return
+        
+        # Verificar condiciones
+        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
+        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
+        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
+        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+        cond_lo_band = self.current_values.get("dialyConductLoLimitBand", 0.0)
+        cond_hi_band = self.current_values.get("dialyConductHiLimitBand", 0.0)
+        
+        temp_ok = (temp_set - 5 <= temp_actual <= temp_set + 3.0)
+        
+        # Ventana: setpoint + banda_baja a setpoint + banda_alta
+        cond_lo = cond_set + cond_lo_band
+        cond_hi = cond_set + cond_hi_band
+        cond_ok = (cond_lo <= cond_actual <= cond_hi)
+        
+        if temp_ok and cond_ok:
+            # Condiciones en rango: mostrar diálogo si no fue preguntado aún
+            if self._last_status_prompt != 7:
+                QTimer.singleShot(0, self._show_filter_fill_dialog_main)
+                logger.info("[FILTER-DIALOG] Condiciones OK (actualización de sensores). Mostrando diálogo de confirmación.")
+        else:
+            # Faltan condiciones: resetear para poder preguntar de nuevo
+            if self._last_status_prompt == 7:
+                self._last_status_prompt = None
+                logger.info(f"[FILTER-DIALOG] Condiciones perdidas mientras estaba marcado. Temp OK={temp_ok}, Cond OK={cond_ok}. Resetado para re-preguntar.")
+
     def _update_header_during_filter_fill(self):
         """
         Actualiza el encabezado en tiempo real basado en el estado del llenado de filtro.
@@ -2870,9 +2953,15 @@ class HemodialysisHMI(QMainWindow):
             temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
             cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
             cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+            cond_lo_band = self.current_values.get("dialyConductLoLimitBand", 0.0)
+            cond_hi_band = self.current_values.get("dialyConductHiLimitBand", 0.0)
             
             temp_ok = (temp_set - 5 <= temp_actual <= temp_set + 3.0)
-            cond_ok = abs(cond_actual - cond_set) <= 2.0
+            
+            # Ventana: setpoint + banda_baja a setpoint + banda_alta
+            cond_lo = cond_set + cond_lo_band
+            cond_hi = cond_set + cond_hi_band
+            cond_ok = (cond_lo <= cond_actual <= cond_hi)
             
             if not temp_ok or not cond_ok:
                 # Faltan condiciones
@@ -3120,6 +3209,13 @@ class HemodialysisHMI(QMainWindow):
             else:
                 # Si no hay lecturas válidas, usar la lectura actual
                 self.dialyTempIFProcessData_avg = value
+            
+            # Verificar si estamos en estado 7 y reevaluar condiciones
+            self._check_filter_fill_conditions_in_state_7()
+        
+        # También verificar cuando cambia conductividad
+        if tag == "dialyCondVariableData":
+            self._check_filter_fill_conditions_in_state_7()
 
         # Manejo del tratamiento seleccionado
         if tag == "treatmentModeSelection":
@@ -3171,7 +3267,8 @@ class HemodialysisHMI(QMainWindow):
                 prev_status = self._last_priming_status
                 if (prev_status == 13 and status_code != 13) or (status_code == 7 and prev_status != 7):
                     self._reset_filter_fill_flags()
-                    logger.info(f"[FILTER-RESET] Estado cambió de {prev_status} → {status_code}. Timer de 90s reiniciado.")
+                    self._last_status_prompt = None  # Resetear para permitir preguntar de nuevo
+                    logger.info(f"[FILTER-RESET] Estado cambió de {prev_status} → {status_code}. Timer de 90s y marcas de confirmación reiniciados.")
                 
                 self._last_priming_status = status_code
 
@@ -3255,30 +3352,49 @@ class HemodialysisHMI(QMainWindow):
                 if timer_manager is not None:
                     timer_manager.sync_with_hardware(status_code)
 
-                # ========== CORRECCIÓN 1: DIÁLOGO DE FILTRO SOLO SI CONDICIONES ESTÁN EN RANGO ==========
-                # No marcar _last_status_prompt si las condiciones no están
-                # Cuando temp y cond entran en rango y estado sigue en 7, abrir diálogo
-                # Si ya se confirmó y estado sigue en 7, permite confirmar otra vez
+                # ========== CORRECCIÓN: DIÁLOGO DE FILTRO CON PROTECCIÓN COMPLETA ==========
+                # 1. No marcar _last_status_prompt si no se envió el pulso
+                # 2. Detectar si el pulso se perdió (se quedó en 7 o salió y regresó)
+                # 3. Re-abrir cuando conductividad entra en banda
                 if status_code == 7:
                     # Verificar condiciones
                     temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
                     temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
                     cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
                     cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
+                    cond_lo_band = self.current_values.get("dialyConductLoLimitBand", 0.0)
+                    cond_hi_band = self.current_values.get("dialyConductHiLimitBand", 0.0)
                     
                     temp_ok = (temp_set - 5 <= temp_actual <= temp_set + 3.0)
-                    cond_ok = abs(cond_actual - cond_set) <= 2.0
+                    
+                    # Ventana: setpoint + banda_baja a setpoint + banda_alta
+                    cond_lo = cond_set + cond_lo_band
+                    cond_hi = cond_set + cond_hi_band
+                    cond_ok = (cond_lo <= cond_actual <= cond_hi)
+                    
+                    # Detectar si el pulso se perdió (se quedó en 7 o regresó)
+                    if self._filter_fill_button_sent and status_code == 7:
+                        # El pulso fue enviado pero el control se quedó en 7
+                        logger.warning("[FILTER-LOST] Pulso perdido: control en estado 7 tras envío")
+                        self._filter_fill_button_sent = False
+                        self._last_status_prompt = None  # Borrar marca y volver a preguntar
                     
                     if temp_ok and cond_ok:
-                        # Condiciones en rango: mostrar diálogo (permitir re-confirmar)
+                        # Condiciones en rango: mostrar diálogo si no fue preguntado aún
                         if self._last_status_prompt != 7:
                             QTimer.singleShot(0, self._show_filter_fill_dialog_main)
-                            self._last_status_prompt = 7
                             logger.info("[FILTER-DIALOG] Condiciones OK. Mostrando diálogo de confirmación.")
+                        # No marcar _last_status_prompt aquí; se marca solo si el pulso se envía
                     else:
                         # Faltan condiciones: no mostrar diálogo, NO marcar _last_status_prompt
+                        self._last_status_prompt = None
                         logger.debug(f"[FILTER-DIALOG] Condiciones fuera de rango. Temp OK={temp_ok}, Cond OK={cond_ok}. Esperando condiciones.")
                 elif status_code != 7:
+                    # Si salió de estado 7, detectar cambio
+                    if self._filter_fill_button_sent:
+                        # El pulso fue enviado pero el estado cambió
+                        logger.info(f"[FILTER-LOST] Estado cambió de 7 a {status_code}: pulso perdido")
+                        self._filter_fill_button_sent = False
                     self._last_status_prompt = None
 
                 # ==================== COLORES ====================
