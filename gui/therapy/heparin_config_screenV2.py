@@ -760,6 +760,9 @@ class HeparinConfigScreen(QWidget):
 
         # Verificar si el bolo pendiente ya se dosificó por completo
         self._check_pending_bolus_completed()
+        
+        # Verificar si la heparina de la jeringa se agotó
+        self._check_heparin_depletion()
 
     def _syringe_max_volume_ml(self) -> float:
         # Jeringa siempre fija a 20 ml
@@ -908,8 +911,9 @@ class HeparinConfigScreen(QWidget):
     def _check_heparin_depletion(self):
         remaining, syringe_size, current_dosage = self._heparin_remaining_ml()
         
-        # Si el restante es 0 (agotado)
-        if remaining <= HEPARIN_BOLUS_EPSILON_ML:
+        # Si el restante es 0 (agotado) y heparineSyringeVolume está configurado
+        syringe_volume = safe_float(self.current_values.get("heparineSyringeVolume"), 0.0)
+        if syringe_volume > 0 and remaining <= HEPARIN_BOLUS_EPSILON_ML:
             if not self._heparin_depleted_alert_shown:
                 self._heparin_depleted_alert_shown = True
                 logger.info(
@@ -931,9 +935,8 @@ class HeparinConfigScreen(QWidget):
                     finally:
                         alert_owner._operator_dialog_open = False
         else:
-            # Si el tag baja de 20, permitir mostrar el aviso nuevamente
-            syringe_size = safe_float(self.current_values.get("heparineSyringeSize"), 20.0)
-            if syringe_size < 20.0:
+            # Si el dosaje cae por debajo de 20, permitir mostrar el aviso nuevamente
+            if current_dosage < 20.0:
                 self._heparin_depleted_alert_shown = False
 
     def _adjust_syringe_volume(self):

@@ -1,107 +1,5 @@
 [
     {
-        "time": "19:28:55",
-        "text": "NORMALIZADA: Detector Burbuja Aire en Sangre",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "19:30:41",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "19:30:41",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "19:30:41",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "19:30:41",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "19:30:42",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "19:30:42",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "19:30:43",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "19:30:43",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "19:33:20",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "19:33:20",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "19:33:20",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "19:33:20",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "19:33:22",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "19:33:22",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "19:33:22",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
-        "time": "19:33:22",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 35.0,
-        "level": "info"
-    },
-    {
         "time": "19:35:39",
         "text": "ACTIVADA - Setpoint temperatura",
         "value": 0.0,
@@ -5997,6 +5895,108 @@
         "time": "12:08:55",
         "text": "NORMALIZADA: Temperatura",
         "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:27",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:27",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "15:50:27",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:27",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "15:50:27",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:27",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "amarillo"
+    },
+    {
+        "time": "15:50:28",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:28",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "15:50:28",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:28",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "15:50:28",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:28",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "amarillo"
+    },
+    {
+        "time": "15:50:28",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:28",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:28",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:28",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "15:50:39",
+        "text": "Operador reconoci\u00f3 alarmas activas y silenci\u00f3 buzzer",
+        "value": null,
         "level": "info"
     }
 ]
