@@ -267,6 +267,36 @@ class LogoButton(QPushButton):
         pass
 
 
+class ClickableTreatmentLabel(QLabel):
+    """Etiqueta clickeable para el modo de tratamiento en el header.
+    Responde a clics y toques, abriendo la pantalla de tipo de tratamiento
+    solo si las condiciones de validación se cumplen."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.click_callback = None
+        self.is_enabled = True
+        self.setCursor(Qt.PointingHandCursor)
+    
+    def set_callback(self, callback):
+        """Establece el callback a ejecutar al hacer clic."""
+        self.click_callback = callback
+    
+    def set_enabled(self, enabled: bool):
+        """Activa o desactiva la interactividad de la etiqueta."""
+        self.is_enabled = enabled
+        if enabled:
+            self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.setCursor(Qt.ArrowCursor)
+    
+    def mousePressEvent(self, event):
+        """Detecta clics/toques en la etiqueta."""
+        if self.is_enabled and self.click_callback:
+            self.click_callback()
+        super().mousePressEvent(event)
+
+
 class HemodialysisHMI(QMainWindow):
 
     # Screen indices
@@ -740,6 +770,7 @@ class HemodialysisHMI(QMainWindow):
         # Header update timers
         self.refresh_alarms_label()
         self.refresh_treatment_selected()
+        self._update_treatment_mode_label_state()
         
         self.serial_comm.connect_port()
         self.serial_comm.start_reading()
@@ -1068,7 +1099,7 @@ class HemodialysisHMI(QMainWindow):
         self.status_label.setStyleSheet(self._build_header_label_style("#2bbd37"))
         header_layout.addWidget(self.status_label)
 
-        self.treatment_mode_selected = QLabel("")
+        self.treatment_mode_selected = ClickableTreatmentLabel("")
         self.current_process_status = QLabel("PROCESO: --")
         self.remaining_time_display = QLabel(
             "<div style='text-align:center;'>"
@@ -1087,6 +1118,9 @@ class HemodialysisHMI(QMainWindow):
         self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#06298a"))
         self.remaining_time_display.setStyleSheet(self._build_header_label_style("#06298a"))
         self.date_time_label.setStyleSheet(self._build_header_label_style("#06298a"))
+
+        # Configurar callback para la etiqueta clickeable
+        self.treatment_mode_selected.set_callback(self._on_treatment_mode_label_click)
 
         for lbl in [self.current_process_status, self.treatment_mode_selected, self.remaining_time_display, self.date_time_label]:
             lbl.setFixedSize(330, 120)
@@ -1165,7 +1199,6 @@ class HemodialysisHMI(QMainWindow):
         nav_items = [
             ("Inicio",              "#06298a", self.show_home_screen),
             ("Resumen\nTerapia",            "#06298a", self.show_dialysis_screen),
-            ("Tipo de\nTratamiento","#06298a", self.show_treatment_mode_screen), 
             ("Iniciar\nTratamiento", "#39ec21", self.start_treatment),
             ("Limpieza",            "#06298a", self.show_cleaning_screen),
             ("Servicio", "#06298a", self.show_options_screen),
@@ -1766,7 +1799,32 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.treatment_mode_screen)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Tipo de\nTratamiento") 
+
+    def _on_treatment_mode_label_click(self):
+        """Callback para el clic en la etiqueta de modo de tratamiento.
+        Valida condiciones antes de abrir la pantalla."""
+        
+        # Validar conexión serial
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            return
+        
+        # Validar fase
+        phase = self.state.current_phase
+        if phase == TreatmentPhase.IDLE:
+            # Permitido en IDLE
+            pass
+        elif phase == TreatmentPhase.PREPARING:
+            # Permitido en PREPARING solo si el cebado no está activo
+            status = int(self.current_values.get("primingProcessStatus", 0))
+            if self.hardware_mapper.is_preparing(status):
+                # Cebado activo, no abre
+                return
+        else:
+            # Fases no permitidas: READY, RUNNING, PAUSED, CLEANING
+            return
+        
+        # Si pasa todas las validaciones, abre la pantalla
+        self.show_treatment_mode_screen()
 
     def show_cleaning_screen(self):
         self.screen_stack.setCurrentWidget(self.cleaning_screen)
@@ -2475,7 +2533,6 @@ class HemodialysisHMI(QMainWindow):
         mapping = {
             self._main_screen: "Inicio",
             self.dialysis_screen: "Resumen\nTerapia",
-            self.treatment_mode_screen: "Tipo de\nTratamiento",
             self.cleaning_screen: "Limpieza",
             self.options_screen: "Servicio",
             self.alarms_screen: "Alarmas",
@@ -2512,7 +2569,7 @@ class HemodialysisHMI(QMainWindow):
         for text, btn in self.navigation_buttons.items():
             if text == active_button_text:
                 btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
-            elif text in ["Inicio", "Resumen\nTerapia", "Tipo de\nTratamiento", 
+            elif text in ["Inicio", "Resumen\nTerapia", 
                           "Limpieza", "Servicio", "Alarmas", "Historial"]:
                 # Solo restauramos estilo si el botón está habilitado
                 if btn.isEnabled():
@@ -2558,18 +2615,12 @@ class HemodialysisHMI(QMainWindow):
             elif text == "Limpieza":
                 enabled = (treatment_mode == 3)
 
-            elif text == "Tipo de\nTratamiento":
-               
-                enabled = phase in (TreatmentPhase.IDLE, TreatmentPhase.PREPARING)
-           
-
             elif text == "Inicio":
                 enabled = phase in (TreatmentPhase.IDLE, TreatmentPhase.PREPARING)
 
             elif text == "Iniciar\nTratamiento":
                 enabled = phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED)
             
-           
 
             # ==================== RESTRICCIONES POR ESTADO ====================
             if phase == TreatmentPhase.CLEANING:
@@ -2591,7 +2642,7 @@ class HemodialysisHMI(QMainWindow):
                     # enabled = temp_ok and cond_ok
                     enabled = self._can_start_treatment()
                 # Deshabilitamos explícitamente estos
-                if text in ["Inicio", "Tipo de\nTratamiento", "Limpieza"]:
+                if text in ["Inicio", "Limpieza"]:
                     enabled = False
 
             elif phase == TreatmentPhase.PREPARING:
@@ -2605,7 +2656,7 @@ class HemodialysisHMI(QMainWindow):
                     enabled = True
 
             elif phase == TreatmentPhase.IDLE:
-                enabled = text in ["Resumen\nTerapia", "Tipo de\nTratamiento", "Inicio", 
+                enabled = text in ["Resumen\nTerapia", "Inicio", 
                                  "Servicio", "Alarmas", "Historial"]
                 if text == "Limpieza":
                     enabled = (treatment_mode == 3)
@@ -2631,6 +2682,9 @@ class HemodialysisHMI(QMainWindow):
 
         # Actualizar texto del botón principal
         self._update_buttons_state()
+        
+        # Actualizar estado de la etiqueta de modo de tratamiento
+        self._update_treatment_mode_label_state()
     
     def _handle_disconnected_state(self):
         """Estado sin conexión"""
@@ -2667,6 +2721,36 @@ class HemodialysisHMI(QMainWindow):
             btn.setText("Iniciar\nTratamiento")
             btn.setEnabled(False)
     
+    def _update_treatment_mode_label_state(self):
+        """Actualiza el estado (color, cursor) de la etiqueta de modo de tratamiento.
+        Azul y clickeable si se puede cambiar, gris y no clickeable si no."""
+        
+        # Validar conexión serial
+        if not self.serial_comm or not self.serial_comm.is_connected:
+            # Sin conexión: gris, no clickeable
+            self.treatment_mode_selected.set_enabled(False)
+            self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#6b7280"))
+            return
+        
+        # Validar fase
+        phase = self.state.current_phase
+        can_change = False
+        
+        if phase == TreatmentPhase.IDLE:
+            can_change = True
+        elif phase == TreatmentPhase.PREPARING:
+            # Solo si el cebado no está activo
+            status = int(self.current_values.get("primingProcessStatus", 0))
+            can_change = not self.hardware_mapper.is_preparing(status)
+        
+        # Aplicar estado
+        self.treatment_mode_selected.set_enabled(can_change)
+        if can_change:
+            # Azul y clickeable
+            self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1d4ed8"))
+        else:
+            # Gris y no clickeable
+            self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#6b7280"))
 
     def _can_start_treatment(self) -> bool:
         """Lógica centralizada para habilitar Iniciar / Reanudar"""
@@ -2812,6 +2896,7 @@ class HemodialysisHMI(QMainWindow):
                 self.alarms_screen.reset_ui_state() 
             
             self.refresh_treatment_selected()
+            self._update_treatment_mode_label_state()
 
             # Solo mandamos al Home si NO estamos en área de servicio
             if not is_in_service_area:
@@ -2991,6 +3076,7 @@ class HemodialysisHMI(QMainWindow):
         # Manejo del tratamiento seleccionado
         if tag == "treatmentModeSelection":
             self.refresh_treatment_selected() # Llama al nuevo método para actualizar el label
+            self._update_treatment_mode_label_state()
             
             # Recalcular fase y texto del encabezado con primingProcessStatus
             # (importante si se reabre la app con limpieza ya corriendo)
@@ -3243,8 +3329,9 @@ class HemodialysisHMI(QMainWindow):
     def refresh_treatment_selected(self):
         mode_code = int(self.current_values.get("treatmentModeSelection", 0)) 
         mode_text = self._treatment_map.get(mode_code, "Desconocido") 
-        self.treatment_mode_selected.setText(mode_text.upper()) 
-        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1d4ed8"))
+        self.treatment_mode_selected.setText(mode_text.upper())
+        # No aplicar estado aquí; se hará en _update_treatment_mode_label_state()
+
 
     def update_remaining_time_header(self, remaining_str: str):
         if hasattr(self, "remaining_time_display") and self.remaining_time_display:
