@@ -3889,15 +3889,13 @@ class HemodialysisHMI(QMainWindow):
                 logger.info("Cache vacío: no hay límites guardados para escribir al conectar")
                 return
             
-            # Escribir solo lo que está en el cache (lee directamente de los tags de límite)
+            # Escribir solo lo que está en el cache (lee directamente de los tags de cálculo)
             tags_to_write = {
                 "bloodArteryPressureData": [("artPresCircAlarmLoLimData", 0), ("artPresCircAlarmHiLimData", 1)],
                 "bloodVenousPressureData": [("venPresCircAlarmLoLimData", 0), ("venPresCircAlarmHiLimData", 1)],
                 "CALC_PTM": [("membPressAlarmLoLimData", 0), ("membPressAlarmHiLimData", 1)],
-                "dialyLineWaterPresLoLimit": [("dialyLineWaterPresLoLimit", 0)],
-                "dialyLineWaterPresHiLimit": [("dialyLineWaterPresHiLimit", 1)],
-                "dialyConductLoLimitBand": [("dialyConductLoLimitBand", 0)],
-                "dialyConductHiLimitBand": [("dialyConductHiLimitBand", 1)],
+                "CALC_WATER_PRESS_LIMITS": [("dialyLineWaterPresLoLimit", 0), ("dialyLineWaterPresHiLimit", 1)],
+                "CALC_COND_BAND": [("dialyConductLoLimitBand", 0), ("dialyConductHiLimitBand", 1)],
             }
             
             for tag_key, tags_to_emit in tags_to_write.items():

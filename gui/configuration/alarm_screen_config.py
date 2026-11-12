@@ -155,6 +155,14 @@ class AlarmScreenConfig(QWidget):
     def populate_variables(self):
         row = 1
 
+        # Tags ocultos en la pantalla de usuario (no se muestran aunque estén habilitados)
+        hidden_tags = {
+            "dialyLineWaterPresHiLimit",
+            "dialyLineWaterPresLoLimit",
+            "dialyConductHiLimitBand",
+            "dialyConductLoLimitBand",
+        }
+
         enabled_tags = set(self.config_manager.get_enabled_tags())
         label_short = ""
         for group in VARIABLES.values():
@@ -162,7 +170,12 @@ class AlarmScreenConfig(QWidget):
                 if "tag" not in info:
                     continue
                 
-                tag = info["tag"]                
+                tag = info["tag"]
+                
+                # Saltar tags ocultos
+                if tag in hidden_tags:
+                    continue
+                
                 if tag not in enabled_tags:
                     continue
 
@@ -330,22 +343,22 @@ class AlarmScreenConfig(QWidget):
                 ptm_min = None
                 ptm_max = None
 
-            # Agua: leer directamente de los registros de límite
-            # dialyLineWaterPresHiLimit usa el máximo de "Limite alto de presion de agua"
-            # dialyLineWaterPresLoLimit usa el mínimo de "Limite bajo de presion de agua"
-            if "dialyLineWaterPresLoLimit" in self.inputs and "dialyLineWaterPresHiLimit" in self.inputs:
-                water_min = float(self.inputs["dialyLineWaterPresLoLimit"]['min'].text())
-                water_max = float(self.inputs["dialyLineWaterPresHiLimit"]['max'].text())
+            # Agua: leer directamente de CALC_WATER_PRESS_LIMITS
+            # mínimo -> dialyLineWaterPresLoLimit
+            # máximo -> dialyLineWaterPresHiLimit
+            if "CALC_WATER_PRESS_LIMITS" in self.inputs:
+                water_min = float(self.inputs["CALC_WATER_PRESS_LIMITS"]['min'].text())
+                water_max = float(self.inputs["CALC_WATER_PRESS_LIMITS"]['max'].text())
             else:
                 water_min = None
                 water_max = None
             
-            # Conductividad: leer directamente de los registros de límite
-            # dialyConductHiLimitBand usa el máximo de "Limite alto conductividad"
-            # dialyConductLoLimitBand usa el mínimo de "Limite bajo conductividad"
-            if "dialyConductLoLimitBand" in self.inputs and "dialyConductHiLimitBand" in self.inputs:
-                cond_min = float(self.inputs["dialyConductLoLimitBand"]['min'].text())
-                cond_max = float(self.inputs["dialyConductHiLimitBand"]['max'].text())
+            # Conductividad: leer directamente de CALC_COND_BAND
+            # mínimo -> dialyConductLoLimitBand
+            # máximo -> dialyConductHiLimitBand
+            if "CALC_COND_BAND" in self.inputs:
+                cond_min = float(self.inputs["CALC_COND_BAND"]['min'].text())
+                cond_max = float(self.inputs["CALC_COND_BAND"]['max'].text())
             else:
                 cond_min = None
                 cond_max = None
@@ -414,22 +427,22 @@ class AlarmScreenConfig(QWidget):
                 ptm_min = None
                 ptm_max = None
             
-            # Agua: leer directamente de los registros de límite
-            # dialyLineWaterPresHiLimit usa el máximo de "Limite alto de presion de agua"
-            # dialyLineWaterPresLoLimit usa el mínimo de "Limite bajo de presion de agua"
-            if "dialyLineWaterPresLoLimit" in self.inputs and "dialyLineWaterPresHiLimit" in self.inputs:
-                water_min = float(self.inputs["dialyLineWaterPresLoLimit"]['min'].text())
-                water_max = float(self.inputs["dialyLineWaterPresHiLimit"]['max'].text())
+            # Agua: leer directamente de CALC_WATER_PRESS_LIMITS
+            # mínimo -> dialyLineWaterPresLoLimit
+            # máximo -> dialyLineWaterPresHiLimit
+            if "CALC_WATER_PRESS_LIMITS" in self.inputs:
+                water_min = float(self.inputs["CALC_WATER_PRESS_LIMITS"]['min'].text())
+                water_max = float(self.inputs["CALC_WATER_PRESS_LIMITS"]['max'].text())
             else:
                 water_min = None
                 water_max = None
             
-            # Conductividad: leer directamente de los registros de límite
-            # dialyConductHiLimitBand usa el máximo de "Limite alto conductividad"
-            # dialyConductLoLimitBand usa el mínimo de "Limite bajo conductividad"
-            if "dialyConductLoLimitBand" in self.inputs and "dialyConductHiLimitBand" in self.inputs:
-                cond_min = float(self.inputs["dialyConductLoLimitBand"]['min'].text())
-                cond_max = float(self.inputs["dialyConductHiLimitBand"]['max'].text())
+            # Conductividad: leer directamente de CALC_COND_BAND
+            # mínimo -> dialyConductLoLimitBand
+            # máximo -> dialyConductHiLimitBand
+            if "CALC_COND_BAND" in self.inputs:
+                cond_min = float(self.inputs["CALC_COND_BAND"]['min'].text())
+                cond_max = float(self.inputs["CALC_COND_BAND"]['max'].text())
             else:
                 cond_min = None
                 cond_max = None

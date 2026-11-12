@@ -208,10 +208,10 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x14: {"name": "Flujo dializante", "label": "SP FLUJO DIAL", "type": "double", "rw": True, "unit": "ml/min", "limites": (300, 800), "tag": "dialyFlowControlOutput", "nivel": "cian"},       # 36
         0x15: {"name": "Salida bomba de purga", "label": "OUT B.PURGA", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyDeaerControlOutput", "nivel": "cian"},                # 37
         0x16: {"name": "Posición inicial de jeringa", "label": "POS. INI. JER.", "type": "double", "rw": True, "unit": "", "limites": (0,4), "tag": "heparineSyringeVolume", "nivel": "cian"},           # 38 no mostrar en catalogo
-        0x17: {"name": "Limite alto de presion de agua", "label": "LIM. ALT. P. AGUA", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyLineWaterPresHiLimit", "nivel": "cian"},           # 39
-        0x18: {"name": "Limite bajo de presion de agua", "label": "LIM. B. P. AGUA", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyLineWaterPresLoLimit", "nivel": "cian"},           # 40 
-        0x19: {"name": "Banda alto conductividad", "label": "LIM. ALT. COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyConductHiLimitBand", "nivel": "cian"},           # 41 
-        0x1A: {"name": "Banda bajo conductividad", "label": "LIM. B. COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyConductLoLimitBand", "nivel": "cian"},           # 42 
+        0x17: {"name": "Limite alto de presion de agua", "label": "LIM. ALT. P. AGUA", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyLineWaterPresHiLimit", "nivel": "cian"},           # 39 no mostrar en catalogo
+        0x18: {"name": "Limite bajo de presion de agua", "label": "LIM. B. P. AGUA", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyLineWaterPresLoLimit", "nivel": "cian"},           # 40 no mostrar en catalogo
+        0x19: {"name": "Banda alto conductividad", "label": "LIM. ALT. COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyConductHiLimitBand", "nivel": "cian"},           # 41 no mostrar en catalogo
+        0x1A: {"name": "Banda bajo conductividad", "label": "LIM. B. COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyConductLoLimitBand", "nivel": "cian"},           # 42 no mostrar en catalogo
     },
     # ================================================================
     # PROCESO - ANALÓGICAS (0x05)
@@ -300,6 +300,8 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     # ================================================================
     "LOCAL": {
         0x00: {"name": "Presión transmembrana", "label": "PTM", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 1000), "tag": "CALC_PTM", "nivel": "rojo"},
+        0x01: {"name": "Límites de presión de agua", "label": "LIMITES AGUA", "type": "double", "rw": False, "unit": "bar", "limites": (0, 20), "tag": "CALC_WATER_PRESS_LIMITS", "nivel": "cian"},
+        0x02: {"name": "Banda de conductividad", "label": "BANDA COND", "type": "double", "rw": False, "unit": "mS/cm", "limites": (13, 15), "tag": "CALC_COND_BAND", "nivel": "cian"},
     }
   
 
