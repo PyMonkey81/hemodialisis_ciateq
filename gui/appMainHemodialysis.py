@@ -997,6 +997,7 @@ class HemodialysisHMI(QMainWindow):
                 # En gui/appMainHemodialysis.py -> setup_ui
         self.screen_stack = QStackedWidget()
         self.screen_stack.setObjectName("main_screen_stack")
+        self.screen_stack.currentChanged.connect(self._apply_home_chrome)
 
         # ESTILO GLOBAL CENTRALIZADO
         self.screen_stack.setStyleSheet("""
@@ -1193,6 +1194,7 @@ class HemodialysisHMI(QMainWindow):
         nav_layout = QHBoxLayout(self.nav_bar)
         nav_layout.setContentsMargins(40, 20, 40, 20)
         nav_layout.setSpacing(10)
+        nav_layout.addStretch(0)  # Alineación a la izquierda
 
         self.navigation_buttons = {}
 
@@ -1208,15 +1210,20 @@ class HemodialysisHMI(QMainWindow):
 
         for text, color, callback in nav_items:
             btn = QPushButton(text)
-            btn.setFixedHeight(110)           
+            btn.setFixedSize(200, 110)           
             btn.clicked.connect(callback)
             nav_layout.addWidget(btn)
             self.navigation_buttons[text] = btn
+
+        nav_layout.addStretch(1)  # Espacio flexible al final
 
         self.main_layout.addWidget(self.nav_bar, 2, 1, 1, 4)
 #==========================================================================================
 #               FIN DE SETUP UI
 #==========================================================================================
+
+        # Aplicar visibilidad inicial (Inicio es la pantalla inicial)
+        self._apply_home_chrome()
 
 
     # ────────────────────────────────────────────────
@@ -1776,7 +1783,22 @@ class HemodialysisHMI(QMainWindow):
             self.treatment_logger.close()
             self.treatment_logger = None
             logger.info("Sesión detenida - logger cerrado")
-        
+    
+    def _apply_home_chrome(self, *_args):
+        """Oculta/muestra elementos del header y navegación según la pantalla actual.
+        En Inicio: oculta header y botones de navegación excepto Resumen Terapia y Servicio.
+        En otras pantallas: muestra todo."""
+        on_home = self.screen_stack.currentWidget() is self._main_screen
+        for label in (
+            self.status_label,
+            self.current_process_status,
+            self.treatment_mode_selected,
+            self.remaining_time_display,
+            self.date_time_label,
+        ):
+            label.setVisible(not on_home)
+        for text, btn in self.navigation_buttons.items():
+            btn.setVisible((not on_home) or text in ("Resumen\nTerapia", "Servicio"))
 
     def show_home_screen(self):
         self.screen_stack.setCurrentIndex(self.INDEX_HOME)        
