@@ -997,7 +997,6 @@ class HemodialysisHMI(QMainWindow):
                 # En gui/appMainHemodialysis.py -> setup_ui
         self.screen_stack = QStackedWidget()
         self.screen_stack.setObjectName("main_screen_stack")
-        self.screen_stack.currentChanged.connect(self._apply_home_chrome)
 
         # ESTILO GLOBAL CENTRALIZADO
         self.screen_stack.setStyleSheet("""
@@ -1222,6 +1221,9 @@ class HemodialysisHMI(QMainWindow):
 #               FIN DE SETUP UI
 #==========================================================================================
 
+        # Conectar la señal de cambio de pantalla (después de crear todos los elementos)
+        self.screen_stack.currentChanged.connect(self._apply_home_chrome)
+        
         # Aplicar visibilidad inicial (Inicio es la pantalla inicial)
         self._apply_home_chrome()
 
