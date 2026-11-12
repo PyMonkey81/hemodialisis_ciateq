@@ -307,51 +307,45 @@ class AlarmScreenConfig(QWidget):
         # PASO 4: Leer valores de las casillas para escribir al dispositivo
         try:
             # Arterial: siempre están en la pantalla
-            art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
-            art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+            if "bloodArteryPressureData" in self.inputs:
+                art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
+                art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+            else:
+                art_min = None
+                art_max = None
             
             # Venosa: siempre están en la pantalla
-            ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
-            ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
-
-            # Conductividad: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
-            if "dialyConductHiLimitBand" in self.inputs and "dialyConductLoLimitBand" in self.inputs:
-                cond_min = float(self.inputs["dialyConductLoLimitBand"]['min'].text())
-                cond_max = float(self.inputs["dialyConductHiLimitBand"]['max'].text())
+            if "bloodVenousPressureData" in self.inputs:
+                ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
+                ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
             else:
-                cond_min = None
-                cond_max = None
+                ven_min = None
+                ven_max = None
 
-            # Agua: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
-            if "dialyLineWaterPresHiLimit" in self.inputs and "dialyLineWaterPresLoLimit" in self.inputs:
+            # PTM: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "CALC_PTM" in self.inputs:
+                ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
+                ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
+            else:
+                ptm_min = None
+                ptm_max = None
+
+            # Agua: leer directamente de los registros de límite
+            # dialyLineWaterPresHiLimit usa el máximo de "Limite alto de presion de agua"
+            # dialyLineWaterPresLoLimit usa el mínimo de "Limite bajo de presion de agua"
+            if "dialyLineWaterPresLoLimit" in self.inputs and "dialyLineWaterPresHiLimit" in self.inputs:
                 water_min = float(self.inputs["dialyLineWaterPresLoLimit"]['min'].text())
                 water_max = float(self.inputs["dialyLineWaterPresHiLimit"]['max'].text())
             else:
                 water_min = None
                 water_max = None
             
-            
-            # PTM: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
-            if "CALC_PTM" in self.inputs:
-                ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
-                ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
-            else:
-                # No está en pantalla: no escribir PTM (pasar None)
-                ptm_min = None
-                ptm_max = None
-            
-            # Agua: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
-            if "dialyLineWaterPresData" in self.inputs:
-                water_min = float(self.inputs["dialyLineWaterPresData"]['min'].text())
-                water_max = float(self.inputs["dialyLineWaterPresData"]['max'].text())
-            else:
-                water_min = None
-                water_max = None
-            
-            # Conductividad: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
-            if "dialyCondVariableData" in self.inputs:
-                cond_min = float(self.inputs["dialyCondVariableData"]['min'].text())
-                cond_max = float(self.inputs["dialyCondVariableData"]['max'].text())
+            # Conductividad: leer directamente de los registros de límite
+            # dialyConductHiLimitBand usa el máximo de "Limite alto conductividad"
+            # dialyConductLoLimitBand usa el mínimo de "Limite bajo conductividad"
+            if "dialyConductLoLimitBand" in self.inputs and "dialyConductHiLimitBand" in self.inputs:
+                cond_min = float(self.inputs["dialyConductLoLimitBand"]['min'].text())
+                cond_max = float(self.inputs["dialyConductHiLimitBand"]['max'].text())
             else:
                 cond_min = None
                 cond_max = None
@@ -359,7 +353,7 @@ class AlarmScreenConfig(QWidget):
             # Llamar al método que escribe los tags al dispositivo
             if self.write_setpoint_callback:
                 # El callback es _emit_pressure_alarm_limits
-                # Los 0 se ignoran (no se escriben tags con ese valor)
+                # Los 0 se escriben (son límites válidos), None no se escribe
                 self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max, water_min, water_max, cond_min, cond_max)
             
         except (ValueError, KeyError) as e:
@@ -394,37 +388,48 @@ class AlarmScreenConfig(QWidget):
         # Guardar todos los cambios al archivo JSON
         self.config_manager.save_config()
         
-        # Escribir límites de presión arterial, venosa y PTM al dispositivo
+        # Escribir límites de presión arterial, venosa, agua y conductividad al dispositivo
         try:
-            # Arterial: siempre están en la pantalla
-            art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
-            art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+            # Arterial: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "bloodArteryPressureData" in self.inputs:
+                art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
+                art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+            else:
+                art_min = None
+                art_max = None
             
-            # Venosa: siempre están en la pantalla
-            ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
-            ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
+            # Venosa: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
+            if "bloodVenousPressureData" in self.inputs:
+                ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
+                ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
+            else:
+                ven_min = None
+                ven_max = None
             
             # PTM: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
             if "CALC_PTM" in self.inputs:
                 ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
                 ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
             else:
-                # No está en pantalla: no escribir PTM (pasar None)
                 ptm_min = None
                 ptm_max = None
             
-            # Agua: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
-            if "dialyLineWaterPresData" in self.inputs:
-                water_min = float(self.inputs["dialyLineWaterPresData"]['min'].text())
-                water_max = float(self.inputs["dialyLineWaterPresData"]['max'].text())
+            # Agua: leer directamente de los registros de límite
+            # dialyLineWaterPresHiLimit usa el máximo de "Limite alto de presion de agua"
+            # dialyLineWaterPresLoLimit usa el mínimo de "Limite bajo de presion de agua"
+            if "dialyLineWaterPresLoLimit" in self.inputs and "dialyLineWaterPresHiLimit" in self.inputs:
+                water_min = float(self.inputs["dialyLineWaterPresLoLimit"]['min'].text())
+                water_max = float(self.inputs["dialyLineWaterPresHiLimit"]['max'].text())
             else:
                 water_min = None
                 water_max = None
             
-            # Conductividad: si está en pantalla, leer de widget; si no, pasar None (no se escribe)
-            if "dialyCondVariableData" in self.inputs:
-                cond_min = float(self.inputs["dialyCondVariableData"]['min'].text())
-                cond_max = float(self.inputs["dialyCondVariableData"]['max'].text())
+            # Conductividad: leer directamente de los registros de límite
+            # dialyConductHiLimitBand usa el máximo de "Limite alto conductividad"
+            # dialyConductLoLimitBand usa el mínimo de "Limite bajo conductividad"
+            if "dialyConductLoLimitBand" in self.inputs and "dialyConductHiLimitBand" in self.inputs:
+                cond_min = float(self.inputs["dialyConductLoLimitBand"]['min'].text())
+                cond_max = float(self.inputs["dialyConductHiLimitBand"]['max'].text())
             else:
                 cond_min = None
                 cond_max = None
