@@ -1193,7 +1193,13 @@ class HemodialysisHMI(QMainWindow):
         nav_layout = QHBoxLayout(self.nav_bar)
         nav_layout.setContentsMargins(40, 20, 40, 20)
         nav_layout.setSpacing(10)
-        nav_layout.addStretch(0)  # Alineación a la izquierda
+        nav_layout.addStretch()  # Expansión flexible (izquierda) para centrar
+
+        # Contenedor central para botones de navegación
+        central_nav_widget = QWidget()
+        central_nav_layout = QHBoxLayout(central_nav_widget)
+        central_nav_layout.setContentsMargins(0, 0, 0, 0)
+        central_nav_layout.setSpacing(10)
 
         self.navigation_buttons = {}
 
@@ -1211,10 +1217,11 @@ class HemodialysisHMI(QMainWindow):
             btn = QPushButton(text)
             btn.setFixedSize(200, 110)           
             btn.clicked.connect(callback)
-            nav_layout.addWidget(btn)
+            central_nav_layout.addWidget(btn)
             self.navigation_buttons[text] = btn
 
-        nav_layout.addStretch(1)  # Espacio flexible al final
+        nav_layout.addWidget(central_nav_widget)
+        nav_layout.addStretch()  # Expansión flexible (derecha) para centrar
 
         self.main_layout.addWidget(self.nav_bar, 2, 1, 1, 4)
 #==========================================================================================
@@ -1792,14 +1799,16 @@ class HemodialysisHMI(QMainWindow):
         En otras pantallas: muestra todo."""
         on_home = self.screen_stack.currentWidget() is self._main_screen
         for label in (
-            self.status_label,
-            self.current_process_status,
-            self.treatment_mode_selected,
-            self.remaining_time_display,
-            self.date_time_label,
+            getattr(self, 'status_label', None),
+            getattr(self, 'current_process_status', None),
+            getattr(self, 'treatment_mode_selected', None),
+            getattr(self, 'remaining_time_display', None),
+            getattr(self, 'date_time_label', None),
         ):
-            label.setVisible(not on_home)
-        for text, btn in self.navigation_buttons.items():
+            if label is not None:
+                label.setVisible(not on_home)
+        nav_buttons = getattr(self, 'navigation_buttons', {})
+        for text, btn in nav_buttons.items():
             btn.setVisible((not on_home) or text in ("Resumen\nTerapia", "Servicio"))
 
     def show_home_screen(self):
