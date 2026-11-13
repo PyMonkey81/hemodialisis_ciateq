@@ -145,6 +145,38 @@ class TreatmentController:
             self.main.show_error_message("Error al detener tratamiento")
             return False
 
+    def end_therapy(self):
+        """Finaliza completamente la terapia Y el cebado"""
+        try:
+            # Detiene terapia y cebado
+            self.main._write_boolean_command("dialyModeOperationStop", True)
+            self.main._write_boolean_command("dialyModeOperationStart", False)
+            self.main._write_boolean_command("dialyStopDialysisButt", True)
+            self.main._write_boolean_command("dialyStartDialysisButt", False)
+            
+            if self.bioz_urea_controller:
+                self.bioz_urea_controller.send_command("STOP")
+            
+            # Limpia acumuladores
+            self._reset_session_counters(reset_total=True)
+            
+            # Cierra loggers
+            if hasattr(self.main, 'treatment_logger') and self.main.treatment_logger:
+                self.main.treatment_logger.close()
+                self.main.treatment_logger = None
+            if hasattr(self.main, 'csv_logger') and self.main.csv_logger:
+                self.main.csv_logger.close()
+                self.main.csv_logger = None
+            
+            self.main.show_info_message("Terapia finalizada")
+            logger.info("Terapia finalizada completamente")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al finalizar terapia: {e}")
+            self.main.show_error_message("Error al finalizar terapia")
+            return False
+
     # ====================== SINCRONIZACIÓN DE RELOJES ======================
     def start_therapy_timer(self):
         """Inicia o reinicia el timer de terapia cuando hardware confirma RUNNING"""

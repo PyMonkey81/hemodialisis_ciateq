@@ -310,6 +310,10 @@ class HemodialysisHMI(QMainWindow):
         QPushButton { background: #39ec21; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 8px; font-weight: bold; font-size: 30px;}
         QPushButton:pressed { background: #1e40af; }
     """
+    BTN_ENABLED_END_THERAPY_STYLE = """
+        QPushButton { background: #DD2911; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
+        QPushButton:pressed { background: #a01d08; }
+    """
     BTN_ENABLED_EXIT_STYLE = """
         QPushButton { background: #dc2626; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
         QPushButton:pressed { background: #b91c1c; }
@@ -1209,6 +1213,7 @@ class HemodialysisHMI(QMainWindow):
             ("Inicio",              "#06298a", self.show_home_screen),
             ("Resumen\nTerapia",            "#06298a", self.show_dialysis_screen),
             ("Iniciar\nTratamiento", "#39ec21", self.start_treatment),
+            ("Fin de\nTerapia",      "#DD2911", self._confirm_end_therapy),
             ("Limpieza",            "#06298a", self.show_cleaning_screen),
             ("Servicio", "#06298a", self.show_options_screen),
             ("Alarmas",             "#06298a", self.show_alarms_screen),
@@ -1217,7 +1222,7 @@ class HemodialysisHMI(QMainWindow):
 
         for text, color, callback in nav_items:
             btn = QPushButton(text)
-            btn.setFixedSize(200, 110)           
+            btn.setFixedSize(173, 110)           
             btn.clicked.connect(callback)
             central_nav_layout.addWidget(btn)
             self.navigation_buttons[text] = btn
@@ -1450,6 +1455,47 @@ class HemodialysisHMI(QMainWindow):
     def stop_treatment(self):
         """Delegado al TreatmentController"""
         success = self.treatment_controller.stop_treatment()
+        if success:
+            self._update_therapy_time_displays()
+            self._refresh_navigation_bar()
+            self._reset_filter_fill_flags()
+
+    def _confirm_end_therapy(self):
+        """
+        Muestra dos diálogos de confirmación secuencial para finalizar terapia y cebado.
+        
+        1. Primer diálogo: "¿Desea terminar la terapia?"
+        2. Segundo diálogo (solo si acepta el primero): "¿Está seguro que quiere finalizar?"
+        
+        Solo si acepta ambos, llama a treatment_controller.end_therapy().
+        """
+        # Primer diálogo
+        dialog1 = FloatingConfirmDialog(self)
+        confirmed_1 = dialog1.show_confirm(
+            text="¿Desea terminar la terapia?",
+            accept_text="Aceptar",
+            cancel_text="Cancelar"
+        )
+        
+        if not confirmed_1:
+            logger.info("Usuario canceló primer diálogo de fin de terapia")
+            return
+        
+        # Segundo diálogo
+        dialog2 = FloatingConfirmDialog(self)
+        confirmed_2 = dialog2.show_confirm(
+            text="¿Está seguro que quiere finalizar?",
+            accept_text="Aceptar",
+            cancel_text="Cancelar"
+        )
+        
+        if not confirmed_2:
+            logger.info("Usuario canceló segundo diálogo de fin de terapia")
+            return
+        
+        # Ambos aceptados: finalizar terapia
+        logger.info("Usuario confirmó fin de terapia (ambos diálogos)")
+        success = self.treatment_controller.end_therapy()
         if success:
             self._update_therapy_time_displays()
             self._refresh_navigation_bar()
@@ -2667,24 +2713,27 @@ class HemodialysisHMI(QMainWindow):
 
             elif text == "Iniciar\nTratamiento":
                 enabled = phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED)
-            
+
+            elif text == "Fin de\nTerapia":
+                enabled = phase in (TreatmentPhase.PREPARING, TreatmentPhase.READY, 
+                                   TreatmentPhase.RUNNING, TreatmentPhase.PAUSED)
 
             # ==================== RESTRICCIONES POR ESTADO ====================
             if phase == TreatmentPhase.CLEANING:
                 enabled = text in ["Limpieza", "Alarmas", "Historial", "Servicio"]
 
             elif phase == TreatmentPhase.RUNNING:
-                enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial"]
+                enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Fin de\nTerapia"]
 
             elif phase == TreatmentPhase.PAUSED:
                 enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio", 
-                             "Alarmas", "Historial"]
+                             "Alarmas", "Historial", "Fin de\nTerapia"]
                 if text == "Iniciar\nTratamiento":
                     enabled = self._can_start_treatment()
 
             elif phase == TreatmentPhase.READY:
                 enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio", 
-                             "Alarmas", "Historial"]
+                             "Alarmas", "Historial", "Fin de\nTerapia"]
                 if text == "Iniciar\nTratamiento":
                     # enabled = temp_ok and cond_ok
                     enabled = self._can_start_treatment()
@@ -2697,7 +2746,7 @@ class HemodialysisHMI(QMainWindow):
                 status = int(self.current_values.get("primingProcessStatus", 0))
                 if self.hardware_mapper.is_preparing(status):
                     # Durante cebado normal
-                    enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Servicio"]
+                    enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Servicio", "Fin de\nTerapia"]
                 else:
                     # Cuando se detiene el priming
                     enabled = True
@@ -2720,6 +2769,8 @@ class HemodialysisHMI(QMainWindow):
                         btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
                     else:
                         btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
+                elif text == "Fin de\nTerapia":
+                    btn.setStyleSheet(self.BTN_ENABLED_END_THERAPY_STYLE)
                 elif text == current_nav_text:
                     btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
                 else:
