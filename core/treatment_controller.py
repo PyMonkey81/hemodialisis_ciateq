@@ -120,12 +120,11 @@ class TreatmentController:
         # Mostrar mensaje diferente si es por timeout o por botón
         if self.bypass_pause_sent:  # Se pausó por timeout en bypass
             self.main.show_info_message("Terapia finalizada")
-            self.therapy_finished_by_time = True  # Mantener bandera para UI
+            # NO apagar therapy_finished_by_time: mantenerla para UI
         else:  # Se pausó por botón
             self.main.show_info_message("Terapia en pausa")
             self.therapy_finished_by_time = False  # Limpiar UI flag (es pausa manual)
         
-        self.bypass_pause_sent = False  # Resetear bandera de bypass
         if self.state.current_phase != TreatmentPhase.RUNNING:
             return False
         try:
@@ -274,9 +273,10 @@ class TreatmentController:
         if self.total_therapy_seconds > 0 and remaining <= 0 and phase == TreatmentPhase.RUNNING and status_code == 14:
             if not self.bypass_pause_sent:
                 logger.info("Tiempo de terapia completado - Pausando en bypass")
-                self.pause_treatment()
+                # Establecer banderas ANTES de llamar pause_treatment() para que el aviso sea correcto
                 self.bypass_pause_sent = True
-                self.therapy_finished_by_time = True  # Marcar para UI: terapia terminada por tiempo
+                self.therapy_finished_by_time = True
+                self.pause_treatment()
             return
 
         if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:

@@ -3230,10 +3230,11 @@ class HemodialysisHMI(QMainWindow):
                 # Si salimos del estado 7, no hay diálogos que cerrar (la lógica se simplificó)
                 prev_status = self._last_priming_status
                 
-                # Limpiar bandera de terapia terminada por tiempo cuando vuelve a bypass (14)
+                # Limpiar banderas de terapia terminada cuando vuelve a bypass (14)
                 if status_code == 14 and hasattr(self, 'treatment_controller'):
                     self.treatment_controller.therapy_finished_by_time = False
-                    logger.info("Bandera therapy_finished_by_time limpiada al volver a estado 14")
+                    self.treatment_controller.bypass_pause_sent = False  # Limpiar para pausar otra vez si llega a cero
+                    logger.info("Banderas limpiadas al volver a estado 14 (bypass)")
                 
                 # ========== MANEJO DEL DIÁLOGO DE FILTRO ==========
                 
