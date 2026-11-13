@@ -1053,8 +1053,8 @@ class DialysisScreen(QWidget):
         Recibe instrucciones directas del Main para habilitar/deshabilitar
         los botones de 'INICIAR CEBADO' y 'DETENER CEBADO'.
         """
-        btn_start_priming = self.action_buttons.get("INICIAR CEBADO")
-        btn_stop_priming = self.action_buttons.get("DETENER CEBADO")
+        btn_start_priming = self.action_buttons.get("INICIAR\nCEBADO")
+        btn_stop_priming = self.action_buttons.get("DETENER\nCEBADO")
 
         # Estilos
         if btn_start_priming:

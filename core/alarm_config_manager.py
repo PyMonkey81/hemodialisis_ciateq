@@ -30,6 +30,9 @@ class AlarmConfigManager:
         # Se carga una sola vez al inicializar
         self._limits_cache: Dict[str, list] = {}
         self._load_limits_from_settings()
+        
+        # Limpiar variables que no son alarmas de la lista guardada al arrancar
+        self._cleanup_non_alarm_tags_from_startup()
 
     def _load_limits_from_settings(self):
         """Carga los límites desde QSettings (puede ser dict viejo o JSON nuevo).
@@ -54,6 +57,30 @@ class AlarmConfigManager:
         except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.warning(f"Error cargando límites de QSettings: {e}, cache vacío")
             self._limits_cache = {}
+
+    def _cleanup_non_alarm_tags_from_startup(self):
+        """
+        Elimina de la lista de enabled_tags (guardada) las variables que NO son alarmas.
+        Estas variables se escriben como límites pero no se monitorean.
+        Se llama automáticamente al inicializar.
+        """
+        non_alarm_tags = {
+            "CALC_COND_BAND",
+            "CALC_WATER_PRESS_LIMITS",
+            "dialyConductHiLimitBand",
+            "dialyConductLoLimitBand",
+            "dialyLineWaterPresHiLimit",
+            "dialyLineWaterPresLoLimit"
+        }
+        
+        current_tags = self.get_enabled_tags()
+        cleaned_tags = [tag for tag in current_tags if tag not in non_alarm_tags]
+        
+        if len(cleaned_tags) < len(current_tags):
+            # Se eliminaron tags, guardar la lista limpia
+            self.set_enabled_tags(cleaned_tags)
+            removed = len(current_tags) - len(cleaned_tags)
+            logger.info(f"Limpieza de startup: {removed} variable(s) no-alarma quitada(s) de la lista guardada")
 
     # ====================== Métodos para obtener valores por defecto del VARIABLES_MAP ======================
     def _get_default_info_from_variables_map(self, tag: str) -> dict:

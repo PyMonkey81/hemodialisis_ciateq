@@ -76,9 +76,16 @@ class AlarmSystem(QObject):
         """
         new_tags = self.config_manager.get_enabled_tags()
         
-        # ========== CORRECCIÓN 4: CALC_COND_BAND nunca debe monitorarse como alarma ==========
-        # CALC_COND_BAND es solo para escribir límites de conductividad, no es una alarma
-        new_tags = [tag for tag in new_tags if tag != "CALC_COND_BAND"]
+        # Variables que NO son alarmas: solo se escriben como límites, nunca se monitorean
+        non_alarm_tags = {
+            "CALC_COND_BAND",
+            "CALC_WATER_PRESS_LIMITS",
+            "dialyConductHiLimitBand",
+            "dialyConductLoLimitBand",
+            "dialyLineWaterPresHiLimit",
+            "dialyLineWaterPresLoLimit"
+        }
+        new_tags = [tag for tag in new_tags if tag not in non_alarm_tags]
         
         self.tags = new_tags
         self.alarm_count = len(self.tags)
