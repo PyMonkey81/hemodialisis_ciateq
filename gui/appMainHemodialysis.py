@@ -3989,7 +3989,8 @@ class HemodialysisHMI(QMainWindow):
 
     def _write_pressure_limits_on_connection(self):
         """Escribe límites de presión, agua y conductividad al conectar leyendo SOLO del cache.
-        Si una fila no está guardada, NO la escribe."""
+        Si una fila no está guardada, NO la escribe.
+        CALC_COND_BAND se elimina del caché si existe; solo se escribe dialyConductivityAlarm."""
         if not self.serial_comm or not self.serial_comm.is_connected:
             return
         
@@ -4000,6 +4001,12 @@ class HemodialysisHMI(QMainWindow):
                 logger.info("Cache vacío: no hay límites guardados para escribir al conectar")
                 return
             
+            # Remover CALC_COND_BAND del cache si existe (no debe escribirse)
+            if "CALC_COND_BAND" in cache:
+                del cache["CALC_COND_BAND"]
+                self.config_manager.save_config()
+                logger.info("CALC_COND_BAND removida del cache")
+            
             # Escribir solo lo que está en el cache (lee directamente de los tags de cálculo)
             tags_to_write = {
                 "bloodArteryPressureData": [("artPresCircAlarmLoLimData", 0), ("artPresCircAlarmHiLimData", 1)],
@@ -4007,7 +4014,6 @@ class HemodialysisHMI(QMainWindow):
                 "CALC_PTM": [("membPressAlarmLoLimData", 0), ("membPressAlarmHiLimData", 1)],
                 "CALC_WATER_PRESS_LIMITS": [("dialyLineWaterPresLoLimit", 0), ("dialyLineWaterPresHiLimit", 1)],
                 "dialyConductivityAlarm": [("dialyConductLoLimitBand", 0), ("dialyConductHiLimitBand", 1)],
-                "CALC_COND_BAND": [("dialyConductLoLimitBand", 0), ("dialyConductHiLimitBand", 1)],
             }
             
             for tag_key, tags_to_emit in tags_to_write.items():

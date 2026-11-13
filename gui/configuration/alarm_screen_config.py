@@ -200,12 +200,12 @@ class AlarmScreenConfig(QWidget):
 
                 # Caso especial: dialyConductivityAlarm (booleana pero con límites)
                 if tag == "dialyConductivityAlarm":
-                    # Leer limites guardados o usar defaults
+                    # Leer limites guardados; si no existe, dejar vacío o 0.0
                     cond_min, cond_max = self.config_manager.get_limits(tag)
                     if cond_min is None:
-                        cond_min = -0.7
+                        cond_min = 0.0
                     if cond_max is None:
-                        cond_max = 0.7
+                        cond_max = 0.0
 
                     min_edit = ClickableLineEdit(f"{cond_min:.1f}")
                     max_edit = ClickableLineEdit(f"{cond_max:.1f}")
@@ -432,9 +432,9 @@ class AlarmScreenConfig(QWidget):
             if widgets.get('type') == "double" or tag == "dialyConductivityAlarm":
                 default_min, default_max = self.config_manager.get_default_limits_from_variables_map(tag)
                 if default_min is None:
-                    default_min = -0.7
+                    default_min = 0.0
                 if default_max is None:
-                    default_max = 0.7
+                    default_max = 0.0
                 widgets['min'].setText(f"{default_min:.1f}")
                 widgets['max'].setText(f"{default_max:.1f}")
                 self.config_manager.set_limits(tag, default_min, default_max)
@@ -478,15 +478,19 @@ class AlarmScreenConfig(QWidget):
                 water_min = None
                 water_max = None
             
-            # Conductividad: leer directamente de CALC_COND_BAND
-            # mínimo -> dialyConductLoLimitBand
-            # máximo -> dialyConductHiLimitBand
-            # Conductividad: leer de dialyConductivityAlarm
+            # Conductividad: solo escribir si dialyConductivityAlarm está guardada
             # mínimo -> dialyConductLoLimitBand
             # máximo -> dialyConductHiLimitBand
             if "dialyConductivityAlarm" in self.inputs:
-                cond_min = float(self.inputs["dialyConductivityAlarm"]['min'].text())
-                cond_max = float(self.inputs["dialyConductivityAlarm"]['max'].text())
+                cond_min_text = self.inputs["dialyConductivityAlarm"]['min'].text().strip()
+                cond_max_text = self.inputs["dialyConductivityAlarm"]['max'].text().strip()
+                # Solo escribir si no está vacío
+                if cond_min_text and cond_max_text:
+                    cond_min = float(cond_min_text)
+                    cond_max = float(cond_max_text)
+                else:
+                    cond_min = None
+                    cond_max = None
             else:
                 cond_min = None
                 cond_max = None
