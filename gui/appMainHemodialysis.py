@@ -3204,9 +3204,9 @@ class HemodialysisHMI(QMainWindow):
                     self._last_status_prompt = None  # Resetear marca para permitir abrir cuadro nuevamente
                     logger.info(f"[FILTER] Cebado nuevo iniciado (estado {status_code}). Marca reiniciada.")
                 
-                # Al entrar a 7 SOLO desde estado 1 o 16, abrir cuadro UNA SOLA VEZ
-                if status_code == 7 and prev_status in (1, 16) and self._last_status_prompt != 7 and self._filter_fill_dialog is None:
-                    logger.info("[FILTER] Entrando a estado 7 desde inicio. Abriendo cuadro de filtro.")
+                # Al entrar a 7 (desde cualquier estado excepto 7), abrir cuadro UNA SOLA VEZ
+                if status_code == 7 and prev_status != 7 and self._last_status_prompt != 7 and self._filter_fill_dialog is None:
+                    logger.info("[FILTER] Entrando a estado 7. Abriendo cuadro de filtro.")
                     QTimer.singleShot(0, self._show_filter_fill_dialog_main)
                     self._last_status_prompt = 7  # Marcar que ya se mostró el cuadro
                 
