@@ -604,6 +604,7 @@ class HemodialysisHMI(QMainWindow):
         self._operator_dialog_open = False
         self._last_status_prompt = None
         self._filter_fill_button_sent = False  # Trackear si el pulso fue enviado
+        self._filter_fill_dialog = None  # Referencia al diálogo abierto del filtro
 
         self.led_bar = LedBarController()     
         self.led_bar.start()
@@ -1378,11 +1379,12 @@ class HemodialysisHMI(QMainWindow):
            - Aceptar: Valida temperatura y conductividad en banda
              - Si OK: manda dialyFilterFillButton=True, llama _start_filter()
              - Si NO: avisa, NO envía comando, mantiene ESPERANDO CONDICIONES
-           - Cancelar: vuelve al primer diálogo
+           - Cancelar: vuelve al primer diálogo (reintento de 100 ms)
         """
         def show_first_dialog():
             """Primer paso: instrucción simple sin Cancel (botón oculto)"""
             dialog = FloatingConfirmDialog(self)
+            self._filter_fill_dialog = dialog  # Guardar referencia
             
             # Ocultar el botón Cancel antes de mostrar el diálogo
             if hasattr(dialog, 'btn_cancel'):
@@ -1394,9 +1396,14 @@ class HemodialysisHMI(QMainWindow):
                 cancel_text="Cancelar"  # Texto presente pero botón oculto
             )
             
+            # Limpiar referencia al cerrar este diálogo
+            if self._filter_fill_dialog == dialog:
+                self._filter_fill_dialog = None
+            
             if not confirmed:
-                # Usuario no presionó Aceptar; reintentar
-                QTimer.singleShot(100, show_first_dialog)
+                # Usuario no presionó Aceptar; no reintentar automáticamente
+                # Solo mostrará cuadro si cambian condiciones y _last_status_prompt se resetea
+                logger.info("[FILTER-DIALOG] Usuario no confirmó primer diálogo")
                 return
             
             # Aceptar → mostrar segundo diálogo
@@ -1405,6 +1412,7 @@ class HemodialysisHMI(QMainWindow):
         def show_second_dialog():
             """Segundo paso: confirmación con validación de conductividad"""
             dialog = FloatingConfirmDialog(self)
+            self._filter_fill_dialog = dialog  # Guardar referencia
             
             # Mostrar el botón Cancel en el segundo diálogo
             if hasattr(dialog, 'btn_cancel'):
@@ -1415,6 +1423,10 @@ class HemodialysisHMI(QMainWindow):
                 accept_text="Aceptar",
                 cancel_text="Cancelar"
             )
+            
+            # Limpiar referencia al cerrar este diálogo
+            if self._filter_fill_dialog == dialog:
+                self._filter_fill_dialog = None
             
             if confirmed:
                 # ========== CORRECCIÓN: Validar antes de enviar comando ==========
@@ -1459,19 +1471,12 @@ class HemodialysisHMI(QMainWindow):
                 self._last_status_prompt = 7  # Marcar solo si se envió
                 logger.info("Llenado de filtro confirmado por usuario y validado")
             else:
-                # Cancelar: volver al primer diálogo
-                logger.info("Usuario canceló; mostrando primer diálogo nuevamente")
+                # Cancelar: volver al primer diálogo CON reintento de 100 ms
+                logger.info("[FILTER-DIALOG] Usuario canceló segundo diálogo; reintentando en 100ms...")
                 QTimer.singleShot(100, show_first_dialog)
         
         # Iniciar con el primer diálogo
         show_first_dialog()
-    
-    def _show_filter_validation_error(self, message: str):
-        """Muestra error de validación al usuario"""
-        dialog = FloatingConfirmDialog(self)
-        if hasattr(dialog, 'btn_cancel'):
-            dialog.btn_cancel.hide()
-        dialog.show_confirm(message, accept_text="Aceptar")
 
     def pause_treatment(self):
         """Delegado al TreatmentController"""
@@ -3262,13 +3267,30 @@ class HemodialysisHMI(QMainWindow):
             if status_code != self._last_priming_status:
                 logger.info(f"Cambio de estado hardware: {self._last_priming_status} → {status_code}")
                 
+                # ========== CIERRE DE DIÁLOGO DE FILTRO AL SALIR DE ESTADO 7 ==========
+                # Si salimos del estado 7, cerrar cualquier diálogo abierto y resetear
+                prev_status = self._last_priming_status
+                if prev_status == 7 and status_code != 7:
+                    if self._filter_fill_dialog is not None:
+                        try:
+                            self._filter_fill_dialog.close()
+                            self._filter_fill_dialog = None
+                            logger.info(f"[FILTER-DIALOG] Cerrando diálogo al salir del estado 7 → {status_code}")
+                        except Exception as e:
+                            logger.debug(f"[FILTER-DIALOG] Error cerrando diálogo: {e}")
+                
                 # ========== CORRECCIÓN 2: RESETEO DE TIMER DE 90S ==========
                 # Si el estado sale de 13 o vuelve a 7, reinicia el conteo
-                prev_status = self._last_priming_status
                 if (prev_status == 13 and status_code != 13) or (status_code == 7 and prev_status != 7):
                     self._reset_filter_fill_flags()
                     self._last_status_prompt = None  # Resetear para permitir preguntar de nuevo
                     logger.info(f"[FILTER-RESET] Estado cambió de {prev_status} → {status_code}. Timer de 90s y marcas de confirmación reiniciados.")
+                    
+                    # ========== RE-EVALUAR CONDICIONES AL VOLVER A ESTADO 7 ==========
+                    # Cuando regresamos al estado 7, chequear si condiciones están OK para mostrar diálogo
+                    if status_code == 7:
+                        QTimer.singleShot(100, self._check_filter_fill_conditions_in_state_7)
+                        logger.info("[FILTER-DIALOG] Regresado a estado 7. Verificando condiciones en 100ms...")
                 
                 self._last_priming_status = status_code
 
