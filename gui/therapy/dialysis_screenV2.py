@@ -700,7 +700,8 @@ class DialysisScreen(QWidget):
             ("INICIAR\nCEBADO", "#06298a", self.parent_window.start_priming),
             ("DETENER\nCEBADO", "#06298a", self.parent_window.stop_priming),
             ("HEPARINA", "#06298a", self.show_heparin_config_screen),
-            ("Kt/V", "#06298a", self.parent_window.show_ktv_screen),       
+            ("Kt/V", "#06298a", self.parent_window.show_ktv_screen),
+            ("SILENCIAR\nALARMA", "#D9534F", self.silence_alarms),
         ]
 
         for i, (text, color, callback) in enumerate(button_config):
@@ -838,6 +839,13 @@ class DialysisScreen(QWidget):
     def show_heparin_config_screen(self):
         if self.parent_window and hasattr(self.parent_window, "show_heparin_config_screen"):
             self.parent_window.show_heparin_config_screen()
+
+    def silence_alarms(self):
+        """Llama a acknowledge_all_alarms() de la pantalla de alarmas."""
+        if self.parent_window and hasattr(self.parent_window, 'alarms_screen'):
+            alarms_screen = self.parent_window.alarms_screen
+            if hasattr(alarms_screen, 'acknowledge_all_alarms'):
+                alarms_screen.acknowledge_all_alarms()
 
     def show_nibp_config_screen(self):
         # TEMPORAL: ver comentario junto a btn_nibp_screen.
