@@ -65,7 +65,6 @@ class AlarmConfigManager:
         Se llama automáticamente al inicializar.
         """
         non_alarm_tags = {
-            "CALC_COND_BAND",
             "CALC_WATER_PRESS_LIMITS",
             "dialyConductHiLimitBand",
             "dialyConductLoLimitBand",

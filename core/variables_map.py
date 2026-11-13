@@ -150,6 +150,9 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Sobrepresión Bomba Diálisis", "SOBREPRESIÓN DIALIZANTE", "rojo", "dialyDialyPumpOverPress"),    # 57
                 ("Sobrepresión Bomba Deaeración", "SOBREPRESIÓN DEAERACIÓN", "rojo", "dialyDeaerPumpOverPress"),    # 58
                 ("Activación de posición jeringa", "ACT POS JERINGA", "cian", "heparineSynringeAct"),    # 59
+                ("Presión Arterial en desconectada", "PA DESCON.", "rojo", "bloodArteryZeroPressAlarm"),    # 60  Alarma de presion arteria zero, regularmente se activa cuando se desconectan las tomas 
+                ("Presión Venosa en desconectada", "PV DESCON.", "rojo", "bloodVenousZeroPressAlarm"),    # 61  Alarma de presion venosa zero, regularmente se activa cuando se desconectan las tomas 
+                ("Conductividad fuera de limites", "COND FUERA LIM.", "rojo", "dialyConductivityAlarm"),    # 62 Alarma de conductividdad fuera de limites de banda 
             ], start=0)}
     },
 
@@ -301,7 +304,6 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     "LOCAL": {
         0x00: {"name": "Presión transmembrana", "label": "PTM", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 1000), "tag": "CALC_PTM", "nivel": "rojo"},
         0x01: {"name": "Límites de presión de agua", "label": "LIMITES AGUA", "type": "double", "rw": False, "unit": "bar", "limites": (0, 20), "tag": "CALC_WATER_PRESS_LIMITS", "nivel": "cian"},
-        0x02: {"name": "Banda de conductividad", "label": "BANDA COND", "type": "double", "rw": False, "unit": "mS/cm", "limites": (-0.7, 0.7), "tag": "CALC_COND_BAND", "nivel": "cian"},
     }
   
 

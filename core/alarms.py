@@ -78,7 +78,6 @@ class AlarmSystem(QObject):
         
         # Variables que NO son alarmas: solo se escriben como límites, nunca se monitorean
         non_alarm_tags = {
-            "CALC_COND_BAND",
             "CALC_WATER_PRESS_LIMITS",
             "dialyConductHiLimitBand",
             "dialyConductLoLimitBand",
