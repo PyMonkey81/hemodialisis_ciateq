@@ -4006,6 +4006,7 @@ class HemodialysisHMI(QMainWindow):
                 "bloodVenousPressureData": [("venPresCircAlarmLoLimData", 0), ("venPresCircAlarmHiLimData", 1)],
                 "CALC_PTM": [("membPressAlarmLoLimData", 0), ("membPressAlarmHiLimData", 1)],
                 "CALC_WATER_PRESS_LIMITS": [("dialyLineWaterPresLoLimit", 0), ("dialyLineWaterPresHiLimit", 1)],
+                "dialyConductivityAlarm": [("dialyConductLoLimitBand", 0), ("dialyConductHiLimitBand", 1)],
                 "CALC_COND_BAND": [("dialyConductLoLimitBand", 0), ("dialyConductHiLimitBand", 1)],
             }
             

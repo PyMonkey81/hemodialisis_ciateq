@@ -198,7 +198,34 @@ class AlarmScreenConfig(QWidget):
                 # Guardamos la información del tipo
                 widget_dict = {'level': combo_level, 'type': var_type}
 
-                if var_type == "double":
+                # Caso especial: dialyConductivityAlarm (booleana pero con límites)
+                if tag == "dialyConductivityAlarm":
+                    # Leer limites guardados o usar defaults
+                    cond_min, cond_max = self.config_manager.get_limits(tag)
+                    if cond_min is None:
+                        cond_min = -0.7
+                    if cond_max is None:
+                        cond_max = 0.7
+
+                    min_edit = ClickableLineEdit(f"{cond_min:.1f}")
+                    max_edit = ClickableLineEdit(f"{cond_max:.1f}")
+                    min_edit.setStyleSheet("background-color: #fcfcfc; color: #0f172a; font-size: 23px;")
+                    max_edit.setStyleSheet("background-color: #fcfcfc; color: #0f172a; font-size: 23px;")
+                    min_edit.setFixedWidth(100)
+                    max_edit.setFixedWidth(100)
+
+                    # Usar numpad con allow_negative=True para conductividad
+                    min_edit.clicked.connect(lambda c=False, e=min_edit, t=tag, n=name, f="min": self.open_numpad_conductivity(e, t, n, f))
+                    max_edit.clicked.connect(lambda c=False, e=max_edit, t=tag, n=name, f="max": self.open_numpad_conductivity(e, t, n, f))
+
+                    self.grid_layout.addWidget(lbl_name, row, 0)
+                    self.grid_layout.addWidget(min_edit, row, 1)
+                    self.grid_layout.addWidget(max_edit, row, 2)
+                    self.grid_layout.addWidget(combo_level, row, 3)
+
+                    widget_dict.update({'min': min_edit, 'max': max_edit})
+
+                elif var_type == "double":
                     # Variables numéricas → mostrar límites
                     min_val, max_val = self.config_manager.get_limits(tag)
 
@@ -245,6 +272,16 @@ class AlarmScreenConfig(QWidget):
             val = dialog.get_value()
             line_edit.setText(f"{val:.1f}")
 
+    def open_numpad_conductivity(self, line_edit, tag, param_name, field):
+        """Abre el numpad para conductividad (permite negativos)"""
+        dialog = NumpadDialog(self, initial_value="", 
+                             title=f"Límite {field.upper()} \n {param_name}",
+                             allow_negative=True)
+        
+        if dialog.exec():
+            val = dialog.get_value()
+            line_edit.setText(f"{val:.1f}")
+
     def show_floating_message(self, text: str, timeout_ms: int = 3800):
         """Método genérico (recomendado)"""
         if not hasattr(self, '_floating_msg') or self._floating_msg is None:
@@ -280,8 +317,8 @@ class AlarmScreenConfig(QWidget):
         # PASO 1: Validar todas las filas sin guardar nada
         for tag, widgets in self.inputs.items():
             try:
-                # Solo validar límites si es variable numérica
-                if widgets.get('type') == "double":
+                # Solo validar límites si es variable numérica o dialyConductivityAlarm
+                if widgets.get('type') == "double" or tag == "dialyConductivityAlarm":
                     min_v = float(widgets['min'].text())
                     max_v = float(widgets['max'].text())
 
@@ -302,8 +339,8 @@ class AlarmScreenConfig(QWidget):
                 level = widgets['level'].currentText()
                 self.config_manager.set_severity(tag, level)
 
-                # Solo guardar límites si es variable numérica
-                if widgets.get('type') == "double":
+                # Solo guardar límites si es variable numérica o dialyConductivityAlarm
+                if widgets.get('type') == "double" or tag == "dialyConductivityAlarm":
                     min_v = float(widgets['min'].text())
                     max_v = float(widgets['max'].text())
                     self.config_manager.set_limits(tag, min_v, max_v)
@@ -353,12 +390,12 @@ class AlarmScreenConfig(QWidget):
                 water_min = None
                 water_max = None
             
-            # Conductividad: leer directamente de CALC_COND_BAND
+            # Conductividad: leer de dialyConductivityAlarm
             # mínimo -> dialyConductLoLimitBand
             # máximo -> dialyConductHiLimitBand
-            if "CALC_COND_BAND" in self.inputs:
-                cond_min = float(self.inputs["CALC_COND_BAND"]['min'].text())
-                cond_max = float(self.inputs["CALC_COND_BAND"]['max'].text())
+            if "dialyConductivityAlarm" in self.inputs:
+                cond_min = float(self.inputs["dialyConductivityAlarm"]['min'].text())
+                cond_max = float(self.inputs["dialyConductivityAlarm"]['max'].text())
             else:
                 cond_min = None
                 cond_max = None
@@ -391,9 +428,13 @@ class AlarmScreenConfig(QWidget):
             widgets['level'].setCurrentText(default_severity)
             self.config_manager.set_severity(tag, default_severity)
 
-            # Restaurar límites si es numérica
-            if widgets.get('type') == "double":
+            # Restaurar límites si es numérica o dialyConductivityAlarm
+            if widgets.get('type') == "double" or tag == "dialyConductivityAlarm":
                 default_min, default_max = self.config_manager.get_default_limits_from_variables_map(tag)
+                if default_min is None:
+                    default_min = -0.7
+                if default_max is None:
+                    default_max = 0.7
                 widgets['min'].setText(f"{default_min:.1f}")
                 widgets['max'].setText(f"{default_max:.1f}")
                 self.config_manager.set_limits(tag, default_min, default_max)
@@ -440,9 +481,12 @@ class AlarmScreenConfig(QWidget):
             # Conductividad: leer directamente de CALC_COND_BAND
             # mínimo -> dialyConductLoLimitBand
             # máximo -> dialyConductHiLimitBand
-            if "CALC_COND_BAND" in self.inputs:
-                cond_min = float(self.inputs["CALC_COND_BAND"]['min'].text())
-                cond_max = float(self.inputs["CALC_COND_BAND"]['max'].text())
+            # Conductividad: leer de dialyConductivityAlarm
+            # mínimo -> dialyConductLoLimitBand
+            # máximo -> dialyConductHiLimitBand
+            if "dialyConductivityAlarm" in self.inputs:
+                cond_min = float(self.inputs["dialyConductivityAlarm"]['min'].text())
+                cond_max = float(self.inputs["dialyConductivityAlarm"]['max'].text())
             else:
                 cond_min = None
                 cond_max = None
