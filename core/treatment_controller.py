@@ -32,6 +32,9 @@ class TreatmentController:
         
         # Bandera para enviar pausa una sola vez cuando tiempo llega a 0 en bypass
         self.bypass_pause_sent = False
+        
+        # Bandera para UI: cuando terapia se pausa por timeout en bypass (no por botón)
+        self.therapy_finished_by_time = False
 
     def _get_programmed_total_seconds(self) -> int:
         """Obtiene la duración programada desde los setpoints actuales."""
@@ -54,6 +57,7 @@ class TreatmentController:
         self._reset_session_counters(reset_total=False)
         self.total_therapy_seconds = self._get_programmed_total_seconds()
         self.bypass_pause_sent = False  # Reiniciar bandera para nueva terapia
+        self.therapy_finished_by_time = False  # Limpiar UI flag
 
     # ====================== START TREATMENT ======================
 
@@ -112,7 +116,15 @@ class TreatmentController:
             seconds_passed = self.therapy_start_time.secsTo(QDateTime.currentDateTime())
             self.accumulated_therapy_seconds += seconds_passed
             self.therapy_start_time = None
-        self.main.show_info_message("Terapia en pausa")
+        
+        # Mostrar mensaje diferente si es por timeout o por botón
+        if self.bypass_pause_sent:  # Se pausó por timeout en bypass
+            self.main.show_info_message("Terapia finalizada")
+            self.therapy_finished_by_time = True  # Mantener bandera para UI
+        else:  # Se pausó por botón
+            self.main.show_info_message("Terapia en pausa")
+            self.therapy_finished_by_time = False  # Limpiar UI flag (es pausa manual)
+        
         self.bypass_pause_sent = False  # Resetear bandera de bypass
         if self.state.current_phase != TreatmentPhase.RUNNING:
             return False
@@ -141,6 +153,7 @@ class TreatmentController:
             # tarda en confirmar el cambio de estado.
             self._reset_session_counters(reset_total=True)
             self.bypass_pause_sent = False  # Resetear bandera de bypass
+            self.therapy_finished_by_time = False  # Limpiar UI flag
 
             self.main.show_info_message("Terapia detenida...")
             logger.info("Tratamiento detenido y registrado correctamente")          
@@ -263,6 +276,7 @@ class TreatmentController:
                 logger.info("Tiempo de terapia completado - Pausando en bypass")
                 self.pause_treatment()
                 self.bypass_pause_sent = True
+                self.therapy_finished_by_time = True  # Marcar para UI: terapia terminada por tiempo
             return
 
         if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:

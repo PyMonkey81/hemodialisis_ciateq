@@ -3230,6 +3230,11 @@ class HemodialysisHMI(QMainWindow):
                 # Si salimos del estado 7, no hay diálogos que cerrar (la lógica se simplificó)
                 prev_status = self._last_priming_status
                 
+                # Limpiar bandera de terapia terminada por tiempo cuando vuelve a bypass (14)
+                if status_code == 14 and hasattr(self, 'treatment_controller'):
+                    self.treatment_controller.therapy_finished_by_time = False
+                    logger.info("Bandera therapy_finished_by_time limpiada al volver a estado 14")
+                
                 # ========== MANEJO DEL DIÁLOGO DE FILTRO ==========
                 
                 # Al salir del estado 7, cerrar cuadro y borrar marca
@@ -3270,6 +3275,12 @@ class HemodialysisHMI(QMainWindow):
                 # === NUEVA LÓGICA ===
                 new_phase = self.hardware_mapper.get_phase(status_code, treatment_mode)
                 display_text = self.hardware_mapper.get_display_text(status_code, treatment_mode)
+
+                # Si terapia se pausó por timeout y estado es 15 (PAUSED), mostrar "TERAPIA FINALIZADA"
+                if (status_code == 15 and hasattr(self, 'treatment_controller') and 
+                    self.treatment_controller.therapy_finished_by_time):
+                    display_text = "TERAPIA\nFINALIZADA"
+                    logger.info("Mostrando 'TERAPIA FINALIZADA' porque fue pausada por timeout")
 
                 # No pintar display_text del mapa en estado 13; lo maneja _update_header_during_filter_fill()
                 if status_code != 13:
