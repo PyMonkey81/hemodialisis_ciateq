@@ -1370,15 +1370,76 @@ class HemodialysisHMI(QMainWindow):
 
     def _show_filter_fill_dialog_main(self):
         """
-        [FUNCIÓN SIN USO - Mantenida para referencia futura]
+        Muestra diálogo modal para confirmación de llenado de filtro.
+        Se llama UNA sola vez al entrar a estado 7 desde 1 o 16.
         
-        Muestra diálogo modal para confirmación de llenado de filtro con validación.
-        La lógica actual simplifica el proceso: se envía dialyFilterFillButton automáticamente
-        al entrar a estado 7 desde el inicio de cebado (estado 1 o 16).
-        
-        Esta función queda como referencia si se requiere reactivar la validación interactiva.
+        Flujo:
+        1. Primer diálogo: "Coloque el filtro..." (solo Aceptar, sin Cancelar)
+        2. Si acepta → Segundo diálogo: "¿Confirma...?" (Aceptar + Cancelar)
+           - Aceptar: manda dialyFilterFillButton=True, llama _start_filter(), sin validaciones
+           - Cancelar: vuelve al primer diálogo
         """
-        pass
+        def show_first_dialog():
+            """Primer paso: instrucción simple sin Cancel (botón oculto)"""
+            dialog = FloatingConfirmDialog(self)
+            self._filter_fill_dialog = dialog  # Guardar referencia
+            
+            # Ocultar el botón Cancel antes de mostrar el diálogo
+            if hasattr(dialog, 'btn_cancel'):
+                dialog.btn_cancel.setVisible(False)
+            
+            confirmed = dialog.show_confirm(
+                text="Coloque el filtro. Cuando esté colocado, presione Aceptar.",
+                accept_text="Aceptar",
+                cancel_text="Cancelar"
+            )
+            
+            # Limpiar referencia al cerrar este diálogo
+            if self._filter_fill_dialog == dialog:
+                self._filter_fill_dialog = None
+            
+            if not confirmed:
+                # Usuario no presionó Aceptar
+                logger.info("[FILTER-DIALOG] Usuario no confirmó primer diálogo")
+                return
+            
+            # Aceptar → mostrar segundo diálogo
+            show_second_dialog()
+        
+        def show_second_dialog():
+            """Segundo paso: confirmación final sin validaciones"""
+            dialog = FloatingConfirmDialog(self)
+            self._filter_fill_dialog = dialog  # Guardar referencia
+            
+            # Mostrar el botón Cancel en el segundo diálogo
+            if hasattr(dialog, 'btn_cancel'):
+                dialog.btn_cancel.setVisible(True)
+            
+            confirmed = dialog.show_confirm(
+                text="¿Confirma que el filtro ya está colocado?",
+                accept_text="Aceptar",
+                cancel_text="Cancelar"
+            )
+            
+            # Limpiar referencia al cerrar este diálogo
+            if self._filter_fill_dialog == dialog:
+                self._filter_fill_dialog = None
+            
+            if confirmed:
+                # Aceptar: enviar pulso sin validaciones
+                logger.info("[FILTER] Enviando dialyFilterFillButton=True")
+                self._filter_fill_button_sent = True
+                self._write_boolean_command("dialyFilterFillButton", True)
+                self._start_filter()
+                self._last_status_prompt = 7  # Marcar que ya se preguntó
+                logger.info("[FILTER] Llenado de filtro confirmado por usuario")
+            else:
+                # Cancelar: volver al primer diálogo
+                logger.info("[FILTER-DIALOG] Usuario canceló segundo diálogo; regresando al primero...")
+                show_first_dialog()
+        
+        # Iniciar con el primer diálogo
+        show_first_dialog()
 
     def pause_treatment(self):
         """Delegado al TreatmentController"""
@@ -3117,7 +3178,21 @@ class HemodialysisHMI(QMainWindow):
                 # Si salimos del estado 7, no hay diálogos que cerrar (la lógica se simplificó)
                 prev_status = self._last_priming_status
                 
-                # ========== MANEJO DEL FILTRO: ENVIAR PULSO AL ENTRAR A ESTADO 7 ==========
+                # ========== MANEJO DEL DIÁLOGO DE FILTRO ==========
+                
+                # Si salimos del estado 7, cerrar cualquier diálogo abierto
+                if prev_status == 7 and status_code != 7:
+                    if self._filter_fill_dialog is not None:
+                        try:
+                            # Salir del QEventLoop del diálogo
+                            if hasattr(self._filter_fill_dialog, '_event_loop') and self._filter_fill_dialog._event_loop:
+                                if self._filter_fill_dialog._event_loop.isRunning():
+                                    self._filter_fill_dialog._event_loop.quit()
+                            self._filter_fill_dialog = None
+                            logger.info(f"[FILTER-DIALOG] Diálogo cerrado al salir de estado 7 → {status_code}")
+                        except Exception as e:
+                            logger.debug(f"[FILTER-DIALOG] Error cerrando diálogo: {e}")
+                
                 # Si el estado sale de 13, reinicia el conteo
                 if prev_status == 13 and status_code != 13:
                     self._reset_filter_fill_flags()
@@ -3126,16 +3201,14 @@ class HemodialysisHMI(QMainWindow):
                 # Cuando el cebado nuevo empieza (estado 1 o 16), resetea todo
                 if status_code in (1, 16):
                     self._reset_filter_fill_flags()
-                    self._last_status_prompt = None  # Resetear marca de pulso
-                    logger.info(f"[FILTER] Cebado nuevo iniciado (estado {status_code}). Marca de pulso reiniciada.")
+                    self._last_status_prompt = None  # Resetear marca para permitir abrir cuadro nuevamente
+                    logger.info(f"[FILTER] Cebado nuevo iniciado (estado {status_code}). Marca reiniciada.")
                 
-                # Al entrar a 7 SOLO desde estado 1 o 16, mandar pulso automáticamente UNA SOLA VEZ
-                if status_code == 7 and prev_status in (1, 16) and self._last_status_prompt != 7:
-                    logger.info("[FILTER] Entrando a estado 7 desde inicio. Enviando dialyFilterFillButton=True automáticamente.")
-                    self._filter_fill_button_sent = True
-                    self._write_boolean_command("dialyFilterFillButton", True)
-                    self._start_filter()
-                    self._last_status_prompt = 7  # Marcar que ya se envió el pulso
+                # Al entrar a 7 SOLO desde estado 1 o 16, abrir cuadro UNA SOLA VEZ
+                if status_code == 7 and prev_status in (1, 16) and self._last_status_prompt != 7 and self._filter_fill_dialog is None:
+                    logger.info("[FILTER] Entrando a estado 7 desde inicio. Abriendo cuadro de filtro.")
+                    QTimer.singleShot(0, self._show_filter_fill_dialog_main)
+                    self._last_status_prompt = 7  # Marcar que ya se mostró el cuadro
                 
                 self._last_priming_status = status_code
 
@@ -3158,7 +3231,9 @@ class HemodialysisHMI(QMainWindow):
                 display_text = self.hardware_mapper.get_display_text(status_code, treatment_mode)
 
                 self.current_process_status.setText(display_text)
-                self._update_header_during_filter_fill()
+                
+                # No actualizar encabezado dinámicamente en estado 7
+                # El encabezado del mapa es "COLOCAR FILTRO" y se mantiene así
 
                 old_phase = self.state.current_phase  # ← Guardamos siempre el estado anterior
 
