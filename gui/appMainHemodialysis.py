@@ -1213,7 +1213,7 @@ class HemodialysisHMI(QMainWindow):
             ("Inicio",              "#06298a", self.show_home_screen),
             ("Resumen\nTerapia",            "#06298a", self.show_dialysis_screen),
             ("Iniciar\nTratamiento", "#39ec21", self.start_treatment),
-            ("Fin de\nTerapia",      "#DD2911", self._confirm_end_therapy),
+            ("Finalizar\nTerapia",      "#DD2911", self._confirm_end_therapy),
             ("Limpieza",            "#06298a", self.show_cleaning_screen),
             ("Servicio", "#06298a", self.show_options_screen),
             ("Alarmas",             "#06298a", self.show_alarms_screen),
@@ -2714,7 +2714,7 @@ class HemodialysisHMI(QMainWindow):
             elif text == "Iniciar\nTratamiento":
                 enabled = phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED)
 
-            elif text == "Fin de\nTerapia":
+            elif text == "Finalizar\nTerapia":
                 enabled = phase in (TreatmentPhase.PREPARING, TreatmentPhase.READY, 
                                    TreatmentPhase.RUNNING, TreatmentPhase.PAUSED)
 
@@ -2723,17 +2723,17 @@ class HemodialysisHMI(QMainWindow):
                 enabled = text in ["Limpieza", "Alarmas", "Historial", "Servicio"]
 
             elif phase == TreatmentPhase.RUNNING:
-                enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Fin de\nTerapia"]
+                enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Finalizar\nTerapia"]
 
             elif phase == TreatmentPhase.PAUSED:
                 enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio", 
-                             "Alarmas", "Historial", "Fin de\nTerapia"]
+                             "Alarmas", "Historial", "Finalizar\nTerapia"]
                 if text == "Iniciar\nTratamiento":
                     enabled = self._can_start_treatment()
 
             elif phase == TreatmentPhase.READY:
                 enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio", 
-                             "Alarmas", "Historial", "Fin de\nTerapia"]
+                             "Alarmas", "Historial", "Finalizar\nTerapia"]
                 if text == "Iniciar\nTratamiento":
                     # enabled = temp_ok and cond_ok
                     enabled = self._can_start_treatment()
@@ -2746,7 +2746,7 @@ class HemodialysisHMI(QMainWindow):
                 status = int(self.current_values.get("primingProcessStatus", 0))
                 if self.hardware_mapper.is_preparing(status):
                     # Durante cebado normal
-                    enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Servicio", "Fin de\nTerapia"]
+                    enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Servicio", "Finalizar\nTerapia"]
                 else:
                     # Cuando se detiene el priming
                     enabled = True
@@ -2769,7 +2769,7 @@ class HemodialysisHMI(QMainWindow):
                         btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
                     else:
                         btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
-                elif text == "Fin de\nTerapia":
+                elif text == "Finalizar\nTerapia":
                     btn.setStyleSheet(self.BTN_ENABLED_END_THERAPY_STYLE)
                 elif text == current_nav_text:
                     btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
