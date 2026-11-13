@@ -113,6 +113,7 @@ class TreatmentController:
             self.accumulated_therapy_seconds += seconds_passed
             self.therapy_start_time = None
         self.main.show_info_message("Terapia en pausa")
+        self.bypass_pause_sent = False  # Resetear bandera de bypass
         if self.state.current_phase != TreatmentPhase.RUNNING:
             return False
         try:
@@ -139,6 +140,7 @@ class TreatmentController:
             # Evita arrastre de tiempo entre terapias cuando el hardware
             # tarda en confirmar el cambio de estado.
             self._reset_session_counters(reset_total=True)
+            self.bypass_pause_sent = False  # Resetear bandera de bypass
 
             self.main.show_info_message("Terapia detenida...")
             logger.info("Tratamiento detenido y registrado correctamente")          
