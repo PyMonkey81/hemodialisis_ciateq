@@ -2890,9 +2890,11 @@ class HemodialysisHMI(QMainWindow):
         
         # Estado 13: READY
         if status_code == 13:
-            # Si no estamos en la espera del llenado, no hacer nada
-            if not self.filter_fill_waiting or self.filter_fill_start_time is None:
-                return
+            # Si recién entramos a estado 13 y no hay start_time, inicializar ahora
+            if self.filter_fill_start_time is None:
+                self.filter_fill_start_time = QDateTime.currentDateTime()
+                self.filter_fill_waiting = True
+                logger.info("[FILTER] Estado 13 iniciado; iniciando contador de 90s para LISTO PARA INICIAR")
             
             # Calcular tiempo transcurrido desde el inicio del llenado
             elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
@@ -3218,7 +3220,12 @@ class HemodialysisHMI(QMainWindow):
                 new_phase = self.hardware_mapper.get_phase(status_code, treatment_mode)
                 display_text = self.hardware_mapper.get_display_text(status_code, treatment_mode)
 
-                self.current_process_status.setText(display_text)
+                # No pintar display_text del mapa en estado 13; lo maneja _update_header_during_filter_fill()
+                if status_code != 13:
+                    self.current_process_status.setText(display_text)
+                else:
+                    # En estado 13, llamar a _update_header_during_filter_fill() para mostrar "PREPARANDO..." o "LISTO PARA\nINICIAR"
+                    self._update_header_during_filter_fill()
                 
                 # No actualizar encabezado dinámicamente en estado 7
                 # El encabezado del mapa es "COLOCAR FILTRO" y se mantiene así
