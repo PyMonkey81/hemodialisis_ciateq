@@ -121,13 +121,13 @@ class TreatmentController:
 
         
     def stop_treatment(self):
-        """Detiene completamente el tratamiento"""
+        """Detiene completamente el tratamiento (SIN parar el cebado)"""
         try:
-            # Comandos al hardware
+            # Comandos al hardware: stop la terapia pero NO el cebado
             self.main._write_boolean_command("dialyModeOperationStop", True)
             self.main._write_boolean_command("dialyModeOperationStart", False)
-            self.main._write_boolean_command("dialyStopDialysisButt",True) # detiene secuencia de cebado tambien 
-            self.main._write_boolean_command("dialyStartDialysisButt", False)    
+            # Nota: No escribir dialyStopDialysisButt ni dialyStartDialysisButt
+            # porque esos controlan el cebado, que debe permanecer independiente.
             
             if self.bioz_urea_controller:
                 self.bioz_urea_controller.send_command("STOP")            
@@ -222,7 +222,6 @@ class TreatmentController:
         if self.total_therapy_seconds > 0 and remaining <= 0 and phase == TreatmentPhase.RUNNING and status_code == 14:
             logger.info("Tiempo de terapia completado")
             self.stop_treatment()
-            self.main.stop_priming()
             return
 
         if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:
