@@ -29,6 +29,9 @@ class TreatmentController:
         # self.total_therapy_seconds = 0
         self.therapy_start_time = None        # Para esta sesión de terapia
         self.accumulated_therapy_seconds = 0  # Tiempo acumulado (pausas)
+        
+        # Bandera para enviar pausa una sola vez cuando tiempo llega a 0 en bypass
+        self.bypass_pause_sent = False
 
     def _get_programmed_total_seconds(self) -> int:
         """Obtiene la duración programada desde los setpoints actuales."""
@@ -50,6 +53,7 @@ class TreatmentController:
         """Prepara una sesión nueva (no reanudación) desde estado listo."""
         self._reset_session_counters(reset_total=False)
         self.total_therapy_seconds = self._get_programmed_total_seconds()
+        self.bypass_pause_sent = False  # Reiniciar bandera para nueva terapia
 
     # ====================== START TREATMENT ======================
 
@@ -251,9 +255,12 @@ class TreatmentController:
         current_elapsed = self.get_elapsed_seconds()
         remaining = max(0, self.total_therapy_seconds - current_elapsed)
 
+        # Si tiempo llega a cero en RUNNING y estado es 14 (bypass), pausar una sola vez
         if self.total_therapy_seconds > 0 and remaining <= 0 and phase == TreatmentPhase.RUNNING and status_code == 14:
-            logger.info("Tiempo de terapia completado")
-            self.stop_treatment()
+            if not self.bypass_pause_sent:
+                logger.info("Tiempo de terapia completado - Pausando en bypass")
+                self.pause_treatment()
+                self.bypass_pause_sent = True
             return
 
         if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:

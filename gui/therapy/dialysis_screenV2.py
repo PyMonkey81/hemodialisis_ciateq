@@ -711,6 +711,11 @@ class DialysisScreen(QWidget):
             btn.setStyleSheet(self._button_style(color))
             btn.clicked.connect(callback)
             self.action_buttons[text] = btn # === Guardar el botón en el diccionario ===
+            
+            # Ocultar botón DETENER
+            if text == "DETENER":
+                btn.setVisible(False)
+            
             row = i // 4
             col = i % 4
             buttons_layout.addWidget(btn, row, col)            
