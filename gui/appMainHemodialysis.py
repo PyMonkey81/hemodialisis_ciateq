@@ -1371,7 +1371,7 @@ class HemodialysisHMI(QMainWindow):
     def _show_filter_fill_dialog_main(self):
         """
         Muestra diálogo modal para confirmación de llenado de filtro.
-        Se llama UNA sola vez al entrar a estado 7 desde 1 o 16.
+        Se abre cada vez que se entra a estado 7 (si no hay cuadro abierto).
         
         Flujo:
         1. Primer diálogo: "Coloque el filtro..." (solo Aceptar, sin Cancelar)
@@ -1400,7 +1400,7 @@ class HemodialysisHMI(QMainWindow):
             
             if not confirmed:
                 # Usuario no presionó Aceptar
-                logger.info("[FILTER-DIALOG] Usuario no confirmó primer diálogo")
+                logger.info("[FILTER] Usuario no confirmó primer diálogo")
                 return
             
             # Aceptar → mostrar segundo diálogo
@@ -1431,11 +1431,10 @@ class HemodialysisHMI(QMainWindow):
                 self._filter_fill_button_sent = True
                 self._write_boolean_command("dialyFilterFillButton", True)
                 self._start_filter()
-                self._last_status_prompt = 7  # Marcar que ya se preguntó
                 logger.info("[FILTER] Llenado de filtro confirmado por usuario")
             else:
                 # Cancelar: volver al primer diálogo
-                logger.info("[FILTER-DIALOG] Usuario canceló segundo diálogo; regresando al primero...")
+                logger.info("[FILTER] Usuario canceló segundo diálogo; regresando al primero...")
                 show_first_dialog()
         
         # Iniciar con el primer diálogo
@@ -3180,7 +3179,7 @@ class HemodialysisHMI(QMainWindow):
                 
                 # ========== MANEJO DEL DIÁLOGO DE FILTRO ==========
                 
-                # Si salimos del estado 7, cerrar cualquier diálogo abierto
+                # Al salir del estado 7, cerrar cuadro y borrar marca
                 if prev_status == 7 and status_code != 7:
                     if self._filter_fill_dialog is not None:
                         try:
@@ -3189,26 +3188,15 @@ class HemodialysisHMI(QMainWindow):
                                 if self._filter_fill_dialog._event_loop.isRunning():
                                     self._filter_fill_dialog._event_loop.quit()
                             self._filter_fill_dialog = None
-                            logger.info(f"[FILTER-DIALOG] Diálogo cerrado al salir de estado 7 → {status_code}")
+                            logger.info(f"[FILTER] Cuadro cerrado al salir de estado 7 → {status_code}")
                         except Exception as e:
-                            logger.debug(f"[FILTER-DIALOG] Error cerrando diálogo: {e}")
+                            logger.debug(f"[FILTER] Error cerrando cuadro: {e}")
+                    self._last_status_prompt = None  # Borrar marca al salir de 7
                 
-                # Si el estado sale de 13, reinicia el conteo
-                if prev_status == 13 and status_code != 13:
-                    self._reset_filter_fill_flags()
-                    logger.info(f"[FILTER] Estado cambió de {prev_status} → {status_code}. Timer de 90s reiniciado.")
-                
-                # Cuando el cebado nuevo empieza (estado 1 o 16), resetea todo
-                if status_code in (1, 16):
-                    self._reset_filter_fill_flags()
-                    self._last_status_prompt = None  # Resetear marca para permitir abrir cuadro nuevamente
-                    logger.info(f"[FILTER] Cebado nuevo iniciado (estado {status_code}). Marca reiniciada.")
-                
-                # Al entrar a 7 (desde cualquier estado excepto 7), abrir cuadro UNA SOLA VEZ
-                if status_code == 7 and prev_status != 7 and self._last_status_prompt != 7 and self._filter_fill_dialog is None:
-                    logger.info("[FILTER] Entrando a estado 7. Abriendo cuadro de filtro.")
+                # Al entrar a 7, abrir cuadro si no hay uno abierto
+                if status_code == 7 and self._filter_fill_dialog is None:
+                    logger.info(f"[FILTER] Entrando a estado 7 desde {prev_status}. Abriendo cuadro de filtro.")
                     QTimer.singleShot(0, self._show_filter_fill_dialog_main)
-                    self._last_status_prompt = 7  # Marcar que ya se mostró el cuadro
                 
                 self._last_priming_status = status_code
 
