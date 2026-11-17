@@ -3332,16 +3332,22 @@ class HemodialysisHMI(QMainWindow):
                 # === REGISTRO DE HISTORIAL AL FINALIZAR TRATAMIENTO ===
                 if new_phase == TreatmentPhase.IDLE and old_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.READY, TreatmentPhase.PREPARING):
                     logger.info("Hardware confirmó fin de tratamiento → Registrando historial")
-                    if hasattr(self, 'register_treatment_session'):
-                        self.register_treatment_session()
-                        logger.debug("Historial de tratamiento registrado")
-                    
-                    # Cerrar logger
-                    if hasattr(self, 'treatment_logger') and self.treatment_logger:
-                        self.treatment_logger.close()
-                        self.treatment_logger = None
                     
                     treatment_controller = getattr(self, 'treatment_controller', None)
+                    # Solo registrar si registros no fueron ya cerrados por timeout
+                    if treatment_controller and not treatment_controller.therapy_records_closed:
+                        if hasattr(self, 'register_treatment_session'):
+                            self.register_treatment_session()
+                            logger.debug("Historial de tratamiento registrado")
+                    else:
+                        logger.debug("Saltando registro: registros ya cerrados por timeout")
+                    
+                    # Cerrar logger solo si no fue ya cerrado por timeout
+                    if treatment_controller and not treatment_controller.therapy_records_closed:
+                        if hasattr(self, 'treatment_logger') and self.treatment_logger:
+                            self.treatment_logger.close()
+                            self.treatment_logger = None
+                    
                     if treatment_controller is not None:
                         treatment_controller.stop_therapy_timer()
                         logger.debug("Timer de terapia detenido tras transición a IDLE")

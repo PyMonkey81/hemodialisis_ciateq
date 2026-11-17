@@ -35,6 +35,9 @@ class TreatmentController:
         
         # Bandera para UI: cuando terapia se pausa por timeout en bypass (no por botón)
         self.therapy_finished_by_time = False
+        
+        # Bandera para evitar cerrar registros dos veces en timeout
+        self.therapy_records_closed = False
 
     def _get_programmed_total_seconds(self) -> int:
         """Obtiene la duración programada desde los setpoints actuales."""
@@ -58,6 +61,7 @@ class TreatmentController:
         self.total_therapy_seconds = self._get_programmed_total_seconds()
         self.bypass_pause_sent = False  # Reiniciar bandera para nueva terapia
         self.therapy_finished_by_time = False  # Limpiar UI flag
+        self.therapy_records_closed = False  # Permitir nuevo cierre de registros en próxima terapia
 
     # ====================== START TREATMENT ======================
 
@@ -71,7 +75,10 @@ class TreatmentController:
                 self.prepare_new_treatment_session()
 
             # Comandos al hardware
-            self.main._write_boolean_command("dialyModeOperationStart", True)
+            # Si registros ya fueron cerrados por timeout (therapy_records_closed=True),
+            # NO enviar dialyModeOperationStart - la pausa queda para maniobras
+            if not self.therapy_records_closed:
+                self.main._write_boolean_command("dialyModeOperationStart", True)
             self.main._write_boolean_command("dialyModeOperationStop", False)
 
             self.main.show_info_message("Terapia iniciada correctamente")
@@ -134,8 +141,70 @@ class TreatmentController:
             logger.error(f"Error al pausar: {e}")
             return False
 
-
+    def close_therapy_records_on_timeout(self):
+        """
+        Cierra registros de terapia cuando el reloj llega a cero.
+        Se ejecuta una sola vez (protegida por therapy_records_closed).
+        La máquina permanece en pausa; no detiene cebado ni limpia pantalla KTV.
+        """
+        if self.therapy_records_closed:
+            logger.debug("Registros de terapia ya cerrados, ignorando llamada duplicada")
+            return
         
+        self.therapy_records_closed = True
+        
+        # 1. Tomar tiempo transcurrido ANTES de limpiar contadores
+        elapsed_seconds = self.get_elapsed_seconds()
+        logger.info(f"Cerrando registros de terapia - Tiempo transcurrido: {elapsed_seconds}s")
+        
+        try:
+            # 2. Finalizar dosis entregada y guardar reporte Kt/V
+            if hasattr(self.main, 'ktv_controller') and self.main.ktv_controller:
+                self.main.ktv_controller.finalize_delivered_dose()
+                logger.info("KTV finalized_delivered_dose ejecutado")
+            
+            if hasattr(self.main, 'KTVScreen') and self.main.KTVScreen:
+                self.main.KTVScreen.save_final_report()
+                logger.info("KTV final report guardado")
+            
+            # 3. Abortar medición en curso (sin reset_screen_data)
+            if hasattr(self.main, 'ktv_controller') and self.main.ktv_controller:
+                self.main.ktv_controller.abort("Terapia cerrada por tiempo")
+                logger.info("KTV abort ejecutado")
+            
+            # 4. Registrar sesión de tratamiento y limpiar current_treatment_start
+            if hasattr(self.main, 'register_treatment_session'):
+                self.main.register_treatment_session()
+                logger.info("Sesión de tratamiento registrada")
+            
+            if hasattr(self.main, 'current_treatment_start'):
+                self.main.current_treatment_start = None
+            
+            # 5. Cerrar treatment_logger
+            if hasattr(self.main, 'treatment_logger') and self.main.treatment_logger:
+                self.main.treatment_logger.close()
+                self.main.treatment_logger = None
+                logger.info("Treatment logger cerrado")
+            
+            # 6. Guardar NibpPressureHistory si tiene método de guardado
+            if hasattr(self.main, 'nibp_pressure_history') and self.main.nibp_pressure_history:
+                # Verificar si existe método save/persist; si no, se queda en memoria
+                if hasattr(self.main.nibp_pressure_history, 'save'):
+                    try:
+                        self.main.nibp_pressure_history.save()
+                        logger.info("NIBP pressure history guardado")
+                    except Exception as e:
+                        logger.warning(f"Error guardando NIBP history: {e}")
+                else:
+                    logger.debug("NibpPressureHistory sin método de guardado, se queda en memoria")
+            
+            # 7. TreatmentPhase NO cambia - hardware sigue en PAUSED
+            logger.info("Registros de terapia cerrados - Hardware permanece en PAUSED")
+            
+        except Exception as e:
+            logger.error(f"Error cerrando registros de terapia por timeout: {e}")
+
+
     def stop_treatment(self):
         """Detiene completamente el tratamiento (SIN parar el cebado)"""
         try:
@@ -178,6 +247,11 @@ class TreatmentController:
             # Limpia acumuladores
             self._reset_session_counters(reset_total=True)
             
+            # Limpiar banderas
+            self.therapy_finished_by_time = False
+            self.bypass_pause_sent = False
+            self.therapy_records_closed = False  # Permitir nuevo cierre de registros si se reinicia
+            
             # Cierra loggers
             if hasattr(self.main, 'treatment_logger') and self.main.treatment_logger:
                 self.main.treatment_logger.close()
@@ -218,10 +292,13 @@ class TreatmentController:
         
         self._reset_session_counters(reset_total=True)
 
-        # Limpiar KTV también
+        # Limpiar KTV también, pero SOLO si registros no fueron ya cerrados por timeout
         if hasattr(self.main, 'KTVScreen') and self.main.KTVScreen:
             try:
-                self.main.KTVScreen.save_final_report()
+                # NO guardar otro reporte vacío si ya se cerró por timeout
+                if not self.therapy_records_closed:
+                    self.main.KTVScreen.save_final_report()
+                
                 if hasattr(self.main.KTVScreen, 'ktv_records'):
                     self.main.KTVScreen.ktv_records.clear()
                 if hasattr(self.main.KTVScreen, 'ktv_points'):
@@ -230,7 +307,6 @@ class TreatmentController:
                     self.main.KTVScreen.heit_points.clear()
             except Exception as e:
                 logger.warning(f"Error limpiando KTV: {e}")
-        print("si se ejecuto en Treatment_controller")
 
     def get_elapsed_seconds(self) -> int:
         """Elapsed de la terapia actual (no usa TimerManager)"""
@@ -277,6 +353,8 @@ class TreatmentController:
                 self.bypass_pause_sent = True
                 self.therapy_finished_by_time = True
                 self.pause_treatment()
+                # Cerrar registros de terapia UNA SOLA VEZ
+                self.close_therapy_records_on_timeout()
             return
 
         if hasattr(self.main, 'dialysis_screen') and self.main.dialysis_screen:
