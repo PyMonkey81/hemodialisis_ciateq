@@ -255,12 +255,21 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         logger.info("[KtvController] BIOZ válida: R=%.2f Ω | θ=%.2f°", resistance, phase_abs)
         return True
 
-    def abort(self, reason: str = "Abortado por usuario") -> None:
-        """Aborta la secuencia de medición Kt/V y emite una señal."""
+    def abort(self, reason: str = "Abortado por usuario", emit_signal: bool = True) -> None:
+        """Aborta la secuencia de medición Kt/V. 
+        
+        Args:
+            reason: Motivo del aborto
+            emit_signal: Si False, no emite measurement_aborted (para timeout: mantiene pantalla Kt/V visible)
+        """
         if self.grafcet.step not in (KtvStep.IDLE, KtvStep.FINISHED, KtvStep.ERROR):
             self.grafcet.abort(reason)
-            self._notify_user(f"Medición Kt/V abortada: {reason}", "error", 4000)
-            self.measurement_aborted.emit(reason) # Notificar a la UI
+            # Solo notificar y emitir si emit_signal es True (abortos normales)
+            if emit_signal:
+                self._notify_user(f"Medición Kt/V abortada: {reason}", "error", 4000)
+                self.measurement_aborted.emit(reason) # Notificar a la UI
+            else:
+                logger.info(f"[KtvController] Abort sin señal (timeout): {reason}")
 
         self._restore_original_conductivity_if_needed(f"abort: {reason}")
         self._grafcet_is_paused_internally = False # Asegurarse de que no quede en estado de pausa interna

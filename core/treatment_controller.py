@@ -69,16 +69,19 @@ class TreatmentController:
         """Inicia o reanuda tratamiento con mensaje correcto"""
         logger.info("=== INTENTO DE INICIO DE TRATAMIENTO ===")
         
+        # Si registros ya fueron cerrados por timeout (therapy_records_closed=True),
+        # NO enviar ningún comando - la pausa queda para maniobras
+        if self.therapy_records_closed:
+            logger.info("therapy_records_closed activa: start_treatment no hace nada")
+            return False
+        
         try:
             # Si NO viene de pausa, debe arrancar una sesión limpia.
             if self.state.current_phase != TreatmentPhase.PAUSED:
                 self.prepare_new_treatment_session()
 
             # Comandos al hardware
-            # Si registros ya fueron cerrados por timeout (therapy_records_closed=True),
-            # NO enviar dialyModeOperationStart - la pausa queda para maniobras
-            if not self.therapy_records_closed:
-                self.main._write_boolean_command("dialyModeOperationStart", True)
+            self.main._write_boolean_command("dialyModeOperationStart", True)
             self.main._write_boolean_command("dialyModeOperationStop", False)
 
             self.main.show_info_message("Terapia iniciada correctamente")
@@ -169,8 +172,9 @@ class TreatmentController:
             
             # 3. Abortar medición en curso (sin reset_screen_data)
             if hasattr(self.main, 'ktv_controller') and self.main.ktv_controller:
-                self.main.ktv_controller.abort("Terapia cerrada por tiempo")
-                logger.info("KTV abort ejecutado")
+                # Abort sin emitir señal para mantener pantalla Kt/V visible
+                self.main.ktv_controller.abort("Terapia cerrada por tiempo", emit_signal=False)
+                logger.info("KTV abort ejecutado (sin signal)")
             
             # 4. Registrar sesión de tratamiento y limpiar current_treatment_start
             if hasattr(self.main, 'register_treatment_session'):
@@ -250,7 +254,7 @@ class TreatmentController:
             # Limpiar banderas
             self.therapy_finished_by_time = False
             self.bypass_pause_sent = False
-            self.therapy_records_closed = False  # Permitir nuevo cierre de registros si se reinicia
+            # NO limpiar therapy_records_closed aquí - solo se limpia en prepare_new_treatment_session
             
             # Cierra loggers
             if hasattr(self.main, 'treatment_logger') and self.main.treatment_logger:
