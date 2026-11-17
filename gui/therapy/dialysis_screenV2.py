@@ -689,11 +689,11 @@ class DialysisScreen(QWidget):
             buttons_layout.setColumnStretch(i, 1)
 
         self.action_buttons = {} # guardar referencias de botones
+        self.stop_treatment_callback = self.parent_window.stop_treatment  # Guardar acción sin widget
 
         button_config = [
             ("INICIAR", "#39ec21", self.parent_window.start_treatment),
             ("PAUSAR", "#FFC400", self.parent_window.pause_treatment),
-            ("DETENER", "#DD2911", self.parent_window.stop_treatment),
             ("APLICAR\nBOLO", "#06298a", self.apply_bolus_clicked),
             ("MENÚ\nTERAPIA", "#06298a", self.show_therapy_config),
             ("MENÚ\nPACIENTE", "#06298a", self.show_patient_config),            
@@ -710,11 +710,7 @@ class DialysisScreen(QWidget):
             btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             btn.setStyleSheet(self._button_style(color))
             btn.clicked.connect(callback)
-            self.action_buttons[text] = btn # === Guardar el botón en el diccionario ===
-            
-            # Ocultar botón DETENER
-            if text == "DETENER":
-                btn.setVisible(False)
+            self.action_buttons[text] = btn
             
             row = i // 4
             col = i % 4
@@ -949,16 +945,11 @@ class DialysisScreen(QWidget):
         Recibe instrucciones directas del Main para habilitar/deshabilitar.
         """
         btn_iniciar = self.action_buttons.get("INICIAR")
-        btn_detener = self.action_buttons.get("DETENER")
-        btn_pausar = self.action_buttons.get("PAUSAR") # se agrego este boton a la logica de activación/desactivación
+        btn_pausar = self.action_buttons.get("PAUSAR")
         
         if btn_iniciar:
             btn_iniciar.setEnabled(enable_start)
             btn_iniciar.setStyleSheet(self._button_style("#39ec21", enable_start))
-        
-        if btn_detener:
-            btn_detener.setEnabled(enable_stop)            
-            btn_detener.setStyleSheet(self._button_style("#DD2911", enable_stop))
         
         if btn_pausar:
             btn_pausar.setEnabled(enable_pause)

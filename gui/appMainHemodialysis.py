@@ -1518,11 +1518,19 @@ class HemodialysisHMI(QMainWindow):
         - Actualiza la pantalla de heparina (si existe)
         - Muestra un aviso
         
+        Si heparineInfusionEnabled es 0, no hace nada.
+        
         Al terminar, loguea el estado en los tres sitios para verificar sincronía:
         1. Tags del padre (appMainHemodialysis.current_values)
         2. Tags de la pantalla (HeparinConfigScreen.current_values)
         3. Texto del widget (input_heparin_auto_stop)
         """
+        # Si la infusión de heparina está deshabilitada, no hacer nada
+        heparin_enabled = bool(self.current_values.get("heparineInfusionEnabled", 1.0))
+        if not heparin_enabled:
+            logger.info("[HEPARIN-VALIDATION] Infusión deshabilitada, omitiendo validación")
+            return
+        
         try:
             # Obtener tiempos actuales guardados
             auto_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
@@ -1671,7 +1679,15 @@ class HemodialysisHMI(QMainWindow):
         - Si heparina es 00:20, no se toca
         
         No vuelve a recortar mientras corre la terapia.
+        
+        Si heparineInfusionEnabled es 0, no hace nada.
         """
+        # Si la infusión de heparina está deshabilitada, no hacer nada
+        heparin_enabled = bool(self.current_values.get("heparineInfusionEnabled", 1.0))
+        if not heparin_enabled:
+            logger.info("[HEPARIN-TRIM-RUNNING] Infusión deshabilitada, omitiendo recorte")
+            return
+        
         try:
             # Obtener tiempos programados (no restantes)
             therapy_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
@@ -2561,6 +2577,10 @@ class HemodialysisHMI(QMainWindow):
 
 
     def _update_heparin_auto_stop_timer(self):
+        """
+        Auto-para de bomba de heparina cuando se alcanza el tiempo configurado.
+        Si heparineInfusionEnabled es 0, no hace nada.
+        """
         phase = self.state.current_phase
 
         if phase in (TreatmentPhase.IDLE, TreatmentPhase.READY, TreatmentPhase.PREPARING):
@@ -2568,6 +2588,12 @@ class HemodialysisHMI(QMainWindow):
             return
 
         if phase != TreatmentPhase.RUNNING:
+            return
+
+        # Si la infusión de heparina está deshabilitada, no hacer nada
+        heparin_enabled = bool(self.current_values.get("heparineInfusionEnabled", 1.0))
+        if not heparin_enabled:
+            self._heparin_auto_stop_latched = False
             return
 
         auto_stop_seconds = self._coerce_heparin_auto_stop_seconds()
