@@ -94,6 +94,8 @@ class AlarmsScreen(QWidget):
         self.max_history_entries = 1000
         self.history_data = self._load_history_from_file()
         
+        # Bandera para evitar múltiples diálogos de confirmación
+        self._confirm_dialog_open = False
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -393,7 +395,14 @@ class AlarmsScreen(QWidget):
         """
         Marca todas las alarmas NO reconocidas actualmente como 'Reconocidas' (ACK).
         No las borra. Solo cambia su estado visual.
+        
+        Si ya hay un diálogo de confirmación abierto, ignora el clic.
         """
+        # Evitar múltiples diálogos abiertos simultáneamente
+        if self._confirm_dialog_open:
+            logger.debug("Diálogo de confirmación ya abierto, ignorando clic")
+            return
+        
         if not self.active_alarms:
             # QMessageBox.information(self, "Información", "No hay alarmas activas para reconocer.")
             if self.parent_window and hasattr(self.parent_window, 'show_info_message'):
@@ -406,9 +415,12 @@ class AlarmsScreen(QWidget):
             if self.parent_window and hasattr(self.parent_window, 'show_info_message'):
                 self.parent_window.show_info_message("Todas las alarmas activas ya están reconocidas.", 3000)
             return
+        
+        self._confirm_dialog_open = True
         dialog = FloatingConfirmDialog(self.window())
         message = f"¿Estás seguro de reconocer {unacked_count} alarma(s) activa(s) y silenciar?"
         reply = dialog.show_confirm(message, accept_text="Sí, Reconocer", cancel_text="Cancelar")
+        self._confirm_dialog_open = False
         
         
         if reply == True:
