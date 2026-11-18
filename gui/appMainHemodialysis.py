@@ -45,7 +45,7 @@ Esta clase se instancia desde archivo `main.py`:
     sys.exit(app.exec())
 
 Author: Miguel de Jesus C. Espinoza Calderón
-Version: 2.30.2
+Version: 2.30.3
 """
 
 
