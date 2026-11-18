@@ -1,1331 +1,5 @@
 [
     {
-        "time": "16:04:33",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:04:33",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "16:04:33",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:04:34",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "16:04:34",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "16:06:35",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "16:06:35",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:06:36",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "16:06:36",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:06:36",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "16:06:36",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "16:21:11",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "16:21:11",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:21:11",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "16:21:11",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "16:21:12",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "16:21:12",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:37",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:37",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:38",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:38",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:38",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:38",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:39",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:39",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:39",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:39",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:41",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:41",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:41",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:41",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:42",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:42",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:43",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:43",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:44",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:44",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:44",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:44",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:45",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:45",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:46",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:46",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:50",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:50",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:50",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:50",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:51",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:51",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:52",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:52",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:57",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:57",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:22:58",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "08:22:58",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:16:43",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:16:43",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:18:08",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:18:08",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:18:09",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:18:09",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:18:09",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:18:09",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:25:43",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:25:43",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:25:44",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:25:44",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:25:45",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:25:45",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:25:46",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:25:46",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:30:59",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:30:59",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:34:47",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:34:47",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "08:19:45",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "08:19:45",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "07:34:04",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "07:34:04",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "07:41:42",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "07:41:42",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "11:41:49",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "11:41:49",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "11:41:49",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "11:41:49",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "11:41:51",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "11:41:51",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "11:41:51",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "11:41:51",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "11:42:55",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "11:42:55",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "11:42:55",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "11:42:55",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "11:42:56",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "11:42:56",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "11:57:48",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "11:57:48",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "11:57:48",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "11:57:48",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "11:57:49",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "11:57:49",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:04:20",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:04:20",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:04:20",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:04:20",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:04:21",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:04:21",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:15:11",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:15:11",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:15:12",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:15:12",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:15:12",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:15:12",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:17:34",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:17:34",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:17:35",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:17:35",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:17:35",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:17:35",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:22:16",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:22:16",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:22:16",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:22:16",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:22:17",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:22:17",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:23:41",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:23:41",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:23:41",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:23:41",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:23:43",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:23:43",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:23:43",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:23:43",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:26:10",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:26:10",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:26:10",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:26:10",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:26:11",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:26:11",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:26:48",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:26:48",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:26:48",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:26:48",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:26:49",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:26:49",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:27:37",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:27:37",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:27:37",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:27:37",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:27:38",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:27:38",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:31:27",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:31:27",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:31:28",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:31:28",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:31:28",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:31:28",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:56:57",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:56:57",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:56:57",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "12:56:57",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "12:56:58",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "12:56:58",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:05:41",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:05:41",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:05:42",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:05:42",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:05:42",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:05:42",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:06:48",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:06:48",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:06:48",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:06:48",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:06:49",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:06:49",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:11:47",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:11:47",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:11:47",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:11:47",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:11:49",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:11:49",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:11:49",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:11:49",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:13:42",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:13:42",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:13:43",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:13:43",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:13:43",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:13:43",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:14:55",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:14:55",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:14:56",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:14:56",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:14:56",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:14:56",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:15:39",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:15:39",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:15:40",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:15:40",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:15:40",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:15:40",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:23:18",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:23:18",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:23:19",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:23:19",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:23:19",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:23:19",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:36:13",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:36:13",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:36:14",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:36:14",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:36:14",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:36:14",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:38:20",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:38:20",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:38:20",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:38:20",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
-        "time": "13:38:21",
-        "text": "DESACTIVADA - Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:38:21",
-        "text": "NORMALIZADA: Setpoint temperatura",
-        "value": 36.0,
-        "level": "info"
-    },
-    {
-        "time": "13:39:04",
-        "text": "ACTIVADA - Setpoint temperatura",
-        "value": 0.0,
-        "level": "info"
-    },
-    {
-        "time": "13:39:04",
-        "text": "ACTIVADA: Setpoint temperatura",
-        "value": 0.0,
-        "level": "cian"
-    },
-    {
         "time": "13:39:05",
         "text": "ACTIVADA - Setpoint temperatura",
         "value": 0.0,
@@ -5995,6 +4669,1332 @@
     },
     {
         "time": "10:46:42",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:44",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:45",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:44",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:45",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:44",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:45",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:44",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:45",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:45",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:45",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:45",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:45",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:46",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:46",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:46",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:46",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:46",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:47",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:48",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:47",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:48",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:48",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:48",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:48",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:48",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:49",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:49",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:49",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:50",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:49",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:50",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:49",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:50",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:50",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:50",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:50",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:50",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:50",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:51",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:50",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:51",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:50",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:51",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:50",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:51",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:51",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:51",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:51",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:51",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:53",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:53",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:53",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:53",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:53",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:53",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:53",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:53",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:54",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:54",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:54",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:54",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:55",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:55",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:55",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:55",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:55",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:55",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:55",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:55",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:09:55",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:55",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:55",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:09:55",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:10:06",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:10:06",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:10:06",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:10:06",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:10:06",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:10:06",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:10:06",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:10:06",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:10:07",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:10:07",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:10:07",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:10:07",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:02",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:18:03",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:03",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:03",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:18:03",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:18",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:18",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:32:18",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:18",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:32:18",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:18",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:32:18",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:18",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "13:32:19",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:19",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:19",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "13:32:19",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:06",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:06",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:06",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:06",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:06",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:06",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:06",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:06",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:07",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:07",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:07",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:07",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:07",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:07",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:07",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:07",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:07",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:07",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:07",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:07",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:08",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:08",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:08",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:08",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:08",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:08",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:08",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:08",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:09",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:09",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:09",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:09",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:15",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:15",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:15",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:15",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:15",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:15",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:15",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:15",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:15",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:15",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:15",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:15",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:16",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:16",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:16",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:16",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:16",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:16",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:16",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:16",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:17",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:17",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:17",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:17",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:24",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:24",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:24",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:24",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:24",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:24",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:24",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:24",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:03:24",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:24",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:24",
+        "text": "DESACTIVADA - Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:03:24",
+        "text": "NORMALIZADA: Temperatura",
+        "value": 35.0,
+        "level": "info"
+    },
+    {
+        "time": "09:05:13",
+        "text": "Operador reconoci\u00f3 alarmas activas y silenci\u00f3 buzzer",
+        "value": null,
+        "level": "info"
+    },
+    {
+        "time": "09:14:37",
+        "text": "ACTIVADA - Conductividad",
+        "value": 15.48,
+        "level": "info"
+    },
+    {
+        "time": "09:14:37",
+        "text": "ACTIVADA: Conductividad",
+        "value": 15.48,
+        "level": "cian"
+    },
+    {
+        "time": "09:14:38",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:14:38",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:15:10",
+        "text": "ACTIVADA - Conductividad",
+        "value": 15.5,
+        "level": "info"
+    },
+    {
+        "time": "09:15:10",
+        "text": "ACTIVADA: Conductividad",
+        "value": 15.5,
+        "level": "cian"
+    },
+    {
+        "time": "09:15:11",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:15:11",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 15.0,
+        "level": "info"
+    },
+    {
+        "time": "09:19:56",
+        "text": "ACTIVADA - Conductividad",
+        "value": 12.9,
+        "level": "info"
+    },
+    {
+        "time": "09:19:56",
+        "text": "ACTIVADA: Conductividad",
+        "value": 12.9,
+        "level": "cian"
+    },
+    {
+        "time": "09:19:57",
+        "text": "DESACTIVADA - Conductividad",
+        "value": 13.0,
+        "level": "info"
+    },
+    {
+        "time": "09:19:57",
+        "text": "NORMALIZADA: Conductividad",
+        "value": 13.0,
+        "level": "info"
+    },
+    {
+        "time": "09:21:55",
+        "text": "ACTIVADA - Conductividad",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:21:55",
+        "text": "ACTIVADA: Conductividad",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:21:55",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:21:55",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:21:55",
+        "text": "ACTIVADA - Temperatura",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:21:55",
+        "text": "ACTIVADA: Temperatura",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:21:55",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:21:55",
+        "text": "ACTIVADA: Tanque de Agua Lleno",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:21:56",
+        "text": "ACTIVADA - Falla suministro agua",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:21:56",
+        "text": "ACTIVADA: Falla suministro agua",
+        "value": 0.0,
+        "level": "cian"
+    },
+    {
+        "time": "09:21:56",
+        "text": "ACTIVADA - FALTA AGUA",
+        "value": 0.0,
+        "level": "info"
+    },
+    {
+        "time": "09:21:56",
         "text": "ACTIVADA: Tanque de Agua Lleno",
         "value": 0.0,
         "level": "cian"

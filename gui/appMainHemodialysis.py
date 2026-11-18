@@ -45,7 +45,7 @@ Esta clase se instancia desde archivo `main.py`:
     sys.exit(app.exec())
 
 Author: Miguel de Jesus C. Espinoza Calderón
-Version: 2.30.3
+Version: 2.30.4
 """
 
 
@@ -1665,6 +1665,79 @@ class HemodialysisHMI(QMainWindow):
         
         # Default a 1.0 ml/h si no se puede obtener
         return 1.0
+    
+    def _validate_heparin_on_therapy_time_change(self, new_total_seconds: float):
+        """
+        Valida un cambio de duración de terapia mientras está RUNNING o PAUSED.
+        
+        Reglas:
+        1. Si therapy_records_closed, rechaza el cambio (terapia en bypass).
+        2. El nuevo total DEBE ser > que el tiempo ya transcurrido.
+        3. Si infusión está deshabilitada, no hace nada.
+        4. Si infusión está habilitada, valida la regla de últimos 30 minutos sobre el tiempo restante REAL.
+        
+        Retorna True si es válido, False si debe rechazarse.
+        """
+        # Si therapy_records_closed, rechazar
+        if getattr(self, 'therapy_records_closed', False):
+            msg = "La terapia ya está en bypass. No se puede modificar la duración."
+            self.show_warning_message(msg, 4000)
+            logger.warning(f"[THERAPY-TIME-CHANGE] Rechazado: therapy_records_closed activa")
+            return False
+        
+        # Obtener tiempo transcurrido
+        elapsed_sec = self.get_elapsed_seconds()
+        
+        # Validar que nuevo total > transcurrido
+        if new_total_seconds <= elapsed_sec:
+            msg = "El tiempo debe ser mayor al ya transcurrido."
+            self.show_warning_message(msg, 4000)
+            logger.warning(
+                f"[THERAPY-TIME-CHANGE] Rechazado: nuevo total {new_total_seconds}s "
+                f"<= transcurrido {elapsed_sec}s"
+            )
+            return False
+        
+        # Si infusión deshabilitada, aceptar sin validar heparina
+        heparin_enabled = bool(self.current_values.get("heparineInfusionEnabled", 1.0))
+        if not heparin_enabled:
+            logger.info("[THERAPY-TIME-CHANGE] Infusión deshabilitada, sin validación heparina")
+            return True
+        
+        # Infusión habilitada: validar últimos 30 minutos sobre TIEMPO RESTANTE REAL
+        try:
+            # Tiempo restante real = total_therapy_seconds - elapsed_seconds
+            remaining_real_sec = new_total_seconds - elapsed_sec
+            remaining_real_min = remaining_real_sec / 60.0
+            
+            # Tiempos de heparina programados
+            hep_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+            hep_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+            hep_total_min = (hep_h * 60) + hep_m
+            
+            # Máximo permitido: restante real - 30 minutos
+            max_hep_min = max(0, remaining_real_min - 30)
+            
+            if hep_total_min > max_hep_min:
+                msg = (
+                    f"Tiempo de heparina ({hep_h:02d}:{hep_m:02d}) excede el máximo "
+                    f"permitido ({int(max_hep_min // 60):02d}:{int(max_hep_min % 60):02d}) "
+                    "para esta duración de terapia."
+                )
+                self.show_warning_message(msg, 5000)
+                logger.warning(
+                    f"[THERAPY-TIME-CHANGE] Rechazado: heparina {hep_total_min}min > máximo {max_hep_min}min"
+                )
+                return False
+            
+            logger.info(
+                f"[THERAPY-TIME-CHANGE] Validación OK: heparina {hep_total_min}min <= máximo {max_hep_min}min"
+            )
+            return True
+            
+        except Exception as e:
+            logger.error(f"[THERAPY-TIME-CHANGE] Error validando heparina: {e}", exc_info=True)
+            return False
     
     def _apply_heparin_auto_trim_on_running(self):
         """
@@ -3933,24 +4006,82 @@ class HemodialysisHMI(QMainWindow):
         No lanza excepciones.
         """
         if tag in LOCAL_SETPOINT_TAGS:
-            self.current_values[tag] = float(value)
-            self._persist_therapy_config_tag(tag, float(value))
-            
             # Detectar cambio de tiempo de terapia y actualizar displays
             if tag in ("heparineTherapyHours", "heparineTherapyMinutes"):
+                # Si está RUNNING o PAUSED, aplicar lógica especial
+                if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+                    # Rechazar si ya se cerraron registros (bypass/timeout)
+                    if self.treatment_controller.therapy_records_closed:
+                        logger.warning("[THERAPY-TIME] Cambio rechazado: registros ya cerrados por timeout")
+                        self.show_error_message("No se puede cambiar tiempo: terapia en bypass", 4000)
+                        return False
+                    
+                    # Guardar valor anterior
+                    old_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+                    old_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+                    old_total_seconds = (old_h * 60 + old_m) * 60
+                    
+                    # Calcular nuevo total
+                    if tag == "heparineTherapyHours":
+                        new_h = int(value)
+                        new_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
+                    else:  # heparineTherapyMinutes
+                        new_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
+                        new_m = int(value)
+                    
+                    new_total_seconds = (new_h * 60 + new_m) * 60
+                    
+                    # Validar que sea mayor que el transcurrido
+                    elapsed_seconds = self.treatment_controller.get_elapsed_seconds()
+                    if new_total_seconds <= elapsed_seconds:
+                        logger.warning(
+                            f"[THERAPY-TIME] Cambio rechazado: nuevo total ({new_total_seconds}s) "
+                            f"<= transcurrido ({elapsed_seconds}s)"
+                        )
+                        self.show_error_message("El tiempo debe ser mayor al ya transcurrido.", 4000)
+                        return False
+                    
+                    # Es válido: actualizar
+                    self.current_values["heparineTherapyHours"] = float(new_h)
+                    self.current_values["heparineTherapyMinutes"] = float(new_m)
+                    self._persist_therapy_config_tag("heparineTherapyHours", float(new_h))
+                    self._persist_therapy_config_tag("heparineTherapyMinutes", float(new_m))
+                    
+                    # Actualizar total_therapy_seconds
+                    self.treatment_controller.total_therapy_seconds = new_total_seconds
+                    
+                    logger.info(
+                        f"[THERAPY-TIME-RUNNING] Cambio válido: {old_h:02d}:{old_m:02d} → {new_h:02d}:{new_m:02d} "
+                        f"({elapsed_seconds}s transcurrido, nuevo total {new_total_seconds}s)"
+                    )
+                    
+                    # Actualizar displays
+                    self._update_therapy_time_displays()
+                    
+                    # Validar heparina solo si infusión está encendida
+                    heparin_enabled = bool(self.current_values.get("heparineInfusionEnabled", 1.0))
+                    if heparin_enabled:
+                        # Pasar el nuevo total (no el restante)
+                        self._validate_heparin_on_therapy_time_change(new_total_seconds)
+
+                    
+                    return False  # No escribir al serial
+                
+                # No está RUNNING/PAUSED: lógica normal
+                self.current_values["heparineTherapyHours"] = float(value) if tag == "heparineTherapyHours" else int(self.current_values.get("heparineTherapyHours", 0))
+                self.current_values["heparineTherapyMinutes"] = float(value) if tag == "heparineTherapyMinutes" else int(self.current_values.get("heparineTherapyMinutes", 0))
+                self._persist_therapy_config_tag("heparineTherapyHours", self.current_values.get("heparineTherapyHours", 0.0))
+                self._persist_therapy_config_tag("heparineTherapyMinutes", self.current_values.get("heparineTherapyMinutes", 0.0))
+                
                 hours = int(self.current_values.get("heparineTherapyHours", 0))
                 minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
                 total_min = (hours * 60) + minutes
-                
-                # Si no está RUNNING, puede cambiar el total de terapia
-                if self.state.current_phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
-                    self.treatment_controller.total_therapy_seconds = total_min * 60
+                self.treatment_controller.total_therapy_seconds = total_min * 60
                 
                 # Actualizar displays inmediatamente
                 self._update_therapy_time_displays()
                 
                 # Validar y acotar el tiempo de heparina solo si NO es limpieza
-                # (limpieza usa heparineTherapyHours/Minutes como temporizador del ciclo, no como terapia)
                 current_phase = self.state.current_phase if hasattr(self, 'state') and self.state else None
                 treatment_mode = safe_int(self.current_values.get("treatmentModeSelection", 0), 0)
                 
@@ -3958,9 +4089,10 @@ class HemodialysisHMI(QMainWindow):
                     self._validate_and_clamp_heparin_auto_stop_time()
                 
                 logger.info(f"[THERAPY-TIME] set_min={total_min} remaining={hours:02d}:{minutes:02d}:00 source=config")
+                return False  # Local tags no se escriben al serial
             
-            logger.info(f"SETPOINT [LOCAL]: {tag} = {value}")
-            return False  # Local tags no se escriben al serial
+            self.current_values[tag] = float(value)
+            self._persist_therapy_config_tag(tag, float(value))
 
         if not self.serial_comm or not self.serial_comm.is_connected:
             logger.warning(f"No se puede escribir setpoint '{tag}': serial desconectado")
