@@ -129,7 +129,7 @@ class TreatmentController:
         
         # Mostrar mensaje diferente si es por timeout o por botón
         if self.bypass_pause_sent:  # Se pausó por timeout en bypass
-            self.main.show_info_message("Terapia finalizada")
+            self.main.show_operator_message("Terapia finalizada", level="warning", timeout_ms=8000)
             # NO apagar therapy_finished_by_time: mantenerla para UI
         else:  # Se pausó por botón
             self.main.show_info_message("Terapia en pausa")
